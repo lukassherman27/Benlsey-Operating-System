@@ -25,7 +25,6 @@ numpy==1.26.2
 python-dateutil==2.8.2
 
 # Email & Communication
-python-email==0.6.0
 aiosmtplib==3.0.1
 
 # Utilities
