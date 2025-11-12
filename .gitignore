@@ -79,11 +79,29 @@ build/
 .dockerignore
 *.dockerfile.swp
 
-# Data files
-/data/
+# Data files - track structure but not actual project files
+/data/**/01_CONTRACT/*
+/data/**/02_INVOICING/*.pdf
+/data/**/03_DESIGN/**/*
+/data/**/04_SCHEDULING/*
+/data/**/05_CORRESPONDENCE/**/*
+/data/**/06_SUBMISSIONS/*
+/data/**/07_RFIS/*
+/data/**/08_MEETINGS/*
+/data/**/09_PHOTOS/*
+/data/07_EMAILS/**/*
+
+# But keep structure and metadata
+!/data/**/metadata.json
+!/data/**/billing_schedule.json
+!/data/README.md
+
 *.csv
 *.xlsx
 *.xls
+*.pdf
+*.dwg
+*.cad
 
 # Credentials
 credentials.json

@@ -1,0 +1,80 @@
+{
+  "date": "2024-11-12",
+  "project_code": "BK-001",
+  "reports": [
+    {
+      "staff_name": "Designer 1",
+      "email_from": "designer1@bensley.com",
+      "email_to": ["bill@bensley.com", "brian@bensley.com"],
+      "time_submitted": "17:30",
+      "work_completed": [
+        {
+          "task": "Villa south facade elevation",
+          "description": "Completed detailed elevation drawing for south facade including all window details and material specifications",
+          "hours_spent": 7.5,
+          "status": "completed",
+          "photos": [
+            "photos/2024-11-12_designer1_south_facade_01.jpg",
+            "photos/2024-11-12_designer1_south_facade_02.jpg",
+            "photos/2024-11-12_designer1_south_facade_detail.jpg"
+          ],
+          "files_created": [
+            "drawings/BK-001_South_Facade_R03.dwg"
+          ]
+        },
+        {
+          "task": "Window detail sections",
+          "description": "Started detail sections for custom windows - 60% complete",
+          "hours_spent": 1.5,
+          "status": "in_progress",
+          "photos": []
+        }
+      ],
+      "issues_encountered": [
+        "Need clarification on window frame material from client"
+      ],
+      "tomorrow_plan": "Complete window sections and start north facade",
+      "total_hours": 9.0
+    },
+    {
+      "staff_name": "Designer 2",
+      "email_from": "designer2@bensley.com",
+      "email_to": ["bill@bensley.com", "brian@bensley.com"],
+      "time_submitted": "18:00",
+      "work_completed": [
+        {
+          "task": "Master suite interior layouts",
+          "description": "Completed furniture layout and material selections for master bedroom and bathroom",
+          "hours_spent": 6.0,
+          "status": "completed",
+          "photos": [
+            "photos/2024-11-12_designer2_master_suite_01.jpg",
+            "photos/2024-11-12_designer2_bathroom_02.jpg"
+          ],
+          "files_created": [
+            "drawings/BK-001_Master_Suite_Plan_R02.dwg"
+          ]
+        },
+        {
+          "task": "Material samples coordination",
+          "description": "Organized material samples for client presentation",
+          "hours_spent": 2.0,
+          "status": "completed",
+          "photos": [
+            "photos/2024-11-12_designer2_materials.jpg"
+          ]
+        }
+      ],
+      "issues_encountered": [],
+      "tomorrow_plan": "Start bathroom detail drawings",
+      "total_hours": 8.0
+    }
+  ],
+  "summary": {
+    "total_staff_reporting": 2,
+    "total_hours_logged": 17.0,
+    "total_photos_attached": 6,
+    "tasks_completed": 3,
+    "tasks_in_progress": 1
+  }
+}
