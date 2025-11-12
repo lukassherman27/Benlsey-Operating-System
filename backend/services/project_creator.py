@@ -17,10 +17,11 @@ load_dotenv()
 class ProjectCreator:
     def __init__(self):
         self.base_path = Path("/home/user/Benlsey-Operating-System/data")
-        self.db_path = os.getenv('DATABASE_PATH')
+        self.db_path = os.getenv('DATABASE_PATH') or str(self.base_path.parent / "database" / "bensley_master.db")
+        self.data_root = self.base_path.parent
 
     def create_project(self, project_code, project_name, client_name, operator_name=None,
-                      contract_value=0, status='active'):
+                      contract_value=0, status='active', start_date=None, completion_target=None):
         """Create new project with full structure"""
 
         # Create folder name
@@ -39,6 +40,11 @@ class ProjectCreator:
             base_folder = self.base_path / "04_ACTIVE_PROJECTS"
 
         project_path = base_folder / folder_name
+
+        # Check if project already exists
+        if project_path.exists():
+            print(f"⚠️  Project already exists: {project_code}")
+            return None
 
         print(f"\n🏗️  Creating project: {project_code}")
         print(f"   Path: {project_path}")
@@ -76,8 +82,8 @@ class ProjectCreator:
             "client": client_name,
             "operator": operator_name,
             "contract_value": contract_value,
-            "start_date": datetime.now().strftime("%Y-%m-%d"),
-            "completion_target": None,
+            "start_date": start_date or datetime.now().strftime("%Y-%m-%d"),
+            "completion_target": completion_target,
             "current_phase": "Initiation",
             "team_lead": None,
             "status": status,
