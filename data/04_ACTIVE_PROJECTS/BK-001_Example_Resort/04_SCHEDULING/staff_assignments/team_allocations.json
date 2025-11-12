@@ -1,0 +1,52 @@
+{
+  "project_code": "BK-001",
+  "project_name": "Example Luxury Resort",
+  "team": [
+    {
+      "name": "Bill Bensley",
+      "role": "Design Director",
+      "discipline": "architecture",
+      "allocation_percent": 20,
+      "start_date": "2024-01-01",
+      "end_date": "2025-12-31"
+    },
+    {
+      "name": "Brian",
+      "role": "Project Lead - Interiors",
+      "discipline": "interiors",
+      "allocation_percent": 60,
+      "start_date": "2024-01-01",
+      "end_date": "2025-12-31"
+    },
+    {
+      "name": "Landscape Lead",
+      "role": "Landscape Architect",
+      "discipline": "landscape",
+      "allocation_percent": 50,
+      "start_date": "2024-03-01",
+      "end_date": "2025-06-30"
+    },
+    {
+      "name": "Designer 1",
+      "role": "Senior Designer",
+      "discipline": "architecture",
+      "allocation_percent": 80,
+      "start_date": "2024-01-15",
+      "end_date": "2025-12-31"
+    },
+    {
+      "name": "Designer 2",
+      "role": "Designer",
+      "discipline": "interiors",
+      "allocation_percent": 100,
+      "start_date": "2024-02-01",
+      "end_date": "2025-12-31"
+    }
+  ],
+  "total_staff": 5,
+  "disciplines": {
+    "architecture": 2,
+    "interiors": 2,
+    "landscape": 1
+  }
+}
