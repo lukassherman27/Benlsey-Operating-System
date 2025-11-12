@@ -1,0 +1,50 @@
+{
+  "project_code": "BK-001",
+  "total_contract_value": 2500000,
+  "paid_to_date": 1500000,
+  "outstanding": 1000000,
+  "payment_schedule": [
+    {
+      "phase": "Contract Signing",
+      "amount": 500000,
+      "due_date": "2024-01-15",
+      "invoice_number": "INV-2024-001",
+      "paid_date": "2024-01-20",
+      "status": "paid"
+    },
+    {
+      "phase": "Schematic Design",
+      "amount": 500000,
+      "due_date": "2024-03-01",
+      "invoice_number": "INV-2024-002",
+      "paid_date": "2024-03-15",
+      "status": "paid"
+    },
+    {
+      "phase": "Design Development",
+      "amount": 500000,
+      "due_date": "2024-06-01",
+      "invoice_number": "INV-2024-003",
+      "paid_date": "2024-06-10",
+      "status": "paid"
+    },
+    {
+      "phase": "Construction Documents",
+      "amount": 500000,
+      "due_date": "2024-09-01",
+      "invoice_number": "INV-2024-004",
+      "paid_date": null,
+      "status": "sent"
+    },
+    {
+      "phase": "Construction Administration",
+      "amount": 500000,
+      "due_date": "2025-01-01",
+      "invoice_number": null,
+      "paid_date": null,
+      "status": "pending"
+    }
+  ],
+  "next_invoice_date": "2024-12-01",
+  "notes": "Net 30 payment terms"
+}
