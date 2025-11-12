@@ -1,0 +1,118 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual Environment
+venv/
+env/
+ENV/
+.venv
+
+# Environment Variables
+.env
+.env.local
+.env.*.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Logs
+*.log
+logs/
+*.log.*
+
+# Database
+*.db
+*.db-journal
+*.sqlite
+*.sqlite3
+
+# Backups
+*.backup
+*.bak
+*.old
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.hypothesis/
+
+# Node.js (for frontend/n8n)
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.npm
+.yarn
+
+# Next.js
+.next/
+out/
+build/
+
+# Docker
+.dockerignore
+*.dockerfile.swp
+
+# Data files
+/data/
+*.csv
+*.xlsx
+*.xls
+
+# Credentials
+credentials.json
+service-account.json
+*.pem
+*.key
+
+# OS
+Thumbs.db
+.Trashes
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# n8n
+.n8n/
+n8n-local.json
+
+# Neo4j
+neo4j/
+
+# Redis
+dump.rdb
+
+# Jupyter Notebooks
+.ipynb_checkpoints/
+*.ipynb
+
+# Pytest
+.pytest_cache/
