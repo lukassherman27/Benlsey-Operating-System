@@ -1,0 +1,49 @@
+{
+  "project_code": "BK-001",
+  "week_starting": "2024-11-11",
+  "planned_work": [
+    {
+      "staff_name": "Designer 1",
+      "monday": {
+        "task": "Villa elevations - South facade",
+        "estimated_hours": 8,
+        "priority": "high"
+      },
+      "tuesday": {
+        "task": "Villa elevations - North facade",
+        "estimated_hours": 8,
+        "priority": "high"
+      },
+      "wednesday": {
+        "task": "Detail drawings - window sections",
+        "estimated_hours": 6,
+        "priority": "medium"
+      },
+      "thursday": {
+        "task": "Client presentation preparation",
+        "estimated_hours": 4,
+        "priority": "high"
+      },
+      "friday": {
+        "task": "Revisions from review meeting",
+        "estimated_hours": 8,
+        "priority": "medium"
+      }
+    },
+    {
+      "staff_name": "Designer 2",
+      "monday": {
+        "task": "Master suite interior layouts",
+        "estimated_hours": 8,
+        "priority": "high"
+      },
+      "tuesday": {
+        "task": "Bathroom detail drawings",
+        "estimated_hours": 8,
+        "priority": "medium"
+      }
+    }
+  ],
+  "assigned_by": "Project Manager",
+  "notes": "Focus on south facade for client presentation Friday"
+}
