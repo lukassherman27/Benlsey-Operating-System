@@ -58,6 +58,18 @@ class ProposalsImporter:
     def create_proposals_table(self):
         """Create proposals table if it doesn't exist"""
         try:
+            # Check if table exists with old schema
+            self.cursor.execute("SELECT sql FROM sqlite_master WHERE type='table' AND name='proposals'")
+            result = self.cursor.fetchone()
+
+            if result:
+                schema = result[0]
+                # If old schema missing columns, drop and recreate
+                if 'client_company' not in schema:
+                    print("⚠️  Old proposals table schema detected - recreating...")
+                    self.cursor.execute("DROP TABLE IF EXISTS proposals")
+                    self.conn.commit()
+
             self.cursor.execute("""
                 CREATE TABLE IF NOT EXISTS proposals (
                     proposal_id INTEGER PRIMARY KEY,
@@ -76,6 +88,7 @@ class ProposalsImporter:
                     updated_at TEXT
                 )
             """)
+            self.conn.commit()
             print("✓ Proposals table ready")
         except Exception as e:
             print(f"✗ Error creating table: {e}")
