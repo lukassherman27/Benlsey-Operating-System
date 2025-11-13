@@ -127,21 +127,60 @@ class EmailContentProcessor:
 
         return clean_body, quoted_text
 
-    def categorize_email_ai(self, subject, body):
-        """Use AI to categorize email"""
+    def categorize_email_ai(self, subject, body, proposal_context=None):
+        """Use AI to categorize email with proposal/project context"""
         if not self.ai_enabled:
             return "general", 0.5
 
-        prompt = f"""Categorize this Bensley Design Studios email into ONE category:
+        # Build context string
+        context = ""
+        if proposal_context:
+            is_active = proposal_context.get('is_active_project', 0)
+            project_name = proposal_context.get('project_name', '')
+            status = proposal_context.get('status', 'proposal')
 
+            if is_active:
+                context = f"""
+PROJECT CONTEXT: This is an ACTIVE PROJECT (contract signed) - {project_name}
+Status: {status}
+"""
+            else:
+                context = f"""
+PROJECT CONTEXT: This is a PROPOSAL (not yet won) - {project_name}
+Status: {status} (pre-contract)
+"""
+
+        prompt = f"""Categorize this Bensley Design Studios email into ONE category:
+{context}
 Categories:
-- contract: Contract negotiations, terms, legal discussions
-- invoice: Invoicing, payments, financial transactions
-- design: Design reviews, creative discussions, drawings
-- rfi: Request for information, questions needing answers
-- schedule: Timelines, deadlines, staff schedules, daily reports
-- meeting: Meeting invitations, minutes, discussions
-- general: General correspondence, updates, small talk
+- contract: Legal agreements, NDAs, MOUs, signed contracts, contract terms/negotiations
+  * For PROPOSALS: Contract discussion, terms being negotiated
+  * For ACTIVE PROJECTS: Amendments, change orders, legal matters
+
+- invoice: Payment-related emails, invoices, receipts, billing
+  * Usually only applies to ACTIVE PROJECTS (with signed contracts)
+
+- design: Design discussions, creative direction, concept reviews
+  * For PROPOSALS: General design ideas, exploring concepts, brainstorming
+  * For ACTIVE PROJECTS: Formal design reviews, drawing submissions, revisions
+
+- rfi: Requests for information, questions needing formal responses
+  * Usually only applies to ACTIVE PROJECTS (construction phase)
+  * For PROPOSALS: Use "general" instead
+
+- schedule: Construction schedules, project timelines, milestone dates, daily reports
+  * Usually only applies to ACTIVE PROJECTS
+  * For PROPOSALS: Timeline discussions should be "general"
+
+- meeting: Meeting invitations, agendas, meeting notes, action items
+
+- general: General correspondence, updates, check-ins, exploratory discussions
+  * For PROPOSALS: Most correspondence is "general" until contract signed
+  * Includes: introductions, scope discussions, fee discussions, follow-ups
+
+IMPORTANT:
+- For PROPOSALS (pre-contract), most emails are "general" unless specifically contract/meeting/invoice
+- For ACTIVE PROJECTS, be more specific with design/rfi/schedule categories
 
 Subject: {subject}
 Body: {body[:500]}
@@ -298,7 +337,7 @@ Focus on: What action, decision, or key information does this contain?
         except Exception as e:
             pass  # Non-critical
 
-    def process_email(self, email_id, subject, body):
+    def process_email(self, email_id, subject, body, proposal_context=None):
         """Process a single email"""
         try:
             # Check if already processed
@@ -313,8 +352,8 @@ Focus on: What action, decision, or key information does this contain?
             clean_body, quoted_text = self.clean_email_body(body)
             self.stats['cleaned'] += 1
 
-            # Categorize
-            category, confidence = self.categorize_email_ai(subject, clean_body)
+            # Categorize with proposal context
+            category, confidence = self.categorize_email_ai(subject, clean_body, proposal_context)
             self.stats['categorized'] += 1
 
             # Extract entities
@@ -361,11 +400,18 @@ Focus on: What action, decision, or key information does this contain?
         print(f"Database: {self.db_path}")
         print(f"AI Enabled: {'✓' if self.ai_enabled else '✗'}")
 
-        # Get linked emails that haven't been processed
+        # Get linked emails with proposal context
         query = """
-            SELECT DISTINCT e.email_id, e.subject, e.body_preview
+            SELECT DISTINCT
+                e.email_id,
+                e.subject,
+                e.body_preview,
+                p.project_name,
+                p.status,
+                COALESCE(p.is_active_project, 0) as is_active_project
             FROM emails e
             JOIN email_proposal_links epl ON e.email_id = epl.email_id
+            JOIN proposals p ON epl.proposal_id = p.proposal_id
             WHERE e.email_id NOT IN (SELECT email_id FROM email_content)
             ORDER BY e.created_at DESC
         """
@@ -386,7 +432,19 @@ Focus on: What action, decision, or key information does this contain?
             if i % 5 == 0:
                 print(f"  [{i}/{len(emails)}] Processed...")
 
-            self.process_email(email['email_id'], email['subject'], email['body_preview'])
+            # Build proposal context
+            proposal_context = {
+                'project_name': email['project_name'],
+                'status': email['status'],
+                'is_active_project': email['is_active_project']
+            }
+
+            self.process_email(
+                email['email_id'],
+                email['subject'],
+                email['body_preview'],
+                proposal_context
+            )
 
         self.print_summary()
 
