@@ -51,7 +51,7 @@ class CategoryVerifier:
                 AND td.input_data LIKE '%' || e.subject || '%'
                 AND td.human_verified = 1
             )
-            WHERE td.data_id IS NULL
+            WHERE td.training_id IS NULL
             ORDER BY ec.importance_score DESC, e.date DESC
         """
 
@@ -155,9 +155,16 @@ class CategoryVerifier:
 
     def save_verification(self, email, human_category):
         """Save human verification to training_data"""
+        # Ensure feedback column exists
+        try:
+            self.cursor.execute("ALTER TABLE training_data ADD COLUMN feedback TEXT")
+            self.conn.commit()
+        except:
+            pass  # Column already exists
+
         # Find the corresponding training_data entry
         self.cursor.execute("""
-            SELECT data_id FROM training_data
+            SELECT training_id FROM training_data
             WHERE task_type = 'categorize_email'
               AND input_data LIKE '%' || ? || '%'
             ORDER BY created_at DESC
@@ -172,8 +179,8 @@ class CategoryVerifier:
                 UPDATE training_data
                 SET human_verified = 1,
                     feedback = ?
-                WHERE data_id = ?
-            """, (human_category, result['data_id']))
+                WHERE training_id = ?
+            """, (human_category, result['training_id']))
         else:
             # Create new training data entry
             self.cursor.execute("""
