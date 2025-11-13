@@ -75,8 +75,9 @@ class CategoryVerifier:
         print(f"Subject: {email['subject']}")
         print(f"\nBody Preview:")
         print("-" * 80)
-        print(email['body_preview'][:400])
-        if len(email['body_preview']) > 400:
+        body = email['body_preview'] or "[No body content]"
+        print(body[:400])
+        if len(body) > 400:
             print("... (truncated)")
         print("-" * 80)
 
