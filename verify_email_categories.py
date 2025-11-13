@@ -184,6 +184,7 @@ class CategoryVerifier:
             """, (human_category, result['training_id']))
         else:
             # Create new training data entry
+            body = email['body_preview'] or "[No body content]"
             self.cursor.execute("""
                 INSERT INTO training_data
                 (task_type, input_data, output_data, model_used,
@@ -191,7 +192,7 @@ class CategoryVerifier:
                 VALUES (?, ?, ?, ?, ?, ?, ?)
             """, (
                 'categorize_email',
-                f"Subject: {email['subject']}\nBody: {email['body_preview'][:500]}",
+                f"Subject: {email['subject']}\nBody: {body[:500]}",
                 email['ai_category'],
                 'gpt-3.5-turbo',
                 0.8,
