@@ -275,8 +275,22 @@ class SmartEmailMatcher:
         return best_match, best_score, best_reasons
 
     def create_tables(self):
-        """Create emails tables"""
+        """Create emails tables with schema migration"""
         try:
+            # Check if emails table exists and has correct schema
+            self.cursor.execute("SELECT sql FROM sqlite_master WHERE type='table' AND name='emails'")
+            result = self.cursor.fetchone()
+
+            if result:
+                schema = result[0]
+                # Check for missing folder column
+                if 'folder TEXT' not in schema:
+                    print("⚠️  Old emails table schema detected - adding folder column...")
+                    self.cursor.execute("ALTER TABLE emails ADD COLUMN folder TEXT")
+                    self.conn.commit()
+                    print("✓ Schema updated")
+
+            # Create tables if they don't exist
             self.cursor.execute("""
                 CREATE TABLE IF NOT EXISTS emails (
                     email_id INTEGER PRIMARY KEY AUTOINCREMENT,
