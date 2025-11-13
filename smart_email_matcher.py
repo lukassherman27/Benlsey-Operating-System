@@ -157,40 +157,45 @@ class SmartEmailMatcher:
         reasons = []
 
         from_email = self.extract_email_address(email_from)
+        to_emails = [self.extract_email_address(e) for e in email_to.split(',')]
+        is_internal = self.is_internal_email(from_email)
 
-        # Skip internal emails for contact matching
-        if self.is_internal_email(from_email):
-            reasons.append("Internal email (not counted as contact)")
-
-        # 1. Check learned contact relationships (weight: 60%)
-        if from_email in self.contact_cache and not self.is_internal_email(from_email):
+        # 1. Check learned contact relationships (weight: 40% boost)
+        if from_email in self.contact_cache and not is_internal:
             contact = self.contact_cache[from_email]
             for proj in contact['projects']:
                 if proj['proposal_id'] == proposal['proposal_id']:
-                    weight = min(proj['email_count'] / 10.0, 0.6)  # Max 60%, scales with email count
+                    weight = min(proj['email_count'] / 10.0, 0.4)  # Max 40%, scales with email count
                     scores.append(weight)
                     reasons.append(f"Known contact: {contact['name']} ({proj['email_count']} emails)")
                     break
 
-        # 2. Project name in subject (weight: 40%)
+        # 2. Basic contact email match from proposal (weight: 40%)
+        if proposal['contact_email'] and not is_internal:
+            contact_email = proposal['contact_email'].lower()
+            if from_email == contact_email or contact_email in to_emails:
+                scores.append(0.4)
+                reasons.append(f"Contact email match: {contact_email}")
+
+        # 3. Project name in subject (weight: 50%)
         if proposal['project_name']:
             subject_match = self.similarity(email_subject, proposal['project_name'])
             if subject_match > 0.5:
-                scores.append(subject_match * 0.4)
+                scores.append(subject_match * 0.5)
                 reasons.append(f"Project name match: {subject_match*100:.0f}%")
 
-        # 3. Client company mention (weight: 30%)
+        # 4. Client company mention (weight: 30%)
         if proposal['client_company']:
             company = proposal['client_company'].lower()
             if company in email_subject.lower() or company in email_from.lower():
                 scores.append(0.3)
                 reasons.append(f"Client company: {proposal['client_company']}")
 
-        # 4. Project code in subject (weight: 50%)
+        # 5. Project code in subject (weight: 40%)
         if proposal['project_code']:
             code = proposal['project_code']
             if code in email_subject or code.replace('-', '') in email_subject:
-                scores.append(0.5)
+                scores.append(0.4)
                 reasons.append(f"Project code: {code}")
 
         # Calculate total
