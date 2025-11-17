@@ -1,504 +1,359 @@
-# 🚀 GETTING STARTED - Your First 3 Days
+# Getting Started with Bensley Intelligence Platform
 
-This guide will take you from where you are now to a working API in 3 days.
+Welcome! This guide will get you up and running in 10 minutes.
+
+## Quick Start (Easiest Way)
+
+### 1. Clone the Repository
+
+```bash
+# On your computer, navigate to where you want the project
+cd C:\Users\YourName\OneDrive\Bensley  # or wherever you want it
+
+# Clone from GitHub
+git clone https://github.com/lukassherman27/Benlsey-Operating-System.git
+cd Benlsey-Operating-System
+```
+
+### 2. Run the Quick Start Script
+
+```bash
+# This does everything: installs dependencies, sets up database, configures environment
+python quickstart.py
+```
+
+The script will ask you a few questions:
+- Email server credentials (tmail.bensley.com)
+- OpenAI API key (optional - can skip)
+- Whether to create an example project
+
+That's it! You're ready to go.
 
 ---
 
-## 🎯 TODAY (Day 1) - 2 Hours
+## What You Can Do Now
 
-### Step 1: Run the Setup Script (10 minutes)
-
-```bash
-# Make sure you're in the project directory
-cd ~/path/to/Benlsey-Operating-System
-
-# Run the setup script
-./setup.sh
-```
-
-This will:
-- Create Python virtual environment
-- Install all dependencies
-- Organize your code structure
-- Create .env file from template
-
-### Step 2: Configure Your Environment (15 minutes)
-
-Edit the `.env` file with your actual paths:
+### Import Existing Projects from Excel
 
 ```bash
-nano .env
+# Activate virtual environment first
+venv\Scripts\activate              # Windows
+source venv/bin/activate           # Mac/Linux
+
+# Import projects
+python backend/services/excel_importer.py --file "path/to/your/projects.xlsx"
 ```
 
-**REQUIRED changes:**
-```bash
-# Update this to your actual database path
-DATABASE_PATH=/Users/yourname/Desktop/BDS_SYSTEM/01_DATABASES/bensley_master.db
+Your Excel should have columns like:
+- Project Code (BK-001)
+- Project Name
+- Client Name (who pays)
+- Operator Name (hotel brand)
+- Contract Value
+- Status (active/proposal/completed)
 
-# Add your OpenAI key (get from https://platform.openai.com/api-keys)
-OPENAI_API_KEY=sk-your-actual-key-here
-```
-
-Save and exit (Ctrl+X, then Y, then Enter)
-
-### Step 3: Move Your Scripts (10 minutes)
-
-Your existing Python scripts need to be in `backend/core/`:
-
-```bash
-# They should have been moved by setup.sh, but verify:
-ls -la backend/core/
-
-# You should see:
-# - email_processor.py
-# - pattern_learner.py
-# - rfi_tracker.py
-# - proposal_status_tracker.py
-# - etc.
-```
-
-### Step 4: Test the API (15 minutes)
-
-Start the API server:
+### Organize Existing Files
 
 ```bash
-# Activate virtual environment if not already active
-source venv/bin/activate
+# Scan your old project folders and see where files should go
+python backend/services/file_organizer.py --scan "C:\Old_Projects" --dry-run
 
-# Start the server
-python3 backend/api/main.py
+# Actually organize them (copies by default)
+python backend/services/file_organizer.py --scan "C:\Old_Projects"
+
+# Or move instead of copy
+python backend/services/file_organizer.py --scan "C:\Old_Projects" --move
 ```
 
-You should see:
-```
-    ╔══════════════════════════════════════════════════════════╗
-    ║   Bensley Intelligence Platform API                      ║
-    ╚══════════════════════════════════════════════════════════╝
+The tool will:
+- Find project codes in filenames (BK-001, BK-123, etc.)
+- Identify file types (contracts, invoices, drawings, photos)
+- Put them in the right folders automatically
 
-    🚀 Starting server...
-    📡 API:  http://localhost:8000
-    📚 Docs: http://localhost:8000/docs
-```
-
-### Step 5: Explore the API (30 minutes)
-
-Open your browser to: **http://localhost:8000/docs**
-
-This is the **Swagger UI** - an interactive API documentation.
-
-Try these endpoints:
-
-1. **GET /health** - Check if everything is connected
-2. **GET /metrics** - See your business metrics
-3. **GET /projects** - List all projects
-4. **GET /projects/BK-001** - Get details for a specific project (use your actual project code)
-
-### Step 6: Test with curl (15 minutes)
-
-From another terminal:
+### Sync Emails from tmail
 
 ```bash
-# Check health
-curl http://localhost:8000/health
+# Download all emails and attachments
+python backend/services/email_importer.py
 
-# Get metrics
-curl http://localhost:8000/metrics
-
-# List projects
-curl http://localhost:8000/projects
-
-# Get specific project
-curl http://localhost:8000/projects/BK-001
+# Or just new emails since last sync
+python backend/services/email_importer.py --incremental
 ```
 
-### Step 7: Review What You Built (15 minutes)
+Emails go to: `data/07_EMAILS/`
+- raw/ - Original email files
+- processed/ - Extracted data
+- attachments/ - All attachments
 
-You now have:
-- ✅ REST API serving your data
-- ✅ Interactive documentation
-- ✅ Real-time metrics endpoint
-- ✅ Project and email queries
-- ✅ Foundation for automation
+### Create New Projects
 
-**🎉 Day 1 Complete!**
+```bash
+# Interactive mode - it will ask you for details
+python backend/services/project_creator.py
+```
+
+This creates the complete folder structure:
+```
+data/04_ACTIVE_PROJECTS/BK-XXX_Project_Name/
+├── 01_CONTRACT/
+├── 02_INVOICING/
+├── 03_DESIGN/
+├── 04_SCHEDULING/
+│   ├── forward_schedule/      # What managers assign
+│   └── daily_reports/         # What staff actually did (with photos)
+├── 05_CORRESPONDENCE/
+├── 06_SUBMISSIONS/
+├── 07_RFIS/
+├── 08_MEETINGS/
+├── 09_PHOTOS/
+└── metadata.json
+```
+
+### Start the API (Optional)
+
+```bash
+# Start the REST API server
+python -m uvicorn backend.api.main:app --reload
+
+# Open in browser: http://localhost:8000/docs
+```
+
+You can:
+- See all projects: GET /projects
+- Get project details: GET /projects/{code}
+- See metrics: GET /metrics
+- Search emails: GET /emails/search
 
 ---
 
-## 🎯 TOMORROW (Day 2) - 4 Hours
+## Understanding the Structure
 
-### Step 1: Export Database Schema (30 minutes)
+### Where Everything Lives
 
-Document your current database structure:
-
-```bash
-# Export schema
-sqlite3 ~/Desktop/BDS_SYSTEM/01_DATABASES/bensley_master.db .schema > database/schema.sql
-
-# Review it
-cat database/schema.sql
+```
+Benlsey-Operating-System/
+├── quickstart.py              # Run this first!
+├── .env                       # Your configuration (created by quickstart)
+│
+├── data/                      # All project files
+│   ├── 01_CLIENTS/           # Who pays you
+│   ├── 02_OPERATORS/         # Hotel brands (Rosewood, etc.)
+│   ├── 03_PROPOSALS/         # Not signed yet
+│   ├── 04_ACTIVE_PROJECTS/   # Signed contracts ← Most action here
+│   ├── 05_LEGAL_DISPUTES/    # Problem projects
+│   ├── 06_ARCHIVE/           # Completed
+│   ├── 07_EMAILS/            # All emails & attachments
+│   └── 08_TEMPLATES/         # Reusable documents
+│
+├── database/
+│   ├── bensley_master.db     # SQLite database (all your data)
+│   └── migrations/           # Database schema updates
+│
+├── backend/
+│   ├── api/                  # REST API
+│   ├── core/                 # Your old 30 scripts (moved here)
+│   └── services/             # New tools
+│       ├── project_creator.py
+│       ├── excel_importer.py
+│       ├── file_organizer.py
+│       └── email_importer.py
+│
+└── venv/                     # Python environment (created by quickstart)
 ```
 
-### Step 2: Create Database Service (1 hour)
+### Important Files in Each Project
 
-Create `backend/services/database_service.py`:
+Every project has:
 
-```python
-import sqlite3
-import os
-from contextlib import contextmanager
-
-class DatabaseService:
-    def __init__(self, db_path=None):
-        self.db_path = db_path or os.getenv('DATABASE_PATH')
-
-    @contextmanager
-    def get_connection(self):
-        """Context manager for database connections"""
-        conn = sqlite3.connect(self.db_path)
-        conn.row_factory = sqlite3.Row
-        try:
-            yield conn
-            conn.commit()
-        except Exception:
-            conn.rollback()
-            raise
-        finally:
-            conn.close()
-
-    def get_all_projects(self):
-        """Get all projects"""
-        with self.get_connection() as conn:
-            cursor = conn.cursor()
-            cursor.execute("SELECT * FROM projects ORDER BY project_id DESC")
-            return [dict(row) for row in cursor.fetchall()]
-
-    def get_project_by_code(self, project_code):
-        """Get project by code"""
-        with self.get_connection() as conn:
-            cursor = conn.cursor()
-            cursor.execute("SELECT * FROM projects WHERE project_code = ?", (project_code,))
-            row = cursor.fetchone()
-            return dict(row) if row else None
+**metadata.json** - Core project info
+```json
+{
+  "project_code": "BK-001",
+  "project_name": "Luxury Resort",
+  "client": "Developer Corp",
+  "operator": "Rosewood Hotels",
+  "contract_value": 2500000,
+  "status": "active"
+}
 ```
 
-### Step 3: Create Project Service (1 hour)
-
-Create `backend/services/project_service.py`:
-
-```python
-from backend.services.database_service import DatabaseService
-
-class ProjectService:
-    def __init__(self):
-        self.db = DatabaseService()
-
-    def list_projects(self, status=None, limit=50):
-        """List projects with optional filters"""
-        with self.db.get_connection() as conn:
-            cursor = conn.cursor()
-
-            query = "SELECT * FROM projects"
-            params = []
-
-            if status:
-                query += " WHERE status = ?"
-                params.append(status)
-
-            query += " ORDER BY project_id DESC LIMIT ?"
-            params.append(limit)
-
-            cursor.execute(query, params)
-            return [dict(row) for row in cursor.fetchall()]
-
-    def get_project_details(self, project_code):
-        """Get detailed project information with related data"""
-        project = self.db.get_project_by_code(project_code)
-
-        if not project:
-            return None
-
-        # Get linked emails
-        with self.db.get_connection() as conn:
-            cursor = conn.cursor()
-
-            cursor.execute("""
-                SELECT COUNT(*) FROM email_project_links
-                WHERE project_id = ?
-            """, (project['project_id'],))
-            project['email_count'] = cursor.fetchone()[0]
-
-            # Get recent activity
-            cursor.execute("""
-                SELECT e.date, e.subject, e.sender_email
-                FROM emails e
-                JOIN email_project_links epl ON e.email_id = epl.email_id
-                WHERE epl.project_id = ?
-                ORDER BY e.date DESC
-                LIMIT 10
-            """, (project['project_id'],))
-
-            project['recent_emails'] = [dict(row) for row in cursor.fetchall()]
-
-        return project
-
-    def get_active_project_count(self):
-        """Count active projects"""
-        with self.db.get_connection() as conn:
-            cursor = conn.cursor()
-            cursor.execute("""
-                SELECT COUNT(*) FROM projects
-                WHERE status IN ('active', 'in-progress', 'ongoing')
-            """)
-            return cursor.fetchone()[0]
+**02_INVOICING/billing_schedule.json** - Payment tracking
+```json
+{
+  "total_contract_value": 2500000,
+  "paid_to_date": 1500000,
+  "outstanding": 1000000,
+  "payment_schedule": [...]
+}
 ```
 
-### Step 4: Update API to Use Services (30 minutes)
-
-Update `backend/api/main.py` to use your new services:
-
-```python
-from backend.services.project_service import ProjectService
-
-project_service = ProjectService()
-
-@app.get("/projects")
-async def list_projects(status: Optional[str] = None, limit: int = 50):
-    """List all projects"""
-    projects = project_service.list_projects(status=status, limit=limit)
-    return projects
-
-@app.get("/projects/{project_code}")
-async def get_project(project_code: str):
-    """Get project details"""
-    project = project_service.get_project_details(project_code)
-    if not project:
-        raise HTTPException(status_code=404, detail="Project not found")
-    return project
-```
-
-### Step 5: Test Everything (1 hour)
-
-Restart your API and test all endpoints:
-
-```bash
-# Restart API
-python3 backend/api/main.py
-
-# Test in another terminal
-curl http://localhost:8000/projects
-curl http://localhost:8000/projects/BK-001
-```
-
-**🎉 Day 2 Complete!**
+**04_SCHEDULING/forward_schedule/** - What managers plan
+**04_SCHEDULING/daily_reports/** - What actually happened (with photos)
 
 ---
 
-## 🎯 DAY 3 - First Automation (4 Hours)
+## Daily Workflows
 
-### Step 1: Install n8n (30 minutes)
+### Project Manager Creating Weekly Schedule
+
+1. Open: `data/04_ACTIVE_PROJECTS/BK-XXX/04_SCHEDULING/forward_schedule/`
+2. Create or edit: `weekly_plan.json`
+3. Assign tasks to staff for the week
+
+### Staff Submitting Daily Work Report
+
+1. Staff emails Bill & Brian with:
+   - What they worked on today
+   - Hours spent
+   - Photos of progress
+   - Issues encountered
+   - Tomorrow's plan
+
+2. System automatically:
+   - Extracts info from email
+   - Saves to: `04_SCHEDULING/daily_reports/by_date/YYYY-MM-DD_daily_reports.json`
+   - Stores photos in project folder
+   - Updates database
+
+### Creating a New Project
 
 ```bash
-# Install n8n globally
-npm install -g n8n
-
-# Set basic authentication
-export N8N_BASIC_AUTH_ACTIVE=true
-export N8N_BASIC_AUTH_USER=admin
-export N8N_BASIC_AUTH_PASSWORD=bensley123
-
-# Start n8n
-n8n start
+python backend/services/project_creator.py
 ```
 
-Open: **http://localhost:5678**
-
-Login with: admin / bensley123
-
-### Step 2: Create Your First Workflow (1 hour)
-
-In n8n UI:
-
-1. Click "New Workflow"
-2. Name it: "Daily Metrics Email"
-3. Add nodes:
-
-**Node 1: Schedule Trigger**
-- Type: Cron
-- Expression: `0 6 * * *` (every day at 6am)
-
-**Node 2: HTTP Request**
-- URL: `http://localhost:8000/metrics`
-- Method: GET
-
-**Node 3: Function**
-- Code:
-```javascript
-const metrics = $input.first().json;
-
-const message = `
-Daily Intelligence Briefing - ${new Date().toDateString()}
-
-📊 BUSINESS METRICS
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-• Active Projects: ${metrics.active_projects}
-• Pending RFIs: ${metrics.pending_rfis}
-• Proposals In Progress: ${metrics.proposals_in_progress}
-• Unprocessed Emails: ${metrics.unprocessed_emails}
-
-Processed today: ${metrics.emails_processed_today} emails
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-View dashboard: http://localhost:3000
-`;
-
-return { subject: 'Daily Briefing', body: message };
-```
-
-**Node 4: Send Email** (or Slack, or whatever you prefer)
-- Configure with your email settings
-
-### Step 3: Test Workflow (30 minutes)
-
-1. Click "Execute Workflow" to test
-2. Check each node's output
-3. Verify email is sent
-4. Activate workflow for daily runs
-
-### Step 4: Create Second Workflow - Email Processor (1 hour)
-
-Create: "Process Incoming Emails"
-
-**Node 1: Webhook**
-- Method: POST
-- Path: `process-email`
-
-**Node 2: HTTP Request**
-- URL: `http://localhost:8000/emails/process`
-- Method: POST
-- Body: `{{ $json }}`
-
-**Node 3: Condition**
-- If confidence > 0.8, send to project manager
-- Else, flag for manual review
-
-### Step 5: Document Your Setup (1 hour)
-
-Create `docs/API_USAGE.md`:
-
-```markdown
-# API Usage Guide
-
-## Authentication
-Currently no authentication required for local development.
-Production will use API keys.
-
-## Key Endpoints
-
-### GET /metrics
-Returns real-time business metrics
-
-### GET /projects
-List all projects
-
-### GET /projects/{code}/emails
-Get emails for specific project
-
-## Examples
-[Add your working curl examples]
-```
-
-**🎉 Day 3 Complete!**
+Follow prompts, then:
+1. Add contract to: `01_CONTRACT/`
+2. Set up billing schedule: `02_INVOICING/billing_schedule.json`
+3. Create weekly plan: `04_SCHEDULING/forward_schedule/`
 
 ---
 
-## ✅ What You Have Now (After 3 Days)
+## Common Tasks
 
-- ✅ **Working REST API** serving all your data
-- ✅ **Interactive documentation** at /docs
-- ✅ **Database services** for clean data access
-- ✅ **First automation** (daily digest)
-- ✅ **n8n installed** and configured
-- ✅ **Foundation for dashboard** (API ready)
+### Check Database
 
----
+Use DB Browser for SQLite (free tool):
+1. Download from: https://sqlitebrowser.org/
+2. Open: `database/bensley_master.db`
+3. Browse tables: projects, emails, invoices, etc.
 
-## 🎯 NEXT WEEK - Dashboard
+### Backup Everything
 
-Follow **Week 5-6** in the QUICKSTART_ROADMAP.md to build the dashboard.
+Your data lives in two places:
+1. **Files:** `data/` folder (4GB typical)
+2. **Database:** `database/bensley_master.db` (100MB typical)
 
-You'll have:
-- Real-time metrics visualization
-- Project lists with filtering
-- Email activity feeds
-- Natural language queries
-
----
-
-## 🆘 Troubleshooting
-
-### API won't start
+Backup both:
 ```bash
-# Check Python version
-python3 --version  # Must be 3.11+
+# Backup files
+xcopy data backup_data_2024-11-12 /E /I    # Windows
+cp -r data backup_data_2024-11-12           # Mac/Linux
 
-# Check if virtual environment is activated
-which python  # Should show path in venv/
+# Backup database
+copy database\bensley_master.db database\bensley_master_backup_2024-11-12.db
+```
+
+Or just push to OneDrive/Dropbox if that's where you cloned it.
+
+### Update the System
+
+```bash
+# Pull latest changes from GitHub
+git pull origin main
+
+# Update dependencies if requirements.txt changed
+pip install -r requirements.txt --upgrade
+
+# Run any new database migrations
+python database/run_migrations.py
+```
+
+---
+
+## Troubleshooting
+
+### "Module not found" errors
+
+```bash
+# Make sure virtual environment is activated
+venv\Scripts\activate              # Windows
+source venv/bin/activate           # Mac/Linux
 
 # Reinstall dependencies
 pip install -r requirements.txt
 ```
 
-### Database errors
+### Can't connect to email server
+
+- Check you're on office network (or VPN)
+- Verify credentials in `.env` file
+- Test with: `python backend/services/email_importer.py`
+
+### Database locked error
+
+- Close DB Browser for SQLite if open
+- Only one program can write at a time
+
+### Excel import fails
+
+Check your Excel has these columns (case-insensitive):
+- Project Code or Code
+- Project Name or Name
+- Client or Client Name
+- Status (optional - defaults to "active")
+
+---
+
+## Next Steps
+
+1. **Import your existing projects** from Excel
+2. **Organize your existing files** with file_organizer.py
+3. **Sync historical emails** from tmail
+4. **Create templates** in `data/08_TEMPLATES/`
+5. **Set up daily email sync** (scheduled task)
+
+---
+
+## Getting Help
+
+### Documentation
+- **DEPLOYMENT_GUIDE.md** - Detailed setup instructions
+- **FOUNDATION_BUILT.md** - Architecture and database schema
+- **WHAT_DID_WE_BUILD.md** - Plain English explanation
+- **data/README.md** - File organization reference
+
+### Tools Reference
 ```bash
-# Check database path in .env
-cat .env | grep DATABASE_PATH
+# Project creation
+python backend/services/project_creator.py
 
-# Verify file exists
-ls -la ~/Desktop/BDS_SYSTEM/01_DATABASES/bensley_master.db
+# Excel import
+python backend/services/excel_importer.py --file projects.xlsx
 
-# Check permissions
-chmod 644 ~/Desktop/BDS_SYSTEM/01_DATABASES/bensley_master.db
+# File organization
+python backend/services/file_organizer.py --scan /old/projects
+
+# Email sync
+python backend/services/email_importer.py
+
+# Start API
+python -m uvicorn backend.api.main:app --reload
 ```
 
-### Port already in use
-```bash
-# Find process using port 8000
-lsof -i :8000
+---
 
-# Kill it
-kill -9 <PID>
+## Tips
 
-# Or use different port
-python3 backend/api/main.py --port 8001
-```
+✅ **Use project codes consistently** - BK-001, BK-002, etc.
+✅ **Daily work reports are critical** - Photos show progress
+✅ **Keep metadata.json updated** - This drives the system
+✅ **Backup regularly** - Data + Database
+✅ **Use templates** - Create once, reuse many times
+
+❌ **Don't skip folder structure** - Every project needs all folders
+❌ **Don't manually edit database** - Use Python scripts
+❌ **Don't mix old and new systems** - Migrate fully
 
 ---
 
-## 📚 Additional Resources
-
-- **Full Roadmap**: See QUICKSTART_ROADMAP.md for 12-week plan
-- **API Docs**: http://localhost:8000/docs (when running)
-- **n8n Docs**: https://docs.n8n.io/
-- **FastAPI Tutorial**: https://fastapi.tiangolo.com/tutorial/
-
----
-
-## 💬 Questions?
-
-Common questions:
-
-**Q: Do I need to rewrite all my scripts?**
-A: No! We're just wrapping them with an API. Your scripts work as-is.
-
-**Q: Can I use PostgreSQL instead of SQLite?**
-A: Yes! Just change DATABASE_URL in .env and install `psycopg2`.
-
-**Q: How much will OpenAI cost?**
-A: For your volume, probably $50-200/month. Start with gpt-3.5-turbo (cheaper).
-
-**Q: Can I skip the dashboard?**
-A: Yes, but the API + n8n are already super useful. Dashboard makes it visual.
-
----
-
-**Ready? Run `./setup.sh` and let's go! 🚀**
+**Ready to go?** Run `python quickstart.py` and you'll be up in minutes! 🚀
