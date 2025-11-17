@@ -1,0 +1,20 @@
+{
+  "mcpServers": {
+    "bensley-coordination": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-filesystem",
+        "/Users/lukassherman/Library/CloudStorage/OneDrive-Personal/Bensley/Benlsey-Operating-System"
+      ],
+      "env": {},
+      "disabled": false,
+      "alwaysAllow": [
+        "read_file",
+        "write_file",
+        "list_directory",
+        "create_directory"
+      ]
+    }
+  }
+}

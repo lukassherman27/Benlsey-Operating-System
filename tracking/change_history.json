@@ -1,0 +1,341 @@
+{
+  "snapshots": [
+    {
+      "timestamp": "2025-11-14T01:58:21.083929",
+      "reason": "Daily 9 PM snapshot",
+      "files": {
+        "BENSLEY_BRAIN_MASTER_PLAN.md": {
+          "hash": "02c8c4c8cb4055f67d871f7d3d406ee7",
+          "size": 22973,
+          "modified": "2025-11-14T01:10:15.731189"
+        },
+        "CRITICAL_FIXES_SUMMARY.md": {
+          "hash": "145d4366db76da399a1cd3308ace46d7",
+          "size": 5660,
+          "modified": "2025-11-14T01:48:37.502246"
+        },
+        "IMPLEMENTATION_STATUS.md": {
+          "hash": "34e3addbac09e08343ea248f997064d7",
+          "size": 10595,
+          "modified": "2025-11-13T11:01:10.287682"
+        },
+        "README.md": {
+          "hash": "32afde1f874d418fedd34c942c8c0f7e",
+          "size": 6981,
+          "modified": "2025-11-14T01:11:15.211548"
+        },
+        ".env": {
+          "hash": "678ce9ddc7dbf9167b8a6c9821808a54",
+          "size": 1245,
+          "modified": "2025-11-14T01:17:18.239103"
+        }
+      },
+      "database": {
+        "proposals": 87,
+        "emails": 143,
+        "email_content": 0,
+        "documents": 852,
+        "contacts": 0,
+        "contacts_only": 205,
+        "email_proposal_links": 143,
+        "db_size_mb": 28.6015625,
+        "migrations_applied": 11,
+        "indexes": 84
+      },
+      "git": {
+        "commits_today": 0,
+        "commit_messages": [],
+        "files_changed": []
+      }
+    },
+    {
+      "timestamp": "2025-11-14T01:58:38.519596",
+      "reason": "Daily 9 PM snapshot",
+      "files": {
+        "BENSLEY_BRAIN_MASTER_PLAN.md": {
+          "hash": "02c8c4c8cb4055f67d871f7d3d406ee7",
+          "size": 22973,
+          "modified": "2025-11-14T01:10:15.731189"
+        },
+        "CRITICAL_FIXES_SUMMARY.md": {
+          "hash": "145d4366db76da399a1cd3308ace46d7",
+          "size": 5660,
+          "modified": "2025-11-14T01:48:37.502246"
+        },
+        "IMPLEMENTATION_STATUS.md": {
+          "hash": "34e3addbac09e08343ea248f997064d7",
+          "size": 10595,
+          "modified": "2025-11-13T11:01:10.287682"
+        },
+        "README.md": {
+          "hash": "32afde1f874d418fedd34c942c8c0f7e",
+          "size": 6981,
+          "modified": "2025-11-14T01:11:15.211548"
+        },
+        ".env": {
+          "hash": "678ce9ddc7dbf9167b8a6c9821808a54",
+          "size": 1245,
+          "modified": "2025-11-14T01:17:18.239103"
+        }
+      },
+      "database": {
+        "proposals": 87,
+        "emails": 143,
+        "email_content": 0,
+        "documents": 852,
+        "contacts": 0,
+        "contacts_only": 205,
+        "email_proposal_links": 143,
+        "db_size_mb": 28.6015625,
+        "migrations_applied": 11,
+        "indexes": 84
+      },
+      "git": {
+        "commits_today": 0,
+        "commit_messages": [],
+        "files_changed": []
+      }
+    },
+    {
+      "timestamp": "2025-11-14T02:05:33.801718",
+      "reason": "Daily 9 PM snapshot",
+      "files": {
+        "BENSLEY_BRAIN_MASTER_PLAN.md": {
+          "hash": "02c8c4c8cb4055f67d871f7d3d406ee7",
+          "size": 22973,
+          "modified": "2025-11-14T01:10:15.731189"
+        },
+        "CRITICAL_FIXES_SUMMARY.md": {
+          "hash": "145d4366db76da399a1cd3308ace46d7",
+          "size": 5660,
+          "modified": "2025-11-14T01:48:37.502246"
+        },
+        "IMPLEMENTATION_STATUS.md": {
+          "hash": "34e3addbac09e08343ea248f997064d7",
+          "size": 10595,
+          "modified": "2025-11-13T11:01:10.287682"
+        },
+        "README.md": {
+          "hash": "32afde1f874d418fedd34c942c8c0f7e",
+          "size": 6981,
+          "modified": "2025-11-14T01:11:15.211548"
+        },
+        ".env": {
+          "hash": "8e9570bdbefc008fc2ba696172e04385",
+          "size": 1285,
+          "modified": "2025-11-14T02:05:00.308679"
+        }
+      },
+      "database": {
+        "proposals": 87,
+        "emails": 163,
+        "email_content": 0,
+        "documents": 852,
+        "contacts": 0,
+        "contacts_only": 205,
+        "email_proposal_links": 163,
+        "db_size_mb": 29.15234375,
+        "migrations_applied": 11,
+        "indexes": 84
+      },
+      "git": {
+        "commits_today": 0,
+        "commit_messages": [],
+        "files_changed": []
+      }
+    },
+    {
+      "timestamp": "2025-11-14T02:07:48.782313",
+      "reason": "Daily 9 PM snapshot",
+      "files": {
+        "BENSLEY_BRAIN_MASTER_PLAN.md": {
+          "hash": "02c8c4c8cb4055f67d871f7d3d406ee7",
+          "size": 22973,
+          "modified": "2025-11-14T01:10:15.731189"
+        },
+        "CRITICAL_FIXES_SUMMARY.md": {
+          "hash": "145d4366db76da399a1cd3308ace46d7",
+          "size": 5660,
+          "modified": "2025-11-14T01:48:37.502246"
+        },
+        "IMPLEMENTATION_STATUS.md": {
+          "hash": "34e3addbac09e08343ea248f997064d7",
+          "size": 10595,
+          "modified": "2025-11-13T11:01:10.287682"
+        },
+        "README.md": {
+          "hash": "32afde1f874d418fedd34c942c8c0f7e",
+          "size": 6981,
+          "modified": "2025-11-14T01:11:15.211548"
+        },
+        ".env": {
+          "hash": "8e9570bdbefc008fc2ba696172e04385",
+          "size": 1285,
+          "modified": "2025-11-14T02:05:00.308679"
+        }
+      },
+      "database": {
+        "proposals": 87,
+        "emails": 170,
+        "email_content": 0,
+        "documents": 852,
+        "contacts": 0,
+        "contacts_only": 205,
+        "email_proposal_links": 170,
+        "db_size_mb": 29.15234375,
+        "migrations_applied": 11,
+        "indexes": 84
+      },
+      "git": {
+        "commits_today": 0,
+        "commit_messages": [],
+        "files_changed": []
+      }
+    },
+    {
+      "timestamp": "2025-11-14T02:12:21.142848",
+      "reason": "Daily 9 PM snapshot",
+      "files": {
+        "BENSLEY_BRAIN_MASTER_PLAN.md": {
+          "hash": "02c8c4c8cb4055f67d871f7d3d406ee7",
+          "size": 22973,
+          "modified": "2025-11-14T01:10:15.731189"
+        },
+        "CRITICAL_FIXES_SUMMARY.md": {
+          "hash": "145d4366db76da399a1cd3308ace46d7",
+          "size": 5660,
+          "modified": "2025-11-14T01:48:37.502246"
+        },
+        "IMPLEMENTATION_STATUS.md": {
+          "hash": "34e3addbac09e08343ea248f997064d7",
+          "size": 10595,
+          "modified": "2025-11-13T11:01:10.287682"
+        },
+        "README.md": {
+          "hash": "32afde1f874d418fedd34c942c8c0f7e",
+          "size": 6981,
+          "modified": "2025-11-14T01:11:15.211548"
+        },
+        ".env": {
+          "hash": "8e9570bdbefc008fc2ba696172e04385",
+          "size": 1285,
+          "modified": "2025-11-14T02:05:00.308679"
+        }
+      },
+      "database": {
+        "proposals": 87,
+        "emails": 181,
+        "email_content": 0,
+        "documents": 852,
+        "contacts": 0,
+        "contacts_only": 205,
+        "email_proposal_links": 181,
+        "db_size_mb": 29.15234375,
+        "migrations_applied": 11,
+        "indexes": 84
+      },
+      "git": {
+        "commits_today": 0,
+        "commit_messages": [],
+        "files_changed": []
+      }
+    },
+    {
+      "timestamp": "2025-11-14T02:13:03.197157",
+      "reason": "Daily 9 PM snapshot",
+      "files": {
+        "BENSLEY_BRAIN_MASTER_PLAN.md": {
+          "hash": "02c8c4c8cb4055f67d871f7d3d406ee7",
+          "size": 22973,
+          "modified": "2025-11-14T01:10:15.731189"
+        },
+        "CRITICAL_FIXES_SUMMARY.md": {
+          "hash": "145d4366db76da399a1cd3308ace46d7",
+          "size": 5660,
+          "modified": "2025-11-14T01:48:37.502246"
+        },
+        "IMPLEMENTATION_STATUS.md": {
+          "hash": "34e3addbac09e08343ea248f997064d7",
+          "size": 10595,
+          "modified": "2025-11-13T11:01:10.287682"
+        },
+        "README.md": {
+          "hash": "32afde1f874d418fedd34c942c8c0f7e",
+          "size": 6981,
+          "modified": "2025-11-14T01:11:15.211548"
+        },
+        ".env": {
+          "hash": "8e9570bdbefc008fc2ba696172e04385",
+          "size": 1285,
+          "modified": "2025-11-14T02:05:00.308679"
+        }
+      },
+      "database": {
+        "proposals": 87,
+        "emails": 181,
+        "email_content": 0,
+        "documents": 852,
+        "contacts": 0,
+        "contacts_only": 205,
+        "email_proposal_links": 181,
+        "db_size_mb": 29.15234375,
+        "migrations_applied": 11,
+        "indexes": 84
+      },
+      "git": {
+        "commits_today": 0,
+        "commit_messages": [],
+        "files_changed": []
+      }
+    },
+    {
+      "timestamp": "2025-11-14T09:30:48.667456",
+      "reason": "Daily 9 PM snapshot",
+      "files": {
+        "BENSLEY_BRAIN_MASTER_PLAN.md": {
+          "hash": "02c8c4c8cb4055f67d871f7d3d406ee7",
+          "size": 22973,
+          "modified": "2025-11-14T01:10:15.731189"
+        },
+        "CRITICAL_FIXES_SUMMARY.md": {
+          "hash": "145d4366db76da399a1cd3308ace46d7",
+          "size": 5660,
+          "modified": "2025-11-14T01:48:37.502246"
+        },
+        "IMPLEMENTATION_STATUS.md": {
+          "hash": "34e3addbac09e08343ea248f997064d7",
+          "size": 10595,
+          "modified": "2025-11-13T11:01:10.287682"
+        },
+        "README.md": {
+          "hash": "32afde1f874d418fedd34c942c8c0f7e",
+          "size": 6981,
+          "modified": "2025-11-14T01:11:15.211548"
+        },
+        ".env": {
+          "hash": "c38c163afd8cd1bea7cc33b843604296",
+          "size": 1401,
+          "modified": "2025-11-14T02:20:32.801194"
+        }
+      },
+      "database": {
+        "proposals": 87,
+        "emails": 389,
+        "email_content": 120,
+        "documents": 852,
+        "contacts": 0,
+        "contacts_only": 205,
+        "email_proposal_links": 389,
+        "db_size_mb": 32.1328125,
+        "migrations_applied": 11,
+        "indexes": 84
+      },
+      "git": {
+        "commits_today": 0,
+        "commit_messages": [],
+        "files_changed": []
+      }
+    }
+  ],
+  "decisions": []
+}
