@@ -17,14 +17,10 @@ import {
   DailyBriefing,
   IntelligenceSuggestion,
   IntelligenceSuggestionGroup,
+  DecisionTileItem,
   ManualOverride,
   FinancePayment,
   ProjectedInvoice,
-  OutreachTileItem,
-  RfiTileItem,
-  MeetingTileItem,
-  MilestoneTileItem,
-  PaymentTileItem,
 } from "@/lib/types";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -429,7 +425,7 @@ export default function DashboardPage() {
   );
   const intelAnyError = intelSuggestionQueries.some((query) => query.isError);
 
-  const suggestionGroups = SUGGESTION_GROUP_META.map((meta: { bucket: string; label: string; description: string }, index) => {
+  const suggestionGroups = SUGGESTION_GROUP_META.map((meta, index) => {
     const query = intelSuggestionQueries[index];
     const useFallback = Boolean(query?.isError);
     const items =
@@ -457,19 +453,13 @@ export default function DashboardPage() {
     manualOverridesQuery.data?.pagination?.total ?? manualOverrides.length;
 
   const decisionTiles = decisionTilesQuery.data;
-  const decisionTilesLoading = decisionTilesQuery.isLoading;
-  const decisionTilesError = decisionTilesQuery.isError;
 
   const outstandingInvoices = {
     amount:
-      (decisionTiles?.overdue_payments?.items ?? []).reduce(
-        (sum, payment) => sum + (payment.amount ?? 0),
-        0
-      ) || briefing.metrics.outstanding || 0,
-    count:
-      decisionTiles?.overdue_payments?.count ??
-      decisionTiles?.overdue_payments?.items?.length ??
+      decisionTiles?.invoices_awaiting_payment?.total_amount ??
+      briefing.metrics.outstanding ??
       0,
+    count: decisionTiles?.invoices_awaiting_payment?.count ?? 0,
   };
 
   const projectedInvoices = [
@@ -494,17 +484,10 @@ export default function DashboardPage() {
   const healthStyle =
     HEALTH_STYLES[briefing.business_health.status] ?? HEALTH_STYLES.caution;
 
-  const scheduleEntries: MeetingTileItem[] =
+  const scheduleEntries =
     decisionTiles?.upcoming_meetings?.items?.slice(0, 3) ?? [];
 
-  const outreachProjects: OutreachTileItem[] =
-    decisionTiles?.proposals_needing_outreach?.items ?? [];
-
-  const rfiQueue: RfiTileItem[] =
-    decisionTiles?.unanswered_rfis?.items ?? [];
-
-  const milestoneItems: MilestoneTileItem[] =
-    decisionTiles?.overdue_milestones?.items ?? [];
+  const rfiQueue = decisionTiles?.rfis?.items ?? [];
 
   const revenueStats = dashboardStatsQuery.data?.revenue;
   const revenueSeries = useMemo(() => {
@@ -648,7 +631,8 @@ export default function DashboardPage() {
               {scheduleEntries.length > 0 ? (
                 <div className="mt-3 space-y-1 text-sm">
                   <p className="text-lg font-semibold text-white">
-                    {scheduleEntries[0].meeting_title ?? "Upcoming touchpoint"}
+                    {scheduleEntries[0].meeting_title ?? scheduleEntries[0].milestone_name ??
+                      scheduleEntries[0].title ?? "Upcoming touchpoint"}
                   </p>
                   <p>{scheduleEntries[0].project_name ?? scheduleEntries[0].project_code}</p>
                   <p className="text-white/70">
@@ -688,21 +672,6 @@ export default function DashboardPage() {
             manualOverrides={manualOverrides}
             manualOverridesTotal={manualOverridesTotal}
             onAddContext={() => setIsContextOpen(true)}
-            isLoading={decisionTilesLoading}
-            isError={decisionTilesError}
-          />
-        </section>
-
-        <section className="grid gap-6 lg:grid-cols-2">
-          <OutreachPanel
-            projects={outreachProjects}
-            isLoading={decisionTilesLoading}
-            isError={decisionTilesError}
-          />
-          <RfiStatusCard
-            rfiItems={rfiQueue}
-            isLoading={decisionTilesLoading}
-            isError={decisionTilesError}
           />
         </section>
 
@@ -867,16 +836,8 @@ export default function DashboardPage() {
         </section>
 
         <section className="grid gap-6 lg:grid-cols-2">
-          <MilestoneStatusCard
-            milestones={milestoneItems}
-            isLoading={decisionTilesLoading}
-            isError={decisionTilesError}
-          />
-          <OutstandingPaymentsList
-            payments={decisionTiles?.overdue_payments?.items ?? []}
-            isLoading={decisionTilesLoading}
-            isError={decisionTilesError}
-          />
+          <RfiStatusCard rfiItems={rfiQueue} />
+          <StudioSchedulePanel />
         </section>
 
         <section>
@@ -1179,15 +1140,11 @@ function SchedulePanel({
   manualOverrides,
   manualOverridesTotal,
   onAddContext,
-  isLoading,
-  isError,
 }: {
-  scheduleEntries: MeetingTileItem[];
+  scheduleEntries: DecisionTileItem[];
   manualOverrides: ManualOverride[];
   manualOverridesTotal: number;
   onAddContext: () => void;
-  isLoading?: boolean;
-  isError?: boolean;
 }) {
   return (
     <div className="rounded-[28px] border border-slate-200/80 bg-white p-6 shadow-sm">
@@ -1209,13 +1166,7 @@ function SchedulePanel({
           <p className="text-xs uppercase tracking-[0.3em] text-slate-400">
             Upcoming sessions
           </p>
-          {isLoading ? (
-            <p className="mt-2 text-sm text-slate-500">Syncing meetings…</p>
-          ) : isError ? (
-            <p className="mt-2 text-sm text-rose-600">
-              Unable to load meetings.
-            </p>
-          ) : scheduleEntries.length === 0 ? (
+          {scheduleEntries.length === 0 ? (
             <p className="mt-2 text-sm text-slate-500">Nothing scheduled yet</p>
           ) : (
             <div className="mt-3 space-y-3">
@@ -1238,7 +1189,7 @@ function SchedulePanel({
                     </span>
                   </div>
                   <p className="mt-2 text-base font-semibold text-slate-900">
-                    {entry.meeting_title ?? "Internal review"}
+                    {entry.meeting_title ?? entry.milestone_name ?? entry.title ?? "Internal review"}
                   </p>
                   <p className="text-sm text-slate-500">
                     {entry.project_name ?? entry.project_code}
@@ -1277,63 +1228,6 @@ function SchedulePanel({
         </div>
       </div>
     </div>
-  );
-}
-
-function OutreachPanel({
-  projects,
-  isLoading,
-  isError,
-}: {
-  projects: OutreachTileItem[];
-  isLoading?: boolean;
-  isError?: boolean;
-}) {
-  const limit = projects.slice(0, 4);
-  return (
-    <Card className="rounded-3xl border-slate-200/80">
-      <CardContent className="space-y-4 p-6">
-        <div>
-          <p className="text-xs uppercase tracking-[0.3em] text-slate-400">
-            Proposals needing outreach
-          </p>
-          <p className="text-sm text-slate-500">
-            No contact in the last two weeks
-          </p>
-        </div>
-        {isLoading ? (
-          <p className="text-sm text-slate-500">Checking follow-ups…</p>
-        ) : isError ? (
-          <p className="text-sm text-rose-600">
-            Unable to load outreach list.
-          </p>
-        ) : limit.length === 0 ? (
-          <p className="text-sm text-slate-500">
-            Every proposal has been touched within 14 days.
-          </p>
-        ) : (
-          <div className="space-y-3">
-            {limit.map((project) => (
-              <div
-                key={project.project_code}
-                className="rounded-2xl border border-slate-100 p-3"
-              >
-                <div className="flex items-center justify-between text-xs text-slate-500">
-                  <span className="font-mono">{project.project_code}</span>
-                  <span>{project.days_since_contact ?? "—"} days idle</span>
-                </div>
-                <p className="mt-1 text-base font-semibold text-slate-900">
-                  {project.project_name}
-                </p>
-                <p className="text-sm text-slate-500">
-                  Nudge the client or log a touchpoint.
-                </p>
-              </div>
-            ))}
-          </div>
-        )}
-      </CardContent>
-    </Card>
   );
 }
 
@@ -1555,19 +1449,11 @@ function RecentPaidInvoices({
   );
 }
 
-function RfiStatusCard({
-  rfiItems,
-  isLoading,
-  isError,
-}: {
-  rfiItems: RfiTileItem[];
-  isLoading?: boolean;
-  isError?: boolean;
-}) {
-  const lateCount = rfiItems.filter((item) => {
-    const status = (item.status ?? "").toLowerCase();
-    return status.includes("late") || status.includes("awaiting");
-  }).length;
+function RfiStatusCard({ rfiItems }: { rfiItems: RfiItem[] }) {
+  const lateCount = rfiItems.filter((item) =>
+    item.status.toLowerCase().includes("late") ||
+    item.status.toLowerCase().includes("awaiting")
+  ).length;
   return (
     <Card className="rounded-3xl border-slate-200/80">
       <CardContent className="space-y-4 p-6">
@@ -1575,143 +1461,69 @@ function RfiStatusCard({
           <p className="text-xs uppercase tracking-[0.3em] text-slate-400">
             RFI overview
           </p>
-          {isLoading ? (
-            <p className="text-sm text-slate-500">Syncing RFIs…</p>
-          ) : isError ? (
-            <p className="text-sm text-rose-600">
-              Unable to load RFIs.
-            </p>
-          ) : (
-            <p className="text-sm text-slate-500">
-              {rfiItems.length} open • {lateCount} need attention
-            </p>
-          )}
-        </div>
-        {isLoading || isError ? null : (
-          <div className="space-y-3">
-            {rfiItems.slice(0, 3).map((item) => (
-              <div key={item.rfi_id} className="rounded-2xl border border-slate-100 p-3">
-                <div className="flex items-center justify-between text-xs text-slate-500">
-                  <span>{item.rfi_number}</span>
-                  <span>{item.asked_date ? formatDisplayDate(item.asked_date) : "—"}</span>
-                </div>
-                <p className="mt-1 text-base font-semibold text-slate-900">
-                  {item.project_name}
-                </p>
-                <p className="text-sm text-slate-600">{item.question}</p>
-                <p className="text-xs uppercase tracking-[0.3em] text-slate-400">
-                  Waiting {item.days_waiting ?? "—"} days
-                </p>
-              </div>
-            ))}
-          </div>
-        )}
-      </CardContent>
-    </Card>
-  );
-}
-
-function MilestoneStatusCard({
-  milestones,
-  isLoading,
-  isError,
-}: {
-  milestones: MilestoneTileItem[];
-  isLoading?: boolean;
-  isError?: boolean;
-}) {
-  const slice = milestones.slice(0, 3);
-  return (
-    <Card className="rounded-3xl border-slate-200/80">
-      <CardContent className="space-y-3 p-6">
-        <div>
-          <p className="text-xs uppercase tracking-[0.3em] text-slate-400">
-            Overdue milestones
-          </p>
           <p className="text-sm text-slate-500">
-            Dates slipped beyond planned schedule
+            {rfiItems.length} open • {lateCount} need attention
           </p>
         </div>
-        {isLoading ? (
-          <p className="text-sm text-slate-500">Checking milestones…</p>
-        ) : isError ? (
-          <p className="text-sm text-rose-600">Unable to load milestones.</p>
-        ) : slice.length === 0 ? (
-          <p className="text-sm text-slate-500">
-            All milestones are on track.
-          </p>
-        ) : (
-          slice.map((item) => (
-            <div key={item.milestone_id} className="rounded-2xl border border-slate-100 p-3">
+        <div className="space-y-3">
+          {rfiItems.slice(0, 3).map((item) => (
+            <div key={item.reference} className="rounded-2xl border border-slate-100 p-3">
               <div className="flex items-center justify-between text-xs text-slate-500">
-                <span>{item.project_code}</span>
-                <span>
-                  Due {item.planned_date ? formatDisplayDate(item.planned_date) : "—"}
-                </span>
+                <span>{item.reference}</span>
+                <span>{item.due}</span>
               </div>
               <p className="mt-1 text-base font-semibold text-slate-900">
-                {item.project_name}
+                {item.project}
               </p>
-              <p className="text-sm text-slate-600">
-                {item.milestone_name ?? item.milestone_type ?? "Milestone"}
-              </p>
+              <p className="text-sm text-slate-600">{item.status}</p>
             </div>
-          ))
-        )}
+          ))}
+        </div>
       </CardContent>
     </Card>
   );
 }
 
-function OutstandingPaymentsList({
-  payments,
-  isLoading,
-  isError,
-}: {
-  payments: PaymentTileItem[];
-  isLoading?: boolean;
-  isError?: boolean;
-}) {
-  const top = payments.slice(0, 4);
+function StudioSchedulePanel() {
+  const upcoming = [
+    {
+      project: "BK-029 • Qinhu Resort China",
+      discipline: "Landscape",
+      team: 4,
+      week: "Nov 18 → Nov 22",
+    },
+    {
+      project: "BK-071 • Saudi Royal Court",
+      discipline: "Interiors",
+      team: 3,
+      week: "Nov 18 → Nov 22",
+    },
+  ];
   return (
     <Card className="rounded-3xl border-slate-200/80">
       <CardContent className="space-y-3 p-6">
         <div>
           <p className="text-xs uppercase tracking-[0.3em] text-slate-400">
-            Accounts receivable
+            Studio schedule (preview)
           </p>
           <p className="text-sm text-slate-500">
-            Upcoming payments requiring follow-up
+            Staffing by discipline for next week
           </p>
         </div>
-        {isLoading ? (
-          <p className="text-sm text-slate-500">Loading invoices…</p>
-        ) : isError ? (
-          <p className="text-sm text-rose-600">
-            Unable to load invoice list.
-          </p>
-        ) : top.length === 0 ? (
-          <p className="text-sm text-slate-500">
-            No overdue invoices right now.
-          </p>
-        ) : (
-          <div className="space-y-3">
-            {top.map((invoice) => (
-              <div key={invoice.financial_id} className="rounded-2xl border border-slate-100 p-3">
-                <div className="flex items-center justify-between text-xs text-slate-500">
-                  <span>{invoice.invoice_number ?? "Pending number"}</span>
-                  <span>{invoice.due_date ? formatDisplayDate(invoice.due_date) : "Due soon"}</span>
-                </div>
-                <p className="mt-1 text-base font-semibold text-slate-900">
-                  {invoice.project_name}
-                </p>
-                <p className="text-sm text-slate-600">
-                  {formatCurrency(invoice.amount ?? 0)} • {invoice.status ?? "pending"}
-                </p>
-              </div>
-            ))}
+        {upcoming.map((item) => (
+          <div key={item.project} className="rounded-2xl border border-slate-100 p-3">
+            <div className="flex items-center justify-between text-xs text-slate-500">
+              <span>{item.week}</span>
+              <span>{item.discipline}</span>
+            </div>
+            <p className="mt-1 text-base font-semibold text-slate-900">
+              {item.project}
+            </p>
+            <p className="text-sm text-slate-600">
+              {item.team} team members assigned
+            </p>
           </div>
-        )}
+        ))}
       </CardContent>
     </Card>
   );
