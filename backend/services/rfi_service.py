@@ -217,7 +217,7 @@ class RFIService:
                 p.project_name,
                 p.client_company
             FROM project_rfis r
-            JOIN proposals p ON r.proposal_id = p.proposal_id
+            JOIN projects p ON r.proposal_id = p.proposal_id
             WHERE r.status = 'unanswered'
             ORDER BY r.priority DESC, r.asked_date ASC
         """)
@@ -239,7 +239,7 @@ class RFIService:
                 p.project_name,
                 p.client_company
             FROM project_rfis r
-            JOIN proposals p ON r.proposal_id = p.proposal_id
+            JOIN projects p ON r.proposal_id = p.proposal_id
             WHERE r.status = ?
             ORDER BY r.asked_date DESC
         """, (status,))
@@ -261,7 +261,7 @@ class RFIService:
                 p.project_name,
                 p.client_company
             FROM project_rfis r
-            JOIN proposals p ON r.proposal_id = p.proposal_id
+            JOIN projects p ON r.proposal_id = p.proposal_id
             WHERE r.priority = ?
             ORDER BY r.asked_date DESC
         """, (priority,))
