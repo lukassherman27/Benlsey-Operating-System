@@ -57,19 +57,49 @@ export default function QueryPanel({
       </div>
 
       {result && (
-        <div className="rounded-lg border bg-muted/20 p-4">
-          <p className="text-sm text-muted-foreground">Answer</p>
+        <div className="rounded-lg border bg-muted/20 p-4 space-y-3">
+          <p className="text-sm font-semibold text-muted-foreground">Answer</p>
           {result.success ? (
             <>
-              <p className="mt-2 text-sm">
-                {result.results.length > 0
-                  ? JSON.stringify(result.results[0], null, 2)
-                  : "No results returned."}
-              </p>
-              {result.sql && (
-                <p className="mt-3 text-xs font-mono text-muted-foreground">
-                  SQL: {result.sql}
+              {result.summary && (
+                <p className="text-sm leading-relaxed">
+                  {result.summary}
                 </p>
+              )}
+              {result.results && result.results.length > 0 && (
+                <details className="text-xs">
+                  <summary className="cursor-pointer text-muted-foreground hover:text-foreground">
+                    View {result.count || result.results.length} result{result.results.length !== 1 ? 's' : ''}
+                  </summary>
+                  <pre className="mt-2 overflow-auto rounded bg-muted p-2 text-xs">
+                    {JSON.stringify(result.results.slice(0, 5), null, 2)}
+                  </pre>
+                  {result.results.length > 5 && (
+                    <p className="mt-1 text-muted-foreground">
+                      Showing first 5 of {result.results.length} results
+                    </p>
+                  )}
+                </details>
+              )}
+              {result.sql && (
+                <details className="text-xs">
+                  <summary className="cursor-pointer text-muted-foreground hover:text-foreground">
+                    View SQL Query
+                  </summary>
+                  <pre className="mt-2 overflow-auto rounded bg-muted p-2 font-mono text-xs">
+                    {result.sql}
+                  </pre>
+                </details>
+              )}
+              {result.method && (
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <Badge variant="outline" className="text-xs">
+                    {result.method === 'ai' ? '🤖 AI-Generated' : '📋 Pattern Match'}
+                  </Badge>
+                  {result.confidence && (
+                    <span>{result.confidence}% confidence</span>
+                  )}
+                </div>
               )}
             </>
           ) : (
@@ -86,14 +116,17 @@ export default function QueryPanel({
         </p>
       )}
 
-      {suggestions && (
+      {suggestions && (suggestions.examples || suggestions.suggestions) && (
         <div className="space-y-3 rounded-lg border bg-card p-4">
           <div className="flex items-center gap-2 text-sm font-semibold">
             <Lightbulb className="h-4 w-4 text-yellow-500" />
             Quick Suggestions
+            {suggestions.ai_enabled && (
+              <Badge variant="outline" className="text-xs">🤖 AI</Badge>
+            )}
           </div>
           <div className="flex flex-wrap gap-2">
-            {suggestions.suggestions.slice(0, 6).map((suggestion) => (
+            {(suggestions.examples || suggestions.suggestions || []).slice(0, 6).map((suggestion) => (
               <Badge
                 key={suggestion}
                 variant="outline"
