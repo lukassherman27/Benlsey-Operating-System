@@ -3,6 +3,23 @@
 import { useState } from "react";
 import { Search, FileText, DollarSign, Calendar, AlertCircle } from "lucide-react";
 
+const API_BASE_URL =
+  process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
+
+interface ProposalDocument {
+  file_name: string;
+  file_path: string;
+  document_type?: string;
+}
+
+interface ProposalEmail {
+  subject: string;
+  date: string;
+  sender_name: string;
+  sender_email: string;
+  snippet?: string;
+}
+
 interface ProposalResult {
   source: string;
   project_code: string;
@@ -13,8 +30,8 @@ interface ProposalResult {
   last_contact_date: string;
   on_hold: number;
   health_score: number;
-  documents?: any[];
-  recent_emails?: any[];
+  documents?: ProposalDocument[];
+  recent_emails?: ProposalEmail[];
 }
 
 export default function ProposalSearch() {
@@ -33,7 +50,7 @@ export default function ProposalSearch() {
     setLoading(true);
     try {
       const response = await fetch(
-        `http://localhost:8000/api/query/search?q=${encodeURIComponent(searchQuery)}`
+        `${API_BASE_URL}/api/query/search?q=${encodeURIComponent(searchQuery)}`
       );
       const data = await response.json();
 
@@ -51,7 +68,7 @@ export default function ProposalSearch() {
     setLoading(true);
     try {
       const response = await fetch(
-        `http://localhost:8000/api/query/proposal/${projectCode}/status`
+        `${API_BASE_URL}/api/query/proposal/${projectCode}/status`
       );
       const data = await response.json();
 
@@ -122,7 +139,7 @@ export default function ProposalSearch() {
         </form>
 
         <div className="mt-4 text-sm text-gray-600">
-          <p>💡 Try: "BK-070" • "Tel Aviv" • "Bodrum" • "India" • "Maldives"</p>
+          <p>💡 Try: &quot;BK-070&quot; • &quot;Tel Aviv&quot; • &quot;Bodrum&quot; • &quot;India&quot; • &quot;Maldives&quot;</p>
         </div>
       </div>
 

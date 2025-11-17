@@ -287,51 +287,79 @@ export interface ProposalBriefing {
   };
 }
 
-export interface DecisionTileItem {
+export interface OutreachTileItem {
+  proposal_id?: number;
   project_code: string;
   project_name: string;
-  pm?: string;
   days_since_contact?: number;
-  next_action?: string;
-  milestone_name?: string;
-  expected_date?: string;
-  delay_days?: number;
-  rfi_number?: string;
-  question?: string;
+}
+
+export interface RfiTileItem {
+  rfi_id: number;
+  proposal_id: number;
+  rfi_number: string;
+  question: string;
+  asked_by?: string;
   asked_date?: string;
+  priority?: string;
+  status?: string;
+  days_waiting?: number;
+  project_code: string;
+  project_name: string;
+  client_company?: string;
+}
+
+export interface MeetingTileItem {
+  meeting_id: number;
+  proposal_id: number;
+  meeting_type?: string;
   meeting_title?: string;
   scheduled_date?: string;
-  meeting_type?: string;
-  amount_due?: number;
+  location?: string;
+  meeting_url?: string;
+  status?: string;
+  project_code: string;
+  project_name: string;
+  client_company?: string;
+}
+
+export interface MilestoneTileItem {
+  milestone_id: number;
+  project_id?: number;
+  project_code: string;
+  project_name: string;
+  milestone_name?: string;
+  milestone_type?: string;
+  planned_date?: string;
+  actual_date?: string;
+  status?: string;
+  notes?: string;
+}
+
+export interface PaymentTileItem {
+  financial_id: number;
+  proposal_id?: number;
+  project_code: string;
+  project_name: string;
+  due_date?: string;
+  amount?: number;
+  currency?: string;
+  status?: string;
+  invoice_number?: string;
+  days_outstanding?: number;
+}
+
+export interface DecisionTileGroup<T> {
+  count: number;
+  items: T[];
 }
 
 export interface DecisionTiles {
-  needs_outreach: {
-    count: number;
-    description: string;
-    items: DecisionTileItem[];
-  };
-  unanswered_rfis: {
-    count: number;
-    description: string;
-    items: DecisionTileItem[];
-  };
-  overdue_milestones: {
-    count: number;
-    description: string;
-    items: DecisionTileItem[];
-  };
-  upcoming_meetings: {
-    count: number;
-    description: string;
-    items: DecisionTileItem[];
-  };
-  invoices_awaiting_payment: {
-    count: number;
-    total_amount: number;
-    description: string;
-    items: DecisionTileItem[];
-  };
+  proposals_needing_outreach: DecisionTileGroup<OutreachTileItem>;
+  unanswered_rfis: DecisionTileGroup<RfiTileItem>;
+  upcoming_meetings: DecisionTileGroup<MeetingTileItem>;
+  overdue_milestones: DecisionTileGroup<MilestoneTileItem>;
+  overdue_payments: DecisionTileGroup<PaymentTileItem>;
 }
 
 export interface IntelligenceSuggestionEvidence {
@@ -339,16 +367,25 @@ export interface IntelligenceSuggestionEvidence {
   signals?: Array<{ label: string; value: string }>;
   supporting_files?: Array<{ type: string; reference: string }>;
   detection_logic?: string;
+  [key: string]: unknown;
+}
+
+export interface IntelligenceSuggestionImpact {
+  type?: string | null;
+  value_usd?: number | null;
+  summary?: string | null;
+  severity?: string | null;
 }
 
 export interface IntelligenceSuggestion {
   id: string;
   project_code: string;
-  project_name: string;
+  project_name?: string;
   is_active_project?: number;
   suggestion_type: string;
   summary?: string;
   proposed_fix: Record<string, unknown>;
+  impact?: IntelligenceSuggestionImpact;
   impact_type?: string;
   impact_value_usd?: number;
   impact_summary?: string;
@@ -372,7 +409,8 @@ export interface IntelligenceSuggestionGroup {
 }
 
 export interface IntelligenceSuggestionsResponse {
-  groups: IntelligenceSuggestionGroup[];
+  group: string;
+  items: IntelligenceSuggestion[];
   generated_at?: string;
 }
 
@@ -535,57 +573,6 @@ export interface EmailCategoryUpdateResponse {
     previous_category?: string | null;
     feedback?: string | null;
   };
-}
-
-export interface IntelligenceSuggestionImpact {
-  type?: string | null;
-  value_usd?: number | null;
-  summary?: string | null;
-  severity?: string | null;
-}
-
-export interface IntelligenceSuggestionEvidence {
-  root_cause?: string;
-  signals?: Array<{ label: string; value: string }>;
-  supporting_files?: Array<{ type: string; reference: string }>;
-  detection_logic?: string;
-  [key: string]: unknown;
-}
-
-export interface IntelligenceSuggestion {
-  id: string;
-  project_code: string;
-  project_name?: string;
-  is_active_project?: number;
-  suggestion_type: string;
-  summary?: string;
-  proposed_fix: Record<string, unknown>;
-  impact?: IntelligenceSuggestionImpact;
-  impact_summary?: string | null;
-  impact_type?: string;
-  impact_value_usd?: number;
-  confidence: number;
-  severity?: string;
-  bucket?: string;
-  pattern_id?: string;
-  pattern_label?: string;
-  auto_apply_candidate?: boolean;
-  status?: string;
-  created_at?: string;
-  snooze_until?: string | null;
-  evidence?: IntelligenceSuggestionEvidence;
-}
-
-export interface IntelligenceSuggestionGroup {
-  bucket: string;
-  label: string;
-  description?: string;
-  items: IntelligenceSuggestion[];
-}
-
-export interface IntelligenceSuggestionsResponse {
-  group: string;
-  items: IntelligenceSuggestion[];
 }
 
 export interface IntelligenceDecisionRequest {

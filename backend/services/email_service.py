@@ -54,7 +54,7 @@ class EmailService(BaseService):
                 (
                     SELECT p.project_code
                     FROM email_proposal_links epl
-                    JOIN proposals p ON epl.proposal_id = p.proposal_id
+                    JOIN projects p ON epl.proposal_id = p.proposal_id
                     WHERE epl.email_id = e.email_id
                     ORDER BY epl.created_at DESC
                     LIMIT 1
@@ -62,7 +62,7 @@ class EmailService(BaseService):
                 (
                     SELECT p.is_active_project
                     FROM email_proposal_links epl
-                    JOIN proposals p ON epl.proposal_id = p.proposal_id
+                    JOIN projects p ON epl.proposal_id = p.proposal_id
                     WHERE epl.email_id = e.email_id
                     ORDER BY epl.created_at DESC
                     LIMIT 1

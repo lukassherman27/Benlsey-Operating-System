@@ -232,7 +232,7 @@ class MeetingService:
                 p.project_name,
                 p.client_company
             FROM project_meetings m
-            JOIN proposals p ON m.proposal_id = p.proposal_id
+            JOIN projects p ON m.proposal_id = p.proposal_id
             WHERE m.scheduled_date BETWEEN ? AND ?
               AND m.status = 'scheduled'
             ORDER BY m.scheduled_date ASC
@@ -259,7 +259,7 @@ class MeetingService:
                 p.project_name,
                 p.client_company
             FROM project_meetings m
-            JOIN proposals p ON m.proposal_id = p.proposal_id
+            JOIN projects p ON m.proposal_id = p.proposal_id
             WHERE m.scheduled_date BETWEEN ? AND ?
               AND m.status = 'scheduled'
             ORDER BY m.scheduled_date ASC
@@ -311,7 +311,7 @@ class MeetingService:
                 p.project_name,
                 p.client_company
             FROM project_meetings m
-            JOIN proposals p ON m.proposal_id = p.proposal_id
+            JOIN projects p ON m.proposal_id = p.proposal_id
             WHERE m.scheduled_date BETWEEN ? AND ?
               AND m.status = 'scheduled'
               AND m.reminder_sent = 0

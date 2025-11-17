@@ -216,7 +216,7 @@ class MilestoneService:
                 p.project_name,
                 p.client_company
             FROM project_milestones m
-            JOIN proposals p ON m.project_id = p.proposal_id
+            JOIN projects p ON m.project_id = p.proposal_id
             WHERE m.planned_date < ?
               AND m.status != 'completed'
               AND m.status != 'cancelled'
@@ -244,7 +244,7 @@ class MilestoneService:
                 p.project_name,
                 p.client_company
             FROM project_milestones m
-            JOIN proposals p ON m.project_id = p.proposal_id
+            JOIN projects p ON m.project_id = p.proposal_id
             WHERE m.planned_date BETWEEN ? AND ?
               AND m.status != 'completed'
               AND m.status != 'cancelled'

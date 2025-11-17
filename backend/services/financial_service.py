@@ -224,7 +224,7 @@ class FinancialService:
                 p.project_name,
                 p.client_company
             FROM project_financials f
-            JOIN proposals p ON f.proposal_id = p.proposal_id
+            JOIN projects p ON f.proposal_id = p.proposal_id
             WHERE f.due_date < ?
               AND f.status != 'paid'
               AND f.status != 'cancelled'
@@ -252,7 +252,7 @@ class FinancialService:
                 p.project_name,
                 p.client_company
             FROM project_financials f
-            JOIN proposals p ON f.proposal_id = p.proposal_id
+            JOIN projects p ON f.proposal_id = p.proposal_id
             WHERE f.due_date BETWEEN ? AND ?
               AND f.status != 'paid'
               AND f.status != 'cancelled'
