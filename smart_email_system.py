@@ -454,7 +454,7 @@ def main():
     system = SmartEmailSystem()
 
     try:
-        system.process_batch(limit=5)
+        system.process_batch(limit=20)
     finally:
         system.close()
 
