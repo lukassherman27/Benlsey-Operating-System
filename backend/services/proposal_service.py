@@ -12,12 +12,53 @@ with status='proposal'. This service filters for proposal records.
 """
 
 from typing import Optional, List, Dict, Any
-from datetime import datetime, timedelta
 from .base_service import BaseService
 
 
 class ProposalService(BaseService):
     """Service for proposal operations"""
+
+    DEFAULT_ACTIVE_STATUSES = ['proposal', 'active_project']
+    STATUS_ALIASES = {
+        'project': 'active_project',
+        'projects': 'active_project',
+        'active': 'active_project',
+        'active_projects': 'active_project',
+        'proposal': 'proposal',
+        'proposals': 'proposal',
+        'pipeline': 'proposal',
+    }
+
+    def _resolve_statuses(
+        self,
+        status: Optional[str],
+        default_statuses: Optional[List[str]] = None,
+    ) -> List[str]:
+        """
+        Normalize incoming status filters.
+
+        Args:
+            status: Optional comma-delimited status list (e.g. "proposal,active")
+            default_statuses: Default statuses when no explicit filter supplied
+
+        Returns:
+            List of normalized status strings. Empty list means "no filter".
+        """
+        if not status:
+            return list(default_statuses or [])
+
+        statuses = []
+        for part in status.split(','):
+            value = part.strip()
+            if not value:
+                continue
+            lowered = value.lower()
+            if lowered in ('all', '*'):
+                return []
+            normalized = self.STATUS_ALIASES.get(lowered, value)
+            statuses.append(normalized)
+
+        return statuses
 
     def _enhance_proposal(self, proposal: Dict[str, Any]) -> Dict[str, Any]:
         """
@@ -78,11 +119,15 @@ class ProposalService(BaseService):
                 created_at,
                 updated_at
             FROM projects
-            WHERE status = 'proposal'
+            WHERE 1=1
         """
-        params = []
+        params: List[Any] = []
+        statuses = self._resolve_statuses(status, self.DEFAULT_ACTIVE_STATUSES)
 
-        # Note: status filter removed since we're already filtering for status='proposal'
+        if statuses:
+            placeholders = ",".join(["?"] * len(statuses))
+            sql += f" AND status IN ({placeholders})"
+            params.extend(statuses)
 
         if is_active_project is not None:
             sql += " AND is_active_project = ?"
@@ -124,7 +169,6 @@ class ProposalService(BaseService):
             LEFT JOIN document_proposal_links dpl ON p.proposal_id = dpl.proposal_id
             LEFT JOIN documents d ON dpl.document_id = d.document_id
             WHERE p.project_code = ?
-            AND p.status = 'proposal'
             GROUP BY p.proposal_id
         """
         result = self.execute_query(sql, (project_code,), fetch_one=True)
@@ -132,7 +176,7 @@ class ProposalService(BaseService):
 
     def get_proposal_by_id(self, proposal_id: int) -> Optional[Dict[str, Any]]:
         """Get proposal by ID"""
-        sql = "SELECT * FROM projects WHERE proposal_id = ? AND status = 'proposal'"
+        sql = "SELECT * FROM projects WHERE proposal_id = ?"
         result = self.execute_query(sql, (proposal_id,), fetch_one=True)
         return self._enhance_proposal(result)
 
@@ -157,10 +201,16 @@ class ProposalService(BaseService):
             FROM projects
             WHERE health_score < ?
             AND is_active_project = 1
-            AND status = 'proposal'
-            ORDER BY health_score ASC
         """
-        results = self.execute_query(sql, (threshold,))
+        params: List[Any] = [threshold]
+        statuses = self._resolve_statuses(None, self.DEFAULT_ACTIVE_STATUSES)
+        if statuses:
+            placeholders = ",".join(["?"] * len(statuses))
+            sql += f" AND status IN ({placeholders})"
+            params.extend(statuses)
+        sql += " ORDER BY health_score ASC"
+
+        results = self.execute_query(sql, tuple(params))
         return self._enhance_proposals(results)
 
     def get_proposal_timeline(self, project_code: str) -> Dict[str, Any]:
@@ -304,28 +354,56 @@ class ProposalService(BaseService):
         Returns:
             Dict with overall statistics
         """
-        stats = {}
+        stats: Dict[str, Any] = {}
+        statuses = self._resolve_statuses(None, self.DEFAULT_ACTIVE_STATUSES)
+        status_clause = ""
+        status_params: tuple = ()
 
-        # Total counts
-        stats['total_proposals'] = self.count_rows('projects', "status = 'proposal'")
-        stats['active_projects'] = self.count_rows('projects', "status = 'proposal' AND is_active_project = 1")
+        if statuses:
+            placeholders = ",".join(["?"] * len(statuses))
+            status_clause = f"status IN ({placeholders})"
+            status_params = tuple(statuses)
 
-        # Health distribution
-        stats['healthy'] = self.count_rows('projects', "status = 'proposal' AND health_score >= 70")
-        stats['at_risk'] = self.count_rows('projects', "status = 'proposal' AND health_score < 70 AND health_score >= 40")
-        stats['critical'] = self.count_rows('projects', "status = 'proposal' AND health_score < 40")
+        def combine_clause(extra: Optional[str]) -> Optional[str]:
+            parts = []
+            if status_clause:
+                parts.append(status_clause)
+            if extra:
+                parts.append(extra)
+            if not parts:
+                return None
+            return " AND ".join(parts)
 
-        # Recent activity
-        seven_days_ago = (datetime.now() - timedelta(days=7)).strftime('%Y-%m-%d')
-        stats['active_last_week'] = self.count_rows(
-            'projects',
-            "status = 'proposal' AND days_since_contact <= 7"
+        def count_projects(extra: Optional[str]) -> int:
+            clause = combine_clause(extra)
+            if clause:
+                params = status_params if status_clause else ()
+                return self.count_rows('projects', clause, params)
+            return self.count_rows('projects')
+
+        stats['total_proposals'] = count_projects(None)
+        stats['active_projects'] = count_projects("is_active_project = 1")
+        stats['healthy'] = count_projects("health_score >= 70")
+        stats['at_risk'] = count_projects("health_score < 70 AND health_score >= 40")
+        stats['critical'] = count_projects("health_score < 40")
+        stats['active_last_week'] = count_projects("days_since_contact <= 7")
+        stats['need_followup'] = count_projects(
+            "days_since_contact > 14 AND is_active_project = 1"
         )
+        stats['needs_attention'] = stats['need_followup']
 
-        # Need follow-up
-        stats['need_followup'] = self.count_rows(
-            'projects',
-            "status = 'proposal' AND days_since_contact > 14 AND is_active_project = 1"
+        avg_clause = combine_clause("health_score IS NOT NULL")
+        avg_sql = "SELECT AVG(health_score) as avg_health FROM projects"
+        avg_params: tuple = ()
+        if avg_clause:
+            avg_sql += f" WHERE {avg_clause}"
+            avg_params = status_params if status_clause else ()
+        else:
+            avg_sql += " WHERE health_score IS NOT NULL"
+
+        avg_row = self.execute_query(avg_sql, avg_params, fetch_one=True)
+        stats['avg_health_score'] = (
+            avg_row['avg_health'] if avg_row and avg_row['avg_health'] is not None else None
         )
 
         return stats
@@ -350,12 +428,21 @@ class ProposalService(BaseService):
                 is_active_project
             FROM projects
             WHERE (project_code LIKE ? OR project_name LIKE ?)
-            AND status = 'proposal'
+        """
+        search_term = f"%{query}%"
+        params: List[Any] = [search_term, search_term]
+        statuses = self._resolve_statuses(None, self.DEFAULT_ACTIVE_STATUSES)
+        if statuses:
+            placeholders = ",".join(["?"] * len(statuses))
+            sql += f" AND status IN ({placeholders})"
+            params.extend(statuses)
+
+        sql += """
             ORDER BY health_score ASC
             LIMIT 20
         """
-        search_term = f"%{query}%"
-        results = self.execute_query(sql, (search_term, search_term))
+
+        results = self.execute_query(sql, tuple(params))
         return self._enhance_proposals(results)
 
     def update_proposal_status(self, project_code: str, status: str) -> bool:

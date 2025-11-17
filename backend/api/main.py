@@ -32,6 +32,7 @@ from services.outreach_service import OutreachService
 from services.override_service import OverrideService
 from services.training_service import TrainingService
 from services.proposal_query_service import ProposalQueryService
+from services.query_service import QueryService
 
 # Initialize FastAPI app
 app = FastAPI(
@@ -65,6 +66,7 @@ outreach_service = OutreachService(DB_PATH)
 override_service = OverrideService(DB_PATH)
 training_service = TrainingService(DB_PATH)
 proposal_query_service = ProposalQueryService()
+query_service = QueryService(DB_PATH)
 
 # ============================================================================
 # PYDANTIC MODELS
@@ -3901,3 +3903,60 @@ async def query_scope_of_work(project_code: str):
         return {"success": True, "scope_documents": docs, "count": len(docs)}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+# ============================================================================
+# NATURAL LANGUAGE QUERY ENDPOINTS - AI-Powered Queries
+# ============================================================================
+
+class NaturalLanguageQueryRequest(BaseModel):
+    """Request model for natural language queries"""
+    question: str = Field(..., description="Natural language question about the database")
+    use_ai: bool = Field(True, description="Whether to use AI (True) or pattern matching (False)")
+
+
+@app.post("/api/query/ask")
+async def ask_natural_language_question(request: NaturalLanguageQueryRequest):
+    """
+    Ask a natural language question about the database.
+
+    Uses GPT-4o to understand the question and generate appropriate SQL queries.
+
+    Examples:
+    - "What projects have we not contacted in over 30 days?"
+    - "Show me all RFIs for BK-069"
+    - "Which proposals have low health scores?"
+    - "Find all emails about contracts from this month"
+    """
+    try:
+        result = query_service.query(request.question, use_ai=request.use_ai)
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/query/ask")
+async def ask_natural_language_question_get(
+    q: str = Query(..., description="Natural language question"),
+    use_ai: bool = Query(True, description="Use AI (True) or pattern matching (False)")
+):
+    """
+    Ask a natural language question about the database (GET method).
+
+    Same as POST /api/query/ask but using GET for simpler frontend integration.
+
+    Example: /api/query/ask?q=Show me all proposals from 2024
+    """
+    try:
+        result = query_service.query(q, use_ai=use_ai)
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/query/examples")
+async def get_query_examples():
+    """Get example queries to show users"""
+    return {
+        "examples": query_service.get_query_suggestions(),
+        "ai_enabled": query_service.ai_enabled
+    }
