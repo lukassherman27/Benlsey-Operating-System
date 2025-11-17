@@ -338,7 +338,7 @@ class SmartEmailMatcher:
             return None
 
     def parse_email_body(self, msg):
-        """Extract text preview from email"""
+        """Extract full text from email + preview"""
         body = ""
 
         if msg.is_multipart():
@@ -355,7 +355,10 @@ class SmartEmailMatcher:
             except:
                 pass
 
-        return body[:200].strip() if body else ""
+        # Return both full body and preview (500 chars)
+        full_body = body.strip() if body else ""
+        preview = full_body[:500].strip() if full_body else ""
+        return full_body, preview
 
     def process_folder(self, mail, folder_name, max_emails=None):
         """Process emails from folder"""
@@ -392,7 +395,7 @@ class SmartEmailMatcher:
                     to_addr = msg.get('To', '')
                     date_str = msg.get('Date', '')
                     message_id = msg.get('Message-ID', f'no-id-{email_id}')
-                    body_preview = self.parse_email_body(msg)
+                    body_full, body_preview = self.parse_email_body(msg)
 
                     if i % 10 == 0:
                         print(f"   [{i}/{len(email_ids)}] Processed...")
@@ -407,11 +410,11 @@ class SmartEmailMatcher:
                         self.cursor.execute("""
                             INSERT OR IGNORE INTO emails
                             (message_id, subject, sender_email, recipient_emails,
-                             date, body_preview, folder, created_at)
-                            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                             date, body_preview, body_full, folder, created_at)
+                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                         """, (
                             message_id, subject, from_addr, to_addr,
-                            date_str, body_preview, folder_name,
+                            date_str, body_preview, body_full, folder_name,
                             datetime.now().isoformat()
                         ))
 

@@ -153,34 +153,67 @@ Status: {status} (pre-contract)
         prompt = f"""Categorize this Bensley Design Studios email into ONE category:
 {context}
 Categories:
-- contract: Legal agreements, NDAs, MOUs, signed contracts, contract terms/negotiations
-  * For PROPOSALS: Contract discussion, terms being negotiated
-  * For ACTIVE PROJECTS: Amendments, change orders, legal matters
 
-- invoice: Payment-related emails, invoices, receipts, billing
-  * Usually only applies to ACTIVE PROJECTS (with signed contracts)
+- proposal: Initial project proposals, fee proposals, scope discussions
+  * Discussing fees, budgets, pricing
+  * Sharing initial concepts, design ideas
+  * Proposal submissions, RFPs, quote requests
+  * Scope negotiations (what will be included)
+  * ONLY for PROPOSALS (not active projects)
 
-- design: Design discussions, creative direction, concept reviews
-  * For PROPOSALS: General design ideas, exploring concepts, brainstorming
-  * For ACTIVE PROJECTS: Formal design reviews, drawing submissions, revisions
+- project_update: Status updates on ongoing work
+  * Progress reports, milestone completions
+  * Project status emails ("here's where we are")
+  * Updates on next steps
+  * Can be for proposals OR active projects
 
-- rfi: Requests for information, questions needing formal responses
-  * Usually only applies to ACTIVE PROJECTS (construction phase)
-  * For PROPOSALS: Use "general" instead
+- contract: Formal legal documents (NDAs, MOUs, signed contracts, amendments)
+  * Negotiating contract terms and language
+  * Signing, reviewing legal agreements
+  * Contract amendments, extensions
+  * For both proposals AND active projects
 
-- schedule: Construction schedules, project timelines, milestone dates, daily reports
-  * Usually only applies to ACTIVE PROJECTS
-  * For PROPOSALS: Timeline discussions should be "general"
+- invoice: Payment-related emails (invoices, receipts, bills)
+  * Sending/receiving invoices
+  * Payment confirmations, receipts
+  * ONLY applies to ACTIVE PROJECTS with signed contracts
 
-- meeting: Meeting invitations, agendas, meeting notes, action items
+- design: ONLY for ACTIVE PROJECTS with formal design work
+  * Submitting drawings/plans for approval
+  * Design reviews, revisions, technical feedback
+  * Formal design deliverables
+  * NEVER use for proposal design ideas (use "proposal" instead)
 
-- general: General correspondence, updates, check-ins, exploratory discussions
-  * For PROPOSALS: Most correspondence is "general" until contract signed
-  * Includes: introductions, scope discussions, fee discussions, follow-ups
+- rfi: ONLY for ACTIVE PROJECTS - formal requests for information
+  * Technical clarifications during construction/design phase
+  * Formal RFI documents
+  * Questions requiring official responses
+  * NEVER use for proposals (use "proposal" for questions)
 
-IMPORTANT:
-- For PROPOSALS (pre-contract), most emails are "general" unless specifically contract/meeting/invoice
-- For ACTIVE PROJECTS, be more specific with design/rfi/schedule categories
+- schedule: ONLY for ACTIVE PROJECTS
+  * Construction schedules, milestone tracking
+  * Daily reports, timeline updates
+  * Gantt charts, critical path discussions
+  * NEVER use for proposal timelines (use "proposal")
+
+- meeting: Meeting invitations, agendas, meeting notes
+  * Calendar invites, Zoom links
+  * Meeting summaries, action items
+  * For both proposals AND active projects
+
+- general: Miscellaneous correspondence
+  * Thank you emails, introductions
+  * Administrative matters
+  * Emails that don't fit other categories
+  * When genuinely unsure
+
+CRITICAL RULES:
+1. If discussing FEES or SCOPE → "proposal" (not "general")
+2. If PROGRESS UPDATE or STATUS → "project_update" (not "general")
+3. If ACTIVE PROJECT + formal RFI → "rfi"
+4. If ACTIVE PROJECT + design deliverables → "design"
+5. If PROPOSAL + design ideas → "proposal" (NOT "design")
+6. When in doubt between proposal/project_update/general → choose proposal or project_update
 
 Subject: {subject}
 Body: {body[:500]}
@@ -199,9 +232,19 @@ Respond with ONLY the category name (one word).
             category = response.choices[0].message.content.strip().lower()
 
             # Validate category
-            valid_categories = ['contract', 'invoice', 'design', 'rfi', 'schedule', 'meeting', 'general']
+            valid_categories = ['contract', 'invoice', 'design', 'rfi', 'schedule', 'meeting', 'general', 'proposal', 'project_update']
             if category not in valid_categories:
                 category = 'general'
+
+            # CRITICAL: Validate context-specific categories
+            if proposal_context and not proposal_context.get('is_active_project', 0):
+                # This is a PROPOSAL (not active project)
+                # Force design/rfi/schedule to proposal category (design ideas, questions, timelines in proposals)
+                if category in ['design', 'rfi', 'schedule']:
+                    category = 'proposal'  # Force to proposal
+                # Invoice doesn't make sense for proposals
+                if category == 'invoice':
+                    category = 'proposal'
 
             # Save for distillation
             self.save_training_data('classify', prompt, category, 'gpt-3.5-turbo', 0.8)
@@ -302,8 +345,10 @@ Focus on: What action, decision, or key information does this contain?
         category_weights = {
             'contract': 0.3,
             'invoice': 0.2,
+            'proposal': 0.15,
             'design': 0.15,
             'rfi': 0.15,
+            'project_update': 0.1,
             'schedule': 0.1,
             'meeting': 0.1,
             'general': 0.0
@@ -391,6 +436,50 @@ Focus on: What action, decision, or key information does this contain?
         except Exception as e:
             print(f"  ✗ Error processing email {email_id}: {e}")
             self.stats['errors'] += 1
+
+    def process_all_emails(self, limit=None):
+        """Process ALL emails, whether linked or not"""
+        print("\n" + "="*80)
+        print("🧠 BENSLEY BRAIN - EMAIL CONTENT PROCESSOR (ALL EMAILS)")
+        print("="*80)
+        print(f"Database: {self.db_path}")
+        print(f"AI Enabled: {'✓' if self.ai_enabled else '✗'}")
+
+        # Get ALL unprocessed emails
+        query = """
+            SELECT
+                e.email_id,
+                e.subject,
+                COALESCE(e.body_full, e.body_preview) as body
+            FROM emails e
+            WHERE e.email_id NOT IN (SELECT email_id FROM email_content)
+            ORDER BY e.date DESC
+        """
+
+        if limit:
+            query += f" LIMIT {limit}"
+
+        self.cursor.execute(query)
+        emails = self.cursor.fetchall()
+
+        if not emails:
+            print("\n✓ All emails already processed!")
+            return
+
+        print(f"\nProcessing {len(emails)} emails...")
+
+        for i, email in enumerate(emails, 1):
+            if i % 50 == 0:
+                print(f"  [{i}/{len(emails)}] Processed...")
+
+            self.process_email(
+                email['email_id'],
+                email['subject'],
+                email['body'],
+                proposal_context=None  # No context for unlinked emails
+            )
+
+        print(f"\n✅ Processing complete!")
 
     def process_all_linked_emails(self, limit=None):
         """Process all emails linked to proposals"""
@@ -513,7 +602,7 @@ def main():
 
     try:
         processor = EmailContentProcessor(db_path)
-        processor.process_all_linked_emails(limit=limit)
+        processor.process_all_emails(limit=limit)
         processor.close()
     except KeyboardInterrupt:
         print("\n\n⏸️  Interrupted - progress saved")
