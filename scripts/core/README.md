@@ -18,6 +18,7 @@ Active, production-ready scripts that are regularly used.
 | `proposal_tracker_weekly_email.py` | Weekly email for proposal tracking | Scheduled reports |
 | `daily_accountability_system.py` | Daily tracking and accountability | Daily automation |
 | `quickstart.py` | Initial system setup | One-time setup |
+| `health_check.py` | Codebase health verification | `make health-check` |
 
 ## Rules for This Folder
 

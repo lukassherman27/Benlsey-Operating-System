@@ -1,4 +1,4 @@
-.PHONY: help install dev backend frontend test lint format clean db-backup
+.PHONY: help install dev backend frontend test lint format clean db-backup health-check
 
 # Default target
 help:
@@ -22,6 +22,7 @@ help:
 	@echo "Utilities:"
 	@echo "  make clean       - Remove cache files and logs"
 	@echo "  make imports     - Run full data import pipeline"
+	@echo "  make health-check - Run codebase health checks"
 
 # =============================================================================
 # Setup
@@ -96,6 +97,19 @@ imports:
 import-emails:
 	@echo "Processing emails..."
 	python scripts/core/smart_email_brain.py
+
+# =============================================================================
+# Health & Validation
+# =============================================================================
+
+health-check:
+	@echo "Running health checks..."
+	python scripts/core/health_check.py
+
+validate:
+	@echo "Running tests and linting..."
+	@make lint
+	@make test
 
 # =============================================================================
 # Cleanup
