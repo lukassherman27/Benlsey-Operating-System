@@ -89,7 +89,7 @@ export function MilestonesWidget() {
     ...upcomingDeliverables.filter(d =>
       !overdueDeliverables.some(o => o.deliverable_id === d.deliverable_id)
     ).map(d => ({ ...d, _isOverdue: false })),
-  ].slice(0, 10);
+  ].slice(0, 8);
 
   const overdueCount = overdueDeliverables.length;
   const dueThisWeek = upcomingDeliverables.filter(d => {
@@ -99,7 +99,7 @@ export function MilestonesWidget() {
   }).length;
 
   return (
-    <Card>
+    <Card className="h-full">
       <CardHeader className="flex flex-row items-center justify-between pb-2">
         <CardTitle className="text-lg flex items-center gap-2">
           <Flag className="h-5 w-5 text-blue-500" />
@@ -190,9 +190,9 @@ export function MilestonesWidget() {
                 </div>
               );
             })}
-            {(upcomingDeliverables.length + overdueDeliverables.length) > 10 && (
+            {(upcomingDeliverables.length + overdueDeliverables.length) > 8 && (
               <p className="text-xs text-center text-muted-foreground pt-2">
-                + {(upcomingDeliverables.length + overdueDeliverables.length) - 10} more milestones
+                + {(upcomingDeliverables.length + overdueDeliverables.length) - 8} more milestones
               </p>
             )}
           </div>
@@ -204,12 +204,12 @@ export function MilestonesWidget() {
 
 function MilestonesSkeleton() {
   return (
-    <Card>
+    <Card className="h-full">
       <CardHeader>
         <div className="h-6 w-40 bg-gray-200 rounded animate-pulse" />
       </CardHeader>
-      <CardContent className="space-y-3">
-        {[1, 2, 3].map((i) => (
+      <CardContent className="space-y-2">
+        {[1, 2, 3, 4, 5, 6].map((i) => (
           <div key={i} className="h-16 bg-gray-100 rounded animate-pulse" />
         ))}
       </CardContent>

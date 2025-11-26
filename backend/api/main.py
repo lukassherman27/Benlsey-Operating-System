@@ -7479,6 +7479,7 @@ async def get_proposal_tracker_list(
     status: Optional[str] = None,
     country: Optional[str] = None,
     search: Optional[str] = None,
+    discipline: Optional[str] = None,
     page: int = 1,
     per_page: int = 50
 ):
@@ -7488,10 +7489,21 @@ async def get_proposal_tracker_list(
             status=status,
             country=country,
             search=search,
+            discipline=discipline,
             page=page,
             per_page=per_page
         )
         return {"success": True, **result}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/proposal-tracker/disciplines")
+async def get_proposal_tracker_disciplines():
+    """Get proposal counts and values by discipline for filter dropdown"""
+    try:
+        disciplines = proposal_tracker_service.get_discipline_stats()
+        return {"success": True, "disciplines": disciplines}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -9575,10 +9587,23 @@ async def list_suggestions(
         raise HTTPException(status_code=500, detail=str(e))
 
 
+class ApproveSuggestionWithEdits(BaseModel):
+    """Request model for approving suggestions with optional edits"""
+    name: Optional[str] = None
+    email: Optional[str] = None
+    company: Optional[str] = None
+    role: Optional[str] = None
+    related_project: Optional[str] = None
+    notes: Optional[str] = None
+
+
 @app.post("/api/suggestions/{suggestion_id}/approve")
-async def approve_suggestion(suggestion_id: int):
+async def approve_suggestion(suggestion_id: int, edits: Optional[ApproveSuggestionWithEdits] = None):
     """
     Approve an AI suggestion and apply it to the database.
+
+    Optionally accepts edited contact data in the request body to override
+    the original suggestion values.
 
     For 'new_contact': Inserts into contacts table
     For 'project_alias': Inserts into learned_patterns table
@@ -9621,11 +9646,32 @@ async def approve_suggestion(suggestion_id: int):
 
         # Apply the suggestion based on field_name
         if field_name == 'new_contact':
-            # Insert into contacts table
-            name = suggested_value.get('name', '')
-            email = suggested_value.get('email', '')
-            company = suggested_value.get('company', '')
-            role = suggested_value.get('role', '')
+            # Use edited values if provided, otherwise fall back to original suggestion
+            if edits:
+                name = edits.name or suggested_value.get('name', '')
+                email = edits.email or suggested_value.get('email', '')
+                company = edits.company or suggested_value.get('company', '')
+                role = edits.role or suggested_value.get('role', '')
+                related_project = edits.related_project or suggested_value.get('related_project', '')
+                notes = edits.notes or ''
+            else:
+                name = suggested_value.get('name', '')
+                email = suggested_value.get('email', '')
+                company = suggested_value.get('company', '')
+                role = suggested_value.get('role', '')
+                related_project = suggested_value.get('related_project', '')
+                notes = ''
+
+            # Build comprehensive notes
+            note_parts = []
+            if company:
+                note_parts.append(f"Company: {company}")
+            if related_project:
+                note_parts.append(f"Related project: {related_project}")
+            if notes:
+                note_parts.append(notes)
+            note_parts.append("Added from AI suggestion")
+            full_notes = ". ".join(note_parts)
 
             if email:
                 # Check if contact already exists
@@ -9635,8 +9681,8 @@ async def approve_suggestion(suggestion_id: int):
                     cursor.execute("""
                         INSERT INTO contacts (email, name, role, notes)
                         VALUES (?, ?, ?, ?)
-                    """, (email, name, role or company, f"Auto-added from AI suggestion. Company: {company}"))
-                    logger.info(f"Created contact: {name} <{email}>")
+                    """, (email, name, role or '', full_notes))
+                    logger.info(f"Created contact: {name} <{email}> (role: {role})")
                 else:
                     logger.info(f"Contact already exists: {email}")
 

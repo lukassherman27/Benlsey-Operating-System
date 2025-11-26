@@ -13,11 +13,14 @@ import { QuickActionsPanel } from "@/components/dashboard/quick-actions-panel";
 import { ProjectHierarchyTree } from "@/components/dashboard/project-hierarchy-tree";
 import { RFITrackerWidget } from "@/components/dashboard/rfi-tracker-widget";
 import { MilestonesWidget } from "@/components/dashboard/milestones-widget";
+import { TopOutstandingInvoicesWidget } from "@/components/dashboard/top-outstanding-invoices-widget";
+import { AllInvoicesList } from "@/components/dashboard/all-invoices-list";
 import {
   CheckCircle2,
   TrendingUp,
   ChevronDown,
   ChevronRight,
+  AlertTriangle,
 } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
@@ -205,7 +208,7 @@ export default function ProjectsPage() {
             </div>
           </Card>
 
-          {/* Widget 2: Projects by Outstanding */}
+          {/* Widget 2: Projects by Outstanding - IMPROVED CLARITY */}
           <Card className="rounded-3xl border-slate-200/70">
             <div className="p-6">
               <div className="flex items-center justify-between mb-4">
@@ -231,26 +234,48 @@ export default function ProjectsPage() {
                   <p className="text-sm text-slate-500">No outstanding invoices</p>
                 ) : (
                   <div className="space-y-3">
-                    {projectsByOutstandingQuery.data.projects.map((project: Record<string, unknown>, idx: number) => (
-                      <div
-                        key={`${project.project_code}-${idx}`}
-                        className="flex items-center justify-between rounded-2xl border border-slate-100 p-4 hover:bg-slate-50 transition-colors"
-                      >
-                        <div className="flex-1">
-                          <p className="font-semibold text-slate-900">
-                            {(project.project_name as string) || (project.project_code as string)}
-                          </p>
-                          <p className="text-xs text-slate-500">
-                            {(project.overdue_amount as number) > 0
-                              ? `${formatCurrency(project.overdue_amount as number)} overdue`
-                              : `${project.overdue_invoice_count || 0} overdue invoices`}
-                          </p>
+                    {projectsByOutstandingQuery.data.projects.map((project: Record<string, unknown>, idx: number) => {
+                      const overdueAmount = (project.overdue_amount as number) || 0;
+                      const outstandingAmount = (project.outstanding_usd as number) || 0;
+                      const hasOverdue = overdueAmount > 0;
+
+                      return (
+                        <div
+                          key={`${project.project_code}-${idx}`}
+                          className={cn(
+                            "rounded-2xl border p-4 transition-colors",
+                            hasOverdue
+                              ? "border-red-200 bg-red-50/50 hover:bg-red-50"
+                              : "border-slate-100 hover:bg-slate-50"
+                          )}
+                        >
+                          <div className="flex items-start justify-between">
+                            <div className="flex-1 min-w-0">
+                              <p className="font-semibold text-slate-900 truncate">
+                                {(project.project_name as string) || (project.project_code as string)}
+                              </p>
+                              <p className="text-xs text-slate-500 mt-0.5">
+                                {project.project_code as string}
+                              </p>
+                            </div>
+                            <div className="text-right flex-shrink-0 ml-4">
+                              <p className="text-sm text-slate-600">Outstanding</p>
+                              <p className="font-bold text-lg text-orange-600">
+                                {formatCurrency(outstandingAmount)}
+                              </p>
+                            </div>
+                          </div>
+                          {hasOverdue && (
+                            <div className="mt-2 flex items-center gap-1.5 text-red-600">
+                              <AlertTriangle className="h-3.5 w-3.5" />
+                              <span className="text-xs font-medium">
+                                {formatCurrency(overdueAmount)} overdue (&gt;30 days)
+                              </span>
+                            </div>
+                          )}
                         </div>
-                        <p className="font-semibold text-orange-600">
-                          {formatCurrency(project.outstanding_usd as number)}
-                        </p>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
               </div>
@@ -447,6 +472,24 @@ export default function ProjectsPage() {
               </div>
             </CardContent>
           </Card>
+        </section>
+
+        {/* Invoice Management Section - Full Width */}
+        <section className="mt-8">
+          <div className="mb-6">
+            <h2 className="text-2xl font-bold text-slate-900">Invoice Management</h2>
+            <p className="text-sm text-slate-600 mt-1">
+              Track and manage all outstanding invoices across projects
+            </p>
+          </div>
+
+          {/* Top Outstanding Invoices */}
+          <div className="mb-6">
+            <TopOutstandingInvoicesWidget />
+          </div>
+
+          {/* All Invoices List with Filters */}
+          <AllInvoicesList />
         </section>
       </div>
 

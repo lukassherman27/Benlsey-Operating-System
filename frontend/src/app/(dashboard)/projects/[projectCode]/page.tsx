@@ -104,9 +104,11 @@ export default function ProjectDetailPage({
 
   // Calculate financial stats
   const contractValue = (projectDetail?.contract_value_usd as number) ?? (projectDetail?.total_fee_usd as number) ?? 0;
+  const totalInvoiced = (projectDetail?.total_invoiced as number) ?? 0;
   const paidToDate = (projectDetail?.paid_to_date_usd as number) ?? 0;
-  const outstandingAmount = (projectDetail?.outstanding_usd as number) ?? (contractValue - paidToDate);
-  const paymentProgress = contractValue > 0 ? (paidToDate / contractValue) * 100 : 0;
+  const outstandingAmount = totalInvoiced - paidToDate; // Outstanding = Invoiced - Paid
+  const invoicingProgress = contractValue > 0 ? (totalInvoiced / contractValue) * 100 : 0;
+  const paymentProgress = totalInvoiced > 0 ? (paidToDate / totalInvoiced) * 100 : 0;
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white">
@@ -170,43 +172,65 @@ export default function ProjectDetailPage({
                   icon={<CheckCircle2 className="h-5 w-5" />}
                   label="Paid to Date"
                   value={formatCurrency(paidToDate)}
-                  subtitle={`${Math.round(paymentProgress)}% of contract`}
+                  subtitle={`${Math.round(paymentProgress)}% of invoiced`}
                   iconColor="text-emerald-600"
                   bgColor="bg-emerald-50"
                 />
                 <FinancialCard
                   icon={<Clock className="h-5 w-5" />}
                   label="Outstanding"
-                  value={formatCurrency(outstandingAmount)}
-                  subtitle={`${invoices.filter((i: Record<string, unknown>) => i.status === "awaiting_payment").length} invoices`}
+                  value={formatCurrency(outstandingAmount > 0 ? outstandingAmount : 0)}
+                  subtitle={`${invoices.filter((i: Record<string, unknown>) => i.status === "awaiting_payment").length} unpaid invoices`}
                   iconColor="text-rose-600"
                   bgColor="bg-rose-50"
                 />
                 <FinancialCard
                   icon={<TrendingUp className="h-5 w-5" />}
-                  label="Payment Progress"
-                  value={`${Math.round(paymentProgress)}%`}
+                  label="Invoiced"
+                  value={formatCurrency(totalInvoiced)}
+                  subtitle={`${Math.round(invoicingProgress)}% of contract`}
                   iconColor="text-purple-600"
                   bgColor="bg-purple-50"
                 />
               </div>
 
-              {/* Payment Progress Bar */}
+              {/* Progress Bars - Invoicing and Payment */}
               <Card className="mt-6 rounded-3xl border-slate-200">
-                <CardContent className="p-6">
-                  <div className="flex items-center justify-between mb-2">
-                    <p className="text-sm font-medium text-slate-700">Payment Progress</p>
-                    <p className="text-sm text-slate-500">{Math.round(paymentProgress)}%</p>
+                <CardContent className="p-6 space-y-6">
+                  {/* Invoicing Progress (% of contract invoiced) */}
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <p className="text-sm font-medium text-slate-700">Invoicing Progress</p>
+                      <p className="text-sm text-slate-500">{Math.round(invoicingProgress)}% of contract</p>
+                    </div>
+                    <div className="h-3 w-full overflow-hidden rounded-full bg-slate-200">
+                      <div
+                        className="h-full rounded-full bg-gradient-to-r from-purple-500 to-purple-600 transition-all"
+                        style={{ width: `${Math.min(invoicingProgress, 100)}%` }}
+                      />
+                    </div>
+                    <div className="mt-2 flex items-center justify-between text-xs text-slate-500">
+                      <span>Invoiced: {formatCurrency(totalInvoiced)}</span>
+                      <span>Remaining to invoice: {formatCurrency(Math.max(0, contractValue - totalInvoiced))}</span>
+                    </div>
                   </div>
-                  <div className="h-3 w-full overflow-hidden rounded-full bg-slate-200">
-                    <div
-                      className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-emerald-600 transition-all"
-                      style={{ width: `${Math.min(paymentProgress, 100)}%` }}
-                    />
-                  </div>
-                  <div className="mt-4 flex items-center justify-between text-xs text-slate-500">
-                    <span>Paid: {formatCurrency(paidToDate)}</span>
-                    <span>Remaining: {formatCurrency(contractValue - paidToDate)}</span>
+
+                  {/* Payment Progress (% of invoiced amount paid) */}
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <p className="text-sm font-medium text-slate-700">Payment Progress</p>
+                      <p className="text-sm text-slate-500">{Math.round(paymentProgress)}% of invoiced</p>
+                    </div>
+                    <div className="h-3 w-full overflow-hidden rounded-full bg-slate-200">
+                      <div
+                        className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-emerald-600 transition-all"
+                        style={{ width: `${Math.min(paymentProgress, 100)}%` }}
+                      />
+                    </div>
+                    <div className="mt-2 flex items-center justify-between text-xs text-slate-500">
+                      <span>Paid: {formatCurrency(paidToDate)}</span>
+                      <span>Outstanding: {formatCurrency(Math.max(0, outstandingAmount))}</span>
+                    </div>
                   </div>
                 </CardContent>
               </Card>

@@ -57,10 +57,10 @@
 | `frontend/src/components/proposal-quick-edit-dialog.tsx` | 164 | Replace with actual user from auth system | Phase 3 |
 
 ### Plan Tasks (Week 1)
-- [ ] P0: Unified Timeline component (`unified-timeline.tsx`)
-- [ ] P0: Meeting Transcript viewer (`transcript-viewer.tsx`)
-- [ ] P1: RFI Tracker widget
-- [ ] P1: Milestones widget
+- [x] P0: Unified Timeline component (`unified-timeline.tsx`) ✅
+- [x] P0: Meeting Transcript viewer (`transcript-viewer.tsx`) ✅
+- [x] P1: RFI Tracker widget (`rfi-tracker-widget.tsx`) ✅
+- [x] P1: Milestones widget (`milestones-widget.tsx`) ✅
 - [ ] P2: Projects page summary cards
 
 ---
@@ -181,6 +181,15 @@ grep -rn "TODO(agent-2)" frontend/
 | 2025-11-26 | Agent 1 | Unified timeline API |
 | 2025-11-26 | Agent 1 | Enhanced RFIs endpoint with filters |
 | 2025-11-26 | Agent 1 | Enhanced milestones endpoint with filters |
+| 2025-11-26 | Agent 2 | Unified Timeline component |
+| 2025-11-26 | Agent 2 | Transcript Viewer component |
+| 2025-11-26 | Agent 2 | RFI Tracker widget |
+| 2025-11-26 | Agent 2 | Milestones widget |
+| 2025-11-26 | Agent 3 | Deployment configs (Vercel, Railway) |
+| 2025-11-26 | Agent 4 | Data quality report script |
+| 2025-11-26 | Agent 4 | Milestone backfill migration |
+| 2025-11-26 | Agent 5 | RAG Design doc |
+| 2025-11-26 | Agent 5 | Embeddings script |
 
 ---
 

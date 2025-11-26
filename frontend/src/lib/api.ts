@@ -38,6 +38,7 @@ import {
   ProposalTrackerUpdateRequest,
   ProposalStatusHistoryItem,
   ProposalEmailIntelligence,
+  DisciplineStatsResponse,
   ValidationSuggestionsResponse,
   ValidationSuggestion,
   ApproveSuggestionRequest,
@@ -441,10 +442,14 @@ export const api = {
         status: params.status,
         country: params.country,
         search: params.search,
+        discipline: params.discipline && params.discipline !== 'all' ? params.discipline : undefined,
         page: params.page ?? 1,
         per_page: params.per_page ?? 50,
       })}`
     ),
+
+  getProposalTrackerDisciplines: () =>
+    request<DisciplineStatsResponse>("/api/proposal-tracker/disciplines"),
 
   getProposalTrackerCountries: () =>
     request<{ success: boolean; countries: string[] }>(
@@ -829,6 +834,22 @@ export const api = {
       })}`
     ),
 
+  // Add a new fee breakdown phase to a project
+  addFeeBreakdown: (projectCode: string, data: {
+    discipline: string;
+    phase: string;
+    phase_fee_usd: number;
+    scope?: string;
+    percentage_of_total?: number;
+  }) =>
+    request<{ success: boolean; breakdown_id: string; message: string }>(
+      `/api/projects/${encodeURIComponent(projectCode)}/fee-breakdown`,
+      {
+        method: "POST",
+        body: JSON.stringify(data),
+      }
+    ),
+
   createInvoice: (data: {
     project_code: string;
     breakdown_id?: string;
@@ -1156,10 +1177,20 @@ export const api = {
   getSuggestionsStats: () =>
     request<SuggestionsStatsResponse>("/api/suggestions/stats"),
 
-  approveAISuggestion: (suggestionId: number) =>
+  approveAISuggestion: (suggestionId: number, edits?: {
+    name?: string;
+    email?: string;
+    company?: string;
+    role?: string;
+    related_project?: string;
+    notes?: string;
+  }) =>
     request<{ success: boolean; message: string; result?: Record<string, unknown> }>(
       `/api/suggestions/${suggestionId}/approve`,
-      { method: "POST" }
+      {
+        method: "POST",
+        body: edits ? JSON.stringify(edits) : undefined,
+      }
     ),
 
   rejectAISuggestion: (suggestionId: number, reason?: string) =>
