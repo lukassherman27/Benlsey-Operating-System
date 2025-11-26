@@ -1,4 +1,4 @@
-.PHONY: help install dev backend frontend test lint format clean db-backup health-check
+.PHONY: help install dev backend frontend test lint format clean db-backup health-check todos
 
 # Default target
 help:
@@ -23,6 +23,7 @@ help:
 	@echo "  make clean       - Remove cache files and logs"
 	@echo "  make imports     - Run full data import pipeline"
 	@echo "  make health-check - Run codebase health checks"
+	@echo "  make todos       - Show all TODOs in codebase"
 
 # =============================================================================
 # Setup
@@ -110,6 +111,23 @@ validate:
 	@echo "Running tests and linting..."
 	@make lint
 	@make test
+
+todos:
+	@echo "=== TODOs by Location ==="
+	@echo ""
+	@echo "Backend API:"
+	@grep -n "TODO" backend/api/main.py 2>/dev/null || echo "  None"
+	@echo ""
+	@echo "Backend Services:"
+	@grep -rn "TODO" backend/services/ --include="*.py" 2>/dev/null || echo "  None"
+	@echo ""
+	@echo "Frontend Components:"
+	@grep -rn "TODO" frontend/src/components/ --include="*.tsx" 2>/dev/null || echo "  None"
+	@echo ""
+	@echo "Scripts:"
+	@grep -rn "TODO" scripts/core/ --include="*.py" 2>/dev/null || echo "  None"
+	@echo ""
+	@echo "See TODO.md for organized list by agent"
 
 # =============================================================================
 # Cleanup
