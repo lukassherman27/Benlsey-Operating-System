@@ -1,0 +1,130 @@
+# Codebase Index
+
+**Auto-maintained by Organizer Agent | Last updated: 2025-11-26**
+
+Quick lookup for where things live. Use Ctrl+F to find what you need.
+
+---
+
+## By Feature
+
+### Proposals (Sales Pipeline)
+- **API:** `backend/api/main.py` (search "proposals")
+- **Service:** `backend/services/proposal_service.py`, `proposal_tracker_service.py`
+- **Frontend Page:** `frontend/src/app/(dashboard)/tracker/page.tsx`
+- **Components:** `frontend/src/components/proposals/`
+- **Database:** `proposals`, `proposal_tracker`, `proposal_status_history`
+
+### Projects (Active Contracts)
+- **API:** `backend/api/main.py` (search "projects")
+- **Service:** `backend/services/project_creator.py`
+- **Frontend Page:** `frontend/src/app/(dashboard)/projects/page.tsx`
+- **Components:** `frontend/src/components/dashboard/active-projects-*.tsx`
+- **Database:** `projects`, `project_milestones`, `project_fee_breakdown`
+
+### Invoices & Finance
+- **API:** `backend/api/main.py` (search "invoices", "finance")
+- **Service:** `backend/services/financial_service.py`, `invoice_service.py`
+- **Components:** `frontend/src/components/dashboard/invoice-*.tsx`
+- **Database:** `invoices`, `payments`
+
+### Emails
+- **API:** `backend/api/main.py` (search "emails")
+- **Service:** `backend/services/email_service.py`, `email_content_processor*.py`
+- **Importer:** `backend/services/email_importer.py`
+- **Frontend:** `frontend/src/components/emails/`
+- **Database:** `emails`, `email_project_links`, `email_proposal_links`
+
+### RFIs
+- **API:** `backend/api/main.py` (search "rfis")
+- **Service:** `backend/services/rfi_service.py`
+- **Detector:** `scripts/core/rfi_detector.py`
+- **Database:** `rfis`
+
+### Contracts
+- **Service:** `backend/services/contract_service.py`
+- **Parser:** `scripts/core/parse_contracts.py` (Claude AI)
+- **Database:** `contract_metadata`, `contract_phases`, `contract_terms`
+
+### Documents
+- **Service:** `backend/services/document_service.py`
+- **Database:** `documents`, `project_documents`, `document_intelligence`
+
+### Query/Search
+- **API:** `backend/api/main.py` (search "query")
+- **Service:** `backend/services/query_service.py`
+- **Brain:** `scripts/core/query_brain.py`
+- **Frontend:** `frontend/src/components/query-interface.tsx`
+
+---
+
+## By File Type
+
+### Python Scripts
+| Location | Purpose |
+|----------|---------|
+| `scripts/core/` | Active production scripts |
+| `scripts/analysis/` | Audit & analysis |
+| `scripts/maintenance/` | Fixes & upkeep |
+| `scripts/imports/` | Data imports |
+| `scripts/archive/` | Deprecated |
+
+### Markdown Docs
+| Location | Purpose |
+|----------|---------|
+| `docs/architecture/` | System design |
+| `docs/guides/` | How-to guides |
+| `docs/sessions/` | Session notes |
+| `docs/planning/` | Plans & roadmaps |
+| `docs/archive/` | Old docs |
+
+### Database
+| File | Purpose |
+|------|---------|
+| `database/bensley_master.db` | THE database |
+| `database/migrations/*.sql` | Schema migrations |
+| `database/SCHEMA.md` | Schema documentation |
+| `database/backups/` | Backup files |
+
+---
+
+## Search Patterns
+
+```bash
+# Find where a function is defined
+grep -r "def function_name" backend/
+
+# Find API endpoint
+grep -r "@app.get\|@app.post" backend/api/main.py | grep "keyword"
+
+# Find React component usage
+grep -r "ComponentName" frontend/src/
+
+# Find database table usage
+grep -r "FROM table_name\|INTO table_name" backend/
+
+# Find imports of a module
+grep -r "from backend.services.module import\|import module" .
+```
+
+---
+
+## Health Commands
+
+```bash
+make health-check    # Run full health check
+make test           # Run tests
+make lint           # Check code style
+make db-stats       # Show database counts
+make db-schema      # Show table list
+```
+
+---
+
+## Recently Modified (Check Git)
+
+```bash
+git log --oneline -20                    # Last 20 commits
+git diff --name-only HEAD~5              # Files changed in last 5 commits
+git log --since="1 week ago" --oneline   # Last week's commits
+```
