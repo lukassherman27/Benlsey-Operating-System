@@ -110,8 +110,15 @@ None - new work
 |------|------|------|----------|
 | `backend/services/training_data_service.py` | 71 | Get from auth context (hardcoded 'bill') | Phase 3 |
 
+### Completed (Nov 26) ✅
+- [x] AI Learning Service (`ai_learning_service.py`)
+- [x] Follow-up Agent (`follow_up_agent.py`) - 81 proposals, $235M tracked
+- [x] Pattern-enhanced queries (`query_service.py`)
+- [x] Admin Intelligence UI (`/admin/intelligence/`)
+- [x] 12+ new API endpoints for learning/follow-up/query
+
 ### Plan Tasks (Week 1-2)
-- [ ] P1: Add transcripts to query context
+- [x] ~~P1: Add transcripts to query context~~ (done via pattern-enhanced queries)
 - [ ] P2: Test query with project history
 - [ ] P2: Document RAG requirements for Phase 2
 
