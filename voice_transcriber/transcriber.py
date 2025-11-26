@@ -386,7 +386,16 @@ def summarize_transcript(transcript: str, audio_filename: str) -> Dict:
 
 ## Instructions:
 Analyze the transcript carefully. Match any mentioned names to the Known Contacts or Team Members lists.
-Identify which project is being discussed based on project names, codes, client names, or locations mentioned.
+
+**PROJECT MATCHING PRIORITY (CRITICAL):**
+1. **Location/Country is the STRONGEST signal** - If someone says "Turkey" or "Bodrum", match to a Turkey project
+2. Project code (BK-XXX) if explicitly mentioned
+3. Exact project name match
+4. Client company name
+5. Brand name (e.g., "Cheval Blanc") is WEAK - many brands have multiple locations
+
+**IMPORTANT:** A Turkey project mentioned = match to a project in Turkey, NOT a similar-sounding project elsewhere.
+Search BOTH Active Projects AND Proposals lists for matches.
 
 Provide your analysis in the following JSON format:
 
@@ -627,6 +636,36 @@ def format_email_html(
     """
 
 # =============================================================================
+# MACOS NOTIFICATION
+# =============================================================================
+
+def send_macos_notification(audio_filename: str, summary: Dict):
+    """Send macOS notification when transcription is complete."""
+    import subprocess
+
+    project_code = summary.get('detected_project', {}).get('code', '')
+    project_name = summary.get('detected_project', {}).get('name', '')
+    meeting_summary = summary.get('summary', 'Transcription complete')[:100]
+
+    if project_code:
+        title = f"Transcribed: {project_code}"
+        subtitle = project_name
+    else:
+        title = "Meeting Transcribed"
+        subtitle = audio_filename
+
+    # Use osascript to show notification
+    script = f'''
+    display notification "{meeting_summary}..." with title "{title}" subtitle "{subtitle}" sound name "Glass"
+    '''
+
+    try:
+        subprocess.run(['osascript', '-e', script], check=True, capture_output=True)
+        logger.info("macOS notification sent")
+    except Exception as e:
+        logger.warning(f"Failed to send notification: {e}")
+
+# =============================================================================
 # DATABASE STORAGE
 # =============================================================================
 
@@ -807,6 +846,9 @@ def process_audio_file(audio_path: Path) -> bool:
             subject = f"[{summary['detected_project']['code']}] {subject}"
 
         send_email(subject, email_html, attachments)
+
+        # 5b. Send macOS notification
+        send_macos_notification(audio_path.name, summary)
 
         # 6. Mark as processed
         save_processed_file(get_file_hash(audio_path))
