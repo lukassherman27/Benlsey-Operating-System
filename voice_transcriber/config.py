@@ -5,6 +5,11 @@ Edit these settings before first run.
 import os
 from pathlib import Path
 
+# Load .env from parent directory
+from dotenv import load_dotenv
+env_path = Path(__file__).parent.parent / ".env"
+load_dotenv(env_path)
+
 # =============================================================================
 # API KEYS (Required)
 # =============================================================================
@@ -21,13 +26,12 @@ ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
 # EMAIL SETTINGS (Required for email notifications)
 # =============================================================================
 
-# Gmail App Password recommended (not regular password)
-# See: https://support.google.com/accounts/answer/185833
-EMAIL_SENDER = ""  # e.g., "bill@bensley.com"
-EMAIL_PASSWORD = ""  # App password, not regular password
+# Email Settings - loaded from .env file
+EMAIL_SENDER = os.getenv("EMAIL_USERNAME", "lukas@bensley.com")
+EMAIL_PASSWORD = os.getenv("EMAIL_PASSWORD", "")
 EMAIL_RECIPIENTS = ["lukas@bensley.com"]  # Who gets the transcripts
-SMTP_SERVER = "smtp.gmail.com"
-SMTP_PORT = 587
+SMTP_SERVER = os.getenv("EMAIL_SERVER", "tmail.bensley.com")  # Same server for SMTP
+SMTP_PORT = 587  # TLS/STARTTLS port for sending (993 in .env is IMAP for receiving)
 
 # =============================================================================
 # VOICE MEMOS / RECORDINGS FOLDER
