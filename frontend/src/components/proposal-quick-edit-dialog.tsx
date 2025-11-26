@@ -44,26 +44,45 @@ export function ProposalQuickEditDialog({
 }: ProposalQuickEditDialogProps) {
   const queryClient = useQueryClient();
   const [formData, setFormData] = useState({
+    project_name: proposal?.project_name || "",
+    country: proposal?.country || "",
     current_status: proposal?.current_status || "First Contact",
     current_remark: proposal?.current_remark || "",
     waiting_on: proposal?.waiting_on || "",
     next_steps: proposal?.next_steps || "",
     project_value: proposal?.project_value || 0,
     first_contact_date: proposal?.first_contact_date || "",
+    proposal_sent_date: proposal?.proposal_sent_date || "",
+    contact_person: proposal?.contact_person || "",
+    contact_email: proposal?.contact_email || "",
+    contact_phone: proposal?.contact_phone || "",
+    project_summary: proposal?.project_summary || "",
+    latest_email_context: proposal?.latest_email_context || "",
+    last_email_date: proposal?.last_email_date || "",
   });
 
   // Update form data when proposal changes
   useEffect(() => {
     if (proposal) {
       setFormData({
+        project_name: proposal.project_name || "",
+        country: proposal.country || "",
         current_status: proposal.current_status,
         current_remark: proposal.current_remark || "",
         waiting_on: proposal.waiting_on || "",
         next_steps: proposal.next_steps || "",
         project_value: proposal.project_value || 0,
         first_contact_date: proposal.first_contact_date || "",
+        proposal_sent_date: proposal.proposal_sent_date || "",
+        contact_person: proposal.contact_person || "",
+        contact_email: proposal.contact_email || "",
+        contact_phone: proposal.contact_phone || "",
+        project_summary: proposal.project_summary || "",
+        latest_email_context: proposal.latest_email_context || "",
+        last_email_date: proposal.last_email_date || "",
       });
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps, react-hooks/set-state-in-effect
   }, [proposal?.project_code]); // Only update when a different proposal is selected
 
   const updateMutation = useMutation({
@@ -90,6 +109,12 @@ export function ProposalQuickEditDialog({
     const updates: Record<string, unknown> = {};
 
     // Only include changed fields
+    if (formData.project_name !== (proposal?.project_name || "")) {
+      updates.project_name = formData.project_name;
+    }
+    if (formData.country !== (proposal?.country || "")) {
+      updates.country = formData.country;
+    }
     if (formData.current_status !== proposal?.current_status) {
       updates.current_status = formData.current_status;
     }
@@ -108,11 +133,37 @@ export function ProposalQuickEditDialog({
     if (formData.first_contact_date !== (proposal?.first_contact_date || "")) {
       updates.first_contact_date = formData.first_contact_date;
     }
+    if (formData.proposal_sent_date !== (proposal?.proposal_sent_date || "")) {
+      updates.proposal_sent_date = formData.proposal_sent_date;
+    }
+    if (formData.contact_person !== (proposal?.contact_person || "")) {
+      updates.contact_person = formData.contact_person;
+    }
+    if (formData.contact_email !== (proposal?.contact_email || "")) {
+      updates.contact_email = formData.contact_email;
+    }
+    if (formData.contact_phone !== (proposal?.contact_phone || "")) {
+      updates.contact_phone = formData.contact_phone;
+    }
+    if (formData.project_summary !== (proposal?.project_summary || "")) {
+      updates.project_summary = formData.project_summary;
+    }
+    if (formData.latest_email_context !== (proposal?.latest_email_context || "")) {
+      updates.latest_email_context = formData.latest_email_context;
+    }
+    if (formData.last_email_date !== (proposal?.last_email_date || "")) {
+      updates.last_email_date = formData.last_email_date;
+    }
 
     if (Object.keys(updates).length === 0) {
       toast.info("No changes to save");
       return;
     }
+
+    // Add provenance tracking metadata
+    updates.updated_by = "Dashboard User"; // TODO: Replace with actual user from auth system
+    updates.source_type = "manual";
+    updates.change_reason = "Updated via dashboard";
 
     updateMutation.mutate(updates);
   };
@@ -150,6 +201,38 @@ export function ProposalQuickEditDialog({
           <TabsContent value="edit" className={cn(ds.gap.normal, "space-y-4")}>
             <form onSubmit={handleSubmit}>
               <div className={cn("grid py-4", ds.gap.normal)}>
+                {/* Project Name */}
+                <div className={cn("grid", ds.gap.tight)}>
+                  <Label htmlFor="project_name" className={cn(ds.typography.bodyBold, ds.textColors.primary)}>
+                    Project Name
+                  </Label>
+                  <Input
+                    id="project_name"
+                    type="text"
+                    value={formData.project_name}
+                    onChange={(e) =>
+                      setFormData({ ...formData, project_name: e.target.value })
+                    }
+                    className={ds.borderRadius.input}
+                  />
+                </div>
+
+                {/* Country */}
+                <div className={cn("grid", ds.gap.tight)}>
+                  <Label htmlFor="country" className={cn(ds.typography.bodyBold, ds.textColors.primary)}>
+                    Country
+                  </Label>
+                  <Input
+                    id="country"
+                    type="text"
+                    value={formData.country}
+                    onChange={(e) =>
+                      setFormData({ ...formData, country: e.target.value })
+                    }
+                    className={ds.borderRadius.input}
+                  />
+                </div>
+
                 {/* Status */}
                 <div className={cn("grid", ds.gap.tight)}>
                   <Label htmlFor="status" className={cn(ds.typography.bodyBold, ds.textColors.primary)}>
@@ -170,10 +253,6 @@ export function ProposalQuickEditDialog({
                       <SelectItem value="Proposal Sent">Proposal Sent</SelectItem>
                       <SelectItem value="On Hold">On Hold</SelectItem>
                       <SelectItem value="Contract Signed">Contract Signed</SelectItem>
-                      <SelectItem value="Active">Active</SelectItem>
-                      <SelectItem value="Cancelled">Cancelled</SelectItem>
-                      <SelectItem value="Closed Lost">Closed Lost</SelectItem>
-                      <SelectItem value="Withdrawn">Withdrawn</SelectItem>
                       <SelectItem value="Archived">Archived</SelectItem>
                     </SelectContent>
                   </Select>
@@ -211,6 +290,104 @@ export function ProposalQuickEditDialog({
                     onChange={(e) =>
                       setFormData({ ...formData, first_contact_date: e.target.value })
                     }
+                    className={cn(ds.borderRadius.input, ds.typography.body)}
+                  />
+                </div>
+
+                {/* Proposal Sent Date */}
+                <div className={cn("grid", ds.gap.tight)}>
+                  <Label htmlFor="proposal_sent_date" className={cn(ds.typography.bodyBold, ds.textColors.primary)}>
+                    Proposal Sent Date
+                  </Label>
+                  <Input
+                    id="proposal_sent_date"
+                    type="date"
+                    value={formData.proposal_sent_date}
+                    onChange={(e) =>
+                      setFormData({ ...formData, proposal_sent_date: e.target.value })
+                    }
+                    className={cn(ds.borderRadius.input, ds.typography.body)}
+                  />
+                </div>
+
+                {/* Divider - Contact Information */}
+                <div className="pt-4 pb-2">
+                  <h4 className={cn(ds.typography.heading4, ds.textColors.primary)}>
+                    Contact Information
+                  </h4>
+                </div>
+
+                {/* Contact Person */}
+                <div className={cn("grid", ds.gap.tight)}>
+                  <Label htmlFor="contact_person" className={cn(ds.typography.bodyBold, ds.textColors.primary)}>
+                    Contact Person
+                  </Label>
+                  <Input
+                    id="contact_person"
+                    type="text"
+                    value={formData.contact_person}
+                    onChange={(e) =>
+                      setFormData({ ...formData, contact_person: e.target.value })
+                    }
+                    placeholder="John Doe"
+                    className={ds.borderRadius.input}
+                  />
+                </div>
+
+                {/* Contact Email */}
+                <div className={cn("grid", ds.gap.tight)}>
+                  <Label htmlFor="contact_email" className={cn(ds.typography.bodyBold, ds.textColors.primary)}>
+                    Contact Email
+                  </Label>
+                  <Input
+                    id="contact_email"
+                    type="email"
+                    value={formData.contact_email}
+                    onChange={(e) =>
+                      setFormData({ ...formData, contact_email: e.target.value })
+                    }
+                    placeholder="john@example.com"
+                    className={ds.borderRadius.input}
+                  />
+                </div>
+
+                {/* Contact Phone */}
+                <div className={cn("grid", ds.gap.tight)}>
+                  <Label htmlFor="contact_phone" className={cn(ds.typography.bodyBold, ds.textColors.primary)}>
+                    Contact Phone
+                  </Label>
+                  <Input
+                    id="contact_phone"
+                    type="tel"
+                    value={formData.contact_phone}
+                    onChange={(e) =>
+                      setFormData({ ...formData, contact_phone: e.target.value })
+                    }
+                    placeholder="+1 234 567 8900"
+                    className={ds.borderRadius.input}
+                  />
+                </div>
+
+                {/* Divider - Project Details */}
+                <div className="pt-4 pb-2">
+                  <h4 className={cn(ds.typography.heading4, ds.textColors.primary)}>
+                    Project Details
+                  </h4>
+                </div>
+
+                {/* Project Summary */}
+                <div className={cn("grid", ds.gap.tight)}>
+                  <Label htmlFor="project_summary" className={cn(ds.typography.bodyBold, ds.textColors.primary)}>
+                    Project Summary
+                  </Label>
+                  <Textarea
+                    id="project_summary"
+                    value={formData.project_summary}
+                    onChange={(e) =>
+                      setFormData({ ...formData, project_summary: e.target.value })
+                    }
+                    rows={3}
+                    placeholder="Brief description of the project..."
                     className={cn(ds.borderRadius.input, ds.typography.body)}
                   />
                 </div>
@@ -261,6 +438,46 @@ export function ProposalQuickEditDialog({
                     }
                     rows={2}
                     placeholder="What needs to happen next..."
+                    className={cn(ds.borderRadius.input, ds.typography.body)}
+                  />
+                </div>
+
+                {/* Divider - Email Intelligence */}
+                <div className="pt-4 pb-2">
+                  <h4 className={cn(ds.typography.heading4, ds.textColors.primary)}>
+                    Email Intelligence
+                  </h4>
+                </div>
+
+                {/* Latest Email Context */}
+                <div className={cn("grid", ds.gap.tight)}>
+                  <Label htmlFor="email_context" className={cn(ds.typography.bodyBold, ds.textColors.primary)}>
+                    Latest Email Context
+                  </Label>
+                  <Textarea
+                    id="email_context"
+                    value={formData.latest_email_context}
+                    onChange={(e) =>
+                      setFormData({ ...formData, latest_email_context: e.target.value })
+                    }
+                    rows={3}
+                    placeholder="Summary of latest email communication..."
+                    className={cn(ds.borderRadius.input, ds.typography.body)}
+                  />
+                </div>
+
+                {/* Last Email Date */}
+                <div className={cn("grid", ds.gap.tight)}>
+                  <Label htmlFor="last_email_date" className={cn(ds.typography.bodyBold, ds.textColors.primary)}>
+                    Last Email Date
+                  </Label>
+                  <Input
+                    id="last_email_date"
+                    type="date"
+                    value={formData.last_email_date}
+                    onChange={(e) =>
+                      setFormData({ ...formData, last_email_date: e.target.value })
+                    }
                     className={cn(ds.borderRadius.input, ds.typography.body)}
                   />
                 </div>

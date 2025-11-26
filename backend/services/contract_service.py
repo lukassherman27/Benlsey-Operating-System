@@ -51,11 +51,11 @@ class ContractService(BaseService):
                 e.subject,
                 e.sender_email,
                 e.date AS email_date,
-                p.project_name
+                p.project_title
             FROM email_attachments a
             JOIN emails e ON a.email_id = e.email_id
             LEFT JOIN email_proposal_links epl ON e.email_id = epl.email_id
-            LEFT JOIN proposals p ON epl.proposal_id = p.proposal_id
+            LEFT JOIN proposals p ON epl.proposal_id = p.project_id
             WHERE p.project_code = ?
             AND a.document_type IN ('bensley_contract', 'external_contract')
         """
@@ -98,7 +98,7 @@ class ContractService(BaseService):
             FROM email_attachments a
             JOIN emails e ON a.email_id = e.email_id
             LEFT JOIN email_proposal_links epl ON e.email_id = epl.email_id
-            LEFT JOIN proposals p ON epl.proposal_id = p.proposal_id
+            LEFT JOIN proposals p ON epl.proposal_id = p.project_id
             WHERE p.project_code = ?
             AND a.document_type IN ('bensley_contract', 'external_contract')
             ORDER BY a.created_at DESC
@@ -139,11 +139,11 @@ class ContractService(BaseService):
                 e.subject,
                 e.sender_email,
                 p.project_code,
-                p.project_name
+                p.project_title
             FROM email_attachments a
             JOIN emails e ON a.email_id = e.email_id
             LEFT JOIN email_proposal_links epl ON e.email_id = epl.email_id
-            LEFT JOIN proposals p ON epl.proposal_id = p.proposal_id
+            LEFT JOIN proposals p ON epl.proposal_id = p.project_id
             WHERE a.document_type IN ('bensley_contract', 'external_contract')
             AND (a.filename LIKE ? OR e.subject LIKE ?)
             ORDER BY a.created_at DESC
@@ -342,11 +342,11 @@ class ContractService(BaseService):
                 e.sender_email,
                 e.date AS email_date,
                 p.project_code,
-                p.project_name
+                p.project_title
             FROM email_attachments a
             JOIN emails e ON a.email_id = e.email_id
             LEFT JOIN email_proposal_links epl ON e.email_id = epl.email_id
-            LEFT JOIN proposals p ON epl.proposal_id = p.proposal_id
+            LEFT JOIN proposals p ON epl.proposal_id = p.project_id
             WHERE a.document_type IN ('bensley_contract', 'external_contract')
         """
         params = []
@@ -391,7 +391,7 @@ class ContractService(BaseService):
 
             # Get parent project details
             cursor.execute("""
-                SELECT project_code, project_name, status, total_fee_usd,
+                SELECT project_code, project_title, status, total_fee_usd,
                        contract_signed_date, project_type
                 FROM projects
                 WHERE project_code = ?
@@ -403,7 +403,7 @@ class ContractService(BaseService):
 
             parent_data = {
                 "project_code": parent[0],
-                "project_name": parent[1],
+                "project_title": parent[1],
                 "status": parent[2],
                 "total_fee_usd": parent[3],
                 "contract_signed_date": parent[4],
@@ -413,7 +413,7 @@ class ContractService(BaseService):
 
             # Get all children (additional services, components, extensions)
             cursor.execute("""
-                SELECT project_code, project_name, status, total_fee_usd,
+                SELECT project_code, project_title, status, total_fee_usd,
                        relationship_type, component_type, contract_signed_date
                 FROM projects
                 WHERE parent_project_code = ?
@@ -426,7 +426,7 @@ class ContractService(BaseService):
             for row in cursor.fetchall():
                 child = {
                     "project_code": row[0],
-                    "project_name": row[1],
+                    "project_title": row[1],
                     "status": row[2],
                     "total_fee_usd": row[3],
                     "relationship_type": row[4],
@@ -723,7 +723,7 @@ class ContractService(BaseService):
         cursor = self.conn.cursor()
 
         cursor.execute("""
-            SELECT ct.contract_id, ct.project_code, p.project_name,
+            SELECT ct.contract_id, ct.project_code, p.project_title,
                    ct.contract_end_date, ct.total_fee_usd,
                    julianday(ct.contract_end_date) - julianday('now') as days_remaining
             FROM contract_terms ct
@@ -737,7 +737,7 @@ class ContractService(BaseService):
             expiring.append({
                 "contract_id": row[0],
                 "project_code": row[1],
-                "project_name": row[2],
+                "project_title": row[2],
                 "contract_end_date": row[3],
                 "total_fee_usd": row[4],
                 "days_remaining": int(row[5])
@@ -750,7 +750,7 @@ class ContractService(BaseService):
         cursor = self.conn.cursor()
 
         cursor.execute("""
-            SELECT ct.project_code, p.project_name, ct.retainer_amount_usd,
+            SELECT ct.project_code, p.project_title, ct.retainer_amount_usd,
                    ct.contract_start_date, ct.contract_end_date
             FROM contract_terms ct
             JOIN projects p ON ct.project_code = p.project_code
@@ -764,7 +764,7 @@ class ContractService(BaseService):
         for row in cursor.fetchall():
             monthly_contracts.append({
                 "project_code": row[0],
-                "project_name": row[1],
+                "project_title": row[1],
                 "monthly_amount_usd": row[2],
                 "start_date": row[3],
                 "end_date": row[4]
@@ -777,4 +777,514 @@ class ContractService(BaseService):
             "monthly_contracts": monthly_contracts,
             "total_monthly_revenue_usd": total_monthly_revenue,
             "contract_count": len(monthly_contracts)
+        }
+
+    # ==================== CONTRACT IMPORT STAGING ====================
+
+    def stage_contract_import(
+        self,
+        project_code: str,
+        contract_data: Dict[str, Any],
+        imported_by: str = "system"
+    ) -> Dict[str, Any]:
+        """
+        Stage a contract import for review before committing to production.
+
+        Args:
+            project_code: Project code
+            contract_data: Contract data dict (same format as manual_contract_import.py)
+            imported_by: Who is importing (username/email)
+
+        Returns:
+            Dict with import_id and staging details
+        """
+        cursor = self.conn.cursor()
+
+        # Generate import_id
+        timestamp = datetime.now().strftime("%Y%m%d")
+        cursor.execute(
+            "SELECT COUNT(*) FROM contract_imports_staging WHERE import_id LIKE ?",
+            (f"IMP-{timestamp}-%",)
+        )
+        count = cursor.fetchone()[0]
+        import_id = f"IMP-{timestamp}-{count + 1:03d}"
+
+        # Determine import type
+        cursor.execute("SELECT project_code FROM projects WHERE project_code = ?", (project_code,))
+        import_type = "update" if cursor.fetchone() else "new"
+
+        # Serialize fee breakdown to JSON
+        fee_breakdown_json = json.dumps(contract_data.get('fee_breakdown', []))
+
+        # Calculate changes preview
+        changes_preview = self._calculate_import_diff(project_code, contract_data)
+        changes_preview_json = json.dumps(changes_preview)
+
+        # Insert into staging table
+        cursor.execute("""
+            INSERT INTO contract_imports_staging (
+                import_id, project_code, import_type, status,
+                client_name, total_fee_usd, contract_duration_months,
+                contract_date, payment_terms_days, late_payment_interest_rate,
+                stop_work_days_threshold, restart_fee_percentage,
+                contract_notes, pdf_source_path, imported_by,
+                fee_breakdown_json, changes_preview_json,
+                created_at, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (
+            import_id, project_code, import_type, 'pending',
+            contract_data.get('client_name'),
+            contract_data.get('total_fee'),
+            contract_data.get('contract_duration'),
+            contract_data.get('contract_date'),
+            contract_data.get('payment_terms'),
+            contract_data.get('late_interest'),
+            contract_data.get('stop_work_days'),
+            contract_data.get('restart_fee'),
+            contract_data.get('notes'),
+            contract_data.get('pdf_source_path'),
+            imported_by,
+            fee_breakdown_json,
+            changes_preview_json,
+            datetime.now().isoformat(),
+            datetime.now().isoformat()
+        ))
+
+        # Create audit entry
+        self._create_audit_entry(
+            import_id, project_code, 'staged',
+            imported_by, "Contract import staged for review",
+            contract_data
+        )
+
+        self.conn.commit()
+
+        return {
+            "success": True,
+            "import_id": import_id,
+            "project_code": project_code,
+            "import_type": import_type,
+            "changes_count": len(changes_preview),
+            "status": "pending"
+        }
+
+    def _calculate_import_diff(
+        self,
+        project_code: str,
+        new_data: Dict[str, Any]
+    ) -> List[Dict[str, Any]]:
+        """
+        Calculate what will change if this import is approved.
+
+        Returns list of changes like:
+        [
+            {"field": "client_company", "old": "ABC Ltd", "new": "XYZ Corp", "type": "update"},
+            {"field": "total_fee_usd", "old": 100000, "new": 150000, "type": "update"},
+            {"fee_entry": {...}, "type": "add"},
+            ...
+        ]
+        """
+        changes = []
+        cursor = self.conn.cursor()
+
+        # Check if project exists
+        cursor.execute("""
+            SELECT client_company, total_fee_usd, contract_duration_months,
+                   payment_terms_days, late_payment_interest_rate,
+                   stop_work_days_threshold, restart_fee_percentage,
+                   contract_date
+            FROM projects
+            WHERE project_code = ?
+        """, (project_code,))
+
+        existing = cursor.fetchone()
+
+        if not existing:
+            changes.append({
+                "type": "new_project",
+                "message": f"Creating new project {project_code}"
+            })
+        else:
+            # Compare each field
+            field_map = {
+                0: ('client_company', 'client_name'),
+                1: ('total_fee_usd', 'total_fee'),
+                2: ('contract_duration_months', 'contract_duration'),
+                3: ('payment_terms_days', 'payment_terms'),
+                4: ('late_payment_interest_rate', 'late_interest'),
+                5: ('stop_work_days_threshold', 'stop_work_days'),
+                6: ('restart_fee_percentage', 'restart_fee'),
+                7: ('contract_date', 'contract_date')
+            }
+
+            for idx, (db_field, data_field) in field_map.items():
+                old_value = existing[idx]
+                new_value = new_data.get(data_field)
+
+                if new_value is not None and old_value != new_value:
+                    changes.append({
+                        "type": "update",
+                        "field": db_field,
+                        "old": old_value,
+                        "new": new_value
+                    })
+
+        # Check fee breakdown changes
+        if new_data.get('fee_breakdown'):
+            cursor.execute("""
+                SELECT discipline, phase, phase_fee_usd, percentage_of_total
+                FROM project_fee_breakdown
+                WHERE project_code = ?
+            """, (project_code,))
+            existing_fees = cursor.fetchall()
+
+            # All existing will be deleted, all new will be added
+            if existing_fees:
+                changes.append({
+                    "type": "delete_fee_breakdown",
+                    "count": len(existing_fees),
+                    "message": f"Removing {len(existing_fees)} existing fee breakdown entries"
+                })
+
+            changes.append({
+                "type": "add_fee_breakdown",
+                "count": len(new_data['fee_breakdown']),
+                "message": f"Adding {len(new_data['fee_breakdown'])} new fee breakdown entries",
+                "entries": new_data['fee_breakdown']
+            })
+
+        return changes
+
+    def _create_audit_entry(
+        self,
+        import_id: str,
+        project_code: str,
+        action: str,
+        performed_by: str,
+        notes: str,
+        data_snapshot: Optional[Dict] = None,
+        field_changes: Optional[Dict] = None
+    ):
+        """Create an audit trail entry"""
+        cursor = self.conn.cursor()
+
+        cursor.execute("""
+            INSERT INTO contract_import_audit (
+                import_id, project_code, action, performed_by,
+                action_notes, data_snapshot_json, field_changes_json,
+                created_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        """, (
+            import_id, project_code, action, performed_by, notes,
+            json.dumps(data_snapshot) if data_snapshot else None,
+            json.dumps(field_changes) if field_changes else None,
+            datetime.now().isoformat()
+        ))
+
+    def list_pending_imports(self, limit: int = 50) -> List[Dict[str, Any]]:
+        """Get all pending contract imports"""
+        cursor = self.conn.cursor()
+
+        cursor.execute("""
+            SELECT import_id, project_code, import_type, status,
+                   client_name, total_fee_usd, imported_by,
+                   created_at, changes_preview_json
+            FROM contract_imports_staging
+            WHERE status = 'pending'
+            ORDER BY created_at DESC
+            LIMIT ?
+        """, (limit,))
+
+        imports = []
+        for row in cursor.fetchall():
+            changes = json.loads(row[8]) if row[8] else []
+            imports.append({
+                "import_id": row[0],
+                "project_code": row[1],
+                "import_type": row[2],
+                "status": row[3],
+                "client_name": row[4],
+                "total_fee_usd": row[5],
+                "imported_by": row[6],
+                "created_at": row[7],
+                "changes_count": len(changes)
+            })
+
+        return imports
+
+    def get_staged_import(self, import_id: str) -> Optional[Dict[str, Any]]:
+        """Get full details of a staged import"""
+        cursor = self.conn.cursor()
+
+        cursor.execute("""
+            SELECT import_id, project_code, import_type, status,
+                   client_name, total_fee_usd, contract_duration_months,
+                   contract_date, payment_terms_days, late_payment_interest_rate,
+                   stop_work_days_threshold, restart_fee_percentage,
+                   contract_notes, pdf_source_path, imported_by,
+                   fee_breakdown_json, changes_preview_json,
+                   reviewed_by, review_notes, created_at, updated_at
+            FROM contract_imports_staging
+            WHERE import_id = ?
+        """, (import_id,))
+
+        row = cursor.fetchone()
+        if not row:
+            return None
+
+        return {
+            "import_id": row[0],
+            "project_code": row[1],
+            "import_type": row[2],
+            "status": row[3],
+            "contract_data": {
+                "client_name": row[4],
+                "total_fee_usd": row[5],
+                "contract_duration_months": row[6],
+                "contract_date": row[7],
+                "payment_terms_days": row[8],
+                "late_payment_interest_rate": row[9],
+                "stop_work_days_threshold": row[10],
+                "restart_fee_percentage": row[11],
+                "notes": row[12],
+                "pdf_source_path": row[13]
+            },
+            "imported_by": row[14],
+            "fee_breakdown": json.loads(row[15]) if row[15] else [],
+            "changes_preview": json.loads(row[16]) if row[16] else [],
+            "reviewed_by": row[17],
+            "review_notes": row[18],
+            "created_at": row[19],
+            "updated_at": row[20]
+        }
+
+    def approve_import(
+        self,
+        import_id: str,
+        approved_by: str,
+        notes: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """
+        Approve a staged import and commit it to production tables.
+
+        This executes the same logic as manual_contract_import.py but from staging.
+        """
+        import uuid
+
+        # Get staged import
+        staged = self.get_staged_import(import_id)
+        if not staged:
+            return {"error": f"Import {import_id} not found"}
+
+        if staged['status'] != 'pending':
+            return {"error": f"Import {import_id} is not pending (status: {staged['status']})"}
+
+        cursor = self.conn.cursor()
+        project_code = staged['project_code']
+        contract_data = staged['contract_data']
+
+        try:
+            # 1. Update project metadata (same as manual_contract_import.py)
+            cursor.execute("""
+                UPDATE projects
+                SET
+                    client_company = COALESCE(?, client_company),
+                    total_fee_usd = COALESCE(?, total_fee_usd),
+                    contract_duration_months = COALESCE(?, contract_duration_months),
+                    payment_terms_days = COALESCE(?, payment_terms_days),
+                    late_payment_interest_rate = COALESCE(?, late_payment_interest_rate),
+                    stop_work_days_threshold = COALESCE(?, stop_work_days_threshold),
+                    restart_fee_percentage = COALESCE(?, restart_fee_percentage),
+                    contract_date = COALESCE(?, contract_date),
+                    updated_at = ?
+                WHERE project_code = ?
+            """, (
+                contract_data['client_name'],
+                contract_data['total_fee_usd'],
+                contract_data['contract_duration_months'],
+                contract_data['payment_terms_days'],
+                contract_data['late_payment_interest_rate'],
+                contract_data['stop_work_days_threshold'],
+                contract_data['restart_fee_percentage'],
+                contract_data['contract_date'],
+                datetime.now().isoformat(),
+                project_code
+            ))
+
+            # 2. Import fee breakdown
+            if staged['fee_breakdown']:
+                # Clear existing
+                cursor.execute("DELETE FROM project_fee_breakdown WHERE project_code = ?", (project_code,))
+
+                # Insert new
+                for discipline, phase, fee, percentage in staged['fee_breakdown']:
+                    breakdown_id = f"{project_code}-{discipline[:3].upper()}-{phase[:3].upper()}-{uuid.uuid4().hex[:8]}"
+                    cursor.execute("""
+                        INSERT INTO project_fee_breakdown (
+                            breakdown_id, project_code, discipline, phase,
+                            phase_fee_usd, percentage_of_total,
+                            created_at, updated_at
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                    """, (
+                        breakdown_id, project_code, discipline, phase,
+                        fee, percentage,
+                        datetime.now().isoformat(),
+                        datetime.now().isoformat()
+                    ))
+
+            # 3. Update staging record
+            cursor.execute("""
+                UPDATE contract_imports_staging
+                SET status = 'approved',
+                    reviewed_by = ?,
+                    review_notes = ?,
+                    approved_at = ?,
+                    updated_at = ?
+                WHERE import_id = ?
+            """, (
+                approved_by,
+                notes or "Approved",
+                datetime.now().isoformat(),
+                datetime.now().isoformat(),
+                import_id
+            ))
+
+            # 4. Create audit entry
+            self._create_audit_entry(
+                import_id, project_code, 'approved',
+                approved_by, notes or "Import approved and committed",
+                staged
+            )
+
+            self.conn.commit()
+
+            return {
+                "success": True,
+                "import_id": import_id,
+                "project_code": project_code,
+                "message": "Contract import approved and committed to production"
+            }
+
+        except Exception as e:
+            self.conn.rollback()
+            return {"error": f"Failed to approve import: {str(e)}"}
+
+    def reject_import(
+        self,
+        import_id: str,
+        rejected_by: str,
+        reason: str
+    ) -> Dict[str, Any]:
+        """Reject a staged import"""
+        staged = self.get_staged_import(import_id)
+        if not staged:
+            return {"error": f"Import {import_id} not found"}
+
+        cursor = self.conn.cursor()
+
+        cursor.execute("""
+            UPDATE contract_imports_staging
+            SET status = 'rejected',
+                reviewed_by = ?,
+                rejection_reason = ?,
+                rejected_at = ?,
+                updated_at = ?
+            WHERE import_id = ?
+        """, (
+            rejected_by,
+            reason,
+            datetime.now().isoformat(),
+            datetime.now().isoformat(),
+            import_id
+        ))
+
+        # Create audit entry
+        self._create_audit_entry(
+            import_id, staged['project_code'], 'rejected',
+            rejected_by, f"Import rejected: {reason}",
+            staged
+        )
+
+        self.conn.commit()
+
+        return {
+            "success": True,
+            "import_id": import_id,
+            "message": "Import rejected"
+        }
+
+    def edit_staged_import(
+        self,
+        import_id: str,
+        updates: Dict[str, Any],
+        edited_by: str
+    ) -> Dict[str, Any]:
+        """Edit a staged import before approval"""
+        staged = self.get_staged_import(import_id)
+        if not staged:
+            return {"error": f"Import {import_id} not found"}
+
+        if staged['status'] != 'pending':
+            return {"error": f"Cannot edit import with status: {staged['status']}"}
+
+        cursor = self.conn.cursor()
+
+        # Track what changed
+        field_changes = {}
+
+        # Build update query dynamically
+        update_fields = []
+        values = []
+
+        for field, new_value in updates.items():
+            if field in ['client_name', 'total_fee_usd', 'contract_duration_months',
+                        'contract_date', 'payment_terms_days', 'late_payment_interest_rate',
+                        'stop_work_days_threshold', 'restart_fee_percentage', 'contract_notes']:
+                update_fields.append(f"{field} = ?")
+                values.append(new_value)
+                field_changes[field] = {
+                    "old": staged['contract_data'].get(field),
+                    "new": new_value
+                }
+
+        if not update_fields:
+            return {"error": "No valid fields to update"}
+
+        update_fields.append("status = 'edited'")
+        update_fields.append("updated_at = ?")
+        values.append(datetime.now().isoformat())
+        values.append(import_id)
+
+        query = f"""
+            UPDATE contract_imports_staging
+            SET {', '.join(update_fields)}
+            WHERE import_id = ?
+        """
+
+        cursor.execute(query, tuple(values))
+
+        # Create audit entry
+        self._create_audit_entry(
+            import_id, staged['project_code'], 'edited',
+            edited_by, "Staged import edited",
+            None, field_changes
+        )
+
+        # Recalculate diff
+        contract_data = staged['contract_data']
+        contract_data.update(updates)
+        new_diff = self._calculate_import_diff(staged['project_code'], contract_data)
+
+        cursor.execute("""
+            UPDATE contract_imports_staging
+            SET changes_preview_json = ?
+            WHERE import_id = ?
+        """, (json.dumps(new_diff), import_id))
+
+        self.conn.commit()
+
+        return {
+            "success": True,
+            "import_id": import_id,
+            "fields_updated": list(field_changes.keys())
         }

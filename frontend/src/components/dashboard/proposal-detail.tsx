@@ -11,6 +11,8 @@ import { HealthBadge } from "./health-badge";
 import { Activity, Clock, Mail } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { format } from "date-fns";
+import { cn } from "@/lib/utils";
+import { ds } from "@/lib/design-system";
 import {
   Dialog,
   DialogContent,
@@ -63,11 +65,11 @@ export default function ProposalDetailPanel({
   ];
 
   const renderSkeleton = () => (
-    <Card className="h-full rounded-[32px] border border-slate-200/80 shadow-sm">
+    <Card className={cn("h-full border border-slate-200/80 shadow-sm", ds.borderRadius.cardLarge)}>
       <CardContent className="space-y-4 p-6">
-        <Skeleton className="h-12 w-2/3 rounded-2xl" />
-        <Skeleton className="h-24 w-full rounded-3xl" />
-        <Skeleton className="h-32 w-full rounded-3xl" />
+        <Skeleton className={cn("h-12 w-2/3", ds.borderRadius.card)} />
+        <Skeleton className={cn("h-24 w-full", ds.borderRadius.cardLarge)} />
+        <Skeleton className={cn("h-32 w-full", ds.borderRadius.cardLarge)} />
       </CardContent>
     </Card>
   );
@@ -83,16 +85,16 @@ export default function ProposalDetailPanel({
   const pmLabel = proposal?.pm ?? "PM not assigned";
 
   return (
-    <Card className="h-full rounded-[32px] border border-slate-200/80 shadow-sm">
+    <Card className={cn("h-full border border-slate-200/80 shadow-sm", ds.borderRadius.cardLarge)}>
       <CardContent className="space-y-6 p-6">
-        <div className="rounded-[28px] border border-slate-900/15 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-6 text-white shadow-[0_25px_80px_rgba(15,23,42,0.45)]">
+        <div className={cn("border border-slate-900/15 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-6 text-white shadow-[0_25px_80px_rgba(15,23,42,0.45)]", ds.borderRadius.cardLarge)}>
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div className="space-y-3">
               <p className="text-xs uppercase tracking-[0.4em] text-white/70">
                 Live briefing
               </p>
               <div>
-                <h3 className="text-2xl font-semibold">
+                <h3 className={ds.typography.heading2}>
                   {proposal?.project_name ?? "Select a proposal"}
                 </h3>
                 <p className="text-sm text-white/80">

@@ -164,7 +164,7 @@ class SmartEmailProcessor:
         """Get proposal context for this email"""
         self.cursor.execute("""
             SELECT
-                p.proposal_id, p.project_code, p.project_name,
+                p.proposal_id, p.project_code, p.project_title,
                 p.status, p.is_active_project
             FROM email_proposal_links epl
             JOIN proposals p ON epl.proposal_id = p.proposal_id
@@ -186,7 +186,7 @@ class SmartEmailProcessor:
         if proposal_context:
             status = "ACTIVE PROJECT" if proposal_context.get('is_active_project', 0) else "PROPOSAL"
             context = f"""
-Project: {proposal_context.get('project_name', 'Unknown')}
+Project: {proposal_context.get('project_title', 'Unknown')}
 Code: {proposal_context.get('project_code', 'N/A')}
 Status: {status}
 """

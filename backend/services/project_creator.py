@@ -20,12 +20,12 @@ class ProjectCreator:
         self.db_path = os.getenv('DATABASE_PATH') or str(self.base_path.parent / "database" / "bensley_master.db")
         self.data_root = self.base_path.parent
 
-    def create_project(self, project_code, project_name, client_name, operator_name=None,
+    def create_project(self, project_code, project_title, client_name, operator_name=None,
                       contract_value=0, status='active', start_date=None, completion_target=None):
         """Create new project with full structure"""
 
         # Create folder name
-        folder_name = f"{project_code}_{project_name.replace(' ', '_')}"
+        folder_name = f"{project_code}_{project_title.replace(' ', '_')}"
 
         # Determine base folder based on status
         if status == 'proposal':
@@ -78,7 +78,7 @@ class ProjectCreator:
         # Create metadata.json
         metadata = {
             "project_code": project_code,
-            "project_name": project_name,
+            "project_title": project_title,
             "client": client_name,
             "operator": operator_name,
             "contract_value": contract_value,
@@ -116,9 +116,9 @@ class ProjectCreator:
 
         cursor.execute("""
             INSERT INTO projects
-            (project_code, project_name, client_name, value, status, base_path, current_phase)
+            (project_code, project_title, client_name, value, status, base_path, current_phase)
             VALUES (?, ?, ?, ?, ?, ?, ?)
-        """, (project_code, project_name, client_name, contract_value, status,
+        """, (project_code, project_title, client_name, contract_value, status,
               str(project_path), "Initiation"))
 
         conn.commit()
@@ -141,7 +141,7 @@ def main():
     # Get project details
     print("\nEnter project details:")
     project_code = input("Project Code (e.g., BK-001): ").strip()
-    project_name = input("Project Name: ").strip()
+    project_title = input("Project Name: ").strip()
     client_name = input("Client Name (who pays): ").strip()
     operator_name = input("Operator/Brand (optional): ").strip() or None
 
@@ -165,7 +165,7 @@ def main():
 
     # Create project
     project_id, project_path = creator.create_project(
-        project_code, project_name, client_name, operator_name,
+        project_code, project_title, client_name, operator_name,
         contract_value, status
     )
 

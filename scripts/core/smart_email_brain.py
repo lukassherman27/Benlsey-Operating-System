@@ -1,0 +1,653 @@
+#!/usr/bin/env python3
+"""
+Smart Email Brain - Context-Aware Email Processing with Learning
+
+This is the UPGRADED email processor that:
+1. Feeds full business context to AI (proposals, projects, contacts)
+2. Extracts suggestions for new information
+3. Queues suggestions for human approval
+4. Learns from approvals/rejections over time
+
+Usage:
+    python3 smart_email_brain.py --batch-size 100 --review
+    python3 smart_email_brain.py --show-suggestions
+    python3 smart_email_brain.py --approve-suggestion 123
+"""
+import sqlite3
+import os
+import sys
+import json
+import time
+import argparse
+from datetime import datetime
+from typing import List, Dict, Optional, Tuple
+from openai import OpenAI
+from dotenv import load_dotenv
+
+load_dotenv()
+
+DB_PATH = os.getenv('DATABASE_PATH', 'database/bensley_master.db')
+
+
+class SmartEmailBrain:
+    def __init__(self):
+        self.db_path = DB_PATH
+        self.openai_client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
+        self.api_calls = 0
+        self.estimated_cost = 0.0
+        self.suggestions_created = 0
+
+        # Load context on init
+        self.proposals = []
+        self.contacts = []
+        self.learned_patterns = []
+        self.business_context = ""
+
+    def get_connection(self):
+        conn = sqlite3.connect(self.db_path)
+        conn.row_factory = sqlite3.Row
+        return conn
+
+    def load_context(self):
+        """Load all business context for the AI"""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+
+        # 1. Load proposals (pre-contract opportunities)
+        cursor.execute("""
+            SELECT project_code, project_name, client_company, contact_person,
+                   contact_email, status, country, location
+            FROM proposals
+            ORDER BY project_code
+        """)
+        self.proposals = [dict(row) for row in cursor.fetchall()]
+
+        # 2. Load projects (won contracts - active and archived)
+        cursor.execute("""
+            SELECT project_code, project_title as project_name,
+                   notes as client_info, status, country
+            FROM projects
+            ORDER BY project_code
+        """)
+        self.projects = [dict(row) for row in cursor.fetchall()]
+
+        # 3. Load contacts
+        cursor.execute("""
+            SELECT name, email, role
+            FROM contacts
+            WHERE email IS NOT NULL
+        """)
+        self.contacts = [dict(row) for row in cursor.fetchall()]
+
+        # 4. Load learned patterns
+        cursor.execute("""
+            SELECT pattern_type, pattern_key, pattern_value, confidence
+            FROM learned_patterns
+            WHERE confidence > 0.7
+            ORDER BY confidence DESC
+        """)
+        self.learned_patterns = [dict(row) for row in cursor.fetchall()]
+
+        conn.close()
+
+        # Build context string
+        self._build_business_context()
+
+        print(f"Loaded context: {len(self.proposals)} proposals, {len(self.projects)} projects, {len(self.contacts)} contacts, {len(self.learned_patterns)} patterns")
+
+    def _build_business_context(self):
+        """Build the business context prompt section"""
+
+        # Proposals summary - include ALL for accurate linking
+        proposal_lines = []
+        for p in self.proposals:  # ALL proposals
+            line = f"  {p['project_code']}: {p['project_name'][:40]} [PROPOSAL]"
+            if p['contact_person']:
+                line += f" | Contact: {p['contact_person']}"
+            if p['client_company']:
+                line += f" | Client: {p['client_company'][:20]}"
+            proposal_lines.append(line)
+
+        # Projects summary - active and archived contracts
+        project_lines = []
+        for p in self.projects:  # ALL projects
+            status = p.get('status') or 'active'
+            name = p.get('project_name') or 'Unnamed Project'
+            code = p.get('project_code') or 'NO-CODE'
+            line = f"  {code}: {name[:40]} [{status.upper()}]"
+            project_lines.append(line)
+
+        # Contact emails for matching
+        contact_emails = [c['email'] for c in self.contacts if c['email']]
+
+        # Learned aliases and patterns
+        aliases = [p for p in self.learned_patterns if p['pattern_type'] == 'project_alias']
+
+        self.business_context = f"""
+=== BENSLEY DESIGN STUDIO (BDS) BUSINESS CONTEXT ===
+
+PROPOSALS (pre-contract opportunities - {len(self.proposals)} total):
+{chr(10).join(proposal_lines)}
+
+WON PROJECTS (active and archived contracts - {len(self.projects)} total):
+{chr(10).join(project_lines)}
+
+KNOWN CONTACTS ({len(contact_emails)} total):
+{', '.join(contact_emails[:30])}...
+
+LEARNED PROJECT ALIASES:
+{chr(10).join([f"  {a['pattern_key']} → {a['pattern_value']}" for a in aliases[:20]])}
+
+=== CRITICAL BUSINESS DISTINCTIONS ===
+
+1. BENSLEY DESIGN STUDIO (BDS) - Main Design Business (is_bds_work = true):
+   - Proposals: Pre-contract opportunities (codes: "24 BK-XXX", "25 BK-XXX")
+   - Active Projects: Won contracts, design delivery in progress
+   - Client Types: Hotels (Marriott, Ritz-Carlton, Four Seasons), Developers, Private Residences
+   - Work includes: Master planning, architecture, interior design, landscape design
+   - Categories for BDS: contract, design, financial, meeting, rfi
+
+2. SHINTA MANI - Bill's Hotel Company (is_bds_work = false):
+
+   A) SHINTA MANI AS CLIENT (is_bds_work = TRUE):
+      - When BDS is DESIGNING a new Shinta Mani property
+      - Proposal/contract for design services
+      - Example: "Shinta Mani Mustang" - BDS designing new property
+
+   B) SHINTA MANI OPERATIONS (is_bds_work = FALSE, category: "other/shinta_mani_ops"):
+      - Hotel operations updates (occupancy, F&B, guest issues)
+      - Staff matters at Shinta Mani hotels
+      - Renovation updates on existing properties Bill owns
+      - Keywords: "Wild", "Angkor", "Bensley Collection", room rates, guests
+
+   C) SHINTA MANI FOUNDATION (is_bds_work = FALSE, category: "other/foundation"):
+      - Charity work, community programs
+      - Hospital, school projects in Cambodia
+      - Donations, fundraising
+      - Keywords: "foundation", "charity", "community", "donate"
+
+3. BILL'S PERSONAL (is_bds_work = false, category: "other/personal"):
+   - Land sales (e.g., Bali property sale)
+   - Personal residences not client work
+   - Social invitations, travel arrangements
+   - Keywords: "personal", "private sale", "my land", "villa sale"
+
+4. INTERNAL ADMIN (is_bds_work = false, category: "internal/admin"):
+   - HR matters, staff issues, payroll
+   - Office management, IT, supplies
+   - Thai business registration, taxes
+   - Internal team scheduling (vacation, sick leave)
+
+=== SCHEDULING TYPES ===
+- "meeting/client_presentation" - Presenting designs to clients
+- "meeting/project_kickoff" - Starting new project
+- "meeting/design_review" - Internal or client design review
+- "design/deliverable_deadline" - Drawing submission deadlines
+- "internal/team_schedule" - Staff vacation, internal meetings
+
+=== KEY PEOPLE ===
+- Bill Bensley (bill@bensley.com): Founder/Principal, design visionary. Some emails are personal.
+- Brian Sherman (bsherman@bensley.com): Director, handles contracts, legal, financials
+- Lukas Sherman (lukas@bensley.com): Business development, proposals, new clients
+- Lek/Jiraporn: Thai accounting, invoices
+- Thippawan (accountant@bensley.com): Financial controller
+
+=== FEE/CONTRACT TERMS ===
+- Mobilization Fee: Upfront payment (usually 15-20% of total)
+- Design Phases: Schematic Design (SD), Design Development (DD), Construction Documents (CD)
+- Construction Observation (CO): Site visits during construction
+- NDA: Non-disclosure agreement (pre-proposal)
+- LOI: Letter of Intent
+- SOW/Scope of Work: Defines what BDS will deliver
+"""
+
+    def analyze_email_with_context(self, email: Dict) -> Dict:
+        """Analyze email WITH full business context"""
+
+        body = email.get('body_full', '')[:3000]
+        subject = email.get('subject', '')
+        sender = email.get('sender_email', '')
+
+        prompt = f"""{self.business_context}
+
+=== EMAIL TO ANALYZE ===
+From: {sender}
+Subject: {subject}
+Body:
+{body}
+
+=== ANALYSIS REQUIRED ===
+
+Analyze this email using the business context above. Return JSON:
+
+{{
+    "clean_body": "Email body with signatures removed",
+    "category": "contract|design|financial|meeting|rfi|administrative|internal|other",
+    "subcategory": "Specific type (fee_discussion, nda_request, schedule_update, shinta_mani_ops, personal, etc.)",
+    "is_bds_work": true/false,  // Is this Bensley Design Studio business?
+    "linked_project_code": "Project code if identifiable (e.g., '24 BK-015'), or null",
+    "key_points": ["bullet 1", "bullet 2"],
+    "entities": {{
+        "amounts": ["$X"],
+        "dates": ["Dec 15"],
+        "people": ["Name"],
+        "companies": ["Company"],
+        "projects": ["Project reference"]
+    }},
+    "sentiment": "positive|neutral|concerned|urgent",
+    "importance_score": 0.0-1.0,
+    "ai_summary": "One sentence summary",
+    "urgency_level": "low|medium|high|critical",
+    "action_required": true/false,
+
+    "suggestions": {{
+        "new_contact": {{
+            "name": "If new contact discovered",
+            "email": "their@email.com",
+            "company": "Company name",
+            "related_project": "Project code if known"
+        }},
+        "project_alias": {{
+            "alias": "Nickname used in email",
+            "project_code": "Actual project code it refers to"
+        }},
+        "missing_info": "Any important info we should track that's not in our system"
+    }}
+}}
+
+LINKING RULES (CRITICAL - YOU MUST MATCH THESE):
+- ALWAYS check EVERY proposal and project code above before deciding linked_project_code
+- Link if ANY word or partial name matches:
+  * "Wangsimni" appears in email? → MUST link to "25 BK-071: Wangsimni Project in Korea"
+  * "Reliance" or "Monalisa" in email? → MUST link to "25 BK-044: Reliance Industries"
+  * "Haeundae" or "MDM" or "Busan" in email? → MUST link to "25 BK-045: MDM World"
+  * "Ritz Carlton" + "Nusa Dua" or "Bali"? → MUST link to "25 BK-033"
+  * ANY location name (Seoul, India, Bodrum, Taiwan, etc.) matching a project? → LINK IT
+- PARTIAL MATCHES COUNT: "Wangsimni Hotel" matches "Wangsimni Project" - SAME PROJECT
+- ALWAYS set linked_project_code when ANY identifying info matches a proposal/project above
+- When in doubt, LINK IT - false positives are easily fixed, missed links are not
+- For project_alias suggestions: ALWAYS include the project_code if it relates to a known project
+
+BDS WORK RULES:
+- is_bds_work = TRUE for ANY email about a client project or proposal (even if just waiting/pending)
+- is_bds_work = TRUE if it involves Reliance, MDM, any hotel brand, fee discussions, contracts
+- is_bds_work = FALSE ONLY for: Shinta Mani hotel operations, foundation charity, Bill's personal land/properties, internal HR/payroll
+- If email is from/about a proposal client (like Reliance, TARC, etc.) → is_bds_work = TRUE
+
+OTHER RULES:
+- Be conservative with action_required (only if explicit request to Bensley team)
+- If you see a new contact not in our list, suggest adding them
+
+Return ONLY valid JSON."""
+
+        try:
+            response = self.openai_client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[{"role": "user", "content": prompt}],
+                temperature=0.2,
+                max_tokens=2000
+            )
+
+            result = response.choices[0].message.content.strip()
+            self.api_calls += 1
+            self.estimated_cost += 0.025  # Slightly higher due to context
+
+            # Parse JSON
+            if result.startswith('```'):
+                result = result.split('```')[1]
+                if result.startswith('json'):
+                    result = result[4:]
+
+            analysis = json.loads(result)
+            return analysis
+
+        except json.JSONDecodeError as e:
+            print(f"  JSON error: {e}")
+            print(f"  Raw response: {result[:200]}...")
+            return self._default_analysis()
+        except Exception as e:
+            print(f"  API error: {e}")
+            import traceback
+            traceback.print_exc()
+            return self._default_analysis()
+
+    def _default_analysis(self) -> Dict:
+        return {
+            "clean_body": "",
+            "category": "general",
+            "subcategory": "",
+            "is_bds_work": True,
+            "linked_project_code": None,
+            "key_points": [],
+            "entities": {},
+            "sentiment": "neutral",
+            "importance_score": 0.5,
+            "ai_summary": "Analysis failed",
+            "urgency_level": "low",
+            "action_required": False,
+            "suggestions": {}
+        }
+
+    def store_analysis(self, email_id: int, analysis: Dict) -> bool:
+        """Store analysis and queue any suggestions"""
+        if not analysis:
+            print("  ⚠️ No analysis returned")
+            return False
+
+        conn = self.get_connection()
+        cursor = conn.cursor()
+
+        try:
+            # Store in email_content (now with linked_project_code and is_bds_work)
+            cursor.execute("""
+                INSERT OR REPLACE INTO email_content (
+                    email_id, clean_body, category, subcategory,
+                    key_points, entities, sentiment, importance_score,
+                    ai_summary, urgency_level, action_required, processing_model,
+                    linked_project_code, is_bds_work
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
+                email_id,
+                analysis.get('clean_body', ''),
+                analysis.get('category', 'general'),
+                analysis.get('subcategory', ''),
+                json.dumps(analysis.get('key_points', [])),
+                json.dumps(analysis.get('entities', {})),
+                analysis.get('sentiment', 'neutral'),
+                analysis.get('importance_score', 0.5),
+                analysis.get('ai_summary', ''),
+                analysis.get('urgency_level', 'low'),
+                1 if analysis.get('action_required') else 0,
+                'gpt-4o-mini-contextual',
+                analysis.get('linked_project_code'),
+                1 if analysis.get('is_bds_work') else 0
+            ))
+
+            # Update email with linked project if found
+            if analysis.get('linked_project_code'):
+                cursor.execute("""
+                    UPDATE emails SET category = ?, stage = ?
+                    WHERE email_id = ?
+                """, (
+                    analysis.get('category'),
+                    'proposal' if analysis.get('is_bds_work') else 'other',
+                    email_id
+                ))
+
+            # Queue suggestions
+            suggestions = analysis.get('suggestions') or {}
+
+            # New contact suggestion
+            new_contact = suggestions.get('new_contact') or {}
+            if new_contact.get('email'):
+                contact = suggestions['new_contact']
+                cursor.execute("""
+                    INSERT INTO ai_suggestions_queue
+                    (data_table, record_id, field_name, suggested_value, confidence, reasoning)
+                    VALUES ('contacts', ?, 'new_contact', ?, 0.8, ?)
+                """, (
+                    email_id,
+                    json.dumps(contact),
+                    f"New contact found in email: {contact.get('name')} from {contact.get('company')}"
+                ))
+                self.suggestions_created += 1
+
+            # Project alias suggestion
+            project_alias = suggestions.get('project_alias') or {}
+            if project_alias.get('alias'):
+                alias = project_alias
+                cursor.execute("""
+                    INSERT INTO ai_suggestions_queue
+                    (data_table, record_id, field_name, suggested_value, confidence, reasoning)
+                    VALUES ('learned_patterns', ?, 'project_alias', ?, 0.75, ?)
+                """, (
+                    email_id,
+                    json.dumps(alias),
+                    f"Project alias: '{alias.get('alias')}' may refer to {alias.get('project_code')}"
+                ))
+                self.suggestions_created += 1
+
+            conn.commit()
+            conn.close()
+            return True
+
+        except Exception as e:
+            print(f"  DB error: {e}")
+            conn.close()
+            return False
+
+    def get_emails_to_process(self, limit: int = 100, reprocess: bool = False) -> List[Dict]:
+        """Get emails needing processing"""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+
+        if reprocess:
+            # Reprocess all emails with body content
+            cursor.execute("""
+                SELECT email_id, subject, sender_email, body_full, date
+                FROM emails
+                WHERE body_full IS NOT NULL AND LENGTH(body_full) > 50
+                ORDER BY date DESC
+                LIMIT ?
+            """, (limit,))
+        else:
+            # Only unprocessed
+            cursor.execute("""
+                SELECT e.email_id, e.subject, e.sender_email, e.body_full, e.date
+                FROM emails e
+                LEFT JOIN email_content ec ON e.email_id = ec.email_id
+                WHERE ec.content_id IS NULL
+                  AND e.body_full IS NOT NULL
+                  AND LENGTH(e.body_full) > 50
+                ORDER BY e.date DESC
+                LIMIT ?
+            """, (limit,))
+
+        emails = [dict(row) for row in cursor.fetchall()]
+        conn.close()
+        return emails
+
+    def process_batch(self, emails: List[Dict]) -> Dict:
+        """Process a batch of emails with context"""
+        stats = {
+            'processed': 0,
+            'bds_work': 0,
+            'other': 0,
+            'suggestions': 0,
+            'errors': 0
+        }
+
+        for i, email in enumerate(emails, 1):
+            print(f"\n[{i}/{len(emails)}] {email['email_id']}: {email['subject'][:50]}...")
+
+            analysis = self.analyze_email_with_context(email)
+
+            if self.store_analysis(email['email_id'], analysis):
+                stats['processed'] += 1
+
+                if analysis.get('is_bds_work'):
+                    stats['bds_work'] += 1
+                else:
+                    stats['other'] += 1
+
+                project = analysis.get('linked_project_code') or 'None'
+                print(f"  → {analysis.get('category')}/{analysis.get('subcategory')} | BDS: {analysis.get('is_bds_work')} | Project: {project}")
+                print(f"  → {analysis.get('ai_summary', '')[:70]}...")
+
+                if analysis.get('suggestions', {}).get('new_contact'):
+                    print(f"  💡 Suggestion: New contact - {analysis['suggestions']['new_contact'].get('name')}")
+                    stats['suggestions'] += 1
+                if analysis.get('suggestions', {}).get('project_alias'):
+                    print(f"  💡 Suggestion: Alias '{analysis['suggestions']['project_alias'].get('alias')}'")
+                    stats['suggestions'] += 1
+            else:
+                stats['errors'] += 1
+
+            time.sleep(0.5)
+
+        return stats
+
+    def show_pending_suggestions(self):
+        """Show suggestions awaiting approval"""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+
+        cursor.execute("""
+            SELECT suggestion_id, data_table, field_name, suggested_value, reasoning, created_at
+            FROM ai_suggestions_queue
+            WHERE status = 'pending'
+            ORDER BY created_at DESC
+            LIMIT 50
+        """)
+
+        suggestions = cursor.fetchall()
+        conn.close()
+
+        if not suggestions:
+            print("\nNo pending suggestions!")
+            return
+
+        print(f"\n📋 PENDING SUGGESTIONS ({len(suggestions)}):")
+        print("=" * 80)
+
+        for s in suggestions:
+            print(f"\n[{s['suggestion_id']}] {s['field_name']} → {s['data_table']}")
+            print(f"    Value: {s['suggested_value'][:100]}...")
+            print(f"    Reason: {s['reasoning']}")
+            print(f"    Created: {s['created_at']}")
+
+        print("\nTo approve: python3 smart_email_brain.py --approve 123")
+        print("To reject:  python3 smart_email_brain.py --reject 123")
+
+    def approve_suggestion(self, suggestion_id: int):
+        """Approve and apply a suggestion"""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+
+        cursor.execute("""
+            SELECT * FROM ai_suggestions_queue WHERE suggestion_id = ?
+        """, (suggestion_id,))
+
+        suggestion = cursor.fetchone()
+        if not suggestion:
+            print(f"Suggestion {suggestion_id} not found")
+            return
+
+        suggestion = dict(suggestion)
+        value = json.loads(suggestion['suggested_value'])
+
+        if suggestion['field_name'] == 'new_contact':
+            # Add to contacts (notes field stores company info)
+            cursor.execute("""
+                INSERT OR IGNORE INTO contacts (name, email, notes)
+                VALUES (?, ?, ?)
+            """, (value.get('name'), value.get('email'), f"Company: {value.get('company')}"))
+            print(f"✅ Added contact: {value.get('name')} ({value.get('email')})")
+
+        elif suggestion['field_name'] == 'project_alias':
+            # Add to learned_patterns
+            cursor.execute("""
+                INSERT OR REPLACE INTO learned_patterns
+                (pattern_type, pattern_key, pattern_value, confidence, occurrences)
+                VALUES ('project_alias', ?, ?, 0.9, 1)
+            """, (value.get('alias'), value.get('project_code')))
+            print(f"✅ Learned alias: '{value.get('alias')}' → {value.get('project_code')}")
+
+        # Mark as applied
+        cursor.execute("""
+            UPDATE ai_suggestions_queue
+            SET status = 'applied', applied_at = datetime('now')
+            WHERE suggestion_id = ?
+        """, (suggestion_id,))
+
+        conn.commit()
+        conn.close()
+
+    def reject_suggestion(self, suggestion_id: int):
+        """Reject a suggestion"""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+
+        cursor.execute("""
+            UPDATE ai_suggestions_queue
+            SET status = 'rejected', reviewed_at = datetime('now')
+            WHERE suggestion_id = ?
+        """, (suggestion_id,))
+
+        conn.commit()
+        conn.close()
+        print(f"❌ Rejected suggestion {suggestion_id}")
+
+
+def main():
+    parser = argparse.ArgumentParser(description='Smart Email Brain - Context-Aware Processing')
+    parser.add_argument('--batch-size', type=int, default=100)
+    parser.add_argument('--reprocess', action='store_true', help='Reprocess emails even if already done')
+    parser.add_argument('--show-suggestions', action='store_true')
+    parser.add_argument('--approve', type=int, help='Approve suggestion by ID')
+    parser.add_argument('--reject', type=int, help='Reject suggestion by ID')
+    parser.add_argument('--yes', '-y', action='store_true')
+    args = parser.parse_args()
+
+    print("=" * 80)
+    print("SMART EMAIL BRAIN - Context-Aware Processing with Learning")
+    print("=" * 80)
+
+    brain = SmartEmailBrain()
+
+    if args.show_suggestions:
+        brain.show_pending_suggestions()
+        return
+
+    if args.approve:
+        brain.load_context()
+        brain.approve_suggestion(args.approve)
+        return
+
+    if args.reject:
+        brain.reject_suggestion(args.reject)
+        return
+
+    # Load context
+    print("\n📚 Loading business context...")
+    brain.load_context()
+
+    # Get emails
+    emails = brain.get_emails_to_process(args.batch_size, args.reprocess)
+    print(f"\n📧 Found {len(emails)} emails to process")
+
+    if not emails:
+        print("Nothing to process!")
+        return
+
+    est_cost = len(emails) * 0.025
+    print(f"💰 Estimated cost: ${est_cost:.2f}")
+
+    if not args.yes:
+        confirm = input("\nProceed? (y/N): ").strip().lower()
+        if confirm != 'y':
+            print("Cancelled")
+            return
+
+    # Process
+    print("\n🚀 Processing with full context...")
+    start = time.time()
+    stats = brain.process_batch(emails)
+    elapsed = time.time() - start
+
+    print("\n" + "=" * 80)
+    print("✅ COMPLETE")
+    print("=" * 80)
+    print(f"Processed: {stats['processed']}")
+    print(f"BDS Work: {stats['bds_work']} | Other: {stats['other']}")
+    print(f"Suggestions created: {stats['suggestions']}")
+    print(f"Errors: {stats['errors']}")
+    print(f"Time: {elapsed/60:.1f} min | Cost: ${brain.estimated_cost:.2f}")
+
+    if brain.suggestions_created > 0:
+        print(f"\n💡 {brain.suggestions_created} suggestions await your review!")
+        print("   Run: python3 smart_email_brain.py --show-suggestions")
+
+
+if __name__ == '__main__':
+    main()

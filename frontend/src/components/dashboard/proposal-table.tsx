@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { HealthBadge } from "./health-badge";
 import { Search } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { ds } from "@/lib/design-system";
 
 type Props = {
   proposals?: ProposalSummary[];
@@ -91,7 +92,7 @@ export default function ProposalTable({
   ];
 
   return (
-    <Card className="flex h-full flex-col rounded-[32px] border border-slate-200/80 shadow-sm">
+    <Card className={cn("flex h-full flex-col border border-slate-200/80 shadow-sm", ds.borderRadius.cardLarge)}>
       <CardHeader className="space-y-4">
         <div className="flex items-center justify-between gap-4">
           <div>
@@ -156,7 +157,8 @@ export default function ProposalTable({
                           type="button"
                           key={proposal.project_code}
                           className={cn(
-                            "w-full rounded-3xl border p-5 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40",
+                            "w-full border p-5 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40",
+                            ds.borderRadius.cardLarge,
                             group.accent,
                             selected &&
                               "border-slate-900 bg-slate-950 text-white shadow-[0_20px_60px_rgba(15,23,42,0.45)]"
@@ -216,8 +218,8 @@ export default function ProposalTable({
                               </p>
                               <p
                                 className={cn(
-                                  "text-3xl font-semibold",
-                                  selected ? "text-white" : "text-slate-900"
+                                  ds.typography.heading1,
+                                  selected ? "text-white" : ds.textColors.primary
                                 )}
                               >
                                 {healthScore ?? "—"}

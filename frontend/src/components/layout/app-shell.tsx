@@ -3,7 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
-import { PropsWithChildren } from "react";
+import { PropsWithChildren, useState } from "react";
 import {
   BarChart3,
   FileText,
@@ -11,26 +11,65 @@ import {
   ListChecks,
   Mail,
   Search,
+  ChevronDown,
+  ChevronRight,
+  ClipboardList,
+  Settings,
+  CheckSquare,
+  Link2,
+  DollarSign,
+  CalendarCheck,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { ds } from "@/lib/design-system";
 
-const navItems = [
+type NavItem = {
+  href: string;
+  label: string;
+  icon: React.ElementType;
+  disabled?: boolean;
+  subItems?: { href: string; label: string; icon: React.ElementType }[];
+};
+
+const navItems: NavItem[] = [
   { href: "/", label: "Overview", icon: Home },
-  { href: "/proposals", label: "Proposals", icon: ListChecks },
+  { href: "/tracker", label: "Proposals", icon: ListChecks },
+  { href: "/projects", label: "Active Projects", icon: FileText },
+  { href: "/deliverables", label: "Deliverables", icon: CalendarCheck },
+  { href: "/query", label: "Query", icon: Search },
   { href: "/emails", label: "Emails", icon: Mail },
-  { href: "/documents", label: "Documents", icon: FileText, disabled: true },
+  {
+    href: "/admin",
+    label: "Admin",
+    icon: Settings,
+    subItems: [
+      { href: "/admin/validation", label: "Data Validation", icon: CheckSquare },
+      { href: "/admin/email-links", label: "Email Links", icon: Link2 },
+      { href: "/admin/financial-entry", label: "Financial Entry", icon: DollarSign }
+    ]
+  },
   { href: "/analytics", label: "Analytics", icon: BarChart3, disabled: true },
-  { href: "/query", label: "Query Brain", icon: Search, disabled: true },
 ];
 
 export default function AppShell({ children }: PropsWithChildren) {
   const pathname = usePathname();
+  const [expandedItems, setExpandedItems] = useState<string[]>([]);
+
+  const toggleExpanded = (href: string) => {
+    setExpandedItems((prev) =>
+      prev.includes(href) ? prev.filter((h) => h !== href) : [...prev, href]
+    );
+  };
 
   return (
-    <div className="min-h-screen bg-muted/30">
+    <div className="min-h-screen bg-slate-50">
       <div className="flex">
-        <aside className="hidden w-72 flex-col border-r bg-sidebar/80 p-6 backdrop-blur lg:flex">
-          <div className="mb-10 flex items-center gap-3">
+        <aside className={cn(
+          "hidden w-72 flex-col border-r border-slate-200 bg-white/95 backdrop-blur lg:flex",
+          ds.spacing.spacious,
+          ds.shadows.sm
+        )}>
+          <div className={cn("mb-10 flex items-center", ds.gap.normal)}>
             <Image
               src="/images/bensley-wordmark.svg"
               alt="Bensley Design Studios"
@@ -40,50 +79,136 @@ export default function AppShell({ children }: PropsWithChildren) {
               className="h-12 w-auto"
             />
           </div>
-          <nav className="space-y-1">
+          <nav className={cn(ds.gap.tight, "space-y-1")}>
             {navItems.map((item) => {
               const Icon = item.icon;
               const isActive =
                 item.href === "/"
                   ? pathname === "/"
                   : pathname.startsWith(item.href);
+              const hasSubItems = item.subItems && item.subItems.length > 0;
+              const isExpanded = expandedItems.includes(item.href);
+
               return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  aria-disabled={item.disabled}
-                  className={cn(
-                    "flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium transition",
-                    item.disabled && "pointer-events-none opacity-40",
-                    isActive
-                      ? "bg-primary/15 text-primary shadow-sm"
-                      : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                <div key={item.href}>
+                  <div className="flex items-center">
+                    <Link
+                      href={item.href}
+                      aria-disabled={item.disabled}
+                      className={cn(
+                        "flex flex-1 items-center px-3 py-2 transition-all duration-200",
+                        ds.borderRadius.button,
+                        ds.gap.normal,
+                        ds.typography.bodyBold,
+                        item.disabled && "pointer-events-none opacity-40",
+                        isActive && !hasSubItems
+                          ? cn(
+                              ds.status.info.bg,
+                              ds.status.info.border,
+                              ds.status.info.text,
+                              "border",
+                              ds.shadows.sm
+                            )
+                          : cn(
+                              ds.textColors.secondary,
+                              "hover:bg-slate-50",
+                              ds.hover.subtle
+                            )
+                      )}
+                    >
+                      <Icon className="h-4 w-4" />
+                      {item.label}
+                      {item.disabled && (
+                        <span className={cn(
+                          "ml-auto px-2 py-0.5",
+                          ds.borderRadius.badge,
+                          ds.typography.tiny,
+                          "bg-slate-100 text-slate-600"
+                        )}>
+                          Soon
+                        </span>
+                      )}
+                    </Link>
+                    {hasSubItems && (
+                      <button
+                        onClick={() => toggleExpanded(item.href)}
+                        className={cn(
+                          "p-2 transition-colors duration-200",
+                          ds.borderRadius.button,
+                          ds.textColors.tertiary,
+                          "hover:bg-slate-100",
+                          ds.hover.subtle
+                        )}
+                      >
+                        {isExpanded ? (
+                          <ChevronDown className="h-4 w-4" />
+                        ) : (
+                          <ChevronRight className="h-4 w-4" />
+                        )}
+                      </button>
+                    )}
+                  </div>
+                  {hasSubItems && isExpanded && (
+                    <div className={cn("ml-7 mt-1", ds.gap.tight, "space-y-1")}>
+                      {item.subItems!.map((subItem) => {
+                        const SubIcon = subItem.icon;
+                        const isSubActive = pathname === subItem.href;
+                        return (
+                          <Link
+                            key={subItem.href}
+                            href={subItem.href}
+                            className={cn(
+                              "flex items-center px-3 py-1.5 transition-all duration-200",
+                              ds.borderRadius.card,
+                              ds.gap.normal,
+                              ds.typography.body,
+                              isSubActive
+                                ? cn(
+                                    ds.status.info.bg,
+                                    ds.status.info.border,
+                                    ds.status.info.text,
+                                    "border",
+                                    ds.shadows.sm
+                                  )
+                                : cn(
+                                    ds.textColors.tertiary,
+                                    "hover:bg-slate-50",
+                                    ds.hover.subtle
+                                  )
+                            )}
+                          >
+                            <SubIcon className="h-3.5 w-3.5" />
+                            {subItem.label}
+                          </Link>
+                        );
+                      })}
+                    </div>
                   )}
-                >
-                  <Icon className="h-4 w-4" />
-                  {item.label}
-                  {item.disabled && (
-                    <span className="ml-auto rounded bg-secondary px-2 py-0.5 text-xs">
-                      Soon
-                    </span>
-                  )}
-                </Link>
+                </div>
               );
             })}
           </nav>
-          <div className="mt-auto rounded-2xl border border-dashed border-muted bg-background/80 p-4 text-sm shadow-sm">
-            <p className="text-xs uppercase text-muted-foreground">
+          <div className={cn(
+            "mt-auto border border-dashed",
+            ds.borderRadius.card,
+            "border-slate-300 bg-slate-50/80",
+            ds.spacing.normal,
+            ds.shadows.sm
+          )}>
+            <p className={cn(ds.typography.label, ds.textColors.muted)}>
               Phase 1 status
             </p>
-            <p className="mt-1 text-base font-semibold text-foreground">
+            <p className={cn("mt-1", ds.typography.heading3, ds.textColors.primary)}>
               Proposal Tracker live
             </p>
-            <p className="text-xs text-muted-foreground">
+            <p className={cn(ds.typography.caption, ds.textColors.tertiary)}>
               Financials, meetings, staff intelligence up next.
             </p>
           </div>
         </aside>
-        <main className="flex-1 bg-background/70 p-4 sm:p-6 lg:p-10">
+        <main className={cn(
+          "flex-1 bg-white/70 p-4 sm:p-6 lg:p-10"
+        )}>
           {children}
         </main>
       </div>

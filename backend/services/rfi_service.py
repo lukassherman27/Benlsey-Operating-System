@@ -1,14 +1,30 @@
 """
 Service layer for project RFIs (Requests for Information)
-Handles question tracking, response management, and status updates
+Handles RFI tracking, response management, and status updates
+
+Updated 2025-11-26: Aligned with actual rfis table schema
 """
 
 from typing import List, Dict, Optional, Any
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 import sqlite3
 
 
 class RFIService:
+    """
+    Service for managing RFIs (Requests for Information)
+
+    RFI Workflow:
+    1. Client sends RFI (CC: rfi@bensley.com)
+    2. System auto-detects and creates RFI record
+    3. PM assigned based on project/specialty
+    4. 48-hour SLA tracked
+    5. PM marks as responded when done
+    """
+
+    # Default SLA in hours
+    DEFAULT_SLA_HOURS = 48
+
     def __init__(self, db_path: str):
         self.db_path = db_path
 
@@ -18,8 +34,8 @@ class RFIService:
         conn.row_factory = sqlite3.Row
         return conn
 
-    def get_rfis_by_proposal(self, proposal_id: int) -> List[Dict[str, Any]]:
-        """Get all RFIs for a specific proposal"""
+    def get_rfis_by_project(self, project_code: str) -> List[Dict[str, Any]]:
+        """Get all RFIs for a specific project"""
         conn = self._get_connection()
         cursor = conn.cursor()
 
@@ -27,17 +43,54 @@ class RFIService:
             SELECT
                 r.*,
                 e.subject as email_subject,
-                e.sender_email
-            FROM project_rfis r
-            LEFT JOIN emails e ON r.email_id = e.email_id
-            WHERE r.proposal_id = ?
-            ORDER BY r.asked_date DESC
-        """, (proposal_id,))
+                e.sender_email as email_sender,
+                e.date as email_date,
+                CAST(JULIANDAY('now') - JULIANDAY(r.date_sent) AS INTEGER) as days_open,
+                CASE
+                    WHEN r.status = 'open' AND date(r.date_due) < date('now') THEN 1
+                    ELSE 0
+                END as is_overdue
+            FROM rfis r
+            LEFT JOIN emails e ON r.extracted_from_email_id = e.email_id
+            WHERE r.project_code = ?
+            ORDER BY r.date_sent DESC
+        """, (project_code,))
 
         rfis = [dict(row) for row in cursor.fetchall()]
         conn.close()
 
         return rfis
+
+    def get_rfis_by_project_id(self, project_id: int) -> List[Dict[str, Any]]:
+        """Get all RFIs for a specific project by ID"""
+        conn = self._get_connection()
+        cursor = conn.cursor()
+
+        cursor.execute("""
+            SELECT
+                r.*,
+                e.subject as email_subject,
+                e.sender_email as email_sender,
+                CAST(JULIANDAY('now') - JULIANDAY(r.date_sent) AS INTEGER) as days_open,
+                CASE
+                    WHEN r.status = 'open' AND date(r.date_due) < date('now') THEN 1
+                    ELSE 0
+                END as is_overdue
+            FROM rfis r
+            LEFT JOIN emails e ON r.extracted_from_email_id = e.email_id
+            WHERE r.project_id = ?
+            ORDER BY r.date_sent DESC
+        """, (project_id,))
+
+        rfis = [dict(row) for row in cursor.fetchall()]
+        conn.close()
+
+        return rfis
+
+    # Alias for backward compatibility with old API
+    def get_rfis_by_proposal(self, proposal_id: int) -> List[Dict[str, Any]]:
+        """Alias for get_rfis_by_project_id (backward compatibility)"""
+        return self.get_rfis_by_project_id(proposal_id)
 
     def get_rfi_by_id(self, rfi_id: int) -> Optional[Dict[str, Any]]:
         """Get a specific RFI by ID"""
@@ -45,8 +98,19 @@ class RFIService:
         cursor = conn.cursor()
 
         cursor.execute("""
-            SELECT * FROM project_rfis
-            WHERE rfi_id = ?
+            SELECT
+                r.*,
+                e.subject as email_subject,
+                e.sender_email as email_sender,
+                e.body_full as email_body,
+                CAST(JULIANDAY('now') - JULIANDAY(r.date_sent) AS INTEGER) as days_open,
+                CASE
+                    WHEN r.status = 'open' AND date(r.date_due) < date('now') THEN 1
+                    ELSE 0
+                END as is_overdue
+            FROM rfis r
+            LEFT JOIN emails e ON r.extracted_from_email_id = e.email_id
+            WHERE r.rfi_id = ?
         """, (rfi_id,))
 
         row = cursor.fetchone()
@@ -60,8 +124,7 @@ class RFIService:
         cursor = conn.cursor()
 
         cursor.execute("""
-            SELECT * FROM project_rfis
-            WHERE rfi_number = ?
+            SELECT * FROM rfis WHERE rfi_number = ?
         """, (rfi_number,))
 
         row = cursor.fetchone()
@@ -70,45 +133,88 @@ class RFIService:
         return dict(row) if row else None
 
     def create_rfi(self, data: Dict[str, Any]) -> int:
-        """Create a new RFI"""
+        """
+        Create a new RFI
+
+        Required fields:
+        - project_code OR project_id
+        - subject
+
+        Optional fields:
+        - rfi_number (auto-generated if not provided)
+        - description
+        - date_sent (defaults to now)
+        - date_due (defaults to date_sent + 48 hours)
+        - priority (defaults to 'normal')
+        - sender_email, sender_name
+        - extracted_from_email_id (link to source email)
+        - assigned_pm_id (who's responsible)
+        """
         conn = self._get_connection()
         cursor = conn.cursor()
 
+        # Get project info if only project_code provided
+        project_id = data.get('project_id')
+        project_code = data.get('project_code')
+
+        if project_code and not project_id:
+            cursor.execute("SELECT project_id FROM projects WHERE project_code = ?", (project_code,))
+            row = cursor.fetchone()
+            if row:
+                project_id = row['project_id']
+        elif project_id and not project_code:
+            cursor.execute("SELECT project_code FROM projects WHERE project_id = ?", (project_id,))
+            row = cursor.fetchone()
+            if row:
+                project_code = row['project_code']
+
         # Auto-generate RFI number if not provided
         rfi_number = data.get('rfi_number')
-        if not rfi_number:
-            rfi_number = self._generate_rfi_number(data['proposal_id'], conn)
+        if not rfi_number and project_code:
+            rfi_number = self._generate_rfi_number(project_code, conn)
+
+        # Set dates
+        date_sent = data.get('date_sent') or datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+
+        # Calculate due date (48 hours from sent)
+        if data.get('date_due'):
+            date_due = data['date_due']
+        else:
+            sent_dt = datetime.strptime(date_sent[:10], '%Y-%m-%d')
+            due_dt = sent_dt + timedelta(hours=self.DEFAULT_SLA_HOURS)
+            date_due = due_dt.strftime('%Y-%m-%d')
 
         cursor.execute("""
-            INSERT INTO project_rfis (
-                proposal_id,
-                email_id,
+            INSERT INTO rfis (
+                project_id,
+                project_code,
                 rfi_number,
-                question,
-                asked_by,
-                asked_date,
-                response,
-                responded_by,
-                responded_date,
+                subject,
+                description,
+                date_sent,
+                date_due,
                 status,
                 priority,
-                category,
-                days_waiting
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                sender_email,
+                sender_name,
+                extracted_from_email_id,
+                extraction_confidence,
+                created_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
         """, (
-            data.get('proposal_id'),
-            data.get('email_id'),
+            project_id,
+            project_code,
             rfi_number,
-            data.get('question'),
-            data.get('asked_by'),
-            data.get('asked_date'),
-            data.get('response'),
-            data.get('responded_by'),
-            data.get('responded_date'),
-            data.get('status', 'unanswered'),
+            data.get('subject', 'Untitled RFI'),
+            data.get('description', ''),
+            date_sent,
+            date_due,
+            data.get('status', 'open'),
             data.get('priority', 'normal'),
-            data.get('category'),
-            data.get('days_waiting', 0)
+            data.get('sender_email'),
+            data.get('sender_name'),
+            data.get('extracted_from_email_id'),
+            data.get('extraction_confidence', 0.5)
         ))
 
         rfi_id = cursor.lastrowid
@@ -117,20 +223,17 @@ class RFIService:
 
         return rfi_id
 
-    def _generate_rfi_number(self, proposal_id: int, conn: sqlite3.Connection) -> str:
-        """Generate RFI number like 'BK033-RFI-001'"""
+    def _generate_rfi_number(self, project_code: str, conn: sqlite3.Connection) -> str:
+        """Generate RFI number like 'BK-033-RFI-001'"""
         cursor = conn.cursor()
 
-        # Get project code (from unified projects table after migration 015)
-        cursor.execute("SELECT project_code FROM projects WHERE proposal_id = ?", (proposal_id,))
-        row = cursor.fetchone()
-        project_code = row['project_code'] if row else 'UNK'
-
-        # Count existing RFIs for this proposal
-        cursor.execute("SELECT COUNT(*) as count FROM project_rfis WHERE proposal_id = ?", (proposal_id,))
+        # Count existing RFIs for this project
+        cursor.execute("SELECT COUNT(*) as count FROM rfis WHERE project_code = ?", (project_code,))
         count = cursor.fetchone()['count']
 
-        rfi_number = f"{project_code}-RFI-{count + 1:03d}"
+        # Clean project code for RFI number
+        clean_code = project_code.replace(' ', '-')
+        rfi_number = f"{clean_code}-RFI-{count + 1:03d}"
         return rfi_number
 
     def update_rfi(self, rfi_id: int, data: Dict[str, Any]) -> bool:
@@ -143,9 +246,12 @@ class RFIService:
         values = []
 
         allowed_fields = [
-            'email_id', 'rfi_number', 'question', 'asked_by', 'asked_date',
-            'response', 'responded_by', 'responded_date', 'status',
-            'priority', 'category', 'days_waiting'
+            'rfi_number', 'subject', 'description',
+            'date_sent', 'date_due', 'date_responded',
+            'status', 'priority',
+            'sender_email', 'sender_name',
+            'response_email_id', 'extraction_confidence',
+            'assigned_pm_id', 'assigned_to'  # PM assignment fields
         ]
 
         for field in allowed_fields:
@@ -158,9 +264,54 @@ class RFIService:
             return False
 
         values.append(rfi_id)
-        query = f"UPDATE project_rfis SET {', '.join(update_fields)} WHERE rfi_id = ?"
+        query = f"UPDATE rfis SET {', '.join(update_fields)} WHERE rfi_id = ?"
 
         cursor.execute(query, values)
+        conn.commit()
+        success = cursor.rowcount > 0
+        conn.close()
+
+        return success
+
+    def mark_responded(self, rfi_id: int, response_email_id: Optional[int] = None) -> bool:
+        """
+        Mark an RFI as responded
+
+        Args:
+            rfi_id: The RFI to mark as responded
+            response_email_id: Optional email ID of the response
+
+        Returns:
+            True if successful
+        """
+        conn = self._get_connection()
+        cursor = conn.cursor()
+
+        cursor.execute("""
+            UPDATE rfis
+            SET status = 'responded',
+                date_responded = datetime('now'),
+                response_email_id = ?
+            WHERE rfi_id = ?
+        """, (response_email_id, rfi_id))
+
+        conn.commit()
+        success = cursor.rowcount > 0
+        conn.close()
+
+        return success
+
+    def close_rfi(self, rfi_id: int) -> bool:
+        """Mark an RFI as closed"""
+        conn = self._get_connection()
+        cursor = conn.cursor()
+
+        cursor.execute("""
+            UPDATE rfis
+            SET status = 'closed'
+            WHERE rfi_id = ?
+        """, (rfi_id,))
+
         conn.commit()
         success = cursor.rowcount > 0
         conn.close()
@@ -172,54 +323,64 @@ class RFIService:
         conn = self._get_connection()
         cursor = conn.cursor()
 
-        cursor.execute("DELETE FROM project_rfis WHERE rfi_id = ?", (rfi_id,))
+        cursor.execute("DELETE FROM rfis WHERE rfi_id = ?", (rfi_id,))
         conn.commit()
         success = cursor.rowcount > 0
         conn.close()
 
         return success
 
-    def add_response(self, rfi_id: int, response: str, responded_by: str, responded_date: Optional[str] = None) -> bool:
-        """
-        Add a response to an RFI
-        Automatically updates status to 'answered'
-        """
-        if not responded_date:
-            responded_date = date.today().isoformat()
-
-        conn = self._get_connection()
-        cursor = conn.cursor()
-
-        cursor.execute("""
-            UPDATE project_rfis
-            SET response = ?,
-                responded_by = ?,
-                responded_date = ?,
-                status = 'answered'
-            WHERE rfi_id = ?
-        """, (response, responded_by, responded_date, rfi_id))
-
-        conn.commit()
-        success = cursor.rowcount > 0
-        conn.close()
-
-        return success
-
-    def get_unanswered_rfis(self) -> List[Dict[str, Any]]:
-        """Get all unanswered RFIs across all proposals"""
+    def get_open_rfis(self) -> List[Dict[str, Any]]:
+        """Get all open RFIs across all projects"""
         conn = self._get_connection()
         cursor = conn.cursor()
 
         cursor.execute("""
             SELECT
                 r.*,
+                p.project_title,
+                e.subject as email_subject,
+                CAST(JULIANDAY('now') - JULIANDAY(r.date_sent) AS INTEGER) as days_open,
+                CASE
+                    WHEN date(r.date_due) < date('now') THEN 1
+                    ELSE 0
+                END as is_overdue
+            FROM rfis r
+            LEFT JOIN projects p ON r.project_id = p.project_id
+            LEFT JOIN emails e ON r.extracted_from_email_id = e.email_id
+            WHERE r.status = 'open'
+            ORDER BY r.date_due ASC
+        """)
+
+        rfis = [dict(row) for row in cursor.fetchall()]
+        conn.close()
+
+        return rfis
+
+    # Alias for backward compatibility
+    def get_unanswered_rfis(self) -> List[Dict[str, Any]]:
+        """Alias for get_open_rfis (backward compatibility)"""
+        return self.get_open_rfis()
+
+    def get_overdue_rfis(self) -> List[Dict[str, Any]]:
+        """Get all RFIs that are past their due date"""
+        conn = self._get_connection()
+        cursor = conn.cursor()
+
+        cursor.execute("""
+            SELECT
+                r.*,
+                p.project_title,
                 p.project_code,
-                p.project_name,
-                p.client_company
-            FROM project_rfis r
-            JOIN projects p ON r.proposal_id = p.proposal_id
-            WHERE r.status = 'unanswered'
-            ORDER BY r.priority DESC, r.asked_date ASC
+                e.subject as email_subject,
+                CAST(JULIANDAY('now') - JULIANDAY(r.date_sent) AS INTEGER) as days_open,
+                CAST(JULIANDAY('now') - JULIANDAY(r.date_due) AS INTEGER) as days_overdue
+            FROM rfis r
+            LEFT JOIN projects p ON r.project_id = p.project_id
+            LEFT JOIN emails e ON r.extracted_from_email_id = e.email_id
+            WHERE r.status = 'open'
+            AND date(r.date_due) < date('now')
+            ORDER BY r.date_due ASC
         """)
 
         rfis = [dict(row) for row in cursor.fetchall()]
@@ -235,13 +396,13 @@ class RFIService:
         cursor.execute("""
             SELECT
                 r.*,
+                p.project_title,
                 p.project_code,
-                p.project_name,
-                p.client_company
-            FROM project_rfis r
-            JOIN projects p ON r.proposal_id = p.proposal_id
+                CAST(JULIANDAY('now') - JULIANDAY(r.date_sent) AS INTEGER) as days_open
+            FROM rfis r
+            LEFT JOIN projects p ON r.project_id = p.project_id
             WHERE r.status = ?
-            ORDER BY r.asked_date DESC
+            ORDER BY r.date_sent DESC
         """, (status,))
 
         rfis = [dict(row) for row in cursor.fetchall()]
@@ -257,13 +418,13 @@ class RFIService:
         cursor.execute("""
             SELECT
                 r.*,
+                p.project_title,
                 p.project_code,
-                p.project_name,
-                p.client_company
-            FROM project_rfis r
-            JOIN projects p ON r.proposal_id = p.proposal_id
+                CAST(JULIANDAY('now') - JULIANDAY(r.date_sent) AS INTEGER) as days_open
+            FROM rfis r
+            LEFT JOIN projects p ON r.project_id = p.project_id
             WHERE r.priority = ?
-            ORDER BY r.asked_date DESC
+            ORDER BY r.date_sent DESC
         """, (priority,))
 
         rfis = [dict(row) for row in cursor.fetchall()]
@@ -271,103 +432,79 @@ class RFIService:
 
         return rfis
 
-    def get_rfi_summary(self, proposal_id: int) -> Dict[str, Any]:
+    def get_rfi_summary(self, project_code: Optional[str] = None) -> Dict[str, Any]:
         """
-        Generate RFI summary for a proposal
-        Returns counts by status, priority, category
-        """
-        rfis = self.get_rfis_by_proposal(proposal_id)
+        Generate RFI summary statistics
 
-        summary = {
-            'proposal_id': proposal_id,
-            'total_rfis': len(rfis),
-            'unanswered': 0,
-            'answered': 0,
-            'pending_followup': 0,
-            'closed': 0,
-            'critical': 0,
-            'high': 0,
-            'normal': 0,
-            'low': 0,
-            'avg_days_waiting': 0,
-            'by_category': {},
-            'by_asked_by': {}
-        }
+        Args:
+            project_code: Optional - if provided, stats for that project only
 
-        total_days = 0
-
-        for rfi in rfis:
-            # Status counts
-            status = rfi['status']
-            if status == 'unanswered':
-                summary['unanswered'] += 1
-            elif status == 'answered':
-                summary['answered'] += 1
-            elif status == 'pending_followup':
-                summary['pending_followup'] += 1
-            elif status == 'closed':
-                summary['closed'] += 1
-
-            # Priority counts
-            priority = rfi['priority']
-            if priority == 'critical':
-                summary['critical'] += 1
-            elif priority == 'high':
-                summary['high'] += 1
-            elif priority == 'normal':
-                summary['normal'] += 1
-            elif priority == 'low':
-                summary['low'] += 1
-
-            # Category breakdown
-            category = rfi['category'] or 'uncategorized'
-            summary['by_category'][category] = summary['by_category'].get(category, 0) + 1
-
-            # Asked by breakdown
-            asked_by = rfi['asked_by'] or 'unknown'
-            summary['by_asked_by'][asked_by] = summary['by_asked_by'].get(asked_by, 0) + 1
-
-            # Days waiting
-            total_days += rfi['days_waiting'] or 0
-
-        # Calculate average
-        if summary['total_rfis'] > 0:
-            summary['avg_days_waiting'] = total_days / summary['total_rfis']
-
-        return summary
-
-    def update_days_waiting(self) -> int:
-        """
-        Update days_waiting for all unanswered RFIs
-        Returns count of RFIs updated
+        Returns:
+            Summary with counts by status, priority, overdue stats
         """
         conn = self._get_connection()
         cursor = conn.cursor()
 
-        today = date.today()
+        # Base query
+        where_clause = "WHERE 1=1"
+        params = []
 
-        cursor.execute("""
-            SELECT rfi_id, asked_date
-            FROM project_rfis
-            WHERE status = 'unanswered'
-        """)
+        if project_code:
+            where_clause += " AND project_code = ?"
+            params.append(project_code)
 
-        rfis = cursor.fetchall()
-        count = 0
+        # Get totals by status
+        cursor.execute(f"""
+            SELECT
+                COUNT(*) as total,
+                SUM(CASE WHEN status = 'open' THEN 1 ELSE 0 END) as open_count,
+                SUM(CASE WHEN status = 'responded' THEN 1 ELSE 0 END) as responded_count,
+                SUM(CASE WHEN status = 'closed' THEN 1 ELSE 0 END) as closed_count,
+                SUM(CASE WHEN status = 'open' AND date(date_due) < date('now') THEN 1 ELSE 0 END) as overdue_count,
+                SUM(CASE WHEN priority = 'high' AND status = 'open' THEN 1 ELSE 0 END) as high_priority_open,
+                AVG(CASE WHEN status = 'open'
+                    THEN JULIANDAY('now') - JULIANDAY(date_sent)
+                    ELSE NULL END) as avg_days_open
+            FROM rfis
+            {where_clause}
+        """, params)
 
-        for rfi in rfis:
-            asked = datetime.strptime(rfi['asked_date'], '%Y-%m-%d').date()
-            days_waiting = (today - asked).days
+        row = cursor.fetchone()
 
-            cursor.execute("""
-                UPDATE project_rfis
-                SET days_waiting = ?
-                WHERE rfi_id = ?
-            """, (days_waiting, rfi['rfi_id']))
+        summary = {
+            'total_rfis': row['total'] or 0,
+            'open': row['open_count'] or 0,
+            'responded': row['responded_count'] or 0,
+            'closed': row['closed_count'] or 0,
+            'overdue': row['overdue_count'] or 0,
+            'high_priority_open': row['high_priority_open'] or 0,
+            'avg_days_open': round(row['avg_days_open'] or 0, 1),
+            'sla_hours': self.DEFAULT_SLA_HOURS
+        }
 
-            count += 1
-
-        conn.commit()
         conn.close()
+        return summary
 
-        return count
+    def get_rfi_stats_for_dashboard(self) -> Dict[str, Any]:
+        """Get RFI statistics formatted for dashboard display"""
+        summary = self.get_rfi_summary()
+        overdue = self.get_overdue_rfis()
+
+        return {
+            'summary': summary,
+            'overdue_rfis': overdue[:5],  # Top 5 overdue
+            'needs_attention': summary['overdue'] > 0 or summary['high_priority_open'] > 0,
+            'alert_message': self._generate_alert_message(summary)
+        }
+
+    def _generate_alert_message(self, summary: Dict[str, Any]) -> Optional[str]:
+        """Generate alert message if RFIs need attention"""
+        messages = []
+
+        if summary['overdue'] > 0:
+            messages.append(f"{summary['overdue']} RFI(s) overdue!")
+
+        if summary['high_priority_open'] > 0:
+            messages.append(f"{summary['high_priority_open']} high-priority RFI(s) open")
+
+        return " | ".join(messages) if messages else None

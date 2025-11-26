@@ -90,7 +90,7 @@ class MasterSync:
                 )
                 SELECT 
                     p.project_code,
-                    p.project_name,
+                    p.project_title,
                     c.client_id,
                     'proposals',
                     p.current_status,

@@ -151,7 +151,7 @@ class ScheduleEmailParser:
         rest = parts[2] if len(parts) > 2 else ""
 
         # Extract project name (everything before discipline indicator)
-        project_name = None
+        project_title = None
         discipline = None
         phase = None
         task = None
@@ -163,7 +163,7 @@ class ScheduleEmailParser:
                 # Split on discipline to get project name
                 project_match = re.split(disc_pattern, rest, maxsplit=1)
                 if project_match:
-                    project_name = project_match[0].strip()
+                    project_title = project_match[0].strip()
                 break
 
         # Extract phase and task
@@ -183,7 +183,7 @@ class ScheduleEmailParser:
         return {
             'nickname': nickname,
             'office': office,
-            'project_name': project_name,
+            'project_title': project_title,
             'discipline': discipline,
             'phase': phase,
             'task': task,
@@ -276,7 +276,7 @@ class ScheduleEmailParser:
             if entry:
                 # TODO: Match nickname to member_id from team_members table
                 # For now, we'll just log
-                print(f"  - {entry['nickname']}: {entry['project_name']} ({entry['discipline']} - {entry['phase']})")
+                print(f"  - {entry['nickname']}: {entry['project_title']} ({entry['discipline']} - {entry['phase']})")
                 entries_created += 1
 
         # Log processing

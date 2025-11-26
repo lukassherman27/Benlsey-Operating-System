@@ -150,16 +150,16 @@ class SchedulePDFParser:
                         continue
 
                     # Parse project and task from weekly assignment
-                    project_name, task, phase = self.parse_cell_value(weekly_assignment)
+                    project_title, task, phase = self.parse_cell_value(weekly_assignment)
 
-                    if project_name:
+                    if project_title:
                         # Create entry for this person's weekly assignment
                         # We'll expand to daily entries when saving to database
                         entries.append({
                             'member_id': member_id,
                             'nickname': name,
                             'office': office,
-                            'project_name': project_name,
+                            'project_title': project_title,
                             'task': task,
                             'phase': phase,
                             'raw_text': weekly_assignment,
@@ -207,17 +207,17 @@ class SchedulePDFParser:
             task = task_match.group(1).strip()
 
         # Extract project name (remove phase markers and task)
-        project_name = text
-        project_name = re.sub(r'\([^)]+\)', '', project_name)  # Remove parentheses
-        project_name = re.sub(r'\b(100%\s*)?(CD|DD|SD|ID|AR|LA)\b', '', project_name, flags=re.IGNORECASE)  # Remove phases
-        project_name = re.sub(r'\s+', ' ', project_name).strip()  # Clean whitespace
+        project_title = text
+        project_title = re.sub(r'\([^)]+\)', '', project_title)  # Remove parentheses
+        project_title = re.sub(r'\b(100%\s*)?(CD|DD|SD|ID|AR|LA)\b', '', project_title, flags=re.IGNORECASE)  # Remove phases
+        project_title = re.sub(r'\s+', ' ', project_title).strip()  # Clean whitespace
 
         # Clean up common project names
-        project_name = self.normalize_project_name(project_name)
+        project_title = self.normalize_project_title(project_title)
 
-        return project_name, task, phase
+        return project_title, task, phase
 
-    def normalize_project_name(self, name: str) -> str:
+    def normalize_project_title(self, name: str) -> str:
         """Normalize project names to match database"""
         if not name:
             return name
@@ -323,10 +323,10 @@ class SchedulePDFParser:
                     try:
                         cursor.execute("""
                             INSERT INTO schedule_entries
-                            (schedule_id, member_id, work_date, project_name, task_description, phase, raw_text)
+                            (schedule_id, member_id, work_date, project_title, task_description, phase, raw_text)
                             VALUES (?, ?, ?, ?, ?, ?, ?)
                             ON CONFLICT(schedule_id, member_id, work_date) DO UPDATE SET
-                                project_name = excluded.project_name,
+                                project_title = excluded.project_title,
                                 task_description = excluded.task_description,
                                 phase = excluded.phase,
                                 raw_text = excluded.raw_text,
@@ -335,7 +335,7 @@ class SchedulePDFParser:
                             schedule_id,
                             entry['member_id'],
                             work_date,
-                            entry['project_name'],
+                            entry['project_title'],
                             entry['task'],
                             entry['phase'],
                             entry['raw_text']

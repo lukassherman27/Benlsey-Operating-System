@@ -36,7 +36,7 @@ class ComprehensiveAuditor:
 
         # Get all projects (including proposals - merged in migration 015)
         cursor.execute("""
-            SELECT project_code, project_name, is_active_project, total_fee_usd, status
+            SELECT project_code, project_title, is_active_project, total_fee_usd, status
             FROM projects
         """)
 
@@ -101,7 +101,7 @@ class ComprehensiveAuditor:
         suggestions = []
 
         project_code = project['project_code']
-        project_name = project.get('project_name', '') or ''
+        project_title = project.get('project_title', '') or ''
 
         # Check if scope already defined
         cursor.execute("""
@@ -114,7 +114,7 @@ class ComprehensiveAuditor:
             return []  # Scope already defined
 
         # Analyze project name for discipline keywords
-        name_lower = project_name.lower() if project_name else ''
+        name_lower = project_title.lower() if project_title else ''
         detected_disciplines = []
         confidence = 0.70
 
@@ -158,7 +158,7 @@ class ComprehensiveAuditor:
                 },
                 'evidence': {
                     'signals': [
-                        f"Project name: {project_name}",
+                        f"Project name: {project_title}",
                         f"Detected keywords in name",
                         f"No scope defined in database"
                     ],

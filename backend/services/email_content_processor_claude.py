@@ -122,7 +122,7 @@ class EmailContentProcessorClaude:
             SELECT
                 p.proposal_id,
                 p.project_code,
-                p.project_name,
+                p.project_title,
                 p.status,
                 p.is_active_project
             FROM email_proposal_links epl
@@ -151,7 +151,7 @@ class EmailContentProcessorClaude:
         if proposal_context:
             status = "ACTIVE PROJECT" if proposal_context.get('is_active_project', 0) else "PROPOSAL"
             context = f"""
-Project: {proposal_context.get('project_name', 'Unknown')}
+Project: {proposal_context.get('project_title', 'Unknown')}
 Code: {proposal_context.get('project_code', 'N/A')}
 Status: {status} ({"post-contract" if proposal_context.get('is_active_project', 0) else "pre-contract"})
 """

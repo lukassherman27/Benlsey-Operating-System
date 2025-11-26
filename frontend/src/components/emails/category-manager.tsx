@@ -7,6 +7,7 @@ import type { EmailSummary } from "@/lib/types";
 import {
   Card,
   CardContent,
+  CardDescription,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
@@ -28,13 +29,36 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
-import { Loader2, RefreshCw } from "lucide-react";
+import { Loader2, RefreshCw, Eye, Mail, Calendar, User, Link as LinkIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
+import Link from "next/link";
 
+// Email categories matching backend schema
+const EMAIL_CATEGORIES = [
+  { value: "contract", label: "Contract" },
+  { value: "invoice", label: "Invoice" },
+  { value: "proposal", label: "Proposal" },
+  { value: "design_document", label: "Design Document" },
+  { value: "correspondence", label: "Correspondence" },
+  { value: "internal", label: "Internal" },
+  { value: "financial", label: "Financial" },
+  { value: "rfi", label: "RFI/Submittal" },
+  { value: "presentation", label: "Presentation" },
+];
+
+// Fallback categories for filters (includes more common ones)
 const BASE_CATEGORIES = [
   "general",
   "proposal",
@@ -72,6 +96,12 @@ const SUBCATEGORY_OPTIONS: Record<string, { value: string; label: string }[]> =
       { value: "revision", label: "Revision" },
       { value: "approval", label: "Approval" },
     ],
+    design_document: [
+      { value: "concept", label: "Concept" },
+      { value: "schematic", label: "Schematic" },
+      { value: "detail", label: "Detail Design" },
+      { value: "revision", label: "Revision" },
+    ],
     meeting: [
       { value: "kickoff", label: "Kickoff" },
       { value: "review", label: "Review" },
@@ -100,6 +130,7 @@ export default function EmailCategoryManager() {
   const searchValue = deferredSearch.length ? deferredSearch : undefined;
   const [page, setPage] = useState(1);
   const [drafts, setDrafts] = useState<DraftMap>({});
+  const [previewEmail, setPreviewEmail] = useState<EmailSummary | null>(null);
   const perPage = 10;
 
   const categoriesQuery = useQuery({
@@ -127,6 +158,13 @@ export default function EmailCategoryManager() {
       }),
   });
 
+  // Query for email detail when preview is opened
+  const emailDetailQuery = useQuery({
+    queryKey: ["email-detail", previewEmail?.email_id],
+    queryFn: () => api.getEmailDetail(previewEmail!.email_id),
+    enabled: !!previewEmail?.email_id,
+  });
+
   const mutation = useMutation({
     mutationFn: ({
       emailId,
@@ -149,6 +187,7 @@ export default function EmailCategoryManager() {
         delete next[variables.emailId];
         return next;
       });
+      setPreviewEmail(null); // Close preview modal after save
       emailsQuery.refetch();
       categoriesQuery.refetch();
       categoryListQuery.refetch();
@@ -246,7 +285,7 @@ export default function EmailCategoryManager() {
   };
 
   const handleSubmit = (emailId: number) => {
-    const email = findEmail(emailId);
+    const email = findEmail(emailId) || previewEmail;
     if (!email) return;
     const draft = drafts[emailId];
     const finalCategory = getEffectiveCategory(email, draft);
@@ -290,18 +329,35 @@ export default function EmailCategoryManager() {
       categoryListQuery.isFetching) &&
     !isInitialLoading;
 
+  const formatDate = (dateString: string | null | undefined) => {
+    if (!dateString) return "Unknown date";
+    try {
+      const date = new Date(dateString);
+      return date.toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+        year: date.getFullYear() !== new Date().getFullYear() ? "numeric" : undefined,
+      });
+    } catch {
+      return "Invalid date";
+    }
+  };
+
   return (
-    <div className="space-y-6">
-      <header className="flex flex-wrap items-center justify-between gap-3">
+    <div className="container mx-auto p-6 space-y-6">
+      <header className="flex flex-wrap items-center justify-between gap-3 mb-6">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">
+          <h1 className="text-3xl font-bold tracking-tight">
             Email Category Corrections
           </h1>
-          <p className="text-sm text-muted-foreground">
-            Fix AI mistakes and instantly add examples to the training set.
+          <p className="text-muted-foreground mt-2">
+            Fix AI mistakes and improve categorization accuracy
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <div className="text-sm text-muted-foreground">
+            {emails.length} emails pending review
+          </div>
           <Button
             variant="outline"
             size="sm"
@@ -332,6 +388,7 @@ export default function EmailCategoryManager() {
         </div>
       )}
 
+      {/* Category Overview Cards */}
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         {(categoryList.length
           ? categoryList
@@ -346,8 +403,8 @@ export default function EmailCategoryManager() {
             <Card
               key={item.value}
               className={cn(
-                "cursor-pointer transition hover:border-primary",
-                categoryFilter === item.value && "border-primary shadow-sm"
+                "cursor-pointer transition hover:border-primary hover:shadow-sm",
+                categoryFilter === item.value && "border-primary shadow-sm bg-primary/5"
               )}
               onClick={() =>
                 setCategoryFilter((prev) =>
@@ -356,36 +413,42 @@ export default function EmailCategoryManager() {
               }
             >
               <CardContent className="py-4">
-                <p className="text-xs uppercase text-muted-foreground">
+                <p className="text-xs uppercase text-muted-foreground mb-1">
                   {item.value === categoryFilter ? "Filtering by" : "Category"}
                 </p>
                 <div className="flex items-center justify-between">
                   <p className="text-lg font-semibold capitalize">
-                    {item.label}
+                    {item.label.replace(/_/g, " ")}
                   </p>
-                  <Badge variant="secondary">{item.count}</Badge>
+                  <Badge variant="secondary">{item.count ?? 0}</Badge>
                 </div>
               </CardContent>
             </Card>
           ))}
       </div>
 
+      {/* Email List */}
       <Card>
         <CardHeader className="space-y-4">
-          <div className="flex flex-wrap items-center gap-3">
-            <CardTitle className="text-lg font-semibold">
-              Review Emails
-            </CardTitle>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <CardTitle className="text-xl font-semibold">
+                Uncategorized or Uncertain Emails
+              </CardTitle>
+              <CardDescription className="mt-1.5">
+                Review and correct email categories to train the AI
+              </CardDescription>
+            </div>
             {categoryFilter && (
               <Badge variant="outline" className="capitalize">
-                Filtering: {categoryFilter}
+                Filtering: {categoryFilter.replace(/_/g, " ")}
               </Badge>
             )}
           </div>
           <div className="flex flex-wrap gap-3">
             <div className="flex-1 min-w-[200px]">
               <Input
-                placeholder="Search subject or sender"
+                placeholder="Search subject or sender..."
                 value={searchInput}
                 onChange={(event) => {
                   setPage(1);
@@ -417,27 +480,28 @@ export default function EmailCategoryManager() {
           </div>
         </CardHeader>
         <CardContent className="p-0">
-        {emailsQuery.isLoading ? (
+          {emailsQuery.isLoading ? (
             <div className="space-y-2 p-6">
-              <Skeleton className="h-6 w-full" />
-              <Skeleton className="h-6 w-full" />
-              <Skeleton className="h-6 w-full" />
+              <Skeleton className="h-12 w-full" />
+              <Skeleton className="h-12 w-full" />
+              <Skeleton className="h-12 w-full" />
             </div>
           ) : emails.length === 0 ? (
-            <div className="p-8 text-center text-sm text-muted-foreground">
-              No emails match this filter just yet.
+            <div className="p-12 text-center text-muted-foreground">
+              <Mail className="h-12 w-12 mx-auto mb-4 opacity-20" />
+              <p className="text-lg font-medium">No emails match this filter</p>
+              <p className="text-sm mt-1">Try adjusting your search or filter criteria</p>
             </div>
           ) : (
             <ScrollArea className="max-h-[640px]">
-              <Table>
+              <Table className="table-fixed">
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Email</TableHead>
-                    <TableHead>Current</TableHead>
-                    <TableHead>Correct Category</TableHead>
-                    <TableHead>Subcategory</TableHead>
-                    <TableHead>Notes</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
+                    <TableHead className="w-[35%]">Email</TableHead>
+                    <TableHead className="w-[15%]">Current</TableHead>
+                    <TableHead className="w-[20%]">Correct Category</TableHead>
+                    <TableHead className="w-[15%]">Subcategory</TableHead>
+                    <TableHead className="w-[15%] text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -450,32 +514,66 @@ export default function EmailCategoryManager() {
                     );
                     const subcategoryOptions =
                       SUBCATEGORY_OPTIONS[categoryValue] ?? [];
-                    const linkedProject = email.project_code
-                      ? `${email.project_code} ${
-                          email.is_active_project === 1 ? "(Active)" : "(Proposal)"
-                        }`
-                      : "Unlinked";
+                    const linkedProject = email.project_code;
+                    const isActive = email.is_active_project === 1;
+
                     return (
-                      <TableRow key={email.email_id}>
+                      <TableRow key={email.email_id} className="group">
                         <TableCell className="align-top">
-                          <p className="font-medium">{email.subject}</p>
-                          <p className="text-xs text-muted-foreground">
-                            {email.sender_email}
-                          </p>
-                          <p className="mt-2 text-xs text-muted-foreground">
-                            {email.snippet ?? "No preview available"}
-                          </p>
-                          <p className="mt-2 text-xs text-muted-foreground">
-                            {linkedProject}
-                          </p>
+                          <div className="space-y-2">
+                            <div className="flex items-start gap-2">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 flex-shrink-0 opacity-0 group-hover:opacity-100 transition"
+                                onClick={() => setPreviewEmail(email)}
+                                title="Preview email"
+                              >
+                                <Eye className="h-4 w-4" />
+                              </Button>
+                              <div className="flex-1 min-w-0">
+                                <p
+                                  className="font-medium text-sm truncate cursor-pointer hover:text-primary"
+                                  onClick={() => setPreviewEmail(email)}
+                                  title={email.subject || "No subject"}
+                                >
+                                  {email.subject || "(No subject)"}
+                                </p>
+                                <p className="text-xs text-muted-foreground truncate mt-0.5">
+                                  <User className="h-3 w-3 inline mr-1" />
+                                  {email.sender_email}
+                                </p>
+                                <p className="text-xs text-muted-foreground mt-0.5">
+                                  <Calendar className="h-3 w-3 inline mr-1" />
+                                  {formatDate(email.date)}
+                                </p>
+                              </div>
+                            </div>
+                            {email.snippet && (
+                              <p className="text-xs text-muted-foreground line-clamp-2 pl-10">
+                                {email.snippet}
+                              </p>
+                            )}
+                            {linkedProject && (
+                              <div className="pl-10">
+                                <Link
+                                  href={isActive ? `/projects/${linkedProject}` : `/tracker?project=${linkedProject}`}
+                                  className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
+                                >
+                                  <LinkIcon className="h-3 w-3" />
+                                  {linkedProject} {isActive ? "(Active)" : "(Proposal)"}
+                                </Link>
+                              </div>
+                            )}
+                          </div>
                         </TableCell>
                         <TableCell className="align-top">
                           <Badge variant="secondary" className="capitalize">
                             {email.category ?? "uncategorized"}
                           </Badge>
                           {email.subcategory && (
-                            <p className="text-xs text-muted-foreground">
-                              Subcategory: {email.subcategory}
+                            <p className="text-xs text-muted-foreground mt-1">
+                              {email.subcategory}
                             </p>
                           )}
                         </TableCell>
@@ -496,10 +594,9 @@ export default function EmailCategoryManager() {
                               <SelectItem value="uncategorized">
                                 Select...
                               </SelectItem>
-                              {mappedCategories.map((item) => {
+                              {EMAIL_CATEGORIES.map((item) => {
                                 const disabled =
-                                  item.value === "rfi" &&
-                                  email.is_active_project !== 1;
+                                  item.value === "rfi" && !isActive;
                                 return (
                                   <SelectItem
                                     key={item.value}
@@ -536,10 +633,10 @@ export default function EmailCategoryManager() {
                             }
                           >
                             <SelectTrigger>
-                              <SelectValue placeholder="Select subcategory" />
+                              <SelectValue placeholder="Subcategory" />
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="none">No subcategory</SelectItem>
+                              <SelectItem value="none">None</SelectItem>
                               {subcategoryOptions.map((option) => (
                                 <SelectItem
                                   key={option.value}
@@ -551,24 +648,10 @@ export default function EmailCategoryManager() {
                             </SelectContent>
                           </Select>
                           {!subcategoryOptions.length && (
-                            <p className="text-xs text-muted-foreground">
-                              Not required for this category.
+                            <p className="text-[10px] text-muted-foreground mt-1">
+                              N/A
                             </p>
                           )}
-                        </TableCell>
-                        <TableCell className="align-top">
-                          <Textarea
-                            rows={3}
-                            placeholder="Optional note (why this category?)"
-                            value={draft?.feedback ?? ""}
-                            onChange={(event) =>
-                              handleDraftChange(
-                                email.email_id,
-                                "feedback",
-                                event.target.value
-                              )
-                            }
-                          />
                         </TableCell>
                         <TableCell className="align-top text-right">
                           <div className="flex flex-col items-end gap-2">
@@ -607,7 +690,7 @@ export default function EmailCategoryManager() {
         </CardContent>
         <div className="flex items-center justify-between border-t px-6 py-4 text-sm">
           <p className="text-muted-foreground">
-            Page {page} of {totalPages}
+            Page {page} of {totalPages} • {emailsQuery.data?.pagination.total ?? 0} total emails
           </p>
           <div className="flex items-center gap-2">
             <Button
@@ -632,9 +715,229 @@ export default function EmailCategoryManager() {
         </div>
       </Card>
 
+      {/* Email Preview Modal */}
+      <Dialog open={!!previewEmail} onOpenChange={() => setPreviewEmail(null)}>
+        <DialogContent className="max-w-4xl max-h-[85vh] overflow-hidden flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="text-xl pr-8">
+              {previewEmail?.subject || "(No subject)"}
+            </DialogTitle>
+            <DialogDescription>
+              Review full email content and correct the category
+            </DialogDescription>
+          </DialogHeader>
+
+          <ScrollArea className="flex-1 pr-4">
+            {previewEmail && (
+              <div className="space-y-6">
+                {/* Email Metadata */}
+                <div className="grid grid-cols-2 gap-4 p-4 bg-muted/50 rounded-lg">
+                  <div className="space-y-1">
+                    <Label className="text-xs text-muted-foreground">From</Label>
+                    <p className="text-sm font-medium">{previewEmail.sender_email}</p>
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs text-muted-foreground">Date</Label>
+                    <p className="text-sm">{formatDate(previewEmail.date)}</p>
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs text-muted-foreground">Current Category</Label>
+                    <Badge variant="secondary" className="capitalize">
+                      {previewEmail.category ?? "uncategorized"}
+                    </Badge>
+                  </div>
+                  {previewEmail.project_code && (
+                    <div className="space-y-1">
+                      <Label className="text-xs text-muted-foreground">Linked Project</Label>
+                      <Link
+                        href={
+                          previewEmail.is_active_project === 1
+                            ? `/projects/${previewEmail.project_code}`
+                            : `/tracker?project=${previewEmail.project_code}`
+                        }
+                        className="text-sm text-primary hover:underline inline-flex items-center gap-1"
+                      >
+                        <LinkIcon className="h-3 w-3" />
+                        {previewEmail.project_code}
+                        {previewEmail.is_active_project === 1 ? " (Active)" : " (Proposal)"}
+                      </Link>
+                    </div>
+                  )}
+                </div>
+
+                {/* Email Body */}
+                <div>
+                  <Label className="text-sm font-semibold mb-2 block">Email Content</Label>
+                  <div className="border rounded-lg p-4 bg-background">
+                    {emailDetailQuery.isLoading ? (
+                      <div className="space-y-2">
+                        <Skeleton className="h-4 w-full" />
+                        <Skeleton className="h-4 w-4/5" />
+                        <Skeleton className="h-4 w-full" />
+                      </div>
+                    ) : emailDetailQuery.data?.body_full ? (
+                      <div className="prose prose-sm max-w-none">
+                        <pre className="whitespace-pre-wrap font-sans text-sm">
+                          {emailDetailQuery.data.body_full}
+                        </pre>
+                      </div>
+                    ) : (
+                      <p className="text-muted-foreground text-sm">
+                        {previewEmail.snippet || "No content available"}
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                {/* Category Correction UI */}
+                <div className="border-t pt-6 space-y-4">
+                  <h3 className="font-semibold text-lg">Correct This Email</h3>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="preview-category">Correct Category *</Label>
+                      <Select
+                        value={
+                          getEffectiveCategory(
+                            previewEmail,
+                            drafts[previewEmail.email_id]
+                          ) || "uncategorized"
+                        }
+                        onValueChange={(newValue) =>
+                          handleCategorySelect(
+                            previewEmail,
+                            newValue === "uncategorized" ? "" : newValue
+                          )
+                        }
+                      >
+                        <SelectTrigger id="preview-category">
+                          <SelectValue placeholder="Pick category" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="uncategorized">Select...</SelectItem>
+                          {EMAIL_CATEGORIES.map((item) => {
+                            const disabled =
+                              item.value === "rfi" &&
+                              previewEmail.is_active_project !== 1;
+                            return (
+                              <SelectItem
+                                key={item.value}
+                                value={item.value}
+                                disabled={disabled}
+                              >
+                                {item.label}
+                                {disabled ? " (active only)" : ""}
+                              </SelectItem>
+                            );
+                          })}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="preview-subcategory">Subcategory</Label>
+                      <Select
+                        value={
+                          SUBCATEGORY_OPTIONS[
+                            getEffectiveCategory(
+                              previewEmail,
+                              drafts[previewEmail.email_id]
+                            )
+                          ]?.length
+                            ? getEffectiveSubcategory(
+                                previewEmail,
+                                drafts[previewEmail.email_id]
+                              ) || "none"
+                            : "none"
+                        }
+                        disabled={
+                          !SUBCATEGORY_OPTIONS[
+                            getEffectiveCategory(
+                              previewEmail,
+                              drafts[previewEmail.email_id]
+                            )
+                          ]?.length
+                        }
+                        onValueChange={(newValue) =>
+                          handleDraftChange(
+                            previewEmail.email_id,
+                            "subcategory",
+                            newValue === "none" ? undefined : newValue
+                          )
+                        }
+                      >
+                        <SelectTrigger id="preview-subcategory">
+                          <SelectValue placeholder="Subcategory" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none">None</SelectItem>
+                          {(
+                            SUBCATEGORY_OPTIONS[
+                              getEffectiveCategory(
+                                previewEmail,
+                                drafts[previewEmail.email_id]
+                              )
+                            ] ?? []
+                          ).map((option) => (
+                            <SelectItem key={option.value} value={option.value}>
+                              {option.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="preview-notes">Notes</Label>
+                    <Textarea
+                      id="preview-notes"
+                      placeholder="Add notes about this correction (optional)..."
+                      className="min-h-[120px] resize-none"
+                      rows={5}
+                      value={drafts[previewEmail.email_id]?.feedback ?? ""}
+                      onChange={(event) =>
+                        handleDraftChange(
+                          previewEmail.email_id,
+                          "feedback",
+                          event.target.value
+                        )
+                      }
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Explain why this category is correct to help train the AI
+                    </p>
+                  </div>
+
+                  <div className="flex justify-end gap-2 pt-4">
+                    <Button
+                      variant="outline"
+                      onClick={() => setPreviewEmail(null)}
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      onClick={() => handleSubmit(previewEmail.email_id)}
+                      disabled={mutation.isPending}
+                    >
+                      {mutation.isPending && (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      )}
+                      Save Correction
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </ScrollArea>
+        </DialogContent>
+      </Dialog>
+
+      {/* Syncing Indicator */}
       {showSyncing && (
-        <div className="fixed inset-x-0 bottom-4 flex justify-center">
-          <div className="rounded-full bg-background px-4 py-2 text-sm shadow-lg">
+        <div className="fixed inset-x-0 bottom-4 flex justify-center pointer-events-none">
+          <div className="rounded-full bg-background px-4 py-2 text-sm shadow-lg border">
+            <Loader2 className="inline h-4 w-4 mr-2 animate-spin" />
             Syncing latest data…
           </div>
         </div>

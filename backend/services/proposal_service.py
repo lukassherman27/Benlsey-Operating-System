@@ -18,12 +18,12 @@ from .base_service import BaseService
 class ProposalService(BaseService):
     """Service for proposal operations"""
 
-    DEFAULT_ACTIVE_STATUSES = ['proposal', 'active_project']
+    DEFAULT_ACTIVE_STATUSES = ['proposal', 'active_project', 'active']
     STATUS_ALIASES = {
-        'project': 'active_project',
-        'projects': 'active_project',
-        'active': 'active_project',
-        'active_projects': 'active_project',
+        'project': 'active',
+        'projects': 'active',
+        'active_project': 'active',
+        'active_projects': 'active',
         'proposal': 'proposal',
         'proposals': 'proposal',
         'pipeline': 'proposal',
@@ -113,12 +113,27 @@ class ProposalService(BaseService):
                 project_code,
                 project_name,
                 status,
+                current_status,
+                days_in_current_status,
+                first_contact_date,
+                proposal_sent_date,
+                last_week_status,
+                days_in_drafting,
+                days_in_review,
                 health_score,
                 days_since_contact,
                 is_active_project,
+                country,
+                location,
+                currency,
+                project_value,
+                contact_person,
+                contact_email,
+                contact_phone,
+                client_company,
                 created_at,
                 updated_at
-            FROM projects
+            FROM proposals
             WHERE 1=1
         """
         params: List[Any] = []
@@ -135,7 +150,7 @@ class ProposalService(BaseService):
 
         # Validate sort parameters to prevent SQL injection
         allowed_columns = [
-            'proposal_id', 'project_code', 'project_name', 'status',
+            'proposal_id', 'project_code', 'project_title', 'status',
             'health_score', 'days_since_contact', 'is_active_project',
             'created_at', 'updated_at'
         ]
@@ -163,20 +178,20 @@ class ProposalService(BaseService):
                 p.*,
                 COUNT(DISTINCT e.email_id) as email_count,
                 COUNT(DISTINCT d.document_id) as document_count
-            FROM projects p
-            LEFT JOIN email_proposal_links epl ON p.proposal_id = epl.proposal_id
+            FROM proposals p
+            LEFT JOIN email_proposal_links epl ON p.project_id = epl.proposal_id
             LEFT JOIN emails e ON epl.email_id = e.email_id
-            LEFT JOIN document_proposal_links dpl ON p.proposal_id = dpl.proposal_id
+            LEFT JOIN document_proposal_links dpl ON p.project_id = dpl.proposal_id
             LEFT JOIN documents d ON dpl.document_id = d.document_id
             WHERE p.project_code = ?
-            GROUP BY p.proposal_id
+            GROUP BY p.project_id
         """
         result = self.execute_query(sql, (project_code,), fetch_one=True)
         return self._enhance_proposal(result)
 
     def get_proposal_by_id(self, proposal_id: int) -> Optional[Dict[str, Any]]:
         """Get proposal by ID"""
-        sql = "SELECT * FROM projects WHERE proposal_id = ?"
+        sql = "SELECT * FROM proposals WHERE proposal_id = ?"
         result = self.execute_query(sql, (proposal_id,), fetch_one=True)
         return self._enhance_proposal(result)
 
@@ -194,11 +209,11 @@ class ProposalService(BaseService):
             SELECT
                 proposal_id,
                 project_code,
-                project_name,
+                project_title,
                 health_score,
                 days_since_contact,
                 status
-            FROM projects
+            FROM proposals
             WHERE health_score < ?
             AND is_active_project = 1
         """
@@ -374,26 +389,26 @@ class ProposalService(BaseService):
                 return None
             return " AND ".join(parts)
 
-        def count_projects(extra: Optional[str]) -> int:
+        def count_proposals(extra: Optional[str]) -> int:
             clause = combine_clause(extra)
             if clause:
                 params = status_params if status_clause else ()
-                return self.count_rows('projects', clause, params)
-            return self.count_rows('projects')
+                return self.count_rows('proposals', clause, params)
+            return self.count_rows('proposals')
 
-        stats['total_proposals'] = count_projects(None)
-        stats['active_projects'] = count_projects("is_active_project = 1")
-        stats['healthy'] = count_projects("health_score >= 70")
-        stats['at_risk'] = count_projects("health_score < 70 AND health_score >= 40")
-        stats['critical'] = count_projects("health_score < 40")
-        stats['active_last_week'] = count_projects("days_since_contact <= 7")
-        stats['need_followup'] = count_projects(
+        stats['total_proposals'] = count_proposals(None)
+        stats['active_projects'] = count_proposals("is_active_project = 1")
+        stats['healthy'] = count_proposals("health_score >= 70")
+        stats['at_risk'] = count_proposals("health_score < 70 AND health_score >= 40")
+        stats['critical'] = count_proposals("health_score < 40")
+        stats['active_last_week'] = count_proposals("days_since_contact <= 7")
+        stats['need_followup'] = count_proposals(
             "days_since_contact > 14 AND is_active_project = 1"
         )
         stats['needs_attention'] = stats['need_followup']
 
         avg_clause = combine_clause("health_score IS NOT NULL")
-        avg_sql = "SELECT AVG(health_score) as avg_health FROM projects"
+        avg_sql = "SELECT AVG(health_score) as avg_health FROM proposals"
         avg_params: tuple = ()
         if avg_clause:
             avg_sql += f" WHERE {avg_clause}"
@@ -422,12 +437,12 @@ class ProposalService(BaseService):
             SELECT
                 proposal_id,
                 project_code,
-                project_name,
+                project_title,
                 status,
                 health_score,
                 is_active_project
-            FROM projects
-            WHERE (project_code LIKE ? OR project_name LIKE ?)
+            FROM proposals
+            WHERE (project_code LIKE ? OR project_title LIKE ?)
         """
         search_term = f"%{query}%"
         params: List[Any] = [search_term, search_term]
@@ -457,9 +472,131 @@ class ProposalService(BaseService):
             True if updated, False otherwise
         """
         sql = """
-            UPDATE projects
+            UPDATE proposals
             SET status = ?, updated_at = CURRENT_TIMESTAMP
             WHERE project_code = ?
         """
         rows_affected = self.execute_update(sql, (status, project_code))
         return rows_affected > 0
+
+    def get_weekly_changes(self, days: int = 7) -> Dict[str, Any]:
+        """
+        Get proposal pipeline changes in the last N days
+
+        Args:
+            days: Number of days to look back (default 7)
+
+        Returns:
+            Dict with period info, summary stats, and categorized changes
+        """
+        from datetime import datetime, timedelta
+
+        # Calculate period
+        end_date = datetime.now().date()
+        start_date = (datetime.now() - timedelta(days=days)).date()
+
+        # Get new proposals (created in the last N days)
+        new_proposals_sql = """
+            SELECT
+                proposal_id,
+                project_code,
+                project_title,
+                client_company,
+                project_value as fee,
+                status,
+                created_at as created_date
+            FROM proposals
+            WHERE date(created_at) >= date(?)
+            ORDER BY created_at DESC
+        """
+        new_proposals = self.execute_query(new_proposals_sql, (start_date,))
+
+        # Get status changes from change_log
+        status_changes_sql = """
+            SELECT
+                p.project_code,
+                p.project_title,
+                COALESCE(pr.client_company, 'Unknown'),
+                c.old_value as previous_status,
+                c.new_value as new_status,
+                c.changed_at as changed_date
+            FROM change_log c
+            JOIN proposals p ON c.entity_id = p.project_id
+            WHERE c.entity_type = 'proposal'
+            AND c.field_changed = 'status'
+            AND date(c.changed_at) >= date(?)
+            ORDER BY c.changed_at DESC
+        """
+        status_changes = self.execute_query(status_changes_sql, (start_date,))
+
+        # Get stalled proposals (no contact in 21+ days, still active)
+        stalled_sql = """
+            SELECT
+                proposal_id,
+                project_code,
+                project_title,
+                client_company,
+                days_since_contact,
+                last_contact_date
+            FROM proposals
+            WHERE days_since_contact >= 21
+            AND is_active_project = 1
+            AND status IN ('proposal', 'active', 'active_project')
+            ORDER BY days_since_contact DESC
+        """
+        stalled_proposals = self.execute_query(stalled_sql, ())
+
+        # Get won proposals (status changed to 'won' or contract_signed_date set in period)
+        won_proposals_sql = """
+            SELECT DISTINCT
+                p.project_id,
+                p.project_code,
+                p.project_title,
+                COALESCE(pr.client_company, 'Unknown'),
+                p.project_value as fee,
+                COALESCE(p.contract_signed_date, c.changed_at) as signed_date
+            FROM proposals p
+            LEFT JOIN change_log c ON c.entity_id = p.project_id
+                AND c.entity_type = 'proposal'
+                AND c.field_changed = 'status'
+                AND c.new_value IN ('won', 'active', 'active_project')
+                AND date(c.changed_at) >= date(?)
+            WHERE (
+                (date(p.contract_signed_date) >= date(?) AND p.contract_signed_date IS NOT NULL)
+                OR (c.changed_at IS NOT NULL)
+            )
+            ORDER BY signed_date DESC
+        """
+        won_proposals = self.execute_query(won_proposals_sql, (start_date, start_date))
+
+        # Calculate total pipeline value (all active proposals)
+        pipeline_value_sql = """
+            SELECT COALESCE(SUM(project_value), 0) as total_value
+            FROM proposals
+            WHERE status IN ('proposal', 'active', 'active_project')
+            AND is_active_project = 1
+        """
+        pipeline_result = self.execute_query(pipeline_value_sql, (), fetch_one=True)
+        total_pipeline_value = pipeline_result['total_value'] if pipeline_result else 0
+
+        # Build summary
+        summary = {
+            'new_proposals': len(new_proposals),
+            'status_changes': len(status_changes),
+            'stalled_proposals': len(stalled_proposals),
+            'won_proposals': len(won_proposals),
+            'total_pipeline_value': f"${total_pipeline_value / 1000000:.1f}M" if total_pipeline_value >= 1000000 else f"${total_pipeline_value:,.0f}"
+        }
+
+        return {
+            'period': {
+                'start_date': str(start_date),
+                'end_date': str(end_date),
+                'days': days
+            },
+            'summary': summary,
+            'new_proposals': new_proposals,
+            'status_changes': status_changes,
+            'stalled_proposals': stalled_proposals,
+            'won_proposals': won_proposals
+        }

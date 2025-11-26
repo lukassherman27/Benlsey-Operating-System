@@ -81,6 +81,34 @@ class QueryService(BaseService):
         # Fall back to pattern matching
         return self._query_with_patterns(question)
 
+    def query_with_context(
+        self,
+        question: str,
+        conversation_context: Optional[str] = None,
+        use_ai: bool = True
+    ) -> Dict[str, Any]:
+        """
+        Execute a natural language query with conversation context.
+
+        This method supports follow-up questions by including previous
+        conversation history to understand references like "those projects"
+        or "what's the total?".
+
+        Args:
+            question: Current question
+            conversation_context: Previous conversation messages formatted as string
+            use_ai: Whether to use AI
+
+        Returns:
+            Dict with query results and metadata
+        """
+        # If no context or AI not available, use regular query
+        if not conversation_context or not use_ai or not self.ai_enabled:
+            return self.query(question, use_ai)
+
+        # Use AI with conversation context
+        return self._query_with_ai_context(question, conversation_context)
+
     def _query_with_ai(self, question: str) -> Dict[str, Any]:
         """Execute query using GPT-4o to generate SQL"""
         try:
@@ -123,6 +151,111 @@ class QueryService(BaseService):
                 'results': [],
                 'method': 'ai'
             }
+
+    def _query_with_ai_context(self, question: str, conversation_context: str) -> Dict[str, Any]:
+        """Execute query using GPT-4o with conversation context for follow-up questions"""
+        try:
+            # Generate SQL with AI using conversation context
+            sql_result = self._generate_sql_with_context(question, conversation_context)
+
+            if not sql_result or not sql_result.get('sql'):
+                return {
+                    'success': False,
+                    'question': question,
+                    'error': 'Could not understand question in context',
+                    'results': []
+                }
+
+            sql = sql_result['sql']
+
+            # Execute the query safely
+            results = self._execute_safe_query(sql)
+
+            # Generate natural language summary with context
+            summary = self._generate_summary(question, results)
+
+            return {
+                'success': True,
+                'question': question,
+                'results': results,
+                'count': len(results),
+                'sql': sql,
+                'summary': summary,
+                'reasoning': sql_result.get('reasoning'),
+                'confidence': sql_result.get('confidence'),
+                'method': 'ai_with_context'
+            }
+
+        except Exception as e:
+            return {
+                'success': False,
+                'question': question,
+                'error': str(e),
+                'results': [],
+                'method': 'ai_with_context'
+            }
+
+    def _generate_sql_with_context(self, question: str, conversation_context: str) -> Optional[Dict[str, Any]]:
+        """Use GPT-4o to generate SQL query using conversation context"""
+
+        # Get schema (lazy loaded and cached)
+        schema = self._get_schema()
+
+        prompt = f"""You are a SQL expert for a design firm's operations database.
+
+{schema}
+
+CONVERSATION HISTORY:
+{conversation_context}
+
+IMPORTANT RULES:
+1. ONLY use SELECT queries - no INSERT, UPDATE, DELETE, DROP
+2. Use proper JOINs when needed
+3. Limit results to 100 unless explicitly asked for more
+4. Handle NULL values properly
+5. Use LIKE for text searches with % wildcards
+6. For date comparisons, use strftime or date() functions
+7. Be careful with column names - check schema first
+8. CRITICAL: Use the conversation history to understand context
+   - If user says "those projects" or "these results", refer to the previous query
+   - If user asks "what's the total?", calculate totals from previous result set
+   - If user wants to "filter" or "narrow down", add WHERE clauses to previous SQL
+
+CURRENT QUESTION: {question}
+
+Based on the conversation history, generate a SQL query that answers this question.
+If the question references previous results (e.g., "what's the total value?", "filter by...",
+"how many of those..."), use the context from previous SQL queries to build the new query.
+
+Respond in JSON format:
+{{
+    "sql": "SELECT ... FROM ... WHERE ...",
+    "reasoning": "Brief explanation including how you used conversation context",
+    "tables_used": ["table1", "table2"],
+    "confidence": 85,
+    "used_context": true
+}}
+
+If the question is unclear or cannot be answered with available data, set sql to null.
+"""
+
+        try:
+            response = self.client.chat.completions.create(
+                model="gpt-4o",
+                messages=[
+                    {"role": "system", "content": "You are a SQL expert that generates safe, efficient queries. You excel at understanding follow-up questions using conversation context."},
+                    {"role": "user", "content": prompt}
+                ],
+                temperature=0.1,
+                response_format={"type": "json_object"}
+            )
+
+            result = json.loads(response.choices[0].message.content)
+            return result
+
+        except Exception as e:
+            print(f"❌ AI SQL generation with context failed: {e}")
+            return None
 
     def _query_with_patterns(self, question: str) -> Dict[str, Any]:
         """Execute query using pattern matching"""
@@ -256,7 +389,7 @@ Provide a concise natural language summary in 1-2 sentences."""
 
             return response.choices[0].message.content.strip()
 
-        except:
+        except Exception:
             return f"Found {len(results)} results."
 
     def get_query_suggestions(self) -> List[str]:
