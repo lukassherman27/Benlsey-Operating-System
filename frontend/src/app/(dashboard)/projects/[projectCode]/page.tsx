@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useState, use } from "react";
+import { UnifiedTimeline } from "@/components/project/unified-timeline";
 
 const formatCurrency = (value?: number | null) => {
   if (value == null) return "$0";
@@ -358,6 +359,14 @@ export default function ProjectDetailPage({
                 </Card>
               </div>
             </section>
+
+            {/* Unified Project Timeline */}
+            <section className="mb-8">
+              <h2 className="mb-4 text-xl font-semibold text-slate-900">
+                Project Activity Timeline
+              </h2>
+              <UnifiedTimeline projectCode={projectCode} limit={30} />
+            </section>
           </>
         )}
       </div>
@@ -637,7 +646,7 @@ function InvoicesByDiscipline({ invoices }: { invoices: Record<string, unknown>[
                                     </div>
                                     <div className="text-xs text-slate-500 mt-1">
                                       Invoiced: {formatDisplayDate(invoice.invoice_date as string)}
-                                      {isPaid && invoice.payment_received_date && (
+                                      {isPaid && (invoice.payment_received_date as string | null) && (
                                         <span className="text-emerald-600 ml-2">
                                           • Paid: {formatDisplayDate(invoice.payment_received_date as string)}
                                         </span>

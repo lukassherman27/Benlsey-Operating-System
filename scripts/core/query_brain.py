@@ -7,6 +7,7 @@ Ask questions about your business data in plain English:
 - "Which clients have we contacted this month?"
 - "Find all documents for BK-069"
 - "What's the health score of active projects?"
+- "What did the client say about the stone issue?" (uses meeting transcripts)
 
 Works WITHOUT AI initially (pattern matching)
 Can be enhanced WITH Claude API for smarter queries
@@ -14,9 +15,13 @@ Can be enhanced WITH Claude API for smarter queries
 
 import sqlite3
 import re
+import os
 from pathlib import Path
 from datetime import datetime, timedelta
 import json
+
+# Database path from environment or default
+DB_PATH = os.getenv("DATABASE_PATH", "database/bensley_master.db")
 
 
 class QueryBrain:
@@ -352,6 +357,249 @@ class QueryBrain:
         """Close database connection"""
         if hasattr(self, 'conn'):
             self.conn.close()
+
+    # =========================================================================
+    # MEETING TRANSCRIPTS - Added for AI-powered context queries
+    # =========================================================================
+
+    def get_meeting_transcripts(self, project_code: str, limit: int = 5) -> list:
+        """
+        Get recent meeting transcripts for a project.
+
+        Args:
+            project_code: The project code (e.g., "22 BK-095")
+            limit: Maximum number of transcripts to return
+
+        Returns:
+            List of transcript dictionaries with summary, key_points, action_items
+        """
+        try:
+            self.cursor.execute("""
+                SELECT
+                    id,
+                    audio_filename,
+                    summary,
+                    key_points,
+                    action_items,
+                    participants,
+                    meeting_type,
+                    sentiment,
+                    processed_date,
+                    recorded_date
+                FROM meeting_transcripts
+                WHERE detected_project_code = ?
+                   OR detected_project_code LIKE ?
+                   OR detected_project_code LIKE ?
+                ORDER BY COALESCE(recorded_date, processed_date) DESC
+                LIMIT ?
+            """, (project_code, f"%{project_code}%", f"{project_code}%", limit))
+
+            transcripts = []
+            for row in self.cursor.fetchall():
+                transcripts.append({
+                    "id": row[0],
+                    "filename": row[1],
+                    "summary": row[2],
+                    "key_points": self._safe_json_loads(row[3], []),
+                    "action_items": self._safe_json_loads(row[4], []),
+                    "participants": self._safe_json_loads(row[5], []),
+                    "type": row[6],
+                    "sentiment": row[7],
+                    "date": row[8] or row[9]
+                })
+
+            return transcripts
+        except Exception as e:
+            print(f"Error fetching meeting transcripts: {e}")
+            return []
+
+    def _safe_json_loads(self, value, default):
+        """Safely parse JSON string, return default if fails"""
+        if not value:
+            return default
+        try:
+            return json.loads(value)
+        except (json.JSONDecodeError, TypeError):
+            return default
+
+    def get_project_context(self, project_code: str) -> dict:
+        """
+        Gather all context for a project to answer queries.
+        Used for AI-powered queries with full context.
+
+        Args:
+            project_code: The project code
+
+        Returns:
+            Dictionary with project info, emails, transcripts, etc.
+        """
+        context = {
+            "project_info": self._get_project_info(project_code),
+            "recent_emails": self._get_recent_emails(project_code),
+            "meeting_transcripts": self.get_meeting_transcripts(project_code),
+            "rfis": self._get_rfis(project_code),
+            "invoices": self._get_invoices(project_code),
+        }
+        return context
+
+    def _get_project_info(self, project_code: str) -> dict:
+        """Get basic project/proposal info"""
+        try:
+            self.cursor.execute("""
+                SELECT
+                    project_code, project_name, status, health_score,
+                    days_since_contact, is_active_project, client_name
+                FROM proposals
+                WHERE project_code = ? OR project_code LIKE ?
+                LIMIT 1
+            """, (project_code, f"%{project_code}%"))
+            row = self.cursor.fetchone()
+            if row:
+                return dict(row)
+            return {}
+        except Exception:
+            return {}
+
+    def _get_recent_emails(self, project_code: str, limit: int = 10) -> list:
+        """Get recent emails for a project"""
+        try:
+            self.cursor.execute("""
+                SELECT
+                    e.subject, e.sender_email, e.date, e.body_preview
+                FROM emails e
+                LEFT JOIN email_proposal_links epl ON e.email_id = epl.email_id
+                LEFT JOIN proposals p ON epl.proposal_id = p.proposal_id
+                WHERE p.project_code = ? OR p.project_code LIKE ?
+                ORDER BY e.date DESC
+                LIMIT ?
+            """, (project_code, f"%{project_code}%", limit))
+            return [dict(row) for row in self.cursor.fetchall()]
+        except Exception:
+            return []
+
+    def _get_rfis(self, project_code: str) -> list:
+        """Get RFIs for a project"""
+        try:
+            self.cursor.execute("""
+                SELECT rfi_number, subject, status, created_date, due_date
+                FROM rfis
+                WHERE project_code = ? OR project_code LIKE ?
+                ORDER BY created_date DESC
+                LIMIT 10
+            """, (project_code, f"%{project_code}%"))
+            return [dict(row) for row in self.cursor.fetchall()]
+        except Exception:
+            return []
+
+    def _get_invoices(self, project_code: str) -> list:
+        """Get invoices for a project"""
+        try:
+            self.cursor.execute("""
+                SELECT invoice_number, amount, status, invoice_date, due_date
+                FROM invoices
+                WHERE project_code = ? OR project_code LIKE ?
+                ORDER BY invoice_date DESC
+                LIMIT 10
+            """, (project_code, f"%{project_code}%"))
+            return [dict(row) for row in self.cursor.fetchall()]
+        except Exception:
+            return []
+
+    # =========================================================================
+    # PROMPT FORMATTING - For AI-powered queries
+    # =========================================================================
+
+    def format_transcripts_for_prompt(self, transcripts: list) -> str:
+        """Format meeting transcripts for inclusion in AI prompt."""
+        if not transcripts:
+            return "No meeting transcripts available."
+
+        lines = []
+        for t in transcripts:
+            lines.append(f"### Meeting: {t['filename']} ({t['date']})")
+            lines.append(f"Type: {t['type']} | Sentiment: {t['sentiment']}")
+            if t['summary']:
+                lines.append(f"Summary: {t['summary']}")
+            if t['key_points']:
+                lines.append("Key Points:")
+                for point in t['key_points']:
+                    lines.append(f"  - {point}")
+            if t['action_items']:
+                lines.append("Action Items:")
+                for item in t['action_items']:
+                    # Handle both string and dict action items
+                    if isinstance(item, dict):
+                        task = item.get('task') or item.get('description', str(item))
+                    else:
+                        task = str(item)
+                    lines.append(f"  - {task}")
+            lines.append("")
+
+        return "\n".join(lines)
+
+    def build_query_prompt(self, query: str, context: dict) -> str:
+        """
+        Build prompt for Claude/GPT with all available context.
+
+        Args:
+            query: The user's question
+            context: Dictionary from get_project_context()
+
+        Returns:
+            Formatted prompt string
+        """
+        prompt = f"""You are a helpful assistant for Bensley Design Studios.
+Answer the following question based on the project data provided.
+
+## Question:
+{query}
+
+## Project Information:
+{json.dumps(context.get('project_info', {}), indent=2)}
+
+## Recent Emails ({len(context.get('recent_emails', []))} total):
+{self._format_emails_for_prompt(context.get('recent_emails', []))}
+
+## Meeting Transcripts ({len(context.get('meeting_transcripts', []))} total):
+{self.format_transcripts_for_prompt(context.get('meeting_transcripts', []))}
+
+## Open RFIs ({len(context.get('rfis', []))} total):
+{self._format_rfis_for_prompt(context.get('rfis', []))}
+
+## Invoices ({len(context.get('invoices', []))} total):
+{self._format_invoices_for_prompt(context.get('invoices', []))}
+
+Answer the question based on this data. If you cannot find relevant information,
+say so clearly. Reference specific emails or meetings when possible.
+"""
+        return prompt
+
+    def _format_emails_for_prompt(self, emails: list) -> str:
+        """Format emails for prompt"""
+        if not emails:
+            return "No recent emails."
+        lines = []
+        for e in emails[:5]:
+            lines.append(f"- {e.get('date', 'N/A')}: {e.get('subject', 'No subject')} (from: {e.get('sender_email', 'unknown')})")
+        return "\n".join(lines)
+
+    def _format_rfis_for_prompt(self, rfis: list) -> str:
+        """Format RFIs for prompt"""
+        if not rfis:
+            return "No RFIs."
+        lines = []
+        for r in rfis:
+            lines.append(f"- RFI #{r.get('rfi_number', 'N/A')}: {r.get('subject', 'No subject')} - Status: {r.get('status', 'unknown')}")
+        return "\n".join(lines)
+
+    def _format_invoices_for_prompt(self, invoices: list) -> str:
+        """Format invoices for prompt"""
+        if not invoices:
+            return "No invoices."
+        lines = []
+        for i in invoices:
+            lines.append(f"- Invoice #{i.get('invoice_number', 'N/A')}: ${i.get('amount', 0):,.2f} - Status: {i.get('status', 'unknown')}")
+        return "\n".join(lines)
 
 
 if __name__ == '__main__':

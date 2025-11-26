@@ -3,6 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { api } from "@/lib/api";
+import type { Project } from "@/lib/types";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { InvoiceAgingWidget } from "@/components/dashboard/invoice-aging-widget";
@@ -10,6 +11,8 @@ import { ProjectEmailFeed } from "@/components/dashboard/project-email-feed";
 import { EmailIntelligenceSummary } from "@/components/dashboard/email-intelligence-summary";
 import { QuickActionsPanel } from "@/components/dashboard/quick-actions-panel";
 import { ProjectHierarchyTree } from "@/components/dashboard/project-hierarchy-tree";
+import { RFITrackerWidget } from "@/components/dashboard/rfi-tracker-widget";
+import { MilestonesWidget } from "@/components/dashboard/milestones-widget";
 import {
   CheckCircle2,
   TrendingUp,
@@ -39,7 +42,7 @@ const formatDisplayDate = (value?: string | null) => {
 export default function ProjectsPage() {
   const [expandedProjects, setExpandedProjects] = useState<Set<string>>(new Set());
   const [expandedDisciplines, setExpandedDisciplines] = useState<Set<string>>(new Set());
-  const [selectedProject, setSelectedProject] = useState<Record<string, unknown> | null>(null);
+  const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
 
   const activeProjectsQuery = useQuery({
@@ -366,6 +369,12 @@ export default function ProjectsPage() {
           </Card>
         </div>
 
+        {/* RFI and Milestones Tracker Row */}
+        <div className="mb-8 grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <RFITrackerWidget />
+          <MilestonesWidget />
+        </div>
+
         {/* All Active Projects Table */}
         <section>
           <Card className="rounded-3xl border-slate-200">
@@ -427,7 +436,7 @@ export default function ProjectsPage() {
                           onToggle={() => toggleProject(project.project_code as string)}
                           onToggleDiscipline={(discipline) => toggleDiscipline(project.project_code as string, discipline)}
                           onEdit={(proj) => {
-                            setSelectedProject(proj);
+                            setSelectedProject(proj as unknown as Project);
                             setEditDialogOpen(true);
                           }}
                         />

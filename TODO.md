@@ -35,10 +35,10 @@
 | `backend/api/main.py` | 3503 | Implement task tracking | P2 |
 
 ### Plan Tasks (Week 1)
-- [ ] P0: Meeting transcripts API (`GET /api/meeting-transcripts`)
-- [ ] P0: Unified timeline API (`GET /api/projects/{code}/unified-timeline`)
-- [ ] P1: RFI list improvements (add filters)
-- [ ] P1: Milestones with date filters
+- [x] P0: Meeting transcripts API (`GET /api/meeting-transcripts`, `GET /api/meeting-transcripts/{id}`, `GET /api/meeting-transcripts/{id}/action-items`)
+- [x] P0: Unified timeline API (`GET /api/projects/{code}/unified-timeline`)
+- [x] P1: RFI list improvements (add filters: `project_code`, `status`, `overdue_only`)
+- [x] P1: Milestones with date filters (`project_code`, `status`, `upcoming_days`)
 - [ ] P2: Finance KPI endpoint (live data)
 
 ---
@@ -177,6 +177,10 @@ grep -rn "TODO(agent-2)" frontend/
 |------|-------|-------------|
 | 2025-11-26 | Organizer | Archive old agent files |
 | 2025-11-26 | Organizer | Create TODO.md tracker |
+| 2025-11-26 | Agent 1 | Meeting transcripts API (3 endpoints) |
+| 2025-11-26 | Agent 1 | Unified timeline API |
+| 2025-11-26 | Agent 1 | Enhanced RFIs endpoint with filters |
+| 2025-11-26 | Agent 1 | Enhanced milestones endpoint with filters |
 
 ---
 

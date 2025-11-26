@@ -703,6 +703,11 @@ export interface ProposalTrackerItem {
   next_steps: string | null;
   last_email_date: string | null;
   updated_at: string;
+  // Optional contact/summary fields used in quick edit dialog
+  contact_person?: string | null;
+  contact_email?: string | null;
+  contact_phone?: string | null;
+  project_summary?: string | null;
 }
 
 export interface ProposalTrackerStats {

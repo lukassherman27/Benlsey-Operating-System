@@ -19,6 +19,7 @@ import {
   Link2,
   DollarSign,
   CalendarCheck,
+  Sparkles,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ds } from "@/lib/design-system";
@@ -36,6 +37,7 @@ const navItems: NavItem[] = [
   { href: "/tracker", label: "Proposals", icon: ListChecks },
   { href: "/projects", label: "Active Projects", icon: FileText },
   { href: "/deliverables", label: "Deliverables", icon: CalendarCheck },
+  { href: "/suggestions", label: "AI Suggestions", icon: Sparkles },
   { href: "/query", label: "Query", icon: Search },
   { href: "/emails", label: "Emails", icon: Mail },
   {
