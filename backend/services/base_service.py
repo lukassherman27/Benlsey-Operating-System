@@ -29,7 +29,7 @@ class BaseService:
             db_path: Path to SQLite database (defaults to DATABASE_PATH from .env)
         """
         if db_path is None:
-            db_path = os.getenv('DATABASE_PATH', '~/Desktop/BDS_SYSTEM/01_DATABASES/bensley_master.db')
+            db_path = os.getenv('DATABASE_PATH', 'database/bensley_master.db')
 
         self.db_path = Path(db_path).expanduser()
 

@@ -11,7 +11,8 @@ from datetime import datetime, timedelta
 import uuid
 import re
 
-DB_PATH = "/Users/lukassherman/Desktop/BDS_SYSTEM/01_DATABASES/bensley_master.db"
+import os
+DB_PATH = os.getenv('DATABASE_PATH', 'database/bensley_master.db')
 
 
 class ComprehensiveAuditor:

@@ -582,6 +582,183 @@ Focus on: What action, decision, or key information does this contain?
 
         print("="*80)
 
+    # =========================================================================
+    # BENSLEY BRAIN INTEGRATION
+    # =========================================================================
+
+    def process_with_brain_context(self, email_id: int):
+        """
+        Process an email using full Bensley Brain context.
+
+        This method uses:
+        - Contact history (all emails from this sender)
+        - Project context (all related emails, invoices, milestones)
+        - Learned patterns (sender-project associations)
+        - Thread context (previous emails in thread)
+
+        Returns enhanced categorization and insights.
+        """
+        try:
+            from backend.core.bensley_brain import get_brain, get_contact_context
+
+            brain = get_brain()
+
+            # Get email context from brain (includes sender history, thread, etc.)
+            email_ctx = brain.get_email_context(email_id)
+            if not email_ctx:
+                print(f"  ⚠️ Email {email_id} not found")
+                return None
+
+            # Get or match project
+            project_code = email_ctx.matched_project
+            confidence = email_ctx.confidence
+
+            if not project_code:
+                # Use brain's intelligent matching
+                project_code, confidence = brain.match_email_to_project(email_id)
+
+            # Build rich context for categorization
+            rich_context = {
+                'project_title': None,
+                'status': None,
+                'is_active_project': 0,
+                'sender_history': email_ctx.sender_history[:5],
+                'thread_length': len(email_ctx.thread_context),
+                'mentioned_projects': email_ctx.mentioned_projects,
+            }
+
+            # Add full project context if matched
+            if project_code:
+                project_ctx = brain.get_project_context(project_code)
+                if project_ctx:
+                    rich_context.update({
+                        'project_title': project_ctx.project_title,
+                        'status': project_ctx.status,
+                        'is_active_project': 1 if project_ctx.is_active else 0,
+                        'client_name': project_ctx.client_name,
+                        'total_fee': project_ctx.total_fee,
+                        'common_senders': project_ctx.common_senders,
+                        'key_topics': project_ctx.key_topics,
+                        'days_since_contact': project_ctx.days_since_contact,
+                        'email_count': len(project_ctx.emails),
+                        'invoice_count': len(project_ctx.invoices),
+                        'has_meetings': len(project_ctx.meetings) > 0,
+                        'has_rfis': len(project_ctx.rfis) > 0,
+                    })
+
+            # Add contact context
+            if email_ctx.matched_contact:
+                contact_ctx = get_contact_context(email_ctx.matched_contact)
+                if contact_ctx:
+                    rich_context.update({
+                        'sender_name': contact_ctx.name,
+                        'sender_company': contact_ctx.company,
+                        'sender_role': contact_ctx.role,
+                        'sender_projects': contact_ctx.projects,
+                        'sender_total_emails': contact_ctx.total_emails,
+                    })
+
+            # Get email body
+            self.cursor.execute("SELECT subject, body FROM emails WHERE email_id = ?", (email_id,))
+            email_row = self.cursor.fetchone()
+            if not email_row:
+                return None
+
+            subject = email_row['subject'] or ''
+            body = email_row['body'] or ''
+
+            # Clean body
+            clean_body, quoted = self.clean_email_body(body)
+
+            # Process with rich context
+            category, cat_confidence = self.categorize_email_ai(
+                subject, clean_body, rich_context
+            )
+            entities = self.extract_entities_ai(subject, clean_body)
+            summary = self.generate_summary_ai(subject, clean_body, category)
+            importance = self.calculate_importance(category, entities, len(clean_body))
+
+            # Save results
+            self.cursor.execute("""
+                INSERT OR REPLACE INTO email_content
+                (email_id, cleaned_body, quoted_text, category, entities,
+                 ai_summary, importance_score, processed_at, confidence,
+                 context_used)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
+                email_id,
+                clean_body,
+                quoted,
+                category,
+                json.dumps(entities),
+                summary,
+                importance,
+                datetime.now().isoformat(),
+                max(confidence, cat_confidence),
+                json.dumps({
+                    'project_code': project_code,
+                    'context_type': 'bensley_brain',
+                    'context_fields': list(rich_context.keys())
+                })
+            ))
+            self.conn.commit()
+
+            return {
+                'email_id': email_id,
+                'project_code': project_code,
+                'confidence': confidence,
+                'category': category,
+                'summary': summary,
+                'importance': importance,
+                'context_keys': list(rich_context.keys())
+            }
+
+        except ImportError:
+            print("  ⚠️ Bensley Brain not available, falling back to basic processing")
+            return self.process_email(email_id, email_ctx.subject, '', None)
+        except Exception as e:
+            print(f"  ⚠️ Brain processing error: {e}")
+            self.stats['errors'] += 1
+            return None
+
+    def process_batch_with_brain(self, limit: int = None):
+        """Process a batch of emails using Bensley Brain context"""
+        print("\n" + "="*80)
+        print("🧠 BENSLEY BRAIN EMAIL PROCESSING")
+        print("="*80)
+
+        # Get unprocessed emails
+        query = """
+            SELECT e.email_id, e.subject
+            FROM emails e
+            WHERE e.email_id NOT IN (
+                SELECT email_id FROM email_content WHERE context_used LIKE '%bensley_brain%'
+            )
+            ORDER BY e.date DESC
+        """
+        if limit:
+            query += f" LIMIT {limit}"
+
+        self.cursor.execute(query)
+        emails = self.cursor.fetchall()
+
+        if not emails:
+            print("\n✓ All emails already processed with Brain context!")
+            return
+
+        print(f"\nProcessing {len(emails)} emails with full context...")
+
+        processed = 0
+        for i, email in enumerate(emails, 1):
+            if i % 10 == 0:
+                print(f"  [{i}/{len(emails)}] Processed {processed} emails...")
+
+            result = self.process_with_brain_context(email['email_id'])
+            if result:
+                processed += 1
+
+        print(f"\n✅ Brain processing complete: {processed}/{len(emails)} emails processed")
+
     def close(self):
         """Close database connection"""
         self.conn.close()
