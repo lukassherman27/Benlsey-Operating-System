@@ -43,6 +43,7 @@ from services.deliverables_service import DeliverablesService
 from services.proposal_intelligence_service import ProposalIntelligenceService
 from services.ai_learning_service import AILearningService
 from services.follow_up_agent import FollowUpAgent
+from services.calendar_service import CalendarService
 
 # Add project root to path for utils
 project_root = Path(__file__).parent.parent.parent
@@ -150,6 +151,7 @@ try:
     proposal_intelligence_service = ProposalIntelligenceService(DB_PATH)
     ai_learning_service = AILearningService(DB_PATH)
     follow_up_agent = FollowUpAgent(DB_PATH)
+    calendar_service = CalendarService(DB_PATH)
 
     logger.info("✅ All services initialized successfully")
 except Exception as e:
@@ -3290,6 +3292,71 @@ async def create_meeting(
         return {"success": True, "meeting_id": meeting_id}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to create meeting: {str(e)}")
+
+# ============================================================================
+# CALENDAR CHAT ENDPOINTS (Natural Language Meeting Creation)
+# ============================================================================
+
+class ChatMeetingRequest(BaseModel):
+    """Request model for creating meetings via natural language"""
+    text: str = Field(..., description="Natural language meeting request, e.g., 'Add meeting for Cheval Blanc Tuesday 3pm'")
+
+@app.post("/api/calendar/add-meeting")
+async def add_meeting_from_chat(request: ChatMeetingRequest):
+    """
+    Create a meeting from natural language input.
+
+    Examples:
+    - "Add meeting for Cheval Blanc Tuesday 3pm - proposal discussion"
+    - "Schedule concept presentation for Wind Marjan next Friday"
+    - "Meeting with client tomorrow at 10am about Bodrum project"
+    """
+    try:
+        result = calendar_service.add_meeting_from_chat(request.text)
+        if result.get('success'):
+            return result
+        else:
+            raise HTTPException(status_code=400, detail=result.get('message', 'Failed to create meeting'))
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to process meeting request: {str(e)}")
+
+@app.get("/api/calendar/today")
+async def get_today_meetings():
+    """Get all meetings scheduled for today"""
+    try:
+        meetings = calendar_service.get_today_meetings()
+        return {"meetings": meetings, "count": len(meetings)}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to get today's meetings: {str(e)}")
+
+@app.get("/api/calendar/upcoming")
+async def get_upcoming_meetings(days: int = Query(default=7, ge=1, le=30)):
+    """Get meetings in the next N days (default 7)"""
+    try:
+        meetings = calendar_service.get_upcoming_meetings(days)
+        return {"meetings": meetings, "count": len(meetings), "days": days}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to get upcoming meetings: {str(e)}")
+
+@app.get("/api/calendar/date/{date}")
+async def get_meetings_for_date(date: str):
+    """Get all meetings for a specific date (YYYY-MM-DD format)"""
+    try:
+        meetings = calendar_service.get_meetings_for_date(date)
+        return {"meetings": meetings, "count": len(meetings), "date": date}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to get meetings for {date}: {str(e)}")
+
+@app.get("/api/calendar/project/{project_code}")
+async def get_project_meetings(project_code: str):
+    """Get all meetings for a specific project"""
+    try:
+        meetings = calendar_service.get_meetings_for_project(project_code)
+        return {"meetings": meetings, "count": len(meetings), "project_code": project_code}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to get meetings for {project_code}: {str(e)}")
 
 # ============================================================================
 # ANALYTICS & DASHBOARD ENDPOINTS (FOR CODEX FRONTEND)
