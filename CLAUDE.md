@@ -2,17 +2,21 @@
 
 **Read these files FIRST before responding:**
 1. `.claude/PROJECT_CONTEXT.md` - Core principles and current phase
-2. `DATABASE_MIGRATION_SUMMARY.md` - Database consolidation (Nov 24)
-3. `2_MONTH_MVP_PLAN.md` - Current 8-week plan
-4. `docs/architecture/COMPLETE_ARCHITECTURE_ASSESSMENT.md` - Long-term vision
-5. `CONTRIBUTING.md` - File organization and naming standards
+2. `2_MONTH_MVP_PLAN.md` - Current 8-week plan
+3. `docs/architecture/COMPLETE_ARCHITECTURE_ASSESSMENT.md` - Long-term vision
+4. `CONTRIBUTING.md` - File organization and naming standards
+
+**Specialized Agents (invoke when needed):**
+- `.claude/agents/organizer.md` - **Organizer Agent**: Find files, check structure, archive old stuff
+- `.claude/CODEBASE_INDEX.md` - Quick lookup for where features live
 
 ---
 
-## Current Status (Updated: 2025-11-24)
+## Current Status (Updated: 2025-11-26)
 
-**Phase:** Phase 1 - Week 1 (Data Foundation)
-**Goal:** Import data, set up email infrastructure, build dashboards
+**Phase:** Phase 1 - Week 5 (Dashboard Polish & Data)
+**Goal:** Complete Projects Dashboard, polish Proposal Dashboard, fill data gaps
+**Codebase:** Reorganized to 9/10 quality (Nov 26)
 
 **🔥 CRITICAL: Database Consolidated (Nov 24, 2025)**
 - **Master Database:** `database/bensley_master.db` (OneDrive)
@@ -66,7 +70,7 @@
 ## Quick Reference
 
 **Backend:** FastAPI, 93+ endpoints, SQLite (backend/api/main.py)
-**Frontend:** Next.js 14 (to be built)
+**Frontend:** Next.js 15 at localhost:3002 (operational)
 **Database:** `database/bensley_master.db` - 66 tables, ~90MB (OneDrive)
 **Current Blocker:** Finance team slow to provide contract/invoice PDFs (2+ weeks)
 
@@ -101,10 +105,11 @@
 ### 🗄️ Database (IMPORTANT - Nov 24, 2025)
 
 **✅ MASTER DATABASE:** `database/bensley_master.db` (OneDrive)
-- 51 projects, 87 proposals, 253+ invoices
+- 54 projects, 89 proposals, 253 invoices
 - 3,356 emails with processing working
-- 372 fee breakdowns, 465 contacts
+- 465 contacts
 - Frontend API connected and working
+- Run `make health-check` to verify status
 
 **❌ ARCHIVED:** `~/Desktop/BDS_SYSTEM/01_DATABASES/bensley_master.db`
 - **DO NOT USE** - Historical data only (2013-2020)
