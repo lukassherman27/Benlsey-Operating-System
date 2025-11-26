@@ -122,139 +122,226 @@ def transcribe_audio(audio_path: Path) -> str:
 # SUMMARIZATION (Claude)
 # =============================================================================
 
-def get_project_list() -> List[Dict]:
-    """Fetch active projects from BDS database for matching."""
-    projects = []
+def get_all_context_from_database() -> Dict:
+    """
+    Fetch ALL relevant context from BDS database for AI matching.
+    This is dynamic - pulls everything currently in the database.
+
+    Returns dict with: projects, proposals, contacts, team_members, clients
+    """
+    context = {
+        'projects': [],
+        'proposals': [],
+        'contacts': [],
+        'team_members': [],
+        'clients': []
+    }
 
     if not BDS_DATABASE.exists():
         logger.warning(f"BDS database not found at {BDS_DATABASE}")
-        return projects
+        return context
 
     try:
         conn = sqlite3.connect(BDS_DATABASE)
         conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
 
-        # Get projects with their codes and names (joined with clients for client name)
+        # ===========================================
+        # 1. ALL PROJECTS (active and recent)
+        # ===========================================
         cursor.execute("""
             SELECT
                 p.project_id,
                 p.project_code,
                 p.project_title,
-                COALESCE(c.company_name, 'Unknown Client') as client_name,
+                COALESCE(c.company_name, '') as client_name,
                 p.status,
                 p.country,
-                p.city
+                p.city,
+                p.project_type
             FROM projects p
             LEFT JOIN clients c ON p.client_id = c.client_id
-            WHERE p.status NOT IN ('Completed', 'Cancelled', 'Lost')
-            ORDER BY p.project_code
+            ORDER BY p.project_code DESC
         """)
 
         for row in cursor.fetchall():
-            projects.append({
+            context['projects'].append({
                 'id': row['project_id'],
                 'code': row['project_code'],
                 'name': row['project_title'],
                 'client': row['client_name'],
                 'status': row['status'],
                 'country': row['country'],
-                'location': row['city']
+                'city': row['city'],
+                'type': row['project_type']
             })
 
-        conn.close()
-        logger.info(f"Loaded {len(projects)} active projects for matching")
+        logger.info(f"Loaded {len(context['projects'])} projects")
 
-    except Exception as e:
-        logger.error(f"Error loading projects: {e}")
+        # ===========================================
+        # 2. ALL PROPOSALS
+        # ===========================================
+        cursor.execute("""
+            SELECT
+                proposal_id,
+                project_code,
+                project_name,
+                client_company,
+                status,
+                country,
+                location
+            FROM proposals
+            ORDER BY project_code DESC
+        """)
 
-    return projects
+        for row in cursor.fetchall():
+            context['proposals'].append({
+                'id': row['proposal_id'],
+                'code': row['project_code'],
+                'name': row['project_name'],
+                'client': row['client_company'],
+                'status': row['status'],
+                'country': row['country'],
+                'location': row['location']
+            })
 
+        logger.info(f"Loaded {len(context['proposals'])} proposals")
 
-def get_contacts_list() -> List[Dict]:
-    """Fetch contacts from BDS database for matching names in transcripts."""
-    contacts = []
-
-    if not BDS_DATABASE.exists():
-        return contacts
-
-    try:
-        conn = sqlite3.connect(BDS_DATABASE)
-        conn.row_factory = sqlite3.Row
-        cursor = conn.cursor()
-
-        # Get contacts with their roles and client/company name
+        # ===========================================
+        # 3. ALL CONTACTS
+        # ===========================================
         cursor.execute("""
             SELECT DISTINCT
                 co.contact_id,
                 co.name,
                 co.email,
                 co.role,
-                COALESCE(cl.company_name, 'Unknown') as company
+                COALESCE(cl.company_name, '') as company
             FROM contacts co
             LEFT JOIN clients cl ON co.client_id = cl.client_id
             WHERE co.name IS NOT NULL AND co.name != ''
             ORDER BY co.name
-            LIMIT 100
         """)
 
         for row in cursor.fetchall():
-            contacts.append({
+            context['contacts'].append({
                 'id': row['contact_id'],
                 'name': row['name'],
                 'email': row['email'],
                 'company': row['company'],
-                'role': row['role'],
-                'type': 'client'
+                'role': row['role']
             })
 
-        conn.close()
-        logger.info(f"Loaded {len(contacts)} contacts for matching")
+        logger.info(f"Loaded {len(context['contacts'])} contacts")
 
-    except Exception as e:
-        logger.error(f"Error loading contacts: {e}")
-
-    return contacts
-
-
-def get_team_members() -> List[Dict]:
-    """Fetch Bensley team members for identifying internal participants."""
-    team = []
-
-    if not BDS_DATABASE.exists():
-        return team
-
-    try:
-        conn = sqlite3.connect(BDS_DATABASE)
-        conn.row_factory = sqlite3.Row
-        cursor = conn.cursor()
-
-        # Get team members
+        # ===========================================
+        # 4. ALL CLIENTS/COMPANIES
+        # ===========================================
         cursor.execute("""
-            SELECT DISTINCT
-                name,
-                role,
-                email
-            FROM team_members
-            WHERE name IS NOT NULL
-            ORDER BY name
+            SELECT
+                client_id,
+                company_name,
+                country,
+                industry
+            FROM clients
+            WHERE company_name IS NOT NULL
+            ORDER BY company_name
         """)
 
         for row in cursor.fetchall():
-            team.append({
-                'name': row['name'],
-                'role': row['role'],
-                'email': row['email']
+            context['clients'].append({
+                'id': row['client_id'],
+                'name': row['company_name'],
+                'country': row['country'],
+                'industry': row['industry']
             })
 
+        logger.info(f"Loaded {len(context['clients'])} clients/companies")
+
+        # ===========================================
+        # 5. TEAM MEMBERS (if table exists)
+        # ===========================================
+        try:
+            cursor.execute("""
+                SELECT DISTINCT name, role, email
+                FROM team_members
+                WHERE name IS NOT NULL
+                ORDER BY name
+            """)
+
+            for row in cursor.fetchall():
+                context['team_members'].append({
+                    'name': row['name'],
+                    'role': row['role'],
+                    'email': row['email']
+                })
+
+            logger.info(f"Loaded {len(context['team_members'])} team members")
+        except:
+            # Table might not exist
+            pass
+
         conn.close()
-        logger.info(f"Loaded {len(team)} team members")
 
     except Exception as e:
-        # Table might not exist, that's ok
-        logger.debug(f"Could not load team members: {e}")
+        logger.error(f"Error loading database context: {e}")
 
-    return team
+    return context
+
+
+def format_context_for_prompt(context: Dict, max_items_per_category: int = 200) -> str:
+    """
+    Format database context for AI prompt.
+    Intelligently truncates if needed while keeping most relevant items.
+    """
+    sections = []
+
+    # Projects (prioritize active/recent)
+    if context['projects']:
+        projects = context['projects'][:max_items_per_category]
+        project_lines = [
+            f"- {p['code']}: {p['name']} | Client: {p['client']} | {p.get('city', '')}, {p.get('country', '')} | Status: {p['status']}"
+            for p in projects
+        ]
+        sections.append(f"## Active Projects ({len(context['projects'])} total)\n" + "\n".join(project_lines))
+
+    # Proposals
+    if context['proposals']:
+        proposals = context['proposals'][:max_items_per_category]
+        proposal_lines = [
+            f"- {p['code']}: {p['name']} | Client: {p['client']} | {p.get('location', '')}, {p.get('country', '')} | Status: {p['status']}"
+            for p in proposals
+        ]
+        sections.append(f"## Proposals ({len(context['proposals'])} total)\n" + "\n".join(proposal_lines))
+
+    # Clients/Companies (important for matching)
+    if context['clients']:
+        clients = context['clients'][:max_items_per_category]
+        client_lines = [
+            f"- {c['name']} ({c.get('country', 'Unknown')})"
+            for c in clients
+        ]
+        sections.append(f"## Clients/Companies ({len(context['clients'])} total)\n" + "\n".join(client_lines))
+
+    # Contacts
+    if context['contacts']:
+        contacts = context['contacts'][:max_items_per_category]
+        contact_lines = [
+            f"- {c['name']}: {c.get('role', 'Unknown role')} at {c.get('company', 'Unknown')}"
+            for c in contacts
+        ]
+        sections.append(f"## Known Contacts ({len(context['contacts'])} total)\n" + "\n".join(contact_lines))
+
+    # Team members
+    if context['team_members']:
+        team = context['team_members'][:50]  # Team is usually smaller
+        team_lines = [
+            f"- {t['name']}: {t.get('role', 'Team Member')}"
+            for t in team
+        ]
+        sections.append(f"## Bensley Team Members ({len(context['team_members'])} total)\n" + "\n".join(team_lines))
+
+    return "\n\n".join(sections)
 
 def summarize_transcript(transcript: str, audio_filename: str) -> Dict:
     """
@@ -269,44 +356,21 @@ def summarize_transcript(transcript: str, audio_filename: str) -> Dict:
     """
     logger.info("Generating AI summary...")
 
-    # Get project list for matching
-    projects = get_project_list()
-    project_context = ""
-    if projects:
-        project_list = "\n".join([
-            f"- {p['code']}: {p['name']} | Client: {p['client']} | Location: {p.get('location', 'N/A')}, {p.get('country', 'N/A')}"
-            for p in projects[:50]  # Limit to avoid token overflow
-        ])
-        project_context = f"""
-## Active Projects (match project mentioned in meeting):
-{project_list}
-"""
+    # Get ALL context from database (dynamic - grows as database grows)
+    context = get_all_context_from_database()
 
-    # Get contacts for identifying participants
-    contacts = get_contacts_list()
-    contacts_context = ""
-    if contacts:
-        contacts_list = "\n".join([
-            f"- {c['name']}: {c.get('role', 'Unknown')} at {c.get('company', 'Unknown')} ({c.get('type', 'contact')})"
-            for c in contacts[:50]
-        ])
-        contacts_context = f"""
-## Known Contacts (identify if mentioned):
-{contacts_list}
-"""
+    # Format context for AI prompt
+    database_context = format_context_for_prompt(context, max_items_per_category=200)
 
-    # Get team members
-    team = get_team_members()
-    team_context = ""
-    if team:
-        team_list = "\n".join([
-            f"- {t['name']}: {t.get('role', 'Team Member')}"
-            for t in team[:20]
-        ])
-        team_context = f"""
-## Bensley Team Members:
-{team_list}
-"""
+    # Log what we loaded
+    total_items = sum([
+        len(context['projects']),
+        len(context['proposals']),
+        len(context['contacts']),
+        len(context['clients']),
+        len(context['team_members'])
+    ])
+    logger.info(f"Total context items loaded: {total_items} (projects: {len(context['projects'])}, proposals: {len(context['proposals'])}, contacts: {len(context['contacts'])}, clients: {len(context['clients'])})")
 
     prompt = f"""Analyze this meeting transcript and provide a structured summary.
 
@@ -317,9 +381,8 @@ def summarize_transcript(transcript: str, audio_filename: str) -> Dict:
 ## Transcript:
 {transcript}
 
-{project_context}
-{contacts_context}
-{team_context}
+## DATABASE CONTEXT (use this to match projects, clients, and contacts mentioned)
+{database_context}
 
 ## Instructions:
 Analyze the transcript carefully. Match any mentioned names to the Known Contacts or Team Members lists.
