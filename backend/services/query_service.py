@@ -7,6 +7,7 @@ Falls back to pattern matching if AI is not available.
 
 import sys
 import os
+import re
 import json
 from pathlib import Path
 from typing import List, Dict, Any, Optional
@@ -365,10 +366,10 @@ If the question is unclear or cannot be answered with available data, set sql to
         if not sql_lower.startswith('select'):
             raise ValueError("Only SELECT queries are allowed")
 
-        # Block dangerous operations
+        # Block dangerous operations (use word boundary to avoid false positives like 'updated_at')
         dangerous_keywords = ['drop', 'delete', 'insert', 'update', 'alter', 'create', 'truncate']
         for keyword in dangerous_keywords:
-            if keyword in sql_lower:
+            if re.search(rf'\b{keyword}\b', sql_lower):
                 raise ValueError(f"Operation '{keyword}' is not allowed")
 
         # Execute query

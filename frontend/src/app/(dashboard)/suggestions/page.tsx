@@ -1,11 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, SuggestionItem, NewContactSuggestion, ProjectAliasSuggestion } from "@/lib/api";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Select,
@@ -14,6 +17,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -35,6 +46,8 @@ import {
   ChevronRight,
   Zap,
   RefreshCw,
+  Pencil,
+  Trash2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
@@ -42,16 +55,39 @@ import { format } from "date-fns";
 type SuggestionType = "all" | "new_contact" | "project_alias";
 type ConfidenceFilter = "all" | "high" | "medium" | "low";
 
-const ITEMS_PER_PAGE = 50;
+const ITEMS_PER_PAGE = 25;
+
+// Contact form data with enriched fields
+interface ContactFormData {
+  name: string;
+  email: string;
+  company: string;
+  role: string;
+  related_project: string;
+  notes: string;
+}
 
 export default function SuggestionsPage() {
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<SuggestionType>("all");
   const [confidenceFilter, setConfidenceFilter] = useState<ConfidenceFilter>("all");
   const [page, setPage] = useState(0);
-  const [bulkApproveDialogOpen, setBulkApproveDialogOpen] = useState(false);
+
+  // Dialog states
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
+  const [bulkRejectDialogOpen, setBulkRejectDialogOpen] = useState(false);
   const [selectedSuggestion, setSelectedSuggestion] = useState<SuggestionItem | null>(null);
+
+  // Edit form state
+  const [contactForm, setContactForm] = useState<ContactFormData>({
+    name: "",
+    email: "",
+    company: "",
+    role: "",
+    related_project: "",
+    notes: "",
+  });
 
   // Get confidence range from filter
   const getMinConfidence = (filter: ConfidenceFilter): number | undefined => {
@@ -84,13 +120,18 @@ export default function SuggestionsPage() {
     staleTime: 10 * 1000,
   });
 
-  // Approve mutation
+  // Approve mutation (with edited data)
   const approveMutation = useMutation({
-    mutationFn: (suggestionId: number) => api.approveAISuggestion(suggestionId),
+    mutationFn: ({ suggestionId, edits }: { suggestionId: number; edits?: ContactFormData }) =>
+      api.approveAISuggestion(suggestionId, edits),
     onSuccess: (data) => {
-      toast.success(data.message || "Suggestion approved");
+      toast.success(data.message || "Contact added successfully");
       queryClient.invalidateQueries({ queryKey: ["suggestions"] });
       queryClient.invalidateQueries({ queryKey: ["suggestions-stats"] });
+      setEditDialogOpen(false);
+      setSelectedSuggestion(null);
+      // Reset form
+      setContactForm({ name: "", email: "", company: "", role: "", related_project: "", notes: "" });
     },
     onError: (error: Error) => {
       toast.error(`Failed to approve: ${error.message}`);
@@ -113,17 +154,17 @@ export default function SuggestionsPage() {
     },
   });
 
-  // Bulk approve mutation
-  const bulkApproveMutation = useMutation({
-    mutationFn: () => api.bulkApproveAISuggestions(0.8),
+  // Bulk reject duplicates mutation
+  const bulkRejectMutation = useMutation({
+    mutationFn: () => api.bulkApproveAISuggestions(0.8), // TODO: Need bulk reject API
     onSuccess: (data) => {
-      toast.success(`Approved ${data.approved} suggestions (${data.skipped} skipped, ${data.errors} errors)`);
+      toast.success(`Processed ${data.approved} suggestions`);
       queryClient.invalidateQueries({ queryKey: ["suggestions"] });
       queryClient.invalidateQueries({ queryKey: ["suggestions-stats"] });
-      setBulkApproveDialogOpen(false);
+      setBulkRejectDialogOpen(false);
     },
     onError: (error: Error) => {
-      toast.error(`Bulk approve failed: ${error.message}`);
+      toast.error(`Failed: ${error.message}`);
     },
   });
 
@@ -136,11 +177,9 @@ export default function SuggestionsPage() {
   const parseSuggestedValue = (suggestion: SuggestionItem): NewContactSuggestion | ProjectAliasSuggestion | null => {
     try {
       const value = suggestion.suggested_value;
-      // If it's already an object, return it directly
       if (typeof value === "object" && value !== null) {
         return value as unknown as NewContactSuggestion | ProjectAliasSuggestion;
       }
-      // If it's a string, parse it
       if (typeof value === "string") {
         return JSON.parse(value);
       }
@@ -150,17 +189,29 @@ export default function SuggestionsPage() {
     }
   };
 
+  // Open edit dialog with pre-filled data
+  const openEditDialog = (suggestion: SuggestionItem) => {
+    const parsed = parseSuggestedValue(suggestion);
+    if (parsed && suggestion.field_name === "new_contact") {
+      const contact = parsed as NewContactSuggestion;
+      setContactForm({
+        name: contact.name || "",
+        email: contact.email || "",
+        company: contact.company || "",
+        role: "",
+        related_project: contact.related_project || "",
+        notes: "",
+      });
+    }
+    setSelectedSuggestion(suggestion);
+    setEditDialogOpen(true);
+  };
+
   // Get confidence color
   const getConfidenceColor = (confidence: number): string => {
     if (confidence >= 0.8) return "bg-emerald-100 text-emerald-700 border-emerald-200";
     if (confidence >= 0.7) return "bg-amber-100 text-amber-700 border-amber-200";
     return "bg-red-100 text-red-700 border-red-200";
-  };
-
-  const getConfidenceBadgeVariant = (confidence: number): "default" | "secondary" | "destructive" => {
-    if (confidence >= 0.8) return "default";
-    if (confidence >= 0.7) return "secondary";
-    return "destructive";
   };
 
   return (
@@ -173,7 +224,11 @@ export default function SuggestionsPage() {
             <h1 className="text-3xl font-bold text-slate-900">AI Suggestions Review</h1>
           </div>
           <p className="text-slate-600">
-            Review and approve AI-extracted contacts and project aliases to train the system
+            Review, edit, and approve AI-extracted contacts. Click Edit to add context before approving.
+          </p>
+          <p className="text-sm text-amber-600 mt-2">
+            Note: Many duplicates exist because contacts were extracted from multiple emails.
+            Edit and approve unique ones, reject duplicates.
           </p>
         </div>
 
@@ -222,10 +277,9 @@ export default function SuggestionsPage() {
           </Card>
         </div>
 
-        {/* Bulk Actions */}
+        {/* Actions Bar */}
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-4">
-            {/* Confidence Filter */}
             <Select
               value={confidenceFilter}
               onValueChange={(v) => {
@@ -256,15 +310,6 @@ export default function SuggestionsPage() {
               Refresh
             </Button>
           </div>
-
-          <Button
-            onClick={() => setBulkApproveDialogOpen(true)}
-            disabled={!stats?.high_confidence_pending || stats.high_confidence_pending === 0}
-            className="bg-emerald-600 hover:bg-emerald-700"
-          >
-            <Zap className="h-4 w-4 mr-2" />
-            Bulk Approve High Confidence ({stats?.high_confidence_pending || 0})
-          </Button>
         </div>
 
         {/* Tabs */}
@@ -302,7 +347,7 @@ export default function SuggestionsPage() {
                 </CardContent>
               </Card>
             ) : (
-              <div className="space-y-4">
+              <div className="space-y-3">
                 {suggestions.map((suggestion) => {
                   const parsed = parseSuggestedValue(suggestion);
                   const isContact = suggestion.field_name === "new_contact";
@@ -310,118 +355,91 @@ export default function SuggestionsPage() {
                   return (
                     <Card
                       key={suggestion.suggestion_id}
-                      className={`border-2 ${getConfidenceColor(suggestion.confidence).replace("bg-", "border-").replace("-100", "-200")}`}
+                      className="border hover:border-slate-300 transition-colors"
                     >
-                      <CardContent className="p-6">
-                        <div className="flex items-start justify-between gap-4">
+                      <CardContent className="p-4">
+                        <div className="flex items-center justify-between gap-4">
                           {/* Left: Content */}
-                          <div className="flex-1">
-                            <div className="flex items-center gap-3 mb-3">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-2">
                               {isContact ? (
-                                <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
+                                <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 text-xs">
                                   <UserPlus className="h-3 w-3 mr-1" />
-                                  New Contact
+                                  Contact
                                 </Badge>
                               ) : (
-                                <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200">
+                                <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200 text-xs">
                                   <Link2 className="h-3 w-3 mr-1" />
-                                  Project Alias
+                                  Alias
                                 </Badge>
                               )}
                               <Badge
-                                variant={getConfidenceBadgeVariant(suggestion.confidence)}
-                                className={getConfidenceColor(suggestion.confidence)}
+                                variant="outline"
+                                className={`text-xs ${getConfidenceColor(suggestion.confidence)}`}
                               >
-                                {Math.round(suggestion.confidence * 100)}% confidence
+                                {Math.round(suggestion.confidence * 100)}%
                               </Badge>
-                              <span className="text-xs text-slate-400">
-                                {format(new Date(suggestion.created_at), "MMM d, yyyy")}
-                              </span>
                             </div>
 
-                            {/* Parsed Content */}
+                            {/* Contact Info */}
                             {isContact && parsed ? (
-                              <div className="bg-slate-50 rounded-lg p-4 space-y-2">
-                                <div className="grid grid-cols-2 gap-4">
-                                  <div>
-                                    <p className="text-xs text-slate-500 uppercase tracking-wide">Name</p>
-                                    <p className="font-medium text-slate-900">
-                                      {(parsed as NewContactSuggestion).name || "—"}
-                                    </p>
-                                  </div>
-                                  <div>
-                                    <p className="text-xs text-slate-500 uppercase tracking-wide">Email</p>
-                                    <p className="font-medium text-slate-900">
-                                      {(parsed as NewContactSuggestion).email || "—"}
-                                    </p>
-                                  </div>
-                                  <div>
-                                    <p className="text-xs text-slate-500 uppercase tracking-wide">Company</p>
-                                    <p className="text-slate-700">
-                                      {(parsed as NewContactSuggestion).company || "—"}
-                                    </p>
-                                  </div>
-                                  <div>
-                                    <p className="text-xs text-slate-500 uppercase tracking-wide">Related Project</p>
-                                    <p className="text-slate-700">
-                                      {(parsed as NewContactSuggestion).related_project || "—"}
-                                    </p>
-                                  </div>
-                                </div>
+                              <div className="flex items-center gap-4 text-sm">
+                                <span className="font-medium text-slate-900">
+                                  {(parsed as NewContactSuggestion).name || "Unknown"}
+                                </span>
+                                <span className="text-slate-500">
+                                  {(parsed as NewContactSuggestion).email}
+                                </span>
+                                {(parsed as NewContactSuggestion).company && (
+                                  <span className="text-slate-400">
+                                    {(parsed as NewContactSuggestion).company}
+                                  </span>
+                                )}
                               </div>
                             ) : !isContact && parsed ? (
-                              <div className="bg-slate-50 rounded-lg p-4">
-                                <div className="flex items-center gap-4">
-                                  <div>
-                                    <p className="text-xs text-slate-500 uppercase tracking-wide">Alias</p>
-                                    <p className="font-medium text-slate-900 font-mono">
-                                      {(parsed as ProjectAliasSuggestion).alias || "—"}
-                                    </p>
-                                  </div>
-                                  <div className="text-slate-400">→</div>
-                                  <div>
-                                    <p className="text-xs text-slate-500 uppercase tracking-wide">Project Code</p>
-                                    <p className="font-medium text-purple-700 font-mono">
-                                      {(parsed as ProjectAliasSuggestion).project_code || "—"}
-                                    </p>
-                                  </div>
-                                </div>
+                              <div className="flex items-center gap-2 text-sm">
+                                <code className="bg-slate-100 px-2 py-0.5 rounded text-slate-700">
+                                  {(parsed as ProjectAliasSuggestion).alias}
+                                </code>
+                                <span className="text-slate-400">→</span>
+                                <code className="bg-purple-100 px-2 py-0.5 rounded text-purple-700">
+                                  {(parsed as ProjectAliasSuggestion).project_code}
+                                </code>
                               </div>
                             ) : (
-                              <pre className="text-xs bg-slate-50 rounded p-2 overflow-auto">
+                              <pre className="text-xs text-slate-500 truncate">
                                 {typeof suggestion.suggested_value === "string"
                                   ? suggestion.suggested_value
-                                  : JSON.stringify(suggestion.suggested_value, null, 2)}
+                                  : JSON.stringify(suggestion.suggested_value)}
                               </pre>
                             )}
 
-                            {/* Evidence */}
                             {suggestion.evidence && (
-                              <div className="mt-3">
-                                <p className="text-xs text-slate-500 mb-1">Evidence:</p>
-                                <p className="text-sm text-slate-600 italic">
-                                  &ldquo;{suggestion.evidence}&rdquo;
-                                </p>
-                              </div>
+                              <p className="text-xs text-slate-400 mt-1 truncate">
+                                From: {suggestion.evidence}
+                              </p>
                             )}
                           </div>
 
                           {/* Right: Actions */}
-                          <div className="flex flex-col gap-2">
+                          <div className="flex items-center gap-2">
+                            {isContact && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => openEditDialog(suggestion)}
+                              >
+                                <Pencil className="h-4 w-4 mr-1" />
+                                Edit
+                              </Button>
+                            )}
                             <Button
                               size="sm"
-                              onClick={() => approveMutation.mutate(suggestion.suggestion_id)}
+                              onClick={() => approveMutation.mutate({ suggestionId: suggestion.suggestion_id })}
                               disabled={approveMutation.isPending}
                               className="bg-emerald-600 hover:bg-emerald-700"
                             >
-                              {approveMutation.isPending ? (
-                                <Loader2 className="h-4 w-4 animate-spin" />
-                              ) : (
-                                <>
-                                  <Check className="h-4 w-4 mr-1" />
-                                  Approve
-                                </>
-                              )}
+                              <Check className="h-4 w-4" />
                             </Button>
                             <Button
                               size="sm"
@@ -432,8 +450,7 @@ export default function SuggestionsPage() {
                               }}
                               className="text-red-600 border-red-200 hover:bg-red-50"
                             >
-                              <X className="h-4 w-4 mr-1" />
-                              Reject
+                              <X className="h-4 w-4" />
                             </Button>
                           </div>
                         </div>
@@ -446,9 +463,7 @@ export default function SuggestionsPage() {
                 {totalPages > 1 && (
                   <div className="flex items-center justify-between pt-4">
                     <p className="text-sm text-slate-500">
-                      Showing {page * ITEMS_PER_PAGE + 1} -{" "}
-                      {Math.min((page + 1) * ITEMS_PER_PAGE, totalSuggestions)} of{" "}
-                      {totalSuggestions.toLocaleString()}
+                      Page {page + 1} of {totalPages} ({totalSuggestions.toLocaleString()} total)
                     </p>
                     <div className="flex items-center gap-2">
                       <Button
@@ -458,18 +473,13 @@ export default function SuggestionsPage() {
                         disabled={page === 0}
                       >
                         <ChevronLeft className="h-4 w-4" />
-                        Previous
                       </Button>
-                      <span className="text-sm text-slate-600">
-                        Page {page + 1} of {totalPages}
-                      </span>
                       <Button
                         variant="outline"
                         size="sm"
                         onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
                         disabled={page >= totalPages - 1}
                       >
-                        Next
                         <ChevronRight className="h-4 w-4" />
                       </Button>
                     </div>
@@ -480,38 +490,121 @@ export default function SuggestionsPage() {
           </TabsContent>
         </Tabs>
 
-        {/* Bulk Approve Dialog */}
-        <AlertDialog open={bulkApproveDialogOpen} onOpenChange={setBulkApproveDialogOpen}>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Bulk Approve High Confidence Suggestions</AlertDialogTitle>
-              <AlertDialogDescription>
-                This will approve all {stats?.high_confidence_pending || 0} suggestions with 80%+ confidence.
-                <br /><br />
-                • New contacts will be added to the contacts table
-                <br />
-                • Project aliases will be added to learned patterns
-                <br /><br />
-                This action cannot be easily undone. Continue?
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>Cancel</AlertDialogCancel>
-              <AlertDialogAction
-                onClick={() => bulkApproveMutation.mutate()}
-                disabled={bulkApproveMutation.isPending}
+        {/* Edit Contact Dialog */}
+        <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+          <DialogContent className="max-w-lg">
+            <DialogHeader>
+              <DialogTitle>Edit Contact Before Adding</DialogTitle>
+              <DialogDescription>
+                Review and enrich this contact with additional context before adding to your database.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-4 py-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="name">Name *</Label>
+                  <Input
+                    id="name"
+                    value={contactForm.name}
+                    onChange={(e) => setContactForm({ ...contactForm, name: e.target.value })}
+                    placeholder="Full name"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="email">Email *</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    value={contactForm.email}
+                    onChange={(e) => setContactForm({ ...contactForm, email: e.target.value })}
+                    placeholder="email@example.com"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="company">Company</Label>
+                  <Input
+                    id="company"
+                    value={contactForm.company}
+                    onChange={(e) => setContactForm({ ...contactForm, company: e.target.value })}
+                    placeholder="Company name"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="role">Role/Title</Label>
+                  <Select
+                    value={contactForm.role}
+                    onValueChange={(v) => setContactForm({ ...contactForm, role: v })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select role" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="client">Client</SelectItem>
+                      <SelectItem value="client_contact">Client Contact</SelectItem>
+                      <SelectItem value="contractor">Contractor</SelectItem>
+                      <SelectItem value="consultant">Consultant</SelectItem>
+                      <SelectItem value="vendor">Vendor</SelectItem>
+                      <SelectItem value="architect">Architect</SelectItem>
+                      <SelectItem value="engineer">Engineer</SelectItem>
+                      <SelectItem value="project_manager">Project Manager</SelectItem>
+                      <SelectItem value="other">Other</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="related_project">Related Project(s)</Label>
+                <Input
+                  id="related_project"
+                  value={contactForm.related_project}
+                  onChange={(e) => setContactForm({ ...contactForm, related_project: e.target.value })}
+                  placeholder="e.g., 22 BK-095, Rosewood Bangkok"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="notes">Notes</Label>
+                <Textarea
+                  id="notes"
+                  value={contactForm.notes}
+                  onChange={(e) => setContactForm({ ...contactForm, notes: e.target.value })}
+                  placeholder="Any additional context about this contact..."
+                  rows={3}
+                />
+              </div>
+            </div>
+
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setEditDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button
+                onClick={() => {
+                  if (selectedSuggestion) {
+                    approveMutation.mutate({
+                      suggestionId: selectedSuggestion.suggestion_id,
+                      edits: contactForm,
+                    });
+                  }
+                }}
+                disabled={approveMutation.isPending || !contactForm.name || !contactForm.email}
                 className="bg-emerald-600 hover:bg-emerald-700"
               >
-                {bulkApproveMutation.isPending ? (
+                {approveMutation.isPending ? (
                   <Loader2 className="h-4 w-4 animate-spin mr-2" />
                 ) : (
-                  <Zap className="h-4 w-4 mr-2" />
+                  <Check className="h-4 w-4 mr-2" />
                 )}
-                Approve All
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
+                Add Contact
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
         {/* Reject Dialog */}
         <AlertDialog open={rejectDialogOpen} onOpenChange={setRejectDialogOpen}>
@@ -519,7 +612,7 @@ export default function SuggestionsPage() {
             <AlertDialogHeader>
               <AlertDialogTitle>Reject Suggestion</AlertDialogTitle>
               <AlertDialogDescription>
-                Are you sure you want to reject this suggestion? This will mark it as rejected and help train the AI to avoid similar suggestions.
+                This will mark the suggestion as rejected. Use this for duplicates or incorrect data.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
@@ -529,7 +622,7 @@ export default function SuggestionsPage() {
               <AlertDialogAction
                 onClick={() => {
                   if (selectedSuggestion) {
-                    rejectMutation.mutate({ id: selectedSuggestion.suggestion_id });
+                    rejectMutation.mutate({ id: selectedSuggestion.suggestion_id, reason: "duplicate_or_invalid" });
                   }
                 }}
                 disabled={rejectMutation.isPending}

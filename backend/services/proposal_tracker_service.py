@@ -135,34 +135,48 @@ class ProposalTrackerService(BaseService):
         status: Optional[str] = None,
         country: Optional[str] = None,
         search: Optional[str] = None,
+        discipline: Optional[str] = None,
         page: int = 1,
         per_page: int = 50
     ) -> Dict[str, Any]:
         """Get paginated list of proposals with filters"""
 
         # Build WHERE clauses
-        where_clauses = ["is_active = 1"]
+        where_clauses = ["pt.is_active = 1"]
         params = []
 
         if status:
-            where_clauses.append("current_status = ?")
+            where_clauses.append("pt.current_status = ?")
             params.append(status)
 
         if country:
-            where_clauses.append("country = ?")
+            where_clauses.append("pt.country = ?")
             params.append(country)
 
         if search:
-            where_clauses.append("(project_code LIKE ? OR project_name LIKE ?)")
+            where_clauses.append("(pt.project_code LIKE ? OR pt.project_name LIKE ?)")
             search_term = f"%{search}%"
             params.extend([search_term, search_term])
 
+        # Discipline filter - joins with proposals table
+        if discipline:
+            if discipline == 'landscape':
+                where_clauses.append("p.is_landscape = 1")
+            elif discipline == 'interior':
+                where_clauses.append("p.is_interior = 1")
+            elif discipline == 'architect':
+                where_clauses.append("p.is_architect = 1")
+            elif discipline == 'combined':
+                # Combined = has 2+ disciplines
+                where_clauses.append("(p.is_landscape + p.is_interior + p.is_architect) >= 2")
+
         where_sql = " AND ".join(where_clauses)
 
-        # Get total count
+        # Get total count (with JOIN for discipline filter)
         count_sql = f"""
             SELECT COUNT(*) as total
-            FROM proposal_tracker
+            FROM proposal_tracker pt
+            LEFT JOIN proposals p ON pt.project_code = p.project_code
             WHERE {where_sql}
         """
 
@@ -171,31 +185,35 @@ class ProposalTrackerService(BaseService):
             cursor.execute(count_sql, params)
             total = cursor.fetchone()['total']
 
-            # Get paginated data
+            # Get paginated data (with JOIN for discipline info)
             offset = (page - 1) * per_page
             data_sql = f"""
                 SELECT
-                    id,
-                    project_code,
-                    project_name,
-                    project_value,
-                    country,
-                    current_status,
-                    last_week_status,
-                    status_changed_date,
-                    CAST(JULIANDAY('now') - JULIANDAY(status_changed_date) AS INTEGER) as days_in_current_status,
-                    first_contact_date,
-                    proposal_sent_date,
-                    proposal_sent,
-                    current_remark,
-                    latest_email_context,
-                    waiting_on,
-                    next_steps,
-                    last_email_date,
-                    updated_at
-                FROM proposal_tracker
+                    pt.id,
+                    pt.project_code,
+                    pt.project_name,
+                    pt.project_value,
+                    pt.country,
+                    pt.current_status,
+                    pt.last_week_status,
+                    pt.status_changed_date,
+                    CAST(JULIANDAY('now') - JULIANDAY(pt.status_changed_date) AS INTEGER) as days_in_current_status,
+                    pt.first_contact_date,
+                    pt.proposal_sent_date,
+                    pt.proposal_sent,
+                    pt.current_remark,
+                    pt.latest_email_context,
+                    pt.waiting_on,
+                    pt.next_steps,
+                    pt.last_email_date,
+                    pt.updated_at,
+                    COALESCE(p.is_landscape, 0) as is_landscape,
+                    COALESCE(p.is_interior, 0) as is_interior,
+                    COALESCE(p.is_architect, 0) as is_architect
+                FROM proposal_tracker pt
+                LEFT JOIN proposals p ON pt.project_code = p.project_code
                 WHERE {where_sql}
-                ORDER BY project_code
+                ORDER BY pt.project_code
                 LIMIT ? OFFSET ?
             """
 
@@ -209,6 +227,67 @@ class ProposalTrackerService(BaseService):
                 'per_page': per_page,
                 'total_pages': (total + per_page - 1) // per_page
             }
+
+    def get_discipline_stats(self) -> Dict[str, Any]:
+        """Get proposal counts and values by discipline"""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+
+            # Get stats for each discipline
+            cursor.execute("""
+                SELECT
+                    'landscape' as discipline,
+                    COUNT(*) as count,
+                    COALESCE(SUM(pt.project_value), 0) as total_value
+                FROM proposal_tracker pt
+                LEFT JOIN proposals p ON pt.project_code = p.project_code
+                WHERE pt.is_active = 1 AND p.is_landscape = 1
+                UNION ALL
+                SELECT
+                    'interior' as discipline,
+                    COUNT(*) as count,
+                    COALESCE(SUM(pt.project_value), 0) as total_value
+                FROM proposal_tracker pt
+                LEFT JOIN proposals p ON pt.project_code = p.project_code
+                WHERE pt.is_active = 1 AND p.is_interior = 1
+                UNION ALL
+                SELECT
+                    'architect' as discipline,
+                    COUNT(*) as count,
+                    COALESCE(SUM(pt.project_value), 0) as total_value
+                FROM proposal_tracker pt
+                LEFT JOIN proposals p ON pt.project_code = p.project_code
+                WHERE pt.is_active = 1 AND p.is_architect = 1
+                UNION ALL
+                SELECT
+                    'combined' as discipline,
+                    COUNT(*) as count,
+                    COALESCE(SUM(pt.project_value), 0) as total_value
+                FROM proposal_tracker pt
+                LEFT JOIN proposals p ON pt.project_code = p.project_code
+                WHERE pt.is_active = 1 AND (p.is_landscape + p.is_interior + p.is_architect) >= 2
+            """)
+
+            disciplines = {}
+            for row in cursor.fetchall():
+                disciplines[row['discipline']] = {
+                    'count': row['count'],
+                    'total_value': row['total_value']
+                }
+
+            # Get all proposals count for "All Disciplines"
+            cursor.execute("""
+                SELECT COUNT(*) as count, COALESCE(SUM(project_value), 0) as total_value
+                FROM proposal_tracker
+                WHERE is_active = 1
+            """)
+            all_row = cursor.fetchone()
+            disciplines['all'] = {
+                'count': all_row['count'],
+                'total_value': all_row['total_value']
+            }
+
+            return disciplines
 
     def get_proposal_by_code(self, project_code: str) -> Optional[Dict[str, Any]]:
         """Get single proposal by project code"""

@@ -5,8 +5,6 @@ import { InvoiceAgingWidget } from "@/components/dashboard/invoice-aging-widget"
 import { RecentEmailsWidget } from "@/components/dashboard/recent-emails-widget";
 import { ProposalTrackerWidget } from "@/components/dashboard/proposal-tracker-widget";
 import { QuickActionsWidget } from "@/components/dashboard/quick-actions-widget";
-import { TopOutstandingInvoicesWidget } from "@/components/dashboard/top-outstanding-invoices-widget";
-import { AllInvoicesList } from "@/components/dashboard/all-invoices-list";
 import { cn } from "@/lib/utils";
 import { ds } from "@/lib/design-system";
 
@@ -19,7 +17,7 @@ export default function DashboardPage() {
           Operations Dashboard
         </h1>
         <p className={cn(ds.typography.body, ds.textColors.secondary, "mt-2")}>
-          Real-time overview of proposals, projects, invoices, and communications
+          Real-time overview of proposals, projects, and communications
         </p>
       </div>
 
@@ -30,19 +28,19 @@ export default function DashboardPage() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* LEFT COLUMN */}
         <div className="space-y-6">
-          {/* Invoice Aging Widget - From Claude 3 */}
+          {/* Invoice Aging Widget - Visual summary */}
           <InvoiceAgingWidget compact={true} />
 
-          {/* Recent Emails Widget - From Claude 1 */}
+          {/* Recent Emails Widget */}
           <RecentEmailsWidget limit={5} compact={true} />
         </div>
 
         {/* RIGHT COLUMN */}
         <div className="space-y-6">
-          {/* Proposal Pipeline Widget - From Claude 4 */}
+          {/* Proposal Pipeline Widget */}
           <ProposalTrackerWidget compact={true} />
 
-          {/* Query Widget Placeholder - From Claude 2 */}
+          {/* Query Widget Placeholder */}
           <div className="bg-gradient-to-br from-slate-50 to-slate-100 border border-slate-200 rounded-lg p-6">
             <h3 className={cn(ds.typography.heading3, ds.textColors.primary, "mb-2")}>
               Quick Query
@@ -66,19 +64,6 @@ export default function DashboardPage() {
 
       {/* Bottom Row - Quick Actions */}
       <QuickActionsWidget />
-
-      {/* Invoice Management Section - Full Width */}
-      <div className="space-y-6">
-        <h2 className={cn(ds.typography.heading2, ds.textColors.primary)}>
-          Invoice Management
-        </h2>
-
-        {/* Top 10 Outstanding Invoices */}
-        <TopOutstandingInvoicesWidget />
-
-        {/* All Outstanding Invoices with Filter */}
-        <AllInvoicesList />
-      </div>
     </div>
   );
 }

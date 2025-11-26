@@ -769,12 +769,31 @@ export interface ProposalEmailIntelligence {
   processed_at: string;
 }
 
+export type DisciplineFilter = 'all' | 'landscape' | 'interior' | 'architect' | 'combined';
+
 export interface ProposalTrackerQueryParams {
   status?: ProposalStatus;
   country?: string;
   search?: string;
+  discipline?: DisciplineFilter;
   page?: number;
   per_page?: number;
+}
+
+export interface DisciplineStats {
+  count: number;
+  total_value: number;
+}
+
+export interface DisciplineStatsResponse {
+  success: boolean;
+  disciplines: {
+    all: DisciplineStats;
+    landscape: DisciplineStats;
+    interior: DisciplineStats;
+    architect: DisciplineStats;
+    combined: DisciplineStats;
+  };
 }
 
 export interface ProposalTrackerUpdateRequest {
