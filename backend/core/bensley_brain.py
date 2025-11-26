@@ -739,17 +739,23 @@ class BensleyBrain:
                 self._pattern_cache.get('company_contacts', {})
             )
 
-            # Email linking stats
+            # Email linking stats - check BOTH link tables (using subqueries to avoid JOIN duplicates)
+            cursor.execute("SELECT COUNT(*) FROM emails")
+            stats['emails_total'] = cursor.fetchone()[0]
+
+            cursor.execute("SELECT COUNT(DISTINCT email_id) FROM email_project_links")
+            stats['emails_linked_to_projects'] = cursor.fetchone()[0]
+
+            cursor.execute("SELECT COUNT(DISTINCT email_id) FROM email_proposal_links")
+            stats['emails_linked_to_proposals'] = cursor.fetchone()[0]
+
             cursor.execute("""
-                SELECT
-                    COUNT(*) as total,
-                    SUM(CASE WHEN epl.email_id IS NOT NULL THEN 1 ELSE 0 END) as linked
-                FROM emails e
-                LEFT JOIN email_project_links epl ON e.email_id = epl.email_id
+                SELECT COUNT(*) FROM emails
+                WHERE email_id IN (SELECT email_id FROM email_project_links)
+                   OR email_id IN (SELECT email_id FROM email_proposal_links)
             """)
-            row = cursor.fetchone()
-            stats['emails_linked'] = row['linked'] if row else 0
-            stats['emails_unlinked'] = (row['total'] - row['linked']) if row else 0
+            stats['emails_linked'] = cursor.fetchone()[0]
+            stats['emails_unlinked'] = stats['emails_total'] - stats['emails_linked']
 
             return stats
 
