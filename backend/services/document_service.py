@@ -74,7 +74,7 @@ class DocumentService(BaseService):
             SELECT
                 d.*,
                 p.project_code,
-                p.project_name
+                p.project_title
             FROM documents d
             LEFT JOIN document_proposal_links dpl ON d.document_id = dpl.document_id
             LEFT JOIN proposals p ON dpl.proposal_id = p.proposal_id

@@ -27,7 +27,7 @@ print(f"   ✅ Dashboard stats: {stats['total_proposals']} proposals, {stats['ac
 
 proposal = proposal_svc.get_proposal_by_code('BK-069')
 if proposal:
-    print(f"   ✅ Get proposal: {proposal['project_name']}")
+    print(f"   ✅ Get proposal: {proposal['project_title']}")
 
 # Test Email Service
 print("\n2. Testing EmailService...")

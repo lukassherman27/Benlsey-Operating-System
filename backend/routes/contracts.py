@@ -172,7 +172,7 @@ def get_contract_detail(attachment_id):
             e.recipient_emails,
             e.date AS email_date,
             p.project_code,
-            p.project_name
+            p.project_title
         FROM email_attachments a
         JOIN emails e ON a.email_id = e.email_id
         LEFT JOIN email_proposal_links epl ON e.email_id = epl.email_id

@@ -54,7 +54,7 @@ class EmailService(BaseService):
                 (
                     SELECT p.project_code
                     FROM email_proposal_links epl
-                    JOIN projects p ON epl.proposal_id = p.proposal_id
+                    JOIN proposals p ON epl.proposal_id = p.proposal_id
                     WHERE epl.email_id = e.email_id
                     ORDER BY epl.created_at DESC
                     LIMIT 1
@@ -62,7 +62,7 @@ class EmailService(BaseService):
                 (
                     SELECT p.is_active_project
                     FROM email_proposal_links epl
-                    JOIN projects p ON epl.proposal_id = p.proposal_id
+                    JOIN proposals p ON epl.proposal_id = p.proposal_id
                     WHERE epl.email_id = e.email_id
                     ORDER BY epl.created_at DESC
                     LIMIT 1
@@ -420,3 +420,289 @@ class EmailService(BaseService):
                 "previous_category": previous_category,
                 "feedback": feedback
             }
+
+    def get_emails_by_project(self, project_code: str, limit: int = 20) -> List[Dict[str, Any]]:
+        """
+        Get all emails linked to a specific project (CRITICAL for Claude 3)
+
+        Args:
+            project_code: Project code (e.g., 'BK-033')
+            limit: Max number of emails to return
+
+        Returns:
+            List of emails with metadata
+        """
+        sql = """
+            SELECT
+                e.email_id,
+                e.subject,
+                e.sender_email,
+                e.sender_name,
+                e.date,
+                e.date_normalized,
+                e.snippet,
+                e.body_preview,
+                e.has_attachments,
+                ec.category,
+                ec.subcategory,
+                ec.importance_score,
+                ec.ai_summary,
+                epl.confidence_score,
+                p.project_name as project_title
+            FROM emails e
+            JOIN email_proposal_links epl ON e.email_id = epl.email_id
+            JOIN proposals p ON epl.proposal_id = p.proposal_id
+            LEFT JOIN email_content ec ON e.email_id = ec.email_id
+            WHERE p.project_code = ?
+            ORDER BY e.date DESC
+            LIMIT ?
+        """
+        return self.execute_query(sql, (project_code, limit))
+
+    def get_emails_by_proposal_id(self, proposal_id: int, limit: int = 20) -> List[Dict[str, Any]]:
+        """
+        Get all emails linked to a specific proposal by ID (CRITICAL for Claude 4)
+
+        Args:
+            proposal_id: Proposal ID
+            limit: Max number of emails to return
+
+        Returns:
+            List of emails with metadata
+        """
+        sql = """
+            SELECT
+                e.email_id,
+                e.subject,
+                e.sender_email,
+                e.sender_name,
+                e.date,
+                e.date_normalized,
+                e.snippet,
+                e.body_preview,
+                e.has_attachments,
+                ec.category,
+                ec.subcategory,
+                ec.importance_score,
+                ec.ai_summary,
+                epl.confidence_score,
+                p.project_code,
+                p.project_name as project_title
+            FROM emails e
+            JOIN email_proposal_links epl ON e.email_id = epl.email_id
+            JOIN proposals p ON epl.proposal_id = p.proposal_id
+            LEFT JOIN email_content ec ON e.email_id = ec.email_id
+            WHERE epl.proposal_id = ?
+            ORDER BY e.date DESC
+            LIMIT ?
+        """
+        return self.execute_query(sql, (proposal_id, limit))
+
+    def get_recent_emails(self, limit: int = 10, days: int = 30) -> List[Dict[str, Any]]:
+        """
+        Get most recent emails from last N days (CRITICAL for Claude 5)
+
+        Args:
+            limit: Number of recent emails to return (default 10)
+            days: Number of days to look back (default 30)
+
+        Returns:
+            List of recent emails with project info from last N days
+        """
+        sql = """
+            SELECT
+                e.email_id,
+                e.subject,
+                e.sender_email,
+                e.sender_name,
+                e.date,
+                e.date_normalized,
+                e.snippet,
+                e.body_preview,
+                e.has_attachments,
+                ec.category,
+                ec.importance_score,
+                ec.ai_summary,
+                (
+                    SELECT p.project_code
+                    FROM email_proposal_links epl
+                    JOIN proposals p ON epl.proposal_id = p.proposal_id
+                    WHERE epl.email_id = e.email_id
+                    ORDER BY epl.confidence_score DESC
+                    LIMIT 1
+                ) AS project_code,
+                (
+                    SELECT p.project_name
+                    FROM email_proposal_links epl
+                    JOIN proposals p ON epl.proposal_id = p.proposal_id
+                    WHERE epl.email_id = e.email_id
+                    ORDER BY epl.confidence_score DESC
+                    LIMIT 1
+                ) AS project_title
+            FROM emails e
+            LEFT JOIN email_content ec ON e.email_id = ec.email_id
+            WHERE e.date IS NOT NULL
+                AND e.date_normalized >= date('now', '-' || ? || ' days')
+            ORDER BY e.date DESC
+            LIMIT ?
+        """
+        return self.execute_query(sql, (days, limit))
+
+    def mark_email_read(self, email_id: int) -> bool:
+        """
+        Mark an email as read
+
+        Args:
+            email_id: Email ID to mark as read
+
+        Returns:
+            True if successful, False otherwise
+        """
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+
+            # Check if email exists
+            cursor.execute("SELECT email_id FROM emails WHERE email_id = ?", (email_id,))
+            if not cursor.fetchone():
+                return False
+
+            # Mark as read (assuming we add an is_read column, or use processed flag)
+            cursor.execute(
+                "UPDATE emails SET processed = 1 WHERE email_id = ?",
+                (email_id,)
+            )
+            conn.commit()
+            return True
+
+    def link_email_to_project(
+        self,
+        email_id: int,
+        project_code: str,
+        confidence: float = 1.0,
+        link_type: str = 'manual'
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Link an email to a project/proposal
+
+        Args:
+            email_id: Email ID to link
+            project_code: Project code (e.g., 'BK-033')
+            confidence: Confidence score (0.0-1.0)
+            link_type: 'manual' or 'auto'
+
+        Returns:
+            Link information or None if failed
+        """
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+
+            # Get proposal_id from project_code
+            cursor.execute(
+                "SELECT proposal_id, project_title FROM projects WHERE project_code = ?",
+                (project_code,)
+            )
+            project_row = cursor.fetchone()
+
+            if not project_row:
+                return None
+
+            proposal_id = project_row['proposal_id']
+            project_title = project_row['project_title']
+
+            # Check if link already exists
+            cursor.execute(
+                """
+                SELECT link_id FROM email_proposal_links
+                WHERE email_id = ? AND proposal_id = ?
+                """,
+                (email_id, proposal_id)
+            )
+            existing_link = cursor.fetchone()
+
+            if existing_link:
+                # Update existing link
+                cursor.execute(
+                    """
+                    UPDATE email_proposal_links
+                    SET confidence_score = ?, link_type = ?
+                    WHERE link_id = ?
+                    """,
+                    (confidence, link_type, existing_link['link_id'])
+                )
+                link_id = existing_link['link_id']
+            else:
+                # Create new link
+                cursor.execute(
+                    """
+                    INSERT INTO email_proposal_links
+                    (email_id, proposal_id, confidence_score, link_type)
+                    VALUES (?, ?, ?, ?)
+                    """,
+                    (email_id, proposal_id, confidence, link_type)
+                )
+                link_id = cursor.lastrowid
+
+            conn.commit()
+
+            return {
+                "link_id": link_id,
+                "email_id": email_id,
+                "proposal_id": proposal_id,
+                "project_code": project_code,
+                "project_title": project_title,
+                "confidence_score": confidence,
+                "link_type": link_type
+            }
+
+    def get_email_chain_summary(self, project_code: str) -> Dict[str, Any]:
+        """
+        Get a structured summary of all emails for a project for AI summarization
+
+        Args:
+            project_code: Project code (e.g., 'BK-033')
+
+        Returns:
+            Dict with email chain data ready for AI summarization
+        """
+        sql = """
+            SELECT
+                e.email_id,
+                e.subject,
+                e.sender_email,
+                e.sender_name,
+                e.date,
+                e.date_normalized,
+                e.snippet,
+                e.body_preview,
+                e.body_full,
+                ec.category,
+                ec.ai_summary,
+                epl.confidence_score
+            FROM emails e
+            JOIN email_proposal_links epl ON e.email_id = epl.email_id
+            JOIN proposals p ON epl.proposal_id = p.proposal_id
+            LEFT JOIN email_content ec ON e.email_id = ec.email_id
+            WHERE p.project_code = ?
+            ORDER BY e.date ASC
+        """
+        emails = self.execute_query(sql, (project_code,))
+
+        # Group emails by thread/subject similarity
+        email_groups = {}
+        for email in emails:
+            # Simple grouping by subject (you could enhance this with threading)
+            subject_key = (email.get('subject') or 'No Subject').strip()
+            if subject_key not in email_groups:
+                email_groups[subject_key] = []
+            email_groups[subject_key].append(email)
+
+        return {
+            "project_code": project_code,
+            "total_emails": len(emails),
+            "email_groups": email_groups,
+            "emails": emails,
+            "date_range": {
+                "first": emails[0].get('date') if emails else None,
+                "last": emails[-1].get('date') if emails else None
+            }
+        }

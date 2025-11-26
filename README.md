@@ -1,255 +1,341 @@
-# 🏗️ Bensley Intelligence Platform
-**AI-Powered Operations System for Bensley Design Studios**
+# Bensley Operations Platform
 
-Transform from reactive coordination to proactive intelligence. Give Bill & Brian complete visibility, automate 35+ hours/week of admin work, and scale to 50+ projects without adding headcount.
+**AI-Powered Operations Dashboard for Bensley Design Studios**
+
+Transform project management from reactive coordination to proactive intelligence. Complete visibility into proposals and active projects with automated data processing and real-time dashboards.
+
+---
+
+## ✅ WHAT'S WORKING NOW (November 2025)
+
+### Live Applications
+- **Backend API**: FastAPI with 100+ endpoints → http://localhost:8000
+- **Frontend Dashboard**: Next.js proposal tracker → http://localhost:3002
+- **API Documentation**: Interactive Swagger UI → http://localhost:8000/docs
+
+### Core Features
+- ✅ **Proposal Tracker Dashboard** - Full CRUD operations, status timeline, email intelligence
+- ✅ **Email Processing** - AI-powered categorization and project matching
+- ✅ **Document Intelligence** - PDF parsing with Claude API
+- ✅ **Status Timeline** - Track proposal progression with historical changes
+- ✅ **Quick Edit Dialog** - Update proposals inline with validation
+- ✅ **Database Provenance** - Full audit trail on all data
+
+### Data & Intelligence
+- **Database**: SQLite with 56+ tables, 74 performance indexes
+- **AI Integration**: Claude API for email/document processing
+- **Proposals**: 87+ imported and tracked
+- **Emails**: 369+ AI-processed with categorization
+- **Documents**: 852+ indexed with intelligent extraction
 
 ---
 
 ## 🚀 QUICK START
 
 ```bash
-# 1. Clone and setup (2 minutes)
-./setup.sh
+# 1. Start Backend API (Terminal 1)
+python3 -m uvicorn backend.api.main:app --host 0.0.0.0 --port 8000 --reload
 
-# 2. Configure your environment (2 minutes)
-cp .env.example .env
-nano .env  # Add your DATABASE_PATH and OPENAI_API_KEY
+# 2. Start Frontend Dashboard (Terminal 2)
+cd frontend
+npm install  # First time only
+npm run dev
 
-# 3. Start the API (instant)
-source venv/bin/activate
-python3 backend/api/main.py
-
-# 4. Open in browser
-open http://localhost:8000/docs
+# 3. Open in Browser
+# Dashboard: http://localhost:3002
+# API Docs:  http://localhost:8000/docs
 ```
 
-**That's it!** You now have a REST API serving all your project data.
-
----
-
-## 📚 DOCUMENTATION
-
-**New here? Start with one of these:**
-
-1. **[BENSLEY_BRAIN_MASTER_PLAN.md](BENSLEY_BRAIN_MASTER_PLAN.md)** ⭐ **START HERE!** ⭐
-   - Complete architecture with 4 phases
-   - Current status (75% Phase 1 complete)
-   - End goal vision
-   - Progress tracking and timeline
-   - **The single source of truth for what we're building**
-
-2. **[GETTING_STARTED.md](GETTING_STARTED.md)** - 3-day hands-on guide
-   - Get API running today
-   - Build services tomorrow
-   - Create first automation day 3
-
-3. **[QUICKSTART_ROADMAP.md](QUICKSTART_ROADMAP.md)** - Complete 12-week plan
-   - Week-by-week implementation guide
-   - All code examples included
-   - Success metrics defined
-
-4. **[IMPLEMENTATION_STATUS.md](IMPLEMENTATION_STATUS.md)** - Detailed tracking
-   - What's built vs not built
-   - Action items prioritized
-   - Technical decisions documented
-
----
-
-## 💡 WHAT THIS DOES
-
-### Current State (Your Scripts)
-- ✅ Email processing with pattern learning
-- ✅ Project management database
-- ✅ RFI and proposal tracking
-- ✅ Contact extraction
-- ✅ Data quality tools
-
-### What We're Adding
-- 🚀 **REST API** - Access all data via endpoints
-- 🤖 **AI Classification** - OpenAI-powered email intelligence
-- ⚡ **Automation** - n8n workflows (daily digests, follow-ups)
-- 📊 **Dashboard** - Real-time metrics for Bill & Brian
-- 🧠 **Connection Engine** - Neo4j relationship intelligence
-
----
-
-## 🎯 THE VISION
-
-**Month 1**
-- Daily intelligence briefings automated
-- Email classification running
-- API serving data to dashboard
-
-**Month 3**
-- Full dashboard operational
-- 20% time savings achieved
-- Team trained and using daily
-
-**Month 6**
-- 30%+ efficiency improvement
-- 2-3 additional proposals won
-- Complete operational autonomy
-
----
-
-## 🏗️ ARCHITECTURE
-
-```
-┌─────────────────────────────────────────────┐
-│           Dashboard (Next.js)               │
-│  Real-time metrics, queries, visualizations │
-└────────────────┬────────────────────────────┘
-                 │
-┌────────────────┴────────────────────────────┐
-│         FastAPI Backend                     │
-│  REST endpoints, WebSocket, authentication  │
-└────────────────┬────────────────────────────┘
-                 │
-┌────────────────┴────────────────────────────┐
-│     Your Existing Intelligence              │
-│  Email processor, pattern learner, etc.     │
-└────────────────┬────────────────────────────┘
-                 │
-┌────────────────┴────────────────────────────┐
-│  Data Layer: SQLite → PostgreSQL + Neo4j    │
-│  Projects, emails, patterns, relationships  │
-└─────────────────────────────────────────────┘
-
-         ⚡ n8n Automation ⚡
-    (Daily digests, workflows, alerts)
-```
+**That's it!** You now have a fully functional operations dashboard.
 
 ---
 
 ## 📁 PROJECT STRUCTURE
 
 ```
-backend/
-├── api/           # FastAPI endpoints (✅ built)
-├── core/          # Your existing scripts (⏳ move here)
-├── services/      # Business logic (❌ to build)
-└── models/        # Data models (❌ to build)
-
-database/
-├── schema.sql     # Current schema (⏳ export)
-└── migrations/    # Version control (❌ to build)
-
-automation/
-└── n8n/           # Workflows (❌ to build)
-
-frontend/
-└── dashboard/     # Next.js app (❌ to build)
-
-docs/              # Documentation (✅ complete)
+bensley-operating-system/
+├── frontend/              # Next.js 15 dashboard (✅ BUILT)
+│   ├── src/app/(dashboard)/
+│   │   ├── page.tsx          # Main dashboard
+│   │   ├── tracker/          # Proposal tracker ✅
+│   │   └── projects/         # Projects (in progress)
+│   ├── src/components/
+│   │   ├── dashboard/        # Dashboard widgets
+│   │   ├── proposals/        # Proposal components
+│   │   └── ui/              # shadcn/ui components
+│   └── src/lib/
+│       ├── api.ts           # API client
+│       └── types.ts         # TypeScript definitions
+│
+├── backend/               # FastAPI backend (✅ BUILT)
+│   ├── api/
+│   │   └── main.py          # 100+ REST endpoints
+│   ├── services/            # Business logic layer ✅
+│   │   ├── proposal_tracker_service.py
+│   │   ├── email_service.py
+│   │   ├── financial_service.py
+│   │   └── ... (15+ services)
+│   └── database/
+│       └── bensley_master.db  # SQLite database
+│
+├── database/
+│   ├── bensley_master.db    # Main database (56+ tables)
+│   └── migrations/          # 023 database migrations
+│
+├── scripts/              # Python utilities
+│   ├── import_*.py         # Data import scripts
+│   ├── parse_*.py          # Document parsers
+│   └── *_processor.py      # Background processors
+│
+└── docs/                 # Documentation
+    ├── guides/              # User/dev guides
+    └── archive/             # Historical planning docs
 ```
 
 ---
 
 ## 🔧 TECH STACK
 
-**Backend**
-- FastAPI (Python 3.11+)
-- SQLite → PostgreSQL
-- Neo4j (graph relationships)
-- Redis (caching)
+### Backend
+- **API**: FastAPI (Python 3.11+)
+- **Database**: SQLite → PostgreSQL (future)
+- **AI**: Claude API (Anthropic)
+- **Email**: IMAP integration
 
-**Frontend**
-- Next.js 14
-- TypeScript
-- Tailwind CSS
-- Recharts
+### Frontend
+- **Framework**: Next.js 15.1.3 (App Router)
+- **Language**: TypeScript
+- **Styling**: Tailwind CSS + shadcn/ui
+- **Data**: React Query (TanStack Query)
+- **Charts**: Recharts
 
-**AI & Automation**
-- OpenAI GPT-4
-- n8n (workflow automation)
-
-**DevOps**
-- Docker + Docker Compose
-- GitHub Actions (CI/CD)
+### Infrastructure
+- **Development**: Local (Mac)
+- **Production**: Mac Mini server (planned)
+- **Version Control**: Git + GitHub
 
 ---
 
-## 💰 COSTS
+## 📊 CURRENT STATUS
 
-**Monthly**: ~$100-300
-- OpenAI API: $50-200
-- Hosting: $50-100
+**Phase 1: Dashboard Foundation (85% Complete)**
 
-**ROI**: $180k/year in time savings
-- 35+ hours/week saved
-- 2-3 more proposals won
-- Break-even: Month 1
+**Completed:**
+- ✅ Backend API with full CRUD operations
+- ✅ Proposal tracker dashboard (working)
+- ✅ Email intelligence & categorization
+- ✅ Status timeline tracking
+- ✅ Quick edit functionality
+- ✅ Database migrations system
+- ✅ Provenance & audit tracking
+- ✅ LLM training data export
+
+**In Progress:**
+- 🔄 Active Projects Dashboard
+- 🔄 Financial metrics widgets
+- 🔄 Cash flow forecasting
+- 🔄 Invoice aging reports
+
+**Next Sprint:**
+- 📋 Complete financial dashboard
+- 📋 RFI tracking interface
+- 📋 Meeting notes integration
+- 📋 Multi-user authentication
 
 ---
 
-## ✅ CURRENT STATUS
+## 🎯 DEVELOPMENT GUIDE
 
-**Phase 1 (Foundation): 75% Complete** 🎉
-- ✅ 87 proposals imported and tracked
-- ✅ 369 emails AI-processed with categorization
-- ✅ 852 documents indexed with intelligent extraction
-- ✅ Full-text search enabled (FTS5)
-- ✅ 74 database indexes for performance
-- ✅ Health monitoring with context-aware scoring
-- 🔄 Email import (47/2,347 with full bodies)
+### Running the System
 
-**Next Up This Week:**
-1. Complete email import (2,347 emails)
-2. Build contact extraction
-3. Build timeline builder
-4. Complete Phase 1 (100%)
+```bash
+# Check if servers are running
+lsof -ti:8000  # Backend (should return PID)
+lsof -ti:3002  # Frontend (should return PID)
 
-**See [BENSLEY_BRAIN_MASTER_PLAN.md](BENSLEY_BRAIN_MASTER_PLAN.md) for complete status & roadmap**
+# Start backend
+python3 -m uvicorn backend.api.main:app --reload
+
+# Start frontend (separate terminal)
+cd frontend && npm run dev
+
+# View logs
+tail -f /tmp/bensley_api.log      # Backend logs
+tail -f /tmp/frontend_dev.log     # Frontend logs
+```
+
+### Database Access
+
+```bash
+# Open database
+sqlite3 database/bensley_master.db
+
+# Useful queries
+SELECT COUNT(*) FROM proposal_tracker;
+SELECT * FROM proposal_status_history ORDER BY changed_at DESC LIMIT 10;
+SELECT source_type, COUNT(*) FROM emails GROUP BY source_type;
+
+# Run migrations
+python3 database/migrate.py
+```
+
+### Making Changes
+
+**Backend (Add new endpoint):**
+1. Add route in `backend/api/main.py`
+2. Add service method in `backend/services/`
+3. Test with http://localhost:8000/docs
+
+**Frontend (Add new component):**
+1. Create component in `frontend/src/components/`
+2. Add types to `frontend/src/lib/types.ts`
+3. Add API call to `frontend/src/lib/api.ts`
+4. Use in page component
+
+---
+
+## 📚 DOCUMENTATION
+
+**For Developers:**
+- [FRONTEND_GUIDE.md](FRONTEND_GUIDE.md) - Frontend development guide
+- [CURRENT_STATUS.md](CURRENT_STATUS.md) - Real-time project status
+- [.claude/PROJECT_CONTEXT.md](.claude/PROJECT_CONTEXT.md) - AI context & architecture
+
+**For Planning:**
+- [2_MONTH_MVP_PLAN.md](2_MONTH_MVP_PLAN.md) - 8-week implementation plan
+- [COMPLETE_ARCHITECTURE_ASSESSMENT.md](COMPLETE_ARCHITECTURE_ASSESSMENT.md) - Full architecture analysis
+
+**For Operations:**
+- [PROPOSAL_TRACKER_GUIDE.md](PROPOSAL_TRACKER_GUIDE.md) - Using the proposal tracker
+- [DEPLOYMENT_GUIDE.md](DEPLOYMENT_GUIDE.md) - Deployment instructions
 
 ---
 
 ## 🆘 TROUBLESHOOTING
 
-### API Won't Start
+### Backend Won't Start
+
 ```bash
 # Check Python version (need 3.11+)
 python3 --version
 
-# Activate virtual environment
-source venv/bin/activate
+# Check if port is in use
+lsof -ti:8000 | xargs kill -9  # Kill existing process
 
-# Install dependencies
-pip install -r requirements.txt
+# Check for errors
+python3 -m uvicorn backend.api.main:app --reload
 ```
 
-### Database Not Found
-```bash
-# Check .env file
-cat .env | grep DATABASE_PATH
-
-# Verify file exists
-ls -la ~/Desktop/BDS_SYSTEM/01_DATABASES/bensley_master.db
-```
-
-**More help**: See [GETTING_STARTED.md](GETTING_STARTED.md) troubleshooting section
-
----
-
-## 📞 RESOURCES
-
-- **API Docs**: http://localhost:8000/docs (when running)
-- **n8n Workflows**: http://localhost:5678 (after setup)
-- **FastAPI Tutorial**: https://fastapi.tiangolo.com
-- **n8n Docs**: https://docs.n8n.io
-
----
-
-## 🎉 READY TO START?
+### Frontend Won't Build
 
 ```bash
-# Run this now:
-./setup.sh
+# Clear cache and restart
+cd frontend
+rm -rf .next node_modules/.cache
+npm install
+npm run dev
 ```
 
-Then open **[GETTING_STARTED.md](GETTING_STARTED.md)** and follow the 3-day guide.
+### Database Issues
 
-You'll have a working API by end of day. 🚀
+```bash
+# Check database exists
+ls -la database/bensley_master.db
+
+# Verify tables
+sqlite3 database/bensley_master.db ".tables"
+
+# Check for corruption
+sqlite3 database/bensley_master.db "PRAGMA integrity_check;"
+```
+
+### Dropdown Not Working (Fixed Nov 23, 2025)
+
+If proposal edit dialogs don't accept input, ensure you have the latest code:
+```bash
+git pull origin main
+# The useEffect fix in proposal-quick-edit-dialog.tsx resolves this
+```
 
 ---
 
-**Questions?** Check the docs folder or review existing scripts to see what you've already built!
+## 💰 COSTS & ROI
+
+**Monthly Costs**: $100-200
+- Claude API: $50-150
+- Hosting (future): $50
+- Total: ~$100-200/month
+
+**ROI**: $180k/year in time savings
+- 35+ hours/week saved on manual tracking
+- 2-3 more proposals won per year
+- Better cash flow visibility
+- Break-even: Month 1
+
+---
+
+## 🎉 RECENT CHANGES
+
+**November 23, 2025:**
+- Fixed proposal tracker dropdown bug (useEffect pattern)
+- Added conversation export for LLM training
+- Updated .gitignore to exclude private training data
+- Committed and pushed to GitHub
+
+**November 22, 2025:**
+- Implemented proposal tracker dashboard
+- Added status timeline component
+- Built email intelligence panel
+
+**November 21, 2025:**
+- Created proposal tracker service
+- Added database migrations 018-023
+- Integrated financial metrics APIs
+
+---
+
+## 🔗 KEY URLS
+
+**Development:**
+- Frontend: http://localhost:3002
+- Backend: http://localhost:8000
+- API Docs: http://localhost:8000/docs
+- Database: `database/bensley_master.db`
+
+**GitHub:**
+- Repository: https://github.com/lukassherman27/Benlsey-Operating-System
+- Current Branch: `claude/bensley-operations-platform-011CV3dp9CnqP1L5Rkjm6NYm`
+
+---
+
+## 📞 SUPPORT & RESOURCES
+
+- **FastAPI Docs**: https://fastapi.tiangolo.com
+- **Next.js Docs**: https://nextjs.org/docs
+- **shadcn/ui**: https://ui.shadcn.com
+- **React Query**: https://tanstack.com/query
+
+---
+
+## ✨ WHAT'S NEXT
+
+**This Week:**
+- Complete financial dashboard widgets
+- Add invoice aging visualization
+- Implement cash flow forecast
+
+**Next Month:**
+- Multi-user authentication
+- Role-based access control
+- Production deployment
+
+**Phase 2 (Q1 2026):**
+- Local LLM integration (Ollama)
+- RAG/vector search
+- Natural language queries
+
+---
+
+**Ready to contribute?** See [FRONTEND_GUIDE.md](FRONTEND_GUIDE.md) or [.claude/PROJECT_CONTEXT.md](.claude/PROJECT_CONTEXT.md) for development guidelines.
+
+**Questions?** Check the `docs/` folder or review existing code patterns.

@@ -35,10 +35,10 @@ class ProposalQueryService:
             cursor.execute("""
                 SELECT
                     'proposal' as source,
-                    p.proposal_id as id,
+                    p.project_id as id,
                     p.project_code,
-                    p.project_name,
-                    p.client_company,
+                    p.project_title,
+                    COALESCE(pr.client_company, 'Unknown'),
                     p.contact_person,
                     p.contact_email,
                     p.project_value,
@@ -61,10 +61,10 @@ class ProposalQueryService:
             cursor.execute("""
                 SELECT
                     'proposal' as source,
-                    p.proposal_id as id,
+                    p.project_id as id,
                     p.project_code,
-                    p.project_name,
-                    p.client_company,
+                    p.project_title,
+                    COALESCE(pr.client_company, 'Unknown'),
                     p.contact_person,
                     p.contact_email,
                     p.project_value,
@@ -77,8 +77,8 @@ class ProposalQueryService:
                     p.win_probability,
                     p.health_score
                 FROM proposals p
-                WHERE p.project_name LIKE ?
-                   OR p.client_company LIKE ?
+                WHERE p.project_title LIKE ?
+                   OR COALESCE(pr.client_company, 'Unknown') LIKE ?
                    OR p.project_code LIKE ?
                 LIMIT 10
             """, (search_term, search_term, search_term))
@@ -92,7 +92,7 @@ class ProposalQueryService:
                     'project' as source,
                     pr.project_id as id,
                     pr.project_code,
-                    pr.project_title as project_name,
+                    pr.project_title as project_title,
                     c.company_name as client_company,
                     NULL as contact_person,
                     NULL as contact_email,
@@ -105,7 +105,8 @@ class ProposalQueryService:
                     pr.notes as internal_notes,
                     NULL as win_probability,
                     NULL as health_score
-                FROM projects pr
+                FROM projects p
+            LEFT JOIN proposals pr ON p.project_code = pr.project_coder
                 LEFT JOIN clients c ON pr.client_id = c.client_id
                 WHERE pr.project_code LIKE ?
             """, (f'%{code}%',))
@@ -177,7 +178,7 @@ class ProposalQueryService:
                 e.has_attachments
             FROM emails e
             JOIN email_proposal_links epl ON e.email_id = epl.email_id
-            JOIN proposals p ON epl.proposal_id = p.proposal_id
+            JOIN proposals p ON epl.proposal_id = p.project_id
             WHERE p.project_code = ?
             ORDER BY e.date DESC
             LIMIT ?
@@ -241,7 +242,7 @@ if __name__ == "__main__":
     print("Testing: BK-070")
     result = service.get_proposal_status("BK-070")
     if result:
-        print(f"Found: {result['project_name']}")
+        print(f"Found: {result['project_title']}")
         print(f"Status: {result['status']}")
         print(f"Value: ${result['project_value']:,.0f}" if result['project_value'] else "Value: N/A")
         print(f"Documents: {len(result['documents'])}")
@@ -253,4 +254,4 @@ if __name__ == "__main__":
     results = service.search_projects_and_proposals("Tel Aviv")
     print(f"Found {len(results)} results:")
     for r in results:
-        print(f"  - {r['project_code']}: {r['project_name']} ({r['status']})")
+        print(f"  - {r['project_code']}: {r['project_title']} ({r['status']})")

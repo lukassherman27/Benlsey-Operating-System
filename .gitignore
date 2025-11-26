@@ -39,21 +39,31 @@ ENV/
 *~
 .DS_Store
 
-# Logs
+# Logs - keep folder structure, ignore content
 *.log
-logs/
+logs/*.log
+logs/*.txt
+logs_archive/
 *.log.*
 
-# Database
+# Database - ignore data files, keep migrations
 *.db
 *.db-journal
 *.sqlite
 *.sqlite3
+database/backups/
+!database/migrations/
+!database/schema/
 
 # Backups
 *.backup
 *.bak
 *.old
+
+# Exports - temporary data exports
+exports/*.csv
+exports/*.xlsx
+exports/*.json
 
 # Testing
 .pytest_cache/
@@ -134,4 +144,9 @@ dump.rdb
 
 # Pytest
 .pytest_cache/
-training/
+
+# Source data files (large, don't track)
+data/*.xlsx
+data/*.csv
+data/*.json
+!data/README.md

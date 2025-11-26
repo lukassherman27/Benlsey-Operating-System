@@ -91,19 +91,34 @@ class ChangeTracker:
 
         stats = {}
 
-        # Count tables
-        tables = ['proposals', 'emails', 'email_content', 'documents',
-                  'contacts', 'contacts_only', 'email_proposal_links']
+        # Get ALL tables dynamically (not hardcoded list!)
+        cursor.execute("""
+            SELECT name FROM sqlite_master
+            WHERE type='table' AND name NOT LIKE 'sqlite_%'
+            ORDER BY name
+        """)
+        all_tables = [row[0] for row in cursor.fetchall()]
 
-        for table in tables:
+        stats['total_tables'] = len(all_tables)
+        stats['table_counts'] = {}
+
+        # Count rows in each table (limit to top 20 by row count for report clarity)
+        table_counts = []
+        for table in all_tables:
             try:
                 cursor.execute(f"SELECT COUNT(*) FROM {table}")
-                stats[table] = cursor.fetchone()[0]
-            except:
-                stats[table] = 0
+                count = cursor.fetchone()[0]
+                table_counts.append((table, count))
+            except Exception as e:
+                stats['table_counts'][table] = f"ERROR: {e}"
+
+        # Sort by count and include all tables
+        table_counts.sort(key=lambda x: x[1], reverse=True)
+        for table, count in table_counts:
+            stats['table_counts'][table] = count
 
         # Get database size
-        stats['db_size_mb'] = self.db_path.stat().st_size / (1024 * 1024)
+        stats['db_size_mb'] = round(self.db_path.stat().st_size / (1024 * 1024), 2)
 
         # Count migrations
         cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='schema_migrations'")
@@ -118,7 +133,15 @@ class ChangeTracker:
 
         # Count indexes
         cursor.execute("SELECT COUNT(*) FROM sqlite_master WHERE type='index' AND sql IS NOT NULL")
-        stats['indexes'] = cursor.fetchone()[0]
+        stats['total_indexes'] = cursor.fetchone()[0]
+
+        # Count views
+        cursor.execute("SELECT COUNT(*) FROM sqlite_master WHERE type='view'")
+        stats['total_views'] = cursor.fetchone()[0]
+
+        # Count documentation files in project
+        docs_count = len(list(self.project_root.glob('*.md')))
+        stats['documentation_files'] = docs_count
 
         conn.close()
         return stats

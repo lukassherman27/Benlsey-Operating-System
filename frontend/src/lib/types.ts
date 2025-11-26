@@ -136,6 +136,29 @@ export interface DashboardStats {
   training_progress?: Record<string, unknown>;
 }
 
+export interface KPITrend {
+  value: number;
+  direction: "up" | "down" | "neutral";
+  label: string;
+}
+
+export interface KPIValue {
+  value: number;
+  previous: number;
+  trend: KPITrend;
+}
+
+export interface DashboardKPIs {
+  active_projects: KPIValue;
+  active_proposals: KPIValue;
+  remaining_contract_value: KPIValue;
+  outstanding_invoices: KPIValue;
+  revenue_ytd: KPIValue;
+  timestamp: string;
+  currency: string;
+  trend_period_days: number;
+}
+
 export interface ProposalStats {
   total_proposals: number;
   active_projects: number;
@@ -595,3 +618,431 @@ export type IntelligenceDecisionResponse =
       conflicts: unknown[];
       applied: boolean;
     };
+
+export interface WeeklyChangeProposal {
+  proposal_id: number;
+  project_code: string;
+  project_name: string;
+  client_company: string;
+  fee?: number;
+  status?: string;
+  created_date?: string;
+}
+
+export interface WeeklyChangeStatusChange {
+  project_code: string;
+  project_name: string;
+  client_company: string;
+  previous_status: string;
+  new_status: string;
+  changed_date: string;
+}
+
+export interface WeeklyChangeStalledProposal {
+  proposal_id: number;
+  project_code: string;
+  project_name: string;
+  client_company: string;
+  days_since_contact: number;
+  last_contact_date: string | null;
+}
+
+export interface WeeklyChangeWonProposal {
+  proposal_id: number;
+  project_code: string;
+  project_name: string;
+  client_company: string;
+  fee: number;
+  signed_date: string;
+}
+
+export interface ProposalWeeklyChanges {
+  period: {
+    start_date: string;
+    end_date: string;
+    days: number;
+  };
+  summary: {
+    new_proposals: number;
+    status_changes: number;
+    stalled_proposals: number;
+    won_proposals: number;
+    total_pipeline_value: string;
+  };
+  new_proposals: WeeklyChangeProposal[];
+  status_changes: WeeklyChangeStatusChange[];
+  stalled_proposals: WeeklyChangeStalledProposal[];
+  won_proposals: WeeklyChangeWonProposal[];
+}
+
+// Proposal Tracker Types
+export type ProposalStatus =
+  | "First Contact"
+  | "Drafting"
+  | "Proposal Sent"
+  | "On Hold"
+  | "Archived"
+  | "Contract Signed";
+
+export interface ProposalTrackerItem {
+  id: number;
+  project_code: string;
+  project_name: string;
+  project_value: number;
+  country: string;
+  current_status: ProposalStatus;
+  last_week_status: ProposalStatus | null;
+  status_changed_date: string | null;
+  days_in_current_status: number;
+  first_contact_date: string | null;
+  proposal_sent_date: string | null;
+  proposal_sent: number;
+  current_remark: string | null;
+  latest_email_context: string | null;
+  waiting_on: string | null;
+  next_steps: string | null;
+  last_email_date: string | null;
+  updated_at: string;
+}
+
+export interface ProposalTrackerStats {
+  total_proposals: number;
+  total_pipeline_value: number;
+  avg_days_in_status: number;
+  status_breakdown: {
+    current_status: ProposalStatus;
+    count: number;
+    total_value: number;
+  }[];
+  needs_followup: number;
+}
+
+export interface ProposalTrackerListResponse {
+  success: boolean;
+  proposals: ProposalTrackerItem[];
+  total: number;
+  page: number;
+  per_page: number;
+  total_pages: number;
+}
+
+export interface ProposalTrackerStatsResponse {
+  success: boolean;
+  stats: ProposalTrackerStats;
+}
+
+export interface ProposalTrackerDetailResponse {
+  success: boolean;
+  proposal: ProposalTrackerItem;
+}
+
+export interface ProposalStatusHistoryItem {
+  id: number;
+  project_code: string;
+  old_status: ProposalStatus;
+  new_status: ProposalStatus;
+  changed_date: string;
+  changed_by: string | null;
+  source_email_id: number | null;
+  notes: string | null;
+}
+
+export interface ProposalEmailIntelligence {
+  id: number;
+  email_id: number;
+  project_code: string;
+  status_update: string | null;
+  key_information: string | null;
+  action_items: string | null;
+  client_sentiment: string | null;
+  confidence_score: number | null;
+  email_subject: string;
+  email_date: string;
+  email_from: string;
+  email_to: string;
+  email_snippet: string | null;
+  processed_at: string;
+}
+
+export interface ProposalTrackerQueryParams {
+  status?: ProposalStatus;
+  country?: string;
+  search?: string;
+  page?: number;
+  per_page?: number;
+}
+
+export interface ProposalTrackerUpdateRequest {
+  project_name?: string;
+  project_value?: number;
+  country?: string;
+  current_status?: ProposalStatus;
+  current_remark?: string;
+  project_summary?: string;
+  waiting_on?: string;
+  next_steps?: string;
+  proposal_sent_date?: string;
+  first_contact_date?: string;
+  proposal_sent?: number;
+}
+
+// Admin - Data Validation types
+export interface ValidationSuggestion {
+  suggestion_id: number;
+  entity_type: string;
+  entity_id: number;
+  project_code: string;
+  field_name: string;
+  current_value: string;
+  suggested_value: string;
+  evidence_source: string;
+  evidence_id: number;
+  evidence_snippet: string;
+  confidence_score: number;
+  reasoning: string;
+  suggested_action: string;
+  status: "pending" | "approved" | "denied" | "applied";
+  created_at: string;
+  reviewed_by: string | null;
+  reviewed_at: string | null;
+  review_notes: string | null;
+  applied_at: string | null;
+  applied_by: string | null;
+  evidence_email_subject?: string;
+  evidence_email_sender?: string;
+  evidence_email_date?: string;
+  entity_name: string | null;
+}
+
+export interface ValidationStats {
+  pending: number;
+  approved: number;
+  denied: number;
+  applied: number;
+}
+
+export interface ValidationSuggestionsResponse {
+  suggestions: ValidationSuggestion[];
+  total: number;
+  limit: number;
+  offset: number;
+  stats: ValidationStats;
+}
+
+export interface ApproveSuggestionRequest {
+  reviewed_by: string;
+  review_notes?: string;
+}
+
+export interface DenySuggestionRequest {
+  reviewed_by: string;
+  review_notes: string;
+}
+
+// Admin - Email Links types
+export interface EmailLink {
+  link_id: number;
+  email_id: number;
+  proposal_id: number;
+  confidence_score: number;
+  link_type: "auto" | "manual";
+  match_reasons: string | null;
+  created_at: string;
+  subject: string;
+  sender_email: string;
+  email_date: string;
+  snippet: string;
+  category: string;
+  project_code: string;
+  project_name: string;
+  proposal_status: string;
+}
+
+export interface EmailLinksResponse {
+  links: EmailLink[];
+  total: number;
+  limit: number;
+  offset: number;
+}
+
+export interface CreateEmailLinkRequest {
+  email_id: number;
+  proposal_id: number;
+  user: string;
+}
+
+// Invoice Aging Types
+export interface InvoiceBase {
+  invoice_number: string;
+  invoice_amount: number;
+  invoice_date: string;
+  project_code?: string;
+  project_title?: string;
+}
+
+export interface PaidInvoice extends InvoiceBase {
+  payment_amount: number;
+  payment_date: string;
+  status: 'paid';
+  description?: string;
+}
+
+export interface OutstandingInvoice extends InvoiceBase {
+  due_date?: string;
+  days_overdue: number;
+  status: 'outstanding';
+  description?: string;
+  discipline?: string;
+  phase?: string;
+  scope?: string;
+}
+
+export interface AgingCategory {
+  count: number;
+  amount: number;
+}
+
+export interface AgingBreakdown {
+  under_30: AgingCategory;
+  '30_to_90': AgingCategory;
+  over_90: AgingCategory;
+}
+
+export interface InvoiceAgingSummary {
+  total_outstanding_count: number;
+  total_outstanding_amount: number;
+}
+
+export interface InvoiceAgingData {
+  recent_paid: PaidInvoice[];
+  largest_outstanding: OutstandingInvoice[];
+  aging_breakdown: AgingBreakdown;
+  summary: InvoiceAgingSummary;
+}
+
+export interface InvoiceAgingResponse {
+  success: boolean;
+  data: InvoiceAgingData;
+}
+
+// Project Types
+export interface Project {
+  project_id: number;
+  project_code: string;
+  project_title: string;
+  client_name?: string;
+  contract_value?: number;
+  status?: string;
+  current_phase?: string;
+  paid_to_date_usd?: number;
+  outstanding_usd?: number;
+  total_invoiced?: number;
+  total_paid?: number;
+  remaining_value?: number;
+  payment_status?: 'outstanding' | 'paid' | 'pending';
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  last_invoice?: any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  invoice_history?: any[];
+  health_score?: number;
+  project_type?: string;
+  country?: string;
+  city?: string;
+  [key: string]: unknown; // Index signature for flexibility
+}
+
+export interface ActiveProjectsResponse {
+  data: Project[];
+  count: number;
+}
+
+// Project Email Types (for email activity feed)
+export interface ProjectEmail {
+  email_id: number;
+  subject: string;
+  sender_email: string;
+  sender_name?: string | null;
+  date: string;
+  date_normalized?: string | null;
+  snippet?: string | null;
+  body_preview?: string;
+  has_attachments: number;
+  category?: string | null;
+  subcategory?: string | null;
+  importance_score?: number | null;
+  ai_summary?: string | null;
+  confidence_score: number;
+  project_title?: string;
+}
+
+export interface ProjectEmailsResponse {
+  success: boolean;
+  project_code: string;
+  data: ProjectEmail[];
+  count: number;
+}
+
+export interface ProjectEmailSummary {
+  success: boolean;
+  project_code: string;
+  total_emails: number;
+  date_range?: {
+    first: string;
+    last: string;
+  };
+  email_groups?: Record<string, number>;
+  ai_summary?: {
+    executive_summary: string;
+    error?: string;
+  };
+  summary?: string;
+  key_points?: string[];
+  timeline?: Array<{
+    date: string;
+    event: string;
+    [key: string]: unknown;
+  }>;
+  recent_emails?: ProjectEmail[];
+}
+
+// Project Financial Hierarchy Types
+export interface PhaseInvoice {
+  invoice_id: number;
+  invoice_number: string;
+  invoice_amount: number;
+  payment_amount: number;
+  amount_applied?: number;
+  percentage_of_phase?: number;
+  invoice_date: string;
+  due_date: string | null;
+  payment_date: string | null;
+  status: string;
+}
+
+export interface ProjectPhase {
+  breakdown_id: string;
+  phase: string;
+  phase_fee: number;
+  total_invoiced: number;
+  total_paid: number;
+  remaining: number;
+  invoices: PhaseInvoice[];
+}
+
+export interface DisciplineBreakdown {
+  total_fee: number;
+  total_invoiced: number;
+  total_paid: number;
+  remaining: number;
+  phases: ProjectPhase[];
+}
+
+export interface ProjectHierarchy {
+  success: boolean;
+  project_code: string;
+  project_name: string | null;
+  total_contract_value: number;
+  total_invoiced: number;
+  total_paid: number;
+  disciplines: Record<string, DisciplineBreakdown>;
+}

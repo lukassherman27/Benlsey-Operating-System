@@ -8,10 +8,18 @@ import email
 from email.header import decode_header
 import sqlite3
 import os
+import sys
 from datetime import datetime
 from dotenv import load_dotenv
+from pathlib import Path
+
+# Add project root to path for utils
+project_root = Path(__file__).parent.parent.parent
+sys.path.insert(0, str(project_root))
+from utils.logger import get_logger
 
 load_dotenv()
+logger = get_logger(__name__)
 
 class EmailImporter:
     def __init__(self):
@@ -24,13 +32,16 @@ class EmailImporter:
 
     def connect(self):
         """Connect to IMAP server"""
+        logger.info(f"Connecting to IMAP server: {self.server}:{self.port}")
         print(f"Connecting to {self.server}:{self.port}...")
         try:
             self.imap = imaplib.IMAP4_SSL(self.server, self.port)
             self.imap.login(self.username, self.password)
+            logger.info("Successfully connected to IMAP server")
             print("✅ Connected successfully!")
             return True
         except Exception as e:
+            logger.error(f"IMAP connection failed: {e}", exc_info=True)
             print(f"❌ Connection failed: {e}")
             return False
 
@@ -116,9 +127,9 @@ class EmailImporter:
                             # Insert into database FIRST to get email_id
                             cursor.execute("""
                                 INSERT INTO emails
-                                (message_id, sender_email, recipient_emails, subject, snippet, body_full, date, processed, has_attachments)
-                                VALUES (?, ?, ?, ?, ?, ?, ?, 0, 0)
-                            """, (message_id, sender, recipients, subject, snippet, body, date))
+                                (message_id, sender_email, recipient_emails, subject, snippet, body_full, date, date_normalized, processed, has_attachments, folder)
+                                VALUES (?, ?, ?, ?, ?, ?, ?, datetime(?), 0, 0, ?)
+                            """, (message_id, sender, recipients, subject, snippet, body, date, date, folder))
 
                             email_id = cursor.lastrowid
 
@@ -134,12 +145,14 @@ class EmailImporter:
                             imported += 1
 
                 except Exception as e:
+                    logger.warning(f"Error processing email {email_id}: {e}")
                     print(f"   ⚠️  Error processing email {email_id}: {e}")
                     continue
 
             conn.commit()
             conn.close()
 
+            logger.info(f"Email import complete: imported={imported}, skipped={skipped}")
             print(f"\n✅ Import complete!")
             print(f"   Imported: {imported}")
             print(f"   Skipped (duplicates): {skipped}")
@@ -148,6 +161,7 @@ class EmailImporter:
             return imported
 
         except Exception as e:
+            logger.error(f"Failed to import emails: {e}", exc_info=True)
             print(f"❌ Error importing emails: {e}")
             return 0
 
@@ -260,11 +274,17 @@ class EmailImporter:
                 'outlook-', 'facebook', 'linkedin', 'twitter', 'instagram',
                 'logo.png', 'logo.jpg', 'signature', 'banner',
                 'icon.png', 'icon.jpg', 'spacer.gif', 'pixel.gif',
-                'attachment-', 'pastedimage'  # Common inline paste names
+                'attachment-', 'pastedimage',  # Common inline paste names
+                'bensley logo', 'bds logo', 'company logo'  # Company signatures
             ]
 
             # Skip if matches any pattern
             if any(pattern in filename_lower for pattern in skip_patterns):
+                continue
+
+            # Skip all-numeric filenames (e.g., "1762867487977.png") - usually inline images
+            import re
+            if re.match(r'^\d+\.(png|jpg|jpeg|gif)$', filename_lower):
                 continue
 
             # Get MIME type
@@ -311,12 +331,15 @@ class EmailImporter:
 
                     print(f"      📎 Saved: {filename} ({document_type})")
 
-                    # Insert into database
+                    # Extract file type (extension without dot)
+                    file_ext = os.path.splitext(filename)[1].lower().lstrip('.')
+
+                    # Insert into database (corrected table and column names)
                     cursor.execute("""
-                        INSERT INTO email_attachments
-                        (email_id, filename, filepath, filesize, mime_type, document_type)
-                        VALUES (?, ?, ?, ?, ?, ?)
-                    """, (email_id, filename, filepath, filesize, mime_type, document_type))
+                        INSERT INTO attachments
+                        (email_id, filename, stored_path, file_size, file_type, mime_type, category)
+                        VALUES (?, ?, ?, ?, ?, ?, ?)
+                    """, (email_id, filename, filepath, filesize, file_ext, mime_type, document_type))
 
                     attachments.append({
                         'filename': filename,

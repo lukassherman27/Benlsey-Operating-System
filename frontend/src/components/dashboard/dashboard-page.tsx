@@ -11,16 +11,21 @@ import { format } from "date-fns";
 import { toast } from "sonner";
 import QueryPanel from "./query-panel";
 import RevenueBar from "../charts/revenue-bar";
+// import { QueryWidget } from "./query-widget"; // Temporarily commented out for debugging
+import { MeetingsWidget } from "./meetings-widget";
 import { api } from "@/lib/api";
 import {
   BriefingAction,
   DailyBriefing,
   IntelligenceSuggestion,
   IntelligenceSuggestionGroup,
-  DecisionTileItem,
+  DecisionTiles,
   ManualOverride,
   FinancePayment,
   ProjectedInvoice,
+  RfiTileItem,
+  MeetingTileItem,
+  MilestoneTileItem,
 } from "@/lib/types";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -51,10 +56,15 @@ import {
   PhoneCall,
   TrendingUp,
 } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { ds } from "@/lib/design-system";
 
 const DEFAULT_OVERRIDE_AUTHOR =
   process.env.NEXT_PUBLIC_OVERRIDE_AUTHOR ?? "bill";
 
+// ⚠️ WARNING: DEMO DATA ONLY - Remove in Phase 2 cleanup
+// This fallback exists to prevent empty dashboard when API fails
+// TODO: Replace with proper empty states and error handling
 const FALLBACK_BRIEFING: DailyBriefing = {
   date: new Date().toISOString().slice(0, 10),
   business_health: {
@@ -131,6 +141,7 @@ const FALLBACK_BRIEFING: DailyBriefing = {
   },
 };
 
+// ⚠️ WARNING: DEMO DATA ONLY - Remove in Phase 2 cleanup
 const FALLBACK_SUGGESTIONS: IntelligenceSuggestionGroup[] = [
   {
     bucket: "urgent",
@@ -217,7 +228,11 @@ const FALLBACK_SUGGESTIONS: IntelligenceSuggestionGroup[] = [
   },
 ];
 
-const SUGGESTION_GROUP_META = [
+const SUGGESTION_GROUP_META: Array<{
+  bucket: string;
+  label: string;
+  description: string;
+}> = [
   {
     bucket: "urgent",
     label: "Urgent data fixes",
@@ -233,7 +248,7 @@ const SUGGESTION_GROUP_META = [
     label: "FYI insights",
     description: "Context to monitor next",
   },
-] as const;
+];
 
 const FALLBACK_SUGGESTION_MAP = FALLBACK_SUGGESTIONS.reduce<
   Record<string, IntelligenceSuggestionGroup>
@@ -428,19 +443,15 @@ export default function DashboardPage() {
   const suggestionGroups = SUGGESTION_GROUP_META.map((meta, index) => {
     const query = intelSuggestionQueries[index];
     const useFallback = Boolean(query?.isError);
+    const fallbackGroup = FALLBACK_SUGGESTION_MAP[meta.bucket];
     const items =
       !useFallback && query?.data?.items
         ? query.data.items
-        : FALLBACK_SUGGESTION_MAP[meta.bucket]?.items ?? [];
+        : fallbackGroup?.items ?? [];
     return {
       bucket: meta.bucket,
-      label:
-        meta.label ??
-        FALLBACK_SUGGESTION_MAP[meta.bucket]?.label ??
-        meta.bucket,
-      description:
-        meta.description ??
-        FALLBACK_SUGGESTION_MAP[meta.bucket]?.description,
+      label: meta.label ?? fallbackGroup?.label ?? meta.bucket,
+      description: meta.description ?? fallbackGroup?.description,
       items,
       isLoading: query?.isLoading,
       isError: query?.isError,
@@ -452,14 +463,14 @@ export default function DashboardPage() {
   const manualOverridesTotal =
     manualOverridesQuery.data?.pagination?.total ?? manualOverrides.length;
 
-  const decisionTiles = decisionTilesQuery.data;
+  const decisionTilesData: DecisionTiles | undefined = decisionTilesQuery.data;
 
   const outstandingInvoices = {
     amount:
-      decisionTiles?.invoices_awaiting_payment?.total_amount ??
+      decisionTilesData?.overdue_payments?.items?.reduce((sum, item) => sum + (item.amount || 0), 0) ??
       briefing.metrics.outstanding ??
       0,
-    count: decisionTiles?.invoices_awaiting_payment?.count ?? 0,
+    count: decisionTilesData?.overdue_payments?.count ?? 0,
   };
 
   const projectedInvoices = [
@@ -484,10 +495,10 @@ export default function DashboardPage() {
   const healthStyle =
     HEALTH_STYLES[briefing.business_health.status] ?? HEALTH_STYLES.caution;
 
-  const scheduleEntries =
-    decisionTiles?.upcoming_meetings?.items?.slice(0, 3) ?? [];
+  const scheduleEntries: (MeetingTileItem | MilestoneTileItem)[] =
+    decisionTilesData?.upcoming_meetings?.items?.slice(0, 3) ?? [];
 
-  const rfiQueue = decisionTiles?.rfis?.items ?? [];
+  const rfiQueue: RfiTileItem[] = decisionTilesData?.unanswered_rfis?.items ?? [];
 
   const revenueStats = dashboardStatsQuery.data?.revenue;
   const revenueSeries = useMemo(() => {
@@ -559,13 +570,13 @@ export default function DashboardPage() {
   return (
     <div className="relative min-h-screen bg-gradient-to-b from-slate-100 to-white pb-32">
       <div className="mx-auto flex max-w-6xl flex-col gap-8 px-4 py-8 lg:px-0">
-        <section className="rounded-[32px] bg-gradient-to-br from-slate-900 via-slate-900/90 to-slate-900/70 p-8 text-white shadow-2xl">
+        <section className={cn(ds.borderRadius.cardLarge, "bg-gradient-to-br from-slate-900 via-slate-900/90 to-slate-900/70 p-8 text-white shadow-2xl")}>
           <div className="flex flex-col gap-6 md:flex-row md:items-start md:justify-between">
             <div>
               <p className="text-sm uppercase tracking-[0.4em] text-white/60">
                 Bensley Brain • Daily Briefing
               </p>
-              <h1 className="mt-3 text-3xl font-semibold lg:text-4xl">
+              <h1 className={cn("mt-3 lg:text-4xl", ds.typography.heading1)}>
                 Calm command of every project pulse
               </h1>
               <p className="mt-3 max-w-xl text-base text-white/80">
@@ -631,13 +642,16 @@ export default function DashboardPage() {
               {scheduleEntries.length > 0 ? (
                 <div className="mt-3 space-y-1 text-sm">
                   <p className="text-lg font-semibold text-white">
-                    {scheduleEntries[0].meeting_title ?? scheduleEntries[0].milestone_name ??
-                      scheduleEntries[0].title ?? "Upcoming touchpoint"}
+                    {("meeting_title" in scheduleEntries[0] ? scheduleEntries[0].meeting_title : null) ??
+                     ("milestone_name" in scheduleEntries[0] ? scheduleEntries[0].milestone_name : null) ??
+                      "Upcoming touchpoint"}
                   </p>
                   <p>{scheduleEntries[0].project_name ?? scheduleEntries[0].project_code}</p>
                   <p className="text-white/70">
-                    {scheduleEntries[0].scheduled_date
+                    {("scheduled_date" in scheduleEntries[0] && scheduleEntries[0].scheduled_date)
                       ? format(new Date(scheduleEntries[0].scheduled_date), "MMM d • h a")
+                      : ("planned_date" in scheduleEntries[0] && scheduleEntries[0].planned_date)
+                      ? format(new Date(scheduleEntries[0].planned_date), "MMM d • h a")
                       : "Date pending"}
                   </p>
                 </div>
@@ -676,14 +690,14 @@ export default function DashboardPage() {
         </section>
 
         <section className="grid gap-6 lg:grid-cols-[1.2fr,0.8fr]">
-          <Card className="rounded-3xl border-slate-200/70">
+          <Card className={cn(ds.borderRadius.cardLarge, "border-slate-200/70")}>
             <CardContent className="space-y-6 p-6">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm uppercase tracking-[0.3em] text-slate-400">
                     Business snapshot
                   </p>
-                  <h2 className="text-2xl font-semibold text-slate-900">
+                  <h2 className={cn(ds.typography.heading2, ds.textColors.primary)}>
                     Revenue & cadence
                   </h2>
                 </div>
@@ -694,7 +708,7 @@ export default function DashboardPage() {
               </div>
               <RevenueBar
                 hideCard
-                className="rounded-3xl bg-slate-900/5 p-4"
+                className={cn(ds.borderRadius.cardLarge, "bg-slate-900/5 p-4")}
                 series={revenueSeries.series}
                 categories={revenueSeries.categories}
               />
@@ -730,7 +744,7 @@ export default function DashboardPage() {
             </CardContent>
           </Card>
 
-          <Card className="rounded-3xl border-slate-200/70">
+          <Card className={cn(ds.borderRadius.cardLarge, "border-slate-200/70")}>
             <CardContent className="p-6">
               <p className="text-sm uppercase tracking-[0.3em] text-slate-400">
                 Intelligence notes
@@ -765,6 +779,12 @@ export default function DashboardPage() {
             isLoading={recentPaymentsQuery.isLoading}
             isError={recentPaymentsQuery.isError}
           />
+          {/* <QueryWidget compact={true} /> */}
+        </section>
+
+        <section className="grid gap-6 lg:grid-cols-2">
+          <MeetingsWidget />
+          <RfiStatusCard rfiItems={rfiQueue} />
         </section>
 
         <section className="space-y-4">
@@ -773,7 +793,7 @@ export default function DashboardPage() {
               <p className="text-sm uppercase tracking-[0.3em] text-slate-400">
                 AI data suggestions
               </p>
-              <h2 className="text-2xl font-semibold text-slate-900">
+              <h2 className={cn(ds.typography.heading2, ds.textColors.primary)}>
                 Cleanup queue
               </h2>
             </div>
@@ -781,7 +801,7 @@ export default function DashboardPage() {
           </div>
           <div className="space-y-6">
             {suggestionGroups.map((group) => (
-              <Card key={group.bucket} className="rounded-3xl border-slate-200/80">
+              <Card key={group.bucket} className={cn(ds.borderRadius.cardLarge, "border-slate-200/80")}>
                 <CardContent className="space-y-4 p-6">
                   <div className="flex items-center justify-between">
                     <div>
@@ -833,11 +853,6 @@ export default function DashboardPage() {
              </Card>
            ))}
           </div>
-        </section>
-
-        <section className="grid gap-6 lg:grid-cols-2">
-          <RfiStatusCard rfiItems={rfiQueue} />
-          <StudioSchedulePanel />
         </section>
 
         <section>
@@ -1029,7 +1044,7 @@ function MetricTile({
   return (
     <div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-white/80">
       <p className="text-xs uppercase tracking-[0.3em] text-white/60">{label}</p>
-      <p className="mt-3 text-2xl font-semibold text-white">{value}</p>
+      <p className={cn("mt-3", ds.typography.heading2, "text-white")}>{value}</p>
       {subtitle && <p className="text-sm text-white/60">{subtitle}</p>}
     </div>
   );
@@ -1066,14 +1081,14 @@ function PriorityFeed({
         {items.map((item) => (
           <div
             key={`${item.project_code}-${item.action}`}
-            className="rounded-3xl border border-slate-200/70 bg-gradient-to-r from-white to-slate-50 p-4"
+            className={cn(ds.borderRadius.cardLarge, "border border-slate-200/70 bg-gradient-to-r from-white to-slate-50 p-4")}
           >
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
                 <p className="text-xs uppercase tracking-[0.3em] text-slate-400">
                   {item.project_name ?? item.project_code}
                 </p>
-                <p className="mt-2 text-xl font-semibold text-slate-900">
+                <p className={cn("mt-2", ds.typography.heading3, ds.textColors.primary)}>
                   {item.action}
                 </p>
                 <p className="text-sm text-slate-500">{item.detail ?? item.context}</p>
@@ -1141,7 +1156,7 @@ function SchedulePanel({
   manualOverridesTotal,
   onAddContext,
 }: {
-  scheduleEntries: DecisionTileItem[];
+  scheduleEntries: (MeetingTileItem | MilestoneTileItem)[];
   manualOverrides: ManualOverride[];
   manualOverridesTotal: number;
   onAddContext: () => void;
@@ -1170,26 +1185,30 @@ function SchedulePanel({
             <p className="mt-2 text-sm text-slate-500">Nothing scheduled yet</p>
           ) : (
             <div className="mt-3 space-y-3">
-              {scheduleEntries.map((entry) => (
+              {scheduleEntries.map((entry, idx) => (
                 <div
-                  key={`${entry.project_code}-${entry.scheduled_date}-${entry.meeting_title}`}
+                  key={`${entry.project_code}-${idx}`}
                   className="rounded-2xl border border-slate-100 p-4"
                 >
                   <div className="flex items-center justify-between text-sm text-slate-500">
                     <div className="flex items-center gap-2">
                       <CalendarDays className="h-4 w-4" />
                       <span>
-                        {entry.scheduled_date
+                        {("scheduled_date" in entry && entry.scheduled_date)
                           ? format(new Date(String(entry.scheduled_date)), "MMM d • h a")
+                          : ("planned_date" in entry && entry.planned_date)
+                          ? format(new Date(String(entry.planned_date)), "MMM d • h a")
                           : "Date TBC"}
                       </span>
                     </div>
                     <span className="text-xs uppercase tracking-[0.3em] text-slate-400">
-                      {entry.meeting_type ?? "session"}
+                      {("meeting_type" in entry ? entry.meeting_type : null) ?? "session"}
                     </span>
                   </div>
                   <p className="mt-2 text-base font-semibold text-slate-900">
-                    {entry.meeting_title ?? entry.milestone_name ?? entry.title ?? "Internal review"}
+                    {("meeting_title" in entry ? entry.meeting_title : null) ??
+                     ("milestone_name" in entry ? entry.milestone_name : null) ??
+                     "Internal review"}
                   </p>
                   <p className="text-sm text-slate-500">
                     {entry.project_name ?? entry.project_code}
@@ -1249,7 +1268,7 @@ function SuggestionCard({
     suggestion.impact_summary ?? suggestion.impact?.summary ?? null;
   const disableActions = Boolean(disabled);
   return (
-    <div className="rounded-3xl border border-slate-200/80 bg-white p-5">
+    <div className={cn(ds.borderRadius.cardLarge, "border border-slate-200/80 bg-white p-5")}>
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <p className="text-xs uppercase tracking-[0.3em] text-slate-400">
@@ -1336,7 +1355,7 @@ function FinancialWidget({
     <Card className={`rounded-3xl ${border}`}>
       <CardContent className="p-6">
         <p className="text-xs uppercase tracking-[0.3em] text-slate-500">{title}</p>
-        <p className={`mt-3 text-3xl font-semibold ${textColor}`}>
+        <p className={cn("mt-3", ds.typography.heading1, textColor)}>
           {formatCurrency(amount)}
         </p>
         {typeof count === "number" && (
@@ -1360,7 +1379,7 @@ function ProjectedWidget({
   isError?: boolean;
 }) {
   return (
-    <Card className="rounded-3xl border-slate-200/80">
+    <Card className={cn(ds.borderRadius.cardLarge, "border-slate-200/80")}>
       <CardContent className="p-6">
         <p className="text-xs uppercase tracking-[0.3em] text-slate-400">
           Upcoming invoices
@@ -1408,7 +1427,7 @@ function RecentPaidInvoices({
   isError?: boolean;
 }) {
   return (
-    <Card className="rounded-3xl border-slate-200/80">
+    <Card className={cn(ds.borderRadius.cardLarge, "border-slate-200/80")}>
       <CardContent className="space-y-4 p-6">
         <div>
           <p className="text-xs uppercase tracking-[0.3em] text-slate-400">
@@ -1449,13 +1468,13 @@ function RecentPaidInvoices({
   );
 }
 
-function RfiStatusCard({ rfiItems }: { rfiItems: RfiItem[] }) {
+function RfiStatusCard({ rfiItems }: { rfiItems: RfiTileItem[] }) {
   const lateCount = rfiItems.filter((item) =>
-    item.status.toLowerCase().includes("late") ||
-    item.status.toLowerCase().includes("awaiting")
+    item.status?.toLowerCase().includes("late") ||
+    item.status?.toLowerCase().includes("awaiting")
   ).length;
   return (
-    <Card className="rounded-3xl border-slate-200/80">
+    <Card className={cn(ds.borderRadius.cardLarge, "border-slate-200/80")}>
       <CardContent className="space-y-4 p-6">
         <div>
           <p className="text-xs uppercase tracking-[0.3em] text-slate-400">
@@ -1467,15 +1486,15 @@ function RfiStatusCard({ rfiItems }: { rfiItems: RfiItem[] }) {
         </div>
         <div className="space-y-3">
           {rfiItems.slice(0, 3).map((item) => (
-            <div key={item.reference} className="rounded-2xl border border-slate-100 p-3">
+            <div key={item.rfi_id} className="rounded-2xl border border-slate-100 p-3">
               <div className="flex items-center justify-between text-xs text-slate-500">
-                <span>{item.reference}</span>
-                <span>{item.due}</span>
+                <span>{item.rfi_number}</span>
+                <span>{item.asked_date ? new Date(item.asked_date).toLocaleDateString() : "—"}</span>
               </div>
               <p className="mt-1 text-base font-semibold text-slate-900">
-                {item.project}
+                {item.project_name}
               </p>
-              <p className="text-sm text-slate-600">{item.status}</p>
+              <p className="text-sm text-slate-600">{item.status || "Open"}</p>
             </div>
           ))}
         </div>
@@ -1484,50 +1503,7 @@ function RfiStatusCard({ rfiItems }: { rfiItems: RfiItem[] }) {
   );
 }
 
-function StudioSchedulePanel() {
-  const upcoming = [
-    {
-      project: "BK-029 • Qinhu Resort China",
-      discipline: "Landscape",
-      team: 4,
-      week: "Nov 18 → Nov 22",
-    },
-    {
-      project: "BK-071 • Saudi Royal Court",
-      discipline: "Interiors",
-      team: 3,
-      week: "Nov 18 → Nov 22",
-    },
-  ];
-  return (
-    <Card className="rounded-3xl border-slate-200/80">
-      <CardContent className="space-y-3 p-6">
-        <div>
-          <p className="text-xs uppercase tracking-[0.3em] text-slate-400">
-            Studio schedule (preview)
-          </p>
-          <p className="text-sm text-slate-500">
-            Staffing by discipline for next week
-          </p>
-        </div>
-        {upcoming.map((item) => (
-          <div key={item.project} className="rounded-2xl border border-slate-100 p-3">
-            <div className="flex items-center justify-between text-xs text-slate-500">
-              <span>{item.week}</span>
-              <span>{item.discipline}</span>
-            </div>
-            <p className="mt-1 text-base font-semibold text-slate-900">
-              {item.project}
-            </p>
-            <p className="text-sm text-slate-600">
-              {item.team} team members assigned
-            </p>
-          </div>
-        ))}
-      </CardContent>
-    </Card>
-  );
-}
+// StudioSchedulePanel removed - was 100% hardcoded fake data
 
 function IntelligenceSummary({
   insights,
@@ -1541,13 +1517,13 @@ function IntelligenceSummary({
       ? insights[0]
       : "No major shifts detected over the past week.";
   return (
-    <Card className="rounded-3xl border-slate-200/80">
+    <Card className={cn(ds.borderRadius.cardLarge, "border-slate-200/80")}>
       <CardContent className="flex flex-col gap-3 p-6 md:flex-row md:items-center md:justify-between">
         <div>
           <p className="text-xs uppercase tracking-[0.3em] text-slate-400">
             Weekly intelligence
           </p>
-          <p className="text-2xl font-semibold text-slate-900">{summary}</p>
+          <p className={cn(ds.typography.heading2, ds.textColors.primary)}>{summary}</p>
           {insights.slice(1, 3).map((item) => (
             <p key={item} className="text-sm text-slate-500">
               • {item}

@@ -36,7 +36,7 @@ export default function ProposalsManager() {
 
   const proposalsQuery = useQuery({
     queryKey: ["proposals", "all"],
-    queryFn: () => api.getProposals({ per_page: 500 }),
+    queryFn: () => api.getProposals({ per_page: 100 }),
     staleTime: 1000 * 60 * 5,
   });
 

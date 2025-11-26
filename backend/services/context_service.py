@@ -191,10 +191,10 @@ class ContextService:
             SELECT
                 c.*,
                 p.project_code,
-                p.project_name,
-                p.client_company
+                p.project_title,
+                COALESCE(pr.client_company, 'Unknown')
             FROM project_context c
-            JOIN proposals p ON c.proposal_id = p.proposal_id
+            JOIN proposals p ON c.proposal_id = p.project_id
             WHERE c.assigned_to = ?
               AND c.status = ?
               AND c.context_type = 'task'
@@ -217,10 +217,10 @@ class ContextService:
             SELECT
                 c.*,
                 p.project_code,
-                p.project_name,
-                p.client_company
+                p.project_title,
+                COALESCE(pr.client_company, 'Unknown')
             FROM project_context c
-            JOIN proposals p ON c.proposal_id = p.proposal_id
+            JOIN proposals p ON c.proposal_id = p.project_id
             WHERE c.context_type = 'task'
               AND c.status = 'active'
               AND c.due_date < ?
@@ -245,10 +245,10 @@ class ContextService:
             SELECT
                 c.*,
                 p.project_code,
-                p.project_name,
-                p.client_company
+                p.project_title,
+                COALESCE(pr.client_company, 'Unknown')
             FROM project_context c
-            JOIN proposals p ON c.proposal_id = p.proposal_id
+            JOIN proposals p ON c.proposal_id = p.project_id
             WHERE c.context_type = 'task'
               AND c.status = 'active'
               AND c.due_date BETWEEN ? AND ?
@@ -368,9 +368,9 @@ class ContextService:
             SELECT
                 c.*,
                 p.project_code,
-                p.project_name
+                p.project_title
             FROM project_context c
-            JOIN proposals p ON c.proposal_id = p.proposal_id
+            JOIN proposals p ON c.proposal_id = p.project_id
             WHERE c.context_text LIKE ?
         """
         params = [search_pattern]

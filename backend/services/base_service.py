@@ -7,12 +7,15 @@ All service classes should inherit from this.
 
 import sqlite3
 import os
+import time
+import logging
 from pathlib import Path
 from typing import Optional, List, Dict, Any
 from contextlib import contextmanager
 from dotenv import load_dotenv
 
 load_dotenv()
+logging.basicConfig(level=logging.INFO)
 
 
 class BaseService:
@@ -39,19 +42,58 @@ class BaseService:
     @contextmanager
     def get_connection(self):
         """
-        Context manager for database connections
+        Context manager for database connections with OneDrive sync handling
 
         Usage:
             with self.get_connection() as conn:
                 cursor = conn.cursor()
                 cursor.execute(...)
         """
-        conn = sqlite3.connect(self.db_path)
+        conn = sqlite3.connect(self.db_path, timeout=60.0)  # 60 second timeout for OneDrive sync
         conn.row_factory = sqlite3.Row  # Return rows as dictionaries
+        conn.execute("PRAGMA busy_timeout = 60000")  # Additional 60s timeout for busy db
         try:
             yield conn
         finally:
             conn.close()
+
+    def _retry_on_lock(self, operation, max_retries=10, initial_delay=1.0):
+        """
+        Retry an operation with exponential backoff if database is locked
+
+        Args:
+            operation: Callable that performs the database operation
+            max_retries: Maximum number of retry attempts (default: 10)
+            initial_delay: Initial delay in seconds (default: 1.0)
+
+        Returns:
+            Result from the operation
+
+        Raises:
+            sqlite3.OperationalError: If still locked after all retries
+        """
+        delay = initial_delay
+        for attempt in range(max_retries):
+            try:
+                return operation()
+            except sqlite3.OperationalError as e:
+                if "database is locked" in str(e).lower():
+                    if attempt == max_retries - 1:
+                        logging.error(f"Database still locked after {max_retries} attempts")
+                        raise
+
+                    logging.warning(
+                        f"Database locked (attempt {attempt + 1}/{max_retries}), "
+                        f"retrying in {delay:.1f}s... (OneDrive sync likely in progress)"
+                    )
+                    time.sleep(delay)
+                    delay *= 2  # Exponential backoff
+                else:
+                    # Different error, don't retry
+                    raise
+
+        # Should never reach here, but just in case
+        raise sqlite3.OperationalError("Maximum retries exceeded")
 
     def execute_query(self, sql: str, params: tuple = (), fetch_one: bool = False) -> Any:
         """
@@ -78,7 +120,7 @@ class BaseService:
 
     def execute_update(self, sql: str, params: tuple = ()) -> int:
         """
-        Execute an INSERT/UPDATE/DELETE query
+        Execute an INSERT/UPDATE/DELETE query with automatic retry on lock
 
         Args:
             sql: SQL query string
@@ -87,15 +129,18 @@ class BaseService:
         Returns:
             Number of affected rows
         """
-        with self.get_connection() as conn:
-            cursor = conn.cursor()
-            cursor.execute(sql, params)
-            conn.commit()
-            return cursor.rowcount
+        def _do_update():
+            with self.get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute(sql, params)
+                conn.commit()
+                return cursor.rowcount
+
+        return self._retry_on_lock(_do_update)
 
     def execute_many(self, sql: str, params_list: List[tuple]) -> int:
         """
-        Execute multiple INSERT/UPDATE queries
+        Execute multiple INSERT/UPDATE queries with automatic retry on lock
 
         Args:
             sql: SQL query string
@@ -104,11 +149,14 @@ class BaseService:
         Returns:
             Number of affected rows
         """
-        with self.get_connection() as conn:
-            cursor = conn.cursor()
-            cursor.executemany(sql, params_list)
-            conn.commit()
-            return cursor.rowcount
+        def _do_many():
+            with self.get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.executemany(sql, params_list)
+                conn.commit()
+                return cursor.rowcount
+
+        return self._retry_on_lock(_do_many)
 
     def get_last_insert_id(self) -> int:
         """Get the ID of the last inserted row"""

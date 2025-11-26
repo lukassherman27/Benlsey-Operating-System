@@ -82,7 +82,7 @@ class ExcelProjectImporter:
         # Map of possible column names to standard names
         column_mapping = {
             'project_code': ['project code', 'code', 'project_code', 'project id', 'id'],
-            'project_name': ['project name', 'name', 'project_name', 'project', 'title'],
+            'project_title': ['project name', 'name', 'project_title', 'project', 'title'],
             'client': ['client', 'client name', 'client_name', 'developer', 'owner'],
             'operator': ['operator', 'operator name', 'operator_name', 'brand', 'hotel brand'],
             'contract_value': ['contract value', 'contract_value', 'value', 'amount', 'contract'],
@@ -111,7 +111,7 @@ class ExcelProjectImporter:
         if pd.isna(row.get('project_code')) or not str(row.get('project_code')).strip():
             errors.append(f"Missing project code")
 
-        if pd.isna(row.get('project_name')) or not str(row.get('project_name')).strip():
+        if pd.isna(row.get('project_title')) or not str(row.get('project_title')).strip():
             errors.append(f"Missing project name")
 
         if pd.isna(row.get('client')) or not str(row.get('client')).strip():
@@ -134,7 +134,7 @@ class ExcelProjectImporter:
 
         # Extract data
         project_code = str(row['project_code']).strip().upper()
-        project_name = str(row['project_name']).strip()
+        project_title = str(row['project_title']).strip()
         client_name = str(row['client']).strip()
         operator_name = str(row.get('operator', '')).strip() if pd.notna(row.get('operator')) else None
 
@@ -172,7 +172,7 @@ class ExcelProjectImporter:
                 pass
 
         # Print what we're about to create
-        print(f"\n   📦 Row {row_num}: {project_code} - {project_name}")
+        print(f"\n   📦 Row {row_num}: {project_code} - {project_title}")
         print(f"      Client: {client_name}")
         if operator_name:
             print(f"      Operator: {operator_name}")
@@ -189,7 +189,7 @@ class ExcelProjectImporter:
         try:
             result = self.project_creator.create_project(
                 project_code=project_code,
-                project_name=project_name,
+                project_title=project_title,
                 client_name=client_name,
                 operator_name=operator_name,
                 contract_value=contract_value,

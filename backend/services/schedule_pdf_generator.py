@@ -31,9 +31,9 @@ class SchedulePDFGenerator:
 
         # Load project colors
         cursor = self.conn.cursor()
-        cursor.execute("SELECT project_name, color_hex FROM project_colors")
+        cursor.execute("SELECT project_title, color_hex FROM project_colors")
         for row in cursor.fetchall():
-            self.project_colors[row['project_name']] = row['color_hex']
+            self.project_colors[row['project_title']] = row['color_hex']
 
     def close(self):
         """Close database connection"""
@@ -51,15 +51,15 @@ class SchedulePDFGenerator:
         except:
             return colors.white
 
-    def get_project_color(self, project_name: str):
+    def get_project_color(self, project_title: str):
         """Get color for a project"""
         # Try exact match
-        if project_name in self.project_colors:
-            return self.hex_to_rgb(self.project_colors[project_name])
+        if project_title in self.project_colors:
+            return self.hex_to_rgb(self.project_colors[project_title])
 
         # Try partial match
         for proj, color in self.project_colors.items():
-            if proj.lower() in project_name.lower() or project_name.lower() in proj.lower():
+            if proj.lower() in project_title.lower() or project_title.lower() in proj.lower():
                 return self.hex_to_rgb(color)
 
         # Default colors
@@ -68,7 +68,7 @@ class SchedulePDFGenerator:
             colors.pink, colors.lavender, colors.lightcyan,
             colors.peachpuff, colors.lightgoldenrodyellow
         ]
-        return default_colors[hash(project_name) % len(default_colors)]
+        return default_colors[hash(project_title) % len(default_colors)]
 
     def generate_schedule_pdf(self, schedule_id: int, output_path: str):
         """Generate calendar-style PDF matching Bali/Bangkok format"""
@@ -103,7 +103,7 @@ class SchedulePDFGenerator:
             SELECT DISTINCT
                 tm.member_id,
                 tm.nickname,
-                se.project_name,
+                se.project_title,
                 se.task_description,
                 se.phase
             FROM schedule_entries se
@@ -118,7 +118,7 @@ class SchedulePDFGenerator:
             if member_id not in members:
                 members[member_id] = {
                     'nickname': row['nickname'],
-                    'project': row['project_name'],
+                    'project': row['project_title'],
                     'task': row['task_description'],
                     'phase': row['phase']
                 }

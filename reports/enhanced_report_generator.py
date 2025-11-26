@@ -38,10 +38,21 @@ class EnhancedReportGenerator:
         for snapshot in snapshots:
             dates.append(snapshot['timestamp'][:10])  # YYYY-MM-DD
             db = snapshot.get('database', {})
-            emails.append(db.get('emails', 0))
-            proposals.append(db.get('proposals', 0))
-            documents.append(db.get('documents', 0))
-            contacts.append(db.get('contacts_only', 0))
+
+            # Support both old flat structure and new nested structure
+            table_counts = db.get('table_counts', {})
+            if table_counts:
+                # New structure
+                emails.append(table_counts.get('emails', 0))
+                proposals.append(table_counts.get('proposals', 0))
+                documents.append(table_counts.get('documents', 0))
+                contacts.append(table_counts.get('contacts_only', 0))
+            else:
+                # Old structure (backwards compatibility)
+                emails.append(db.get('emails', 0))
+                proposals.append(db.get('proposals', 0))
+                documents.append(db.get('documents', 0))
+                contacts.append(db.get('contacts_only', 0))
 
         return {
             'dates': dates,
@@ -318,12 +329,12 @@ class EnhancedReportGenerator:
         <div class="executive-summary">
             <h2>📊 Executive Summary</h2>
             <div class="metrics-grid">
-                {self._generate_metric_card('Proposals', stats.get('proposals', 0), changes)}
-                {self._generate_metric_card('Emails', stats.get('emails', 0), changes)}
-                {self._generate_metric_card('Documents', stats.get('documents', 0), changes)}
-                {self._generate_metric_card('Contacts', stats.get('contacts_only', 0), changes)}
+                {self._generate_metric_card('Proposals', stats.get('table_counts', {}).get('proposals', 0), changes)}
+                {self._generate_metric_card('Emails', stats.get('table_counts', {}).get('emails', 0), changes)}
+                {self._generate_metric_card('Documents', stats.get('table_counts', {}).get('documents', 0), changes)}
+                {self._generate_metric_card('Contacts', stats.get('table_counts', {}).get('contacts_only', 0), changes)}
                 {self._generate_metric_card('Database', f"{stats.get('db_size_mb', 0):.0f} MB", changes)}
-                {self._generate_metric_card('Indexes', stats.get('indexes', 0), changes)}
+                {self._generate_metric_card('Indexes', stats.get('total_indexes', 0), changes)}
             </div>
         </div>
 

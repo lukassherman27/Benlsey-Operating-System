@@ -213,10 +213,10 @@ class MilestoneService:
             SELECT
                 m.*,
                 p.project_code,
-                p.project_name,
-                p.client_company
+                p.project_title,
+                COALESCE(pr.client_company, 'Unknown')
             FROM project_milestones m
-            JOIN projects p ON m.project_id = p.proposal_id
+            JOIN projects p ON m.project_id = p.project_id
             WHERE m.planned_date < ?
               AND m.status != 'completed'
               AND m.status != 'cancelled'
@@ -241,10 +241,10 @@ class MilestoneService:
             SELECT
                 m.*,
                 p.project_code,
-                p.project_name,
-                p.client_company
+                p.project_title,
+                COALESCE(pr.client_company, 'Unknown')
             FROM project_milestones m
-            JOIN projects p ON m.project_id = p.proposal_id
+            JOIN projects p ON m.project_id = p.project_id
             WHERE m.planned_date BETWEEN ? AND ?
               AND m.status != 'completed'
               AND m.status != 'cancelled'

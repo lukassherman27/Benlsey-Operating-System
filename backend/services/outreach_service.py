@@ -175,10 +175,10 @@ class OutreachService:
             SELECT
                 o.*,
                 p.project_code,
-                p.project_name,
-                p.client_company
+                p.project_title,
+                COALESCE(pr.client_company, 'Unknown')
             FROM project_outreach o
-            JOIN proposals p ON o.proposal_id = p.proposal_id
+            JOIN proposals p ON o.proposal_id = p.project_id
             WHERE o.next_action_date <= ?
               AND o.next_action IS NOT NULL
             ORDER BY o.next_action_date ASC
@@ -202,10 +202,10 @@ class OutreachService:
             SELECT
                 o.*,
                 p.project_code,
-                p.project_name,
-                p.client_company
+                p.project_title,
+                COALESCE(pr.client_company, 'Unknown')
             FROM project_outreach o
-            JOIN proposals p ON o.proposal_id = p.proposal_id
+            JOIN proposals p ON o.proposal_id = p.project_id
             WHERE o.next_action_date BETWEEN ? AND ?
               AND o.next_action IS NOT NULL
             ORDER BY o.next_action_date ASC
@@ -372,9 +372,9 @@ class OutreachService:
             SELECT
                 o.*,
                 p.project_code,
-                p.project_name
+                p.project_title
             FROM project_outreach o
-            JOIN proposals p ON o.proposal_id = p.proposal_id
+            JOIN proposals p ON o.proposal_id = p.project_id
             WHERE (
                 o.subject LIKE ?
                 OR o.summary LIKE ?

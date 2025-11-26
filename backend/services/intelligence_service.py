@@ -83,13 +83,13 @@ class IntelligenceService:
 
             # Get project name (from unified projects table after migration 015)
             cursor.execute("""
-                SELECT project_name, is_active_project FROM projects WHERE project_code = ?
+                SELECT project_title, is_active_project FROM projects WHERE project_code = ?
                 LIMIT 1
             """, (row['project_code'],))
             project = cursor.fetchone()
 
             if project:
-                suggestion['project_name'] = project['project_name']
+                suggestion['project_title'] = project['project_title']
                 suggestion['is_active_project'] = project['is_active_project']
 
             suggestions.append(suggestion)

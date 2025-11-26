@@ -136,17 +136,17 @@ class EmailContentProcessor:
         context = ""
         if proposal_context:
             is_active = proposal_context.get('is_active_project', 0)
-            project_name = proposal_context.get('project_name', '')
+            project_title = proposal_context.get('project_title', '')
             status = proposal_context.get('status', 'proposal')
 
             if is_active:
                 context = f"""
-PROJECT CONTEXT: This is an ACTIVE PROJECT (contract signed) - {project_name}
+PROJECT CONTEXT: This is an ACTIVE PROJECT (contract signed) - {project_title}
 Status: {status}
 """
             else:
                 context = f"""
-PROJECT CONTEXT: This is a PROPOSAL (not yet won) - {project_name}
+PROJECT CONTEXT: This is a PROPOSAL (not yet won) - {project_title}
 Status: {status} (pre-contract)
 """
 
@@ -495,7 +495,7 @@ Focus on: What action, decision, or key information does this contain?
                 e.email_id,
                 e.subject,
                 e.body_preview,
-                p.project_name,
+                p.project_title,
                 p.status,
                 COALESCE(p.is_active_project, 0) as is_active_project
             FROM emails e
@@ -523,7 +523,7 @@ Focus on: What action, decision, or key information does this contain?
 
             # Build proposal context
             proposal_context = {
-                'project_name': email['project_name'],
+                'project_title': email['project_title'],
                 'status': email['status'],
                 'is_active_project': email['is_active_project']
             }

@@ -229,10 +229,10 @@ class MeetingService:
             SELECT
                 m.*,
                 p.project_code,
-                p.project_name,
-                p.client_company
+                p.project_title,
+                COALESCE(pr.client_company, 'Unknown')
             FROM project_meetings m
-            JOIN projects p ON m.proposal_id = p.proposal_id
+            JOIN projects p ON m.proposal_id = p.project_id
             WHERE m.scheduled_date BETWEEN ? AND ?
               AND m.status = 'scheduled'
             ORDER BY m.scheduled_date ASC
@@ -256,10 +256,10 @@ class MeetingService:
             SELECT
                 m.*,
                 p.project_code,
-                p.project_name,
-                p.client_company
+                p.project_title,
+                COALESCE(pr.client_company, 'Unknown')
             FROM project_meetings m
-            JOIN projects p ON m.proposal_id = p.proposal_id
+            JOIN projects p ON m.proposal_id = p.project_id
             WHERE m.scheduled_date BETWEEN ? AND ?
               AND m.status = 'scheduled'
             ORDER BY m.scheduled_date ASC
@@ -308,10 +308,10 @@ class MeetingService:
             SELECT
                 m.*,
                 p.project_code,
-                p.project_name,
-                p.client_company
+                p.project_title,
+                COALESCE(pr.client_company, 'Unknown')
             FROM project_meetings m
-            JOIN projects p ON m.proposal_id = p.proposal_id
+            JOIN projects p ON m.proposal_id = p.project_id
             WHERE m.scheduled_date BETWEEN ? AND ?
               AND m.status = 'scheduled'
               AND m.reminder_sent = 0

@@ -1,0 +1,1652 @@
+========================================================================================================================
+COMPLETE INVOICE LINK COMPARISON
+========================================================================================================================
+
+Total invoices in Excel: 528
+Correctly linked: 194 (36.7%)
+Incorrectly linked: 36 (6.8%)
+Not in database: 298
+
+========================================================================================================================
+ALL MISMATCHES
+========================================================================================================================
+
+Invoice: I25-001R
+  Current DB: 23 BK-028 - Proscenium Penthouse in Manila, Philippines
+  Should be: 23 BK-029 - Mandarin Oriental Bali, Indonesia
+
+Invoice: I25-090R
+  Current DB: 23 BK-028 - Proscenium Penthouse in Manila, Philippines
+  Should be: 23 BK-029 - Mandarin Oriental Bali, Indonesia
+
+Invoice: I25-069
+  Current DB: None - None
+  Should be: 25 BK-030 - Beach Club at Mandarin Oriental Bali 
+
+Invoice: I25-105
+  Current DB: None - None
+  Should be: 25 BK-030 - Beach Club at Mandarin Oriental Bali 
+
+Invoice: I25-069
+  Current DB: None - None
+  Should be: 25 BK-030 - Beach Club at Mandarin Oriental Bali 
+
+Invoice: I25-105
+  Current DB: None - None
+  Should be: 25 BK-030 - Beach Club at Mandarin Oriental Bali 
+
+Invoice: I24-080
+  Current DB: 24 BK-058 - Luxury Resort Development at Fenfushi Island, Raa Atoll, Maldives
+  Should be: 24 BK-070 - Intercontinental Resort and Spa, Danang, Vietnam
+
+Invoice: I25-010
+  Current DB: 24 BK-058 - Luxury Resort Development at Fenfushi Island, Raa Atoll, Maldives
+  Should be: 24 BK-070 - Intercontinental Resort and Spa, Danang, Vietnam
+
+Invoice: I25-041
+  Current DB: 24 BK-058 - Luxury Resort Development at Fenfushi Island, Raa Atoll, Maldives
+  Should be: 24 BK-070 - Intercontinental Resort and Spa, Danang, Vietnam
+
+Invoice: I25-072
+  Current DB: 24 BK-058 - Luxury Resort Development at Fenfushi Island, Raa Atoll, Maldives
+  Should be: 24 BK-070 - Intercontinental Resort and Spa, Danang, Vietnam
+
+Invoice: I25-083
+  Current DB: 24 BK-058 - Luxury Resort Development at Fenfushi Island, Raa Atoll, Maldives
+  Should be: 24 BK-070 - Intercontinental Resort and Spa, Danang, Vietnam
+
+Invoice: I25-088
+  Current DB: 24 BK-058 - Luxury Resort Development at Fenfushi Island, Raa Atoll, Maldives
+  Should be: 24 BK-070 - Intercontinental Resort and Spa, Danang, Vietnam
+
+Invoice: I24-080
+  Current DB: 24 BK-058 - Luxury Resort Development at Fenfushi Island, Raa Atoll, Maldives
+  Should be: 24 BK-070 - Intercontinental Resort and Spa, Danang, Vietnam
+
+Invoice: I25-030
+  Current DB: 24 BK-058 - Luxury Resort Development at Fenfushi Island, Raa Atoll, Maldives
+  Should be: 24 BK-070 - Intercontinental Resort and Spa, Danang, Vietnam
+
+Invoice: I25-042
+  Current DB: 24 BK-058 - Luxury Resort Development at Fenfushi Island, Raa Atoll, Maldives
+  Should be: 24 BK-070 - Intercontinental Resort and Spa, Danang, Vietnam
+
+Invoice: I25-043
+  Current DB: 24 BK-058 - Luxury Resort Development at Fenfushi Island, Raa Atoll, Maldives
+  Should be: 24 BK-070 - Intercontinental Resort and Spa, Danang, Vietnam
+
+Invoice: I25-079
+  Current DB: 24 BK-058 - Luxury Resort Development at Fenfushi Island, Raa Atoll, Maldives
+  Should be: 24 BK-070 - Intercontinental Resort and Spa, Danang, Vietnam
+
+Invoice: I25-084
+  Current DB: 24 BK-058 - Luxury Resort Development at Fenfushi Island, Raa Atoll, Maldives
+  Should be: 24 BK-070 - Intercontinental Resort and Spa, Danang, Vietnam
+
+Invoice: I25-089
+  Current DB: 24 BK-058 - Luxury Resort Development at Fenfushi Island, Raa Atoll, Maldives
+  Should be: 24 BK-070 - Intercontinental Resort and Spa, Danang, Vietnam
+
+Invoice: I24-080
+  Current DB: 24 BK-058 - Luxury Resort Development at Fenfushi Island, Raa Atoll, Maldives
+  Should be: 24 BK-070 - Intercontinental Resort and Spa, Danang, Vietnam
+
+Invoice: I25-031
+  Current DB: 24 BK-058 - Luxury Resort Development at Fenfushi Island, Raa Atoll, Maldives
+  Should be: 24 BK-070 - Intercontinental Resort and Spa, Danang, Vietnam
+
+Invoice: I25-044
+  Current DB: 24 BK-058 - Luxury Resort Development at Fenfushi Island, Raa Atoll, Maldives
+  Should be: 24 BK-070 - Intercontinental Resort and Spa, Danang, Vietnam
+
+Invoice: I25-080
+  Current DB: 24 BK-058 - Luxury Resort Development at Fenfushi Island, Raa Atoll, Maldives
+  Should be: 24 BK-070 - Intercontinental Resort and Spa, Danang, Vietnam
+
+Invoice: I25-085
+  Current DB: 24 BK-058 - Luxury Resort Development at Fenfushi Island, Raa Atoll, Maldives
+  Should be: 24 BK-070 - Intercontinental Resort and Spa, Danang, Vietnam
+
+Invoice: I25-090
+  Current DB: 24 BK-074 - 43 Dang Thai Mai Project, Hanoi, Vietnam
+  Should be: 24 BK-070 - Intercontinental Resort and Spa, Danang, Vietnam
+
+Invoice: I25-113
+  Current DB: 23 BK-071 - St. Regis Hotel in Thousand Island
+  Should be: 25 BK-015 - Shinta Mani Mustang, Nepal 
+
+Invoice: I25-070
+  Current DB: None - None
+  Should be: 25 BK-033 - The Ritz Carlton Reserve, Nusa Dua,
+
+Invoice: I25-104
+  Current DB: None - None
+  Should be: 25 BK-033 - The Ritz Carlton Reserve, Nusa Dua,
+
+Invoice: I25-115
+  Current DB: None - None
+  Should be: 25 BK-033 - The Ritz Carlton Reserve, Nusa Dua,
+
+Invoice: I25-070
+  Current DB: None - None
+  Should be: 25 BK-033 - The Ritz Carlton Reserve, Nusa Dua,
+
+Invoice: I25-104
+  Current DB: None - None
+  Should be: 25 BK-033 - The Ritz Carlton Reserve, Nusa Dua,
+
+Invoice: I25-115
+  Current DB: None - None
+  Should be: 25 BK-033 - The Ritz Carlton Reserve, Nusa Dua,
+
+Invoice: I25-070
+  Current DB: None - None
+  Should be: 25 BK-033 - The Ritz Carlton Reserve, Nusa Dua,
+
+Invoice: I25-104
+  Current DB: None - None
+  Should be: 25 BK-033 - The Ritz Carlton Reserve, Nusa Dua,
+
+Invoice: I25-115
+  Current DB: None - None
+  Should be: 25 BK-033 - The Ritz Carlton Reserve, Nusa Dua,
+
+Invoice: I25-094
+  Current DB: None - None
+  Should be: 25 BK-040 - The Ritz Carlton Reserve, Nusa Dua,
+
+
+========================================================================================================================
+INVOICES NOT IN DATABASE
+========================================================================================================================
+
+Invoice: I13-150
+  Project: 13 BK-057 - St. Regis Jakarta Project-Landscape
+  Phase: Mobilization Fee
+  Amount: 104372
+
+Invoice: I14-101
+  Project: 13 BK-057 - St. Regis Jakarta Project-Landscape
+  Phase: Conceptual Design
+  Amount: 173952
+
+Invoice: I16-018
+  Project: 13 BK-057 - St. Regis Jakarta Project-Landscape
+  Phase: Design Development
+  Amount: 104371
+
+Invoice: I16-119
+  Project: 13 BK-057 - St. Regis Jakarta Project-Landscape
+  Phase: None
+  Amount: 104371
+
+Invoice: I16-120
+  Project: 13 BK-057 - St. Regis Jakarta Project-Landscape
+  Phase: Construction Documents
+  Amount: 104372
+
+Invoice: I18-096
+  Project: 13 BK-057 - St. Regis Jakarta Project-Landscape
+  Phase: Construction Observation
+  Amount: 61395
+
+Invoice: I20-008
+  Project: 13 BK-057 - St. Regis Jakarta Project-Landscape
+  Phase: None
+  Amount: 42977
+
+Invoice: I13-151
+  Project: 13 BK-057 - St. Regis Jakarta Project-Landscape
+  Phase: Mobilization Fee
+  Amount: 23129
+
+Invoice: I14-102
+  Project: 13 BK-057 - St. Regis Jakarta Project-Landscape
+  Phase: Conceptual Design
+  Amount: 38547
+
+Invoice: I16-019
+  Project: 13 BK-057 - St. Regis Jakarta Project-Landscape
+  Phase: Design Development
+  Amount: 46256
+
+Invoice: I16-118
+  Project: 13 BK-057 - St. Regis Jakarta Project-Landscape
+  Phase: Construction Documents
+  Amount: 23129
+
+Invoice: I18-097
+  Project: 13 BK-057 - St. Regis Jakarta Project-Landscape
+  Phase: Construction Observation
+  Amount: 13605
+
+Invoice: I20-009
+  Project: 13 BK-057 - St. Regis Jakarta Project-Landscape
+  Phase: None
+  Amount: 9524
+
+Invoice: I20-067
+  Project: 19 BK-040 - St. Regis Jakarta Project-Landscape
+  Phase: Additional Design Fee
+  Amount: 75000
+
+Invoice: I21-004
+  Project: 20 BK-060 - St. Regis Jakarta Project-Landscape
+  Phase: Additional Design Fee
+  Amount: 75000
+
+Invoice: I22-027
+  Project: 22 BK-029 - St. Regis Jakarta Project-Landscape
+  Phase: 1st Pament once the contract signed
+  Amount: 25000
+
+Invoice: I22-067
+  Project: 22 BK-029 - St. Regis Jakarta Project-Landscape
+  Phase: 2nd Payment on/or before 31 Jul 22
+  Amount: 25000
+
+Invoice: I17-028
+  Project: 16 BK-079 - JW Marriott Resort Jeju, South Korea 
+  Phase: Mobilization Fee
+  Amount: 187500
+
+Invoice: I17-054
+  Project: 16 BK-079 - JW Marriott Resort Jeju, South Korea 
+  Phase: Conceptual Design (75%)
+  Amount: 234375
+
+Invoice: I18-029
+  Project: 16 BK-079 - JW Marriott Resort Jeju, South Korea 
+  Phase: Conceptual Design (100%)
+  Amount: 78125
+
+Invoice: I18-037
+  Project: 16 BK-079 - JW Marriott Resort Jeju, South Korea 
+  Phase: Design Development (50%)
+  Amount: 187500
+
+Invoice: I18-091
+  Project: 16 BK-079 - JW Marriott Resort Jeju, South Korea 
+  Phase: Design Development (100%)
+  Amount: 187500
+
+Invoice: I20-007
+  Project: 16 BK-079 - JW Marriott Resort Jeju, South Korea 
+  Phase: Construction Documents (50%)
+  Amount: 93750
+
+Invoice: I20-045
+  Project: 16 BK-079 - JW Marriott Resort Jeju, South Korea 
+  Phase: Construction Documents (100%)
+  Amount: 93750
+
+Invoice: I20-017
+  Project: 16 BK-079 - JW Marriott Resort Jeju, South Korea 
+  Phase: Construction Observation (25%)
+  Amount: 46875
+
+Invoice: I21-002
+  Project: 16 BK-079 - JW Marriott Resort Jeju, South Korea 
+  Phase: Construction Observation (50%)
+  Amount: 46875
+
+Invoice: I21-058
+  Project: 16 BK-079 - JW Marriott Resort Jeju, South Korea 
+  Phase: Construction Observation (75%)
+  Amount: 46875
+
+Invoice: I22-018
+  Project: 16 BK-079 - JW Marriott Resort Jeju, South Korea 
+  Phase: Construction Observation (100%)
+  Amount: 46875
+
+Invoice: I17-037
+  Project: 16 BK-076 - JW Marriott Resort Jeju, South Korea 
+  Phase: Mobilization Fee
+  Amount: 148350
+
+Invoice: I17-055
+  Project: 16 BK-076 - JW Marriott Resort Jeju, South Korea 
+  Phase: Conceptual Design (75%)
+  Amount: 185440
+
+Invoice: I18-030
+  Project: 16 BK-076 - JW Marriott Resort Jeju, South Korea 
+  Phase: Conceptual Design (100%)
+  Amount: 61812
+
+Invoice: I18-038
+  Project: 16 BK-076 - JW Marriott Resort Jeju, South Korea 
+  Phase: Design Development (50%)
+  Amount: 148350
+
+Invoice: I18-092
+  Project: 16 BK-076 - JW Marriott Resort Jeju, South Korea 
+  Phase: Design Development (100%)
+  Amount: 148350
+
+Invoice: I19-059
+  Project: 16 BK-076 - JW Marriott Resort Jeju, South Korea 
+  Phase: Construction Documents (50%)
+  Amount: 74175
+
+Invoice: I19-060
+  Project: 16 BK-076 - JW Marriott Resort Jeju, South Korea 
+  Phase: Construction Documents (100%)
+  Amount: 74175
+
+Invoice: I21-003
+  Project: 16 BK-076 - JW Marriott Resort Jeju, South Korea 
+  Phase: Construction Observation (25%)
+  Amount: 37087
+
+Invoice: I21-036
+  Project: 16 BK-076 - JW Marriott Resort Jeju, South Korea 
+  Phase: Construction Observation (50%)
+  Amount: 37087
+
+Invoice: I21-059
+  Project: 16 BK-076 - JW Marriott Resort Jeju, South Korea 
+  Phase: Construction Observation (75%)
+  Amount: 37087
+
+Invoice: I22-019
+  Project: 16 BK-076 - JW Marriott Resort Jeju, South Korea 
+  Phase: Construction Observation (100%)
+  Amount: 37087
+
+Invoice: I20-019
+  Project: 16 BK-076 - JW Marriott Resort Jeju, South Korea 
+  Phase: Additional Design Fee new room
+  Amount: 20000
+
+Invoice: I20-080
+  Project: 20 BK-047 - Audley Square House-Communal Spa
+  Phase: Conceptual Design
+  Amount: 147539
+
+Invoice: I20-083
+  Project: 20 BK-047 - Audley Square House-Communal Spa
+  Phase: None
+  Amount: 147539
+
+Invoice: I21-012
+  Project: 20 BK-047 - Audley Square House-Communal Spa
+  Phase:      1st payment in February 21 
+  Amount: 57750
+
+Invoice: I21-013
+  Project: 20 BK-047 - Audley Square House-Communal Spa
+  Phase:     2nd payment in March 21
+  Amount: 57750
+
+Invoice: I21-014
+  Project: 20 BK-047 - Audley Square House-Communal Spa
+  Phase:     3rd payment in April 21
+  Amount: 57750
+
+Invoice: I21-015
+  Project: 20 BK-047 - Audley Square House-Communal Spa
+  Phase:     4th payment in May 21
+  Amount: 57750
+
+Invoice: I21-047
+  Project: 20 BK-047 - Audley Square House-Communal Spa
+  Phase:     5th payment in June 21
+  Amount: 57750
+
+Invoice: I21-054
+  Project: 20 BK-047 - Audley Square House-Communal Spa
+  Phase:     6th paymeny in July 21
+  Amount: 57750
+
+Invoice: I22-015
+  Project: 20 BK-047 - Audley Square House-Communal Spa
+  Phase: Wet Communal Area – Gym, Pool Hall & Bar
+  Amount: 30000
+
+Invoice: I22-016
+  Project: 20 BK-047 - Audley Square House-Communal Spa
+  Phase: Wet Communal Area – Gym, Pool Hall & Bar 
+  Amount: 30000
+
+Invoice: I22-032
+  Project: 20 BK-047 - Audley Square House-Communal Spa
+  Phase: Wet Communal Area – Spa & Treatment Finishes
+  Amount: 30000
+
+Invoice: I22-038
+  Project: 20 BK-047 - Audley Square House-Communal Spa
+  Phase: Wet Communal Area – Gym, Pool Hall & Bar 
+  Amount: 30000
+
+Invoice: I22-039
+  Project: 20 BK-047 - Audley Square House-Communal Spa
+  Phase: Wet Communal Area – Spa and Treatment Finishes
+  Amount: 30000
+
+Invoice: I22-050
+  Project: 20 BK-047 - Audley Square House-Communal Spa
+  Phase:                    1st Installment-June 22
+  Amount: 10000
+
+Invoice: I22-053
+  Project: 20 BK-047 - Audley Square House-Communal Spa
+  Phase:                    2nd Installment-July 22
+  Amount: 10000
+
+Invoice: I22-060
+  Project: 20 BK-047 - Audley Square House-Communal Spa
+  Phase:                    3rd Installment-August 22
+  Amount: 10000
+
+Invoice: I22-068
+  Project: 20 BK-047 - Audley Square House-Communal Spa
+  Phase:                    4th Installment-September 22
+  Amount: 12500
+
+Invoice: I23-089
+  Project: 20 BK-047 - Audley Square House-Communal Spa
+  Phase: 1st installment Aug 23
+  Amount: 8500
+
+Invoice: I23-090
+  Project: 20 BK-047 - Audley Square House-Communal Spa
+  Phase: 2nd installment Sep 23
+  Amount: 8000
+
+Invoice: I23-091
+  Project: 20 BK-047 - Audley Square House-Communal Spa
+  Phase: 3rd installment Oct 23
+  Amount: 8000
+
+Invoice: I23-092
+  Project: 20 BK-047 - Audley Square House-Communal Spa
+  Phase: 4th installment Nov 23
+  Amount: 8000
+
+Invoice: I23-105
+  Project: 20 BK-047 - Audley Square House-Communal Spa
+  Phase: 5th installment Dec 23
+  Amount: 8000
+
+Invoice: I24-004
+  Project: 20 BK-047 - Audley Square House-Communal Spa
+  Phase: 6th installment Jan 24
+  Amount: 8000
+
+Invoice: I24-012
+  Project: 20 BK-047 - Audley Square House-Communal Spa
+  Phase: 7th installment Feb 24
+  Amount: 8000
+
+Invoice: I24-016
+  Project: 20 BK-047 - Audley Square House-Communal Spa
+  Phase: 8th installment Mar 24
+  Amount: 8000
+
+Invoice: I24-027
+  Project: 20 BK-047 - Audley Square House-Communal Spa
+  Phase: 9th installment Apr 24
+  Amount: 8000
+
+Invoice: I24-030
+  Project: 20 BK-047 - Audley Square House-Communal Spa
+  Phase: 10th installment May 24
+  Amount: 8000
+
+Invoice: I24-036
+  Project: 20 BK-047 - Audley Square House-Communal Spa
+  Phase: 11th installment Jun 24
+  Amount: 8000
+
+Invoice: I24-043
+  Project: 20 BK-047 - Audley Square House-Communal Spa
+  Phase: 12th installment Jul 24
+  Amount: 8000
+
+Invoice: I24-050
+  Project: 20 BK-047 - Audley Square House-Communal Spa
+  Phase: 13th installment Aug 24
+  Amount: 8000
+
+Invoice: I24-068
+  Project: 20 BK-047 - Audley Square House-Communal Spa
+  Phase: 14th installment Sep24
+  Amount: 8000
+
+Invoice: I24-077
+  Project: 20 BK-047 - Audley Square House-Communal Spa
+  Phase: 15th installment Oct 24
+  Amount: 8000
+
+Invoice: I24-085
+  Project: 20 BK-047 - Audley Square House-Communal Spa
+  Phase: 16thinstallment Nov 24
+  Amount: 8000
+
+Invoice: I24-091
+  Project: 20 BK-047 - Audley Square House-Communal Spa
+  Phase: 17th installment Dec 24
+  Amount: 8000
+
+Invoice: I25-003
+  Project: 20 BK-047 - Audley Square House-Communal Spa
+  Phase: 18th installment Jan 25
+  Amount: 8000
+
+Invoice: I25-012
+  Project: 20 BK-047 - Audley Square House-Communal Spa
+  Phase: 19th installment Feb 25
+  Amount: 8000
+
+Invoice: I25-024
+  Project: 20 BK-047 - Audley Square House-Communal Spa
+  Phase: 20th installment Mar 25
+  Amount: 8000
+
+Invoice: I25-032
+  Project: 20 BK-047 - Audley Square House-Communal Spa
+  Phase: 21st installment Apr 25
+  Amount: 8000
+
+Invoice: I25-049
+  Project: 20 BK-047 - Audley Square House-Communal Spa
+  Phase: 22nd installment May 25
+  Amount: 8000
+
+Invoice: I25-062
+  Project: 20 BK-047 - Audley Square House-Communal Spa
+  Phase: 23rd installment Jun 25
+  Amount: 8000
+
+Invoice: I25-068
+  Project: 20 BK-047 - Audley Square House-Communal Spa
+  Phase: 24th installment Jul 25
+  Amount: 8000
+
+Invoice: I22-037
+  Project: 19 BK-018 - Villa Project in Ahmedabad, India
+  Phase: Professional Fee
+  Amount: 37500
+
+Invoice: I22-082
+  Project: 19 BK-018 - Villa Project in Ahmedabad, India
+  Phase: None
+  Amount: 37500
+
+Invoice: I20-094
+  Project: 20 BK-092 - Resort Project in Udaipur, India
+  Phase: Mobilization Fee
+  Amount: 50000
+
+Invoice: I21-023
+  Project: 20 BK-092 - Resort Project in Udaipur, India
+  Phase: Conceptual Design
+  Amount: 31680
+
+Invoice: I22-013
+  Project: 20 BK-092 - Resort Project in Udaipur, India
+  Phase: None
+  Amount: 133120
+
+Invoice: I22-072
+  Project: 20 BK-092 - Resort Project in Udaipur, India
+  Phase: Design Development
+  Amount: 80550
+
+Invoice: I22-087
+  Project: 20 BK-092 - Resort Project in Udaipur, India
+  Phase: None
+  Amount: 80550
+
+Invoice: I24-053
+  Project: 20 BK-092 - Resort Project in Udaipur, India
+  Phase: Construction Documents
+  Amount: 80550
+
+Invoice: I25-020
+  Project: 20 BK-092 - Resort Project in Udaipur, India
+  Phase: Construction Observation
+  Amount: 80550
+
+Invoice: I20-094
+  Project: 20 BK-092 - Resort Project in Udaipur, India
+  Phase: Mobilization Fee
+  Amount: 70000
+
+Invoice: I21-023
+  Project: 20 BK-092 - Resort Project in Udaipur, India
+  Phase: Conceptual Design
+  Amount: 115600
+
+Invoice: I22-013
+  Project: 20 BK-092 - Resort Project in Udaipur, India
+  Phase: None
+  Amount: 115600
+
+Invoice: I22-072
+  Project: 20 BK-092 - Resort Project in Udaipur, India
+  Phase: Design Development
+  Amount: 112950
+
+Invoice: I22-087
+  Project: 20 BK-092 - Resort Project in Udaipur, India
+  Phase: None
+  Amount: 112950
+
+Invoice: I24-047
+  Project: 20 BK-092 - Resort Project in Udaipur, India
+  Phase: Construction Documents
+  Amount: 112950
+
+Invoice: I24-054
+  Project: 20 BK-092 - Resort Project in Udaipur, India
+  Phase: Construction Observation
+  Amount: 28237.5
+
+Invoice: I25-021
+  Project: 20 BK-092 - Resort Project in Udaipur, India
+  Phase: None
+  Amount: 84712.5
+
+Invoice: I20-094
+  Project: 20 BK-092 - Resort Project in Udaipur, India
+  Phase: Mobilization Fee
+  Amount: 80000
+
+Invoice: I21-023
+  Project: 20 BK-092 - Resort Project in Udaipur, India
+  Phase: Conceptual Design
+  Amount: 52720
+
+Invoice: I22-013
+  Project: 20 BK-092 - Resort Project in Udaipur, India
+  Phase: None
+  Amount: 210880
+
+Invoice: I22-072
+  Project: 20 BK-092 - Resort Project in Udaipur, India
+  Phase: Design Development
+  Amount: 128850
+
+Invoice: I22-088
+  Project: 20 BK-092 - Resort Project in Udaipur, India
+  Phase: None
+  Amount: 128850
+
+Invoice: I24-055
+  Project: 20 BK-092 - Resort Project in Udaipur, India
+  Phase: Construction Documents
+  Amount: 64425
+
+Invoice: I24-071
+  Project: 20 BK-092 - Resort Project in Udaipur, India
+  Phase: None
+  Amount: 64425
+
+Invoice: I25-022
+  Project: 20 BK-092 - Resort Project in Udaipur, India
+  Phase: Construction Observation
+  Amount: 128850
+
+Invoice: I22-013
+  Project: 20 BK-092 - Resort Project in Udaipur, India
+  Phase: None
+  Amount: None
+
+Invoice: I22-052
+  Project: 20 BK-092 - Resort Project in Udaipur, India
+  Phase: None
+  Amount: None
+
+Invoice: I21-024
+  Project: 20 BK-092 - Resort Project in Udaipur, India
+  Phase: None
+  Amount: None
+
+Invoice: I21-028
+  Project: 20 BK-092 - Resort Project in Udaipur, India
+  Phase: None
+  Amount: None
+
+Invoice: I22-022
+  Project: 20 BK-092 - Resort Project in Udaipur, India
+  Phase: None
+  Amount: None
+
+Invoice: I21-050
+  Project: 21 BK-006 - Intercontinental Resort and Spa Danang, 
+  Phase: Mobilization Fee
+  Amount: 104250
+
+Invoice: I21-063
+  Project: 21 BK-006 - Intercontinental Resort and Spa Danang, 
+  Phase: Conceptual Design
+  Amount: 173750
+
+Invoice: I21-066
+  Project: 21 BK-006 - Intercontinental Resort and Spa Danang, 
+  Phase: Design Development
+  Amount: 104250
+
+Invoice: I21-085
+  Project: 21 BK-006 - Intercontinental Resort and Spa Danang, 
+  Phase: None
+  Amount: 104250
+
+Invoice: I21-086
+  Project: 21 BK-006 - Intercontinental Resort and Spa Danang, 
+  Phase: Construction Documents
+  Amount: 52125
+
+Invoice: I22-064
+  Project: 21 BK-006 - Intercontinental Resort and Spa Danang, 
+  Phase: None
+  Amount: 52125
+
+Invoice: I22-065
+  Project: 21 BK-006 - Intercontinental Resort and Spa Danang, 
+  Phase: Construction Observation
+  Amount: 52125
+
+Invoice: I23-047
+  Project: 21 BK-006 - Intercontinental Resort and Spa Danang, 
+  Phase: None
+  Amount: 52125
+
+Invoice: I24-021
+  Project: 24 BK-020 - Intercontinental Resort and Spa Danang, 
+  Phase: Mobilization Fee
+  Amount: 22500
+
+Invoice: I24-022
+  Project: 24 BK-020 - Intercontinental Resort and Spa Danang, 
+  Phase: Conceptual Design
+  Amount: 37500
+
+Invoice: I24-082
+  Project: 24 BK-020 - Intercontinental Resort and Spa Danang, 
+  Phase: Design Development
+  Amount: 45000
+
+Invoice: I24-083
+  Project: 24 BK-020 - Intercontinental Resort and Spa Danang, 
+  Phase: Construction Documents
+  Amount: 22500
+
+Invoice: I24-084
+  Project: 24 BK-020 - Intercontinental Resort and Spa Danang, 
+  Phase: Construction Observation
+  Amount: 22500
+
+Invoice: I22-015
+  Project: 21 BK-015 - Four Seasons Resort Chiangmai
+  Phase: Construction Observation (THB 120,000)
+  Amount: 0
+
+Invoice: I21-065
+  Project: 21 BK-055 - Sofitel Hanoi Ecopark Resort and 
+  Phase: Mobilization Fee-10% 
+  Amount: 57000
+
+Invoice: I21-077
+  Project: 21 BK-055 - Sofitel Hanoi Ecopark Resort and 
+  Phase: 0.5
+  Amount: 85500
+
+Invoice: I22-034
+  Project: 21 BK-055 - Sofitel Hanoi Ecopark Resort and 
+  Phase: 0.4
+  Amount: 68400
+
+Invoice: I22-035
+  Project: 21 BK-055 - Sofitel Hanoi Ecopark Resort and 
+  Phase: 0.1
+  Amount: 17100
+
+Invoice: I22-057
+  Project: 21 BK-055 - Sofitel Hanoi Ecopark Resort and 
+  Phase: 0.5
+  Amount: 42750
+
+Invoice: I22-058
+  Project: 21 BK-055 - Sofitel Hanoi Ecopark Resort and 
+  Phase: 0.4
+  Amount: 34200
+
+Invoice: I22-059
+  Project: 21 BK-055 - Sofitel Hanoi Ecopark Resort and 
+  Phase: 0.1
+  Amount: 0
+
+Invoice: I22-073
+  Project: 21 BK-055 - Sofitel Hanoi Ecopark Resort and 
+  Phase: 0.5
+  Amount: 0
+
+Invoice: I22-073
+  Project: 21 BK-055 - Sofitel Hanoi Ecopark Resort and 
+  Phase: 0.4
+  Amount: 0
+
+Invoice: I22-073
+  Project: 21 BK-055 - Sofitel Hanoi Ecopark Resort and 
+  Phase: 0.1
+  Amount: 0
+
+Invoice: I21-065
+  Project: 21 BK-055 - Sofitel Hanoi Ecopark Resort and 
+  Phase: Mobilization Fee
+  Amount: 90250
+
+Invoice: I21-077
+  Project: 21 BK-055 - Sofitel Hanoi Ecopark Resort and 
+  Phase: 0.5
+  Amount: 135375
+
+Invoice: I22-034
+  Project: 21 BK-055 - Sofitel Hanoi Ecopark Resort and 
+  Phase: 0.4
+  Amount: 108300
+
+Invoice: I22-035
+  Project: 21 BK-055 - Sofitel Hanoi Ecopark Resort and 
+  Phase: 0.1
+  Amount: 27075
+
+Invoice: I22-057
+  Project: 21 BK-055 - Sofitel Hanoi Ecopark Resort and 
+  Phase: 0.5
+  Amount: 67687.5
+
+Invoice: I22-058
+  Project: 21 BK-055 - Sofitel Hanoi Ecopark Resort and 
+  Phase: 0.4
+  Amount: 54150
+
+Invoice: I22-059
+  Project: 21 BK-055 - Sofitel Hanoi Ecopark Resort and 
+  Phase: 0.1
+  Amount: 0
+
+Invoice: I22-074
+  Project: 21 BK-055 - Sofitel Hanoi Ecopark Resort and 
+  Phase: 0.5
+  Amount: 0
+
+Invoice: I22-074
+  Project: 21 BK-055 - Sofitel Hanoi Ecopark Resort and 
+  Phase: 0.4
+  Amount: 0
+
+Invoice: I22-074
+  Project: 21 BK-055 - Sofitel Hanoi Ecopark Resort and 
+  Phase: 0.1
+  Amount: 0
+
+Invoice: I21-065
+  Project: 21 BK-055 - Sofitel Hanoi Ecopark Resort and 
+  Phase: Mobilization Fee
+  Amount: 95000
+
+Invoice: I21-077
+  Project: 21 BK-055 - Sofitel Hanoi Ecopark Resort and 
+  Phase: 0.5
+  Amount: 142500
+
+Invoice: I22-034
+  Project: 21 BK-055 - Sofitel Hanoi Ecopark Resort and 
+  Phase: 0.4
+  Amount: 114000
+
+Invoice: I22-035
+  Project: 21 BK-055 - Sofitel Hanoi Ecopark Resort and 
+  Phase: 0.1
+  Amount: 28500
+
+Invoice: I22-057
+  Project: 21 BK-055 - Sofitel Hanoi Ecopark Resort and 
+  Phase: 0.5
+  Amount: 71250
+
+Invoice: I22-058
+  Project: 21 BK-055 - Sofitel Hanoi Ecopark Resort and 
+  Phase: 0.4
+  Amount: 57000
+
+Invoice: I22-059
+  Project: 21 BK-055 - Sofitel Hanoi Ecopark Resort and 
+  Phase: 0.1
+  Amount: 0
+
+Invoice: I22-075
+  Project: 21 BK-055 - Sofitel Hanoi Ecopark Resort and 
+  Phase: 0.5
+  Amount: 0
+
+Invoice: I22-075
+  Project: 21 BK-055 - Sofitel Hanoi Ecopark Resort and 
+  Phase: 0.4
+  Amount: 0
+
+Invoice: I22-075
+  Project: 21 BK-055 - Sofitel Hanoi Ecopark Resort and 
+  Phase: 0.1
+  Amount: 0
+
+Invoice: I22-049A&B
+  Project: 22 BK-046 - Resort and Hotel Project at Nusa Penida Island, Indonesia
+  Phase: Mobilization Fee
+  Amount: 67500
+
+Invoice: I22-049A&B
+  Project: 22 BK-046 - Resort and Hotel Project at Nusa Penida Island, Indonesia
+  Phase: Mobilization Fee
+  Amount: 90000
+
+Invoice: I22-049A&B
+  Project: 22 BK-046 - Resort and Hotel Project at Nusa Penida Island, Indonesia
+  Phase: Mobilization Fee
+  Amount: 97500
+
+Invoice: I22-061
+  Project: 22 BK-056 - Hanoi Hotel Project in French 
+  Phase: Mobilization Fee
+  Amount: 103500
+
+Invoice: I22-071
+  Project: 22 BK-056 - Hanoi Hotel Project in French 
+  Phase: Conceptual Design
+  Amount: 0
+
+Invoice: I22-079
+  Project: 22 BK-056 - Hanoi Hotel Project in French 
+  Phase: None
+  Amount: 0
+
+Invoice: I22-061
+  Project: 22 BK-056 - Hanoi Hotel Project in French 
+  Phase: Mobilization Fee
+  Amount: 142500
+
+Invoice: I22-071
+  Project: 22 BK-056 - Hanoi Hotel Project in French 
+  Phase: Conceptual Design
+  Amount: 0
+
+Invoice: I22-079
+  Project: 22 BK-056 - Hanoi Hotel Project in French 
+  Phase: None
+  Amount: 0
+
+Invoice: I22-080
+  Project: 22 BK-056 - Hanoi Hotel Project in French 
+  Phase: Design Development
+  Amount: 0
+
+Invoice: I22-061
+  Project: 22 BK-056 - Hanoi Hotel Project in French 
+  Phase: Mobilization Fee
+  Amount: 172500
+
+Invoice: I22-071
+  Project: 22 BK-056 - Hanoi Hotel Project in French 
+  Phase: Conceptual Design
+  Amount: 0
+
+Invoice: I22-079
+  Project: 22 BK-056 - Hanoi Hotel Project in French 
+  Phase: None
+  Amount: 0
+
+Invoice: I22-084
+  Project: 22 BK-067 - Mr. Siddhartha Lal's House in Goa
+  Phase: Mobilization Fee
+  Amount: 105000
+
+Invoice: I23-035
+  Project: 22 BK-067 - Mr. Siddhartha Lal's House in Goa
+  Phase: Conceptual Design
+  Amount: 87500
+
+Invoice: I23-046
+  Project: 22 BK-067 - Mr. Siddhartha Lal's House in Goa
+  Phase: None
+  Amount: 87500
+
+Invoice: I25-050
+  Project: 22 BK-095 - Wynn Al Marjan Island Project
+  Phase: Construction Observation
+  Amount: 31172.5
+
+Invoice: I23-026
+  Project: 23 BK-029 - Mandarin Oriental Bali, Indonesia
+  Phase: Mobilization Fee
+  Amount: 81000
+
+Invoice: I23-063
+  Project: 23 BK-029 - Mandarin Oriental Bali, Indonesia
+  Phase: Conceptual Design
+  Amount: 0
+
+Invoice: I23-026
+  Project: 23 BK-029 - Mandarin Oriental Bali, Indonesia
+  Phase: Mobilization Fee
+  Amount: 165000
+
+Invoice: I23-063
+  Project: 23 BK-029 - Mandarin Oriental Bali, Indonesia
+  Phase: Conceptual Design
+  Amount: 0
+
+Invoice: I23-026
+  Project: 23 BK-029 - Mandarin Oriental Bali, Indonesia
+  Phase: Mobilization Fee
+  Amount: 189000
+
+Invoice: I23-063
+  Project: 23 BK-029 - Mandarin Oriental Bali, Indonesia
+  Phase: Conceptual Design
+  Amount: 0
+
+Invoice: I25-122
+  Project: 23 BK-071 - St. Regis Hotel in Thousand Island 
+  Phase: Design Development
+  Amount: 0
+
+Invoice: I23-094
+  Project: 23 BK-068 - Treasure Island Resort, Caribbean Castle 
+  Phase: Mobilization Fee
+  Amount: 0
+
+Invoice: I23-094
+  Project: 23 BK-068 - Treasure Island Resort, Caribbean Castle 
+  Phase: Mobilization Fee
+  Amount: 0
+
+Invoice: I23-094
+  Project: 23 BK-068 - Treasure Island Resort, Caribbean Castle 
+  Phase: Mobilization Fee
+  Amount: 0
+
+Invoice: I24-032
+  Project: 24 BK-001 - Shagri La Sanya, China
+  Phase: Mobilization Fee
+  Amount: 112500
+
+Invoice: I24-060
+  Project: 24 BK-001 - Shagri La Sanya, China
+  Phase:  - Upon approval of Overall Landscape 
+  Amount: 75000
+
+Invoice: I24-089
+  Project: 24 BK-001 - Shagri La Sanya, China
+  Phase:  - Upon approval of Concept drawings
+  Amount: 112500
+
+Invoice: I24-032
+  Project: 24 BK-001 - Shagri La Sanya, China
+  Phase: Mobilization Fee
+  Amount: 67500
+
+Invoice: I24-061
+  Project: 24 BK-001 - Shagri La Sanya, China
+  Phase: Conceptual Design
+  Amount: 56250
+
+Invoice: I24-090
+  Project: 24 BK-001 - Shagri La Sanya, China
+  Phase: Design Development
+  Amount: 0
+
+Invoice: I24-025
+  Project: 24 BK-030 - Sofitel Luang Prabang, Laos
+  Phase: Mobilization Fee
+  Amount: 35250
+
+Invoice: I24-049
+  Project: 24 BK-030 - Sofitel Luang Prabang, Laos
+  Phase: Conceptual Design
+  Amount: 29375
+
+Invoice: I24-025
+  Project: 24 BK-030 - Sofitel Luang Prabang, Laos
+  Phase: Mobilization Fee
+  Amount: 49500
+
+Invoice: I24-049
+  Project: 24 BK-030 - Sofitel Luang Prabang, Laos
+  Phase: Conceptual Design
+  Amount: 41250
+
+Invoice: I24-025
+  Project: 24 BK-030 - Sofitel Luang Prabang, Laos
+  Phase: Mobilization Fee
+  Amount: 57000
+
+Invoice: I24-049
+  Project: 24 BK-030 - Sofitel Luang Prabang, Laos
+  Phase: Conceptual Design
+  Amount: 47500
+
+Invoice: I24-048&070
+  Project: 24 BK-043 - Hotel (Trident and Oberoi) Project,  India 
+  Phase: Mobilization Fee
+  Amount: 60000
+
+Invoice: I25-001&002
+  Project: 24 BK-043 - Hotel (Trident and Oberoi) Project,  India 
+  Phase: Conceptual Design
+  Amount: 50000
+
+Invoice: I24-048&070
+  Project: 24 BK-043 - Hotel (Trident and Oberoi) Project,  India 
+  Phase: Mobilization Fee
+  Amount: 138000
+
+Invoice: I25-001&002
+  Project: 24 BK-043 - Hotel (Trident and Oberoi) Project,  India 
+  Phase: Conceptual Design
+  Amount: 115000
+
+Invoice: I24-048&070
+  Project: 24 BK-043 - Hotel (Trident and Oberoi) Project,  India 
+  Phase: Mobilization Fee
+  Amount: 132000
+
+Invoice: I25-001&002
+  Project: 24 BK-043 - Hotel (Trident and Oberoi) Project,  India 
+  Phase: Conceptual Design
+  Amount: 110000
+
+Invoice: I24-072
+  Project: 24 BK-070 - Intercontinental Resort and Spa, Danang, Vietnam
+  Phase: Mobilization Fee
+  Amount: 30000
+
+Invoice: I24-085
+  Project: 24 BK-070 - Intercontinental Resort and Spa, Danang, Vietnam
+  Phase: Conceptual Design
+  Amount: 30000
+
+Invoice: I25-098
+  Project: 24 BK-074 - 43 Dang Thai Mai Project, Hanoi, Vietnam
+  Phase: Construction Documents
+  Amount: 231525
+
+Invoice: I25-011
+  Project: 25 BK-002 - Tonkin Palace Hanoi Project, Vietnam
+  Phase: Mobilization Fee
+  Amount: 50000
+
+Invoice: I25-015
+  Project: 25 BK-002 - Tonkin Palace Hanoi Project, Vietnam
+  Phase: Conceptual Design
+  Amount: 62500
+
+Invoice: I25-029
+  Project: 25 BK-002 - Tonkin Palace Hanoi Project, Vietnam
+  Phase: Design Development
+  Amount: 87500
+
+Invoice: I25-100
+  Project: 25 BK-002 - Tonkin Palace Hanoi Project, Vietnam
+  Phase: Construction Documents
+  Amount: 25000
+
+Invoice: I25-011
+  Project: 25 BK-002 - Tonkin Palace Hanoi Project, Vietnam
+  Phase: Mobilization Fee
+  Amount: 70000
+
+Invoice: I25-015
+  Project: 25 BK-002 - Tonkin Palace Hanoi Project, Vietnam
+  Phase: Conceptual Design
+  Amount: 87500
+
+Invoice: I25-029
+  Project: 25 BK-002 - Tonkin Palace Hanoi Project, Vietnam
+  Phase: Design Development
+  Amount: 122500
+
+Invoice: I25-034
+  Project: 25 BK-002 - Tonkin Palace Hanoi Project, Vietnam
+  Phase: Construction Documents
+  Amount: 17500
+
+Invoice: I25-047
+  Project: 25 BK-002 - Tonkin Palace Hanoi Project, Vietnam
+  Phase: None
+  Amount: 17500
+
+Invoice: I25-011
+  Project: 25 BK-002 - Tonkin Palace Hanoi Project, Vietnam
+  Phase: Mobilization Fee
+  Amount: 80000
+
+Invoice: I25-015
+  Project: 25 BK-002 - Tonkin Palace Hanoi Project, Vietnam
+  Phase: Conceptual Design
+  Amount: 100000
+
+Invoice: I25-029
+  Project: 25 BK-002 - Tonkin Palace Hanoi Project, Vietnam
+  Phase: Design Development
+  Amount: 140000
+
+Invoice: I25-096
+  Project: 25 BK-002 - Tonkin Palace Hanoi Project, Vietnam
+  Phase: Construction Documents
+  Amount: 40000
+
+Invoice: I25-120
+  Project: 25 BK-017 - TARC's Luxury Branded Residence 
+  Phase: Conceptual Design
+  Amount: 0
+
+Invoice: I14-045
+  Project: 13 BK-109 - Four Seasons Resort Lijiang, China
+  Phase: Mobilization Fee
+  Amount: 147000
+
+Invoice: I17-104
+  Project: 13 BK-109 - Four Seasons Resort Lijiang, China
+  Phase: Conceptual Design
+  Amount: 122500
+
+Invoice: I18-080
+  Project: 13 BK-109 - Four Seasons Resort Lijiang, China
+  Phase: None
+  Amount: 122500
+
+Invoice: I18-099
+  Project: 13 BK-109 - Four Seasons Resort Lijiang, China
+  Phase: Design Development
+  Amount: 73500
+
+Invoice: I19-006
+  Project: 13 BK-109 - Four Seasons Resort Lijiang, China
+  Phase: None
+  Amount: 220500
+
+Invoice: I19-007
+  Project: 13 BK-109 - Four Seasons Resort Lijiang, China
+  Phase: Construction Documents
+  Amount: 36750
+
+Invoice: I19-066
+  Project: 13 BK-109 - Four Seasons Resort Lijiang, China
+  Phase: None
+  Amount: 0
+
+Invoice: I20-020
+  Project: 13 BK-109 - Four Seasons Resort Lijiang, China
+  Phase: Construction Observation
+  Amount: 0
+
+Invoice: I17-104
+  Project: 13 BK-109 - Four Seasons Resort Lijiang, China
+  Phase: Additional Fee
+  Amount: 77500
+
+Invoice: I15-128
+  Project: 15 BK-034 - Tony Farm Resort Chengdu, China
+  Phase: Mobilization Fee
+  Amount: 75000
+
+Invoice: I16-014
+  Project: 15 BK-034 - Tony Farm Resort Chengdu, China
+  Phase: Conceptual Design
+  Amount: 0
+
+Invoice: I15-128
+  Project: 15 BK-034 - Tony Farm Resort Chengdu, China
+  Phase: Mobilization Fee
+  Amount: 105000
+
+Invoice: I16-014
+  Project: 15 BK-034 - Tony Farm Resort Chengdu, China
+  Phase: Conceptual Design
+  Amount: 0
+
+Invoice: I15-128
+  Project: 15 BK-034 - Tony Farm Resort Chengdu, China
+  Phase: Mobilization Fee
+  Amount: 120000
+
+Invoice: I16-014
+  Project: 15 BK-034 - Tony Farm Resort Chengdu, China
+  Phase: Conceptual Design
+  Amount: 0
+
+Invoice: I16-126
+  Project: 16 BK-047 - Chengdu Da yi County Residential Project
+  Phase: Mobilization Fee
+  Amount: 25400
+
+Invoice: I17-043
+  Project: 16 BK-047 - Chengdu Da yi County Residential Project
+  Phase: Conceptual Design
+  Amount: 38100
+
+Invoice: I17-044
+  Project: 16 BK-047 - Chengdu Da yi County Residential Project
+  Phase: Conceptual Design (100%)
+  Amount: 38100
+
+Invoice: I17-047
+  Project: 16 BK-047 - Chengdu Da yi County Residential Project
+  Phase: Design Development (50%)
+  Amount: 38100
+
+Invoice: I17-048
+  Project: 16 BK-047 - Chengdu Da yi County Residential Project
+  Phase: Design Development (100%)
+  Amount: 38100
+
+Invoice: I17-093
+  Project: 16 BK-047 - Chengdu Da yi County Residential Project
+  Phase: Construction Documents (50%)
+  Amount: 19050
+
+Invoice: I18-015
+  Project: 16 BK-047 - Chengdu Da yi County Residential Project
+  Phase: Construction Documents (100%)
+  Amount: 0
+
+Invoice: I17-094
+  Project: 16 BK-047 - Chengdu Da yi County Residential Project
+  Phase: Construction Observation
+  Amount: 12700
+
+Invoice: I18-016
+  Project: 16 BK-047 - Chengdu Da yi County Residential Project
+  Phase: Construction Observation
+  Amount: 0
+
+Invoice: I16-127
+  Project: 16 BK-047 - Chengdu Da yi County Residential Project
+  Phase: Mobilization Fee
+  Amount: 38100
+
+Invoice: I17-045
+  Project: 16 BK-047 - Chengdu Da yi County Residential Project
+  Phase: Conceptual Design
+  Amount: 57150
+
+Invoice: I17-046
+  Project: 16 BK-047 - Chengdu Da yi County Residential Project
+  Phase: Conceptual Design (100%)
+  Amount: 57150
+
+Invoice: I17-049
+  Project: 16 BK-047 - Chengdu Da yi County Residential Project
+  Phase: Design Development (50%)
+  Amount: 57150
+
+Invoice: I17-050
+  Project: 16 BK-047 - Chengdu Da yi County Residential Project
+  Phase: Design Development (100%)
+  Amount: 57150
+
+Invoice: I18-017
+  Project: 16 BK-047 - Chengdu Da yi County Residential Project
+  Phase: Construction Documents (50%)
+  Amount: 28575
+
+Invoice: I18-018
+  Project: 16 BK-047 - Chengdu Da yi County Residential Project
+  Phase: Construction Observation
+  Amount: 19050
+
+Invoice: I19-001
+  Project: 16 BK-047 - Chengdu Da yi County Residential Project
+  Phase: None
+  Amount: None
+
+Invoice: I16-090
+  Project: 16 BK-075 - Foshan Shunde Beijiao New Town 05-A-06 Project
+  Phase: Mobilization Fee
+  Amount: 59700
+
+Invoice: I16-102
+  Project: 16 BK-075 - Foshan Shunde Beijiao New Town 05-A-06 Project
+  Phase: Conceptual Design
+  Amount: 39800
+
+Invoice: I16-105
+  Project: 16 BK-075 - Foshan Shunde Beijiao New Town 05-A-06 Project
+  Phase: Conceptual Design (100%)
+  Amount: 59700
+
+Invoice: I17-096
+  Project: 16 BK-075 - Foshan Shunde Beijiao New Town 05-A-06 Project
+  Phase: Design Development (50%)
+  Amount: 59700
+
+Invoice: I17-101
+  Project: 16 BK-075 - Foshan Shunde Beijiao New Town 05-A-06 Project
+  Phase: Design Development (100%)
+  Amount: 59700
+
+Invoice: I17-102
+  Project: 16 BK-075 - Foshan Shunde Beijiao New Town 05-A-06 Project
+  Phase: Construction Documents (50%)
+  Amount: 29850
+
+Invoice: I17-103
+  Project: 16 BK-075 - Foshan Shunde Beijiao New Town 05-A-06 Project
+  Phase: Construction Documents (100%)
+  Amount: 29850
+
+Invoice: I18-019
+  Project: 16 BK-075 - Foshan Shunde Beijiao New Town 05-A-06 Project
+  Phase: Construction Observation
+  Amount: 0
+
+Invoice: I18-074
+  Project: 16 BK-075 - Foshan Shunde Beijiao New Town 05-A-06 Project
+  Phase: Construction Observation
+  Amount: 0
+
+Invoice: I16-091
+  Project: 16 BK-075 - Foshan Shunde Beijiao New Town 05-A-06 Project
+  Phase: Mobilization Fee
+  Amount: 59700
+
+Invoice: I16-103
+  Project: 16 BK-075 - Foshan Shunde Beijiao New Town 05-A-06 Project
+  Phase: Conceptual Design
+  Amount: 39800
+
+Invoice: I16-106
+  Project: 16 BK-075 - Foshan Shunde Beijiao New Town 05-A-06 Project
+  Phase: Conceptual Design (100%)
+  Amount: 59700
+
+Invoice: I18-020
+  Project: 16 BK-075 - Foshan Shunde Beijiao New Town 05-A-06 Project
+  Phase: Design Development (50%)
+  Amount: 0
+
+Invoice: I18-021
+  Project: 16 BK-075 - Foshan Shunde Beijiao New Town 05-A-06 Project
+  Phase: Design Development (100%)
+  Amount: 0
+
+Invoice: I18-022
+  Project: 16 BK-075 - Foshan Shunde Beijiao New Town 05-A-06 Project
+  Phase: Construction Documents (50%)
+  Amount: 0
+
+Invoice: I16-096
+  Project: 16 BK-085 - Guangzhou Zengcheng Zhucun Residential Project
+  Phase: Mobilization Fee
+  Amount: 21250
+
+Invoice: I16-112
+  Project: 16 BK-085 - Guangzhou Zengcheng Zhucun Residential Project
+  Phase: Suggestion on Architect Design
+  Amount: 10625
+
+Invoice: I17-066
+  Project: 16 BK-085 - Guangzhou Zengcheng Zhucun Residential Project
+  Phase: Conceptual Design
+  Amount: 53125
+
+Invoice: I17-067
+  Project: 16 BK-085 - Guangzhou Zengcheng Zhucun Residential Project
+  Phase: Conceptual Design (100%)
+  Amount: 63750
+
+Invoice: I18-025
+  Project: 16 BK-085 - Guangzhou Zengcheng Zhucun Residential Project
+  Phase: Design Development Document Review
+  Amount: 0
+
+Invoice: I18-026
+  Project: 16 BK-085 - Guangzhou Zengcheng Zhucun Residential Project
+  Phase: Construction Documents Review Phase
+  Amount: 0
+
+Invoice: I17-033
+  Project: 17 BK-036 - Shintamani Panom Penh, Cambodia
+  Phase: Mobilization Fee
+  Amount: 0
+
+Invoice: I17-131
+  Project: 17 BK-036 - Shintamani Panom Penh, Cambodia
+  Phase: Conceptual Design
+  Amount: 0
+
+Invoice: I17-132
+  Project: 17 BK-036 - Shintamani Panom Penh, Cambodia
+  Phase: Design Development
+  Amount: 0
+
+Invoice: I19-025
+  Project: 17 BK-036 - Shintamani Panom Penh, Cambodia
+  Phase: Construction Documents
+  Amount: 0
+
+Invoice: I19-026
+  Project: 17 BK-036 - Shintamani Panom Penh, Cambodia
+  Phase: Construction Observation
+  Amount: 0
+
+Invoice: I17-034
+  Project: 17 BK-035 - Shintamani Siem Reap, Cambodia
+  Phase: Mobilization Fee
+  Amount: 0
+
+Invoice: I19-041
+  Project: 17 BK-035 - Shintamani Siem Reap, Cambodia
+  Phase: Conceptual Design
+  Amount: 0
+
+Invoice: I19-042
+  Project: 17 BK-035 - Shintamani Siem Reap, Cambodia
+  Phase: Design Development
+  Amount: 0
+
+Invoice: I19-043
+  Project: 17 BK-035 - Shintamani Siem Reap, Cambodia
+  Phase: Construction Documents
+  Amount: 0
+
+Invoice: I19-044
+  Project: 17 BK-035 - Shintamani Siem Reap, Cambodia
+  Phase: Construction Observation
+  Amount: 0
+
+Invoice: I17-084
+  Project: 17 BK-063 - The Oberoi Maldives Project-Landscape
+  Phase: Mobilization Fee
+  Amount: 75000
+
+Invoice: I18-039
+  Project: 17 BK-063 - The Oberoi Maldives Project-Landscape
+  Phase: Conceptual Design
+  Amount: 0
+
+Invoice: I18-088
+  Project: 17 BK-063 - The Oberoi Maldives Project-Landscape
+  Phase: None
+  Amount: 0
+
+Invoice: I17-083
+  Project: 17 BK-063 - The Oberoi Maldives Project-Landscape
+  Phase: Mobilization Fee
+  Amount: 105000
+
+Invoice: I18-040
+  Project: 17 BK-063 - The Oberoi Maldives Project-Landscape
+  Phase: Conceptual Design
+  Amount: 0
+
+Invoice: I18-089
+  Project: 17 BK-063 - The Oberoi Maldives Project-Landscape
+  Phase: None
+  Amount: 0
+
+Invoice: I17-085
+  Project: 17 BK-063 - The Oberoi Maldives Project-Interior Design
+  Phase: Mobilization Fee
+  Amount: 100000
+
+Invoice: I18-041
+  Project: 17 BK-063 - The Oberoi Maldives Project-Interior Design
+  Phase: Conceptual Design
+  Amount: 0
+
+Invoice: I18-090
+  Project: 17 BK-063 - The Oberoi Maldives Project-Interior Design
+  Phase: None
+  Amount: 0
+
+Invoice: I18-043
+  Project: 18 BK-001 - Ho Chi Minh Citi Clubhouse Project
+  Phase: Mobilization Fee
+  Amount: 52500
+
+Invoice: I18-107
+  Project: 18 BK-001 - Ho Chi Minh Citi Clubhouse Project
+  Phase: Conceptual Design
+  Amount: 0
+
+Invoice: I19-010
+  Project: 18 BK-001 - Ho Chi Minh Citi Clubhouse Project
+  Phase: None
+  Amount: 0
+
+Invoice: I18-043
+  Project: 18 BK-001 - Ho Chi Minh Citi Clubhouse Project
+  Phase: Mobilization Fee
+  Amount: 115500
+
+Invoice: I18-107
+  Project: 18 BK-001 - Ho Chi Minh Citi Clubhouse Project
+  Phase: Conceptual Design
+  Amount: 0
+
+Invoice: I19-010
+  Project: 18 BK-001 - Ho Chi Minh Citi Clubhouse Project
+  Phase: None
+  Amount: 0
+
+Invoice: I18-043
+  Project: 18 BK-001 - Ho Chi Minh Citi Clubhouse Project
+  Phase: Mobilization Fee
+  Amount: 132000
+
+Invoice: I18-107
+  Project: 18 BK-001 - Ho Chi Minh Citi Clubhouse Project
+  Phase: Conceptual Design
+  Amount: 0
+
+Invoice: I19-010
+  Project: 18 BK-001 - Ho Chi Minh Citi Clubhouse Project
+  Phase: None
+  Amount: 0
+
