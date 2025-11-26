@@ -1,0 +1,58 @@
+# Pre-commit hooks configuration
+# Install: pip install pre-commit && pre-commit install
+# Run manually: pre-commit run --all-files
+
+repos:
+  # General file fixes
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.5.0
+    hooks:
+      - id: trailing-whitespace
+        exclude: ^(scripts/archive/|docs/archive/)
+      - id: end-of-file-fixer
+        exclude: ^(scripts/archive/|docs/archive/)
+      - id: check-yaml
+      - id: check-json
+      - id: check-added-large-files
+        args: ['--maxkb=1000']
+      - id: check-merge-conflict
+      - id: detect-private-key
+
+  # Python formatting with Black
+  - repo: https://github.com/psf/black
+    rev: 24.3.0
+    hooks:
+      - id: black
+        language_version: python3
+        exclude: ^(scripts/archive/|venv/)
+
+  # Python linting with Ruff
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.3.4
+    hooks:
+      - id: ruff
+        args: [--fix, --exit-non-zero-on-fix]
+        exclude: ^(scripts/archive/|venv/)
+
+  # Check Python types (optional, can be slow)
+  # - repo: https://github.com/pre-commit/mirrors-mypy
+  #   rev: v1.9.0
+  #   hooks:
+  #     - id: mypy
+  #       additional_dependencies: [types-all]
+  #       exclude: ^(scripts/archive/|venv/)
+
+# Configuration
+default_language_version:
+  python: python3
+
+# Skip these files/folders
+exclude: |
+  (?x)^(
+    scripts/archive/.*|
+    docs/archive/.*|
+    venv/.*|
+    node_modules/.*|
+    \.git/.*|
+    frontend/.*
+  )$
