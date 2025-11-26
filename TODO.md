@@ -2,167 +2,147 @@
 
 **Auto-generated: 2025-11-26** | Run `make todos` to refresh
 
+**Master Plan:** `docs/planning/MASTER_JANUARY_PLAN.md`
+
 ---
 
 ## 📊 Summary
 
-| Agent | TODOs | Priority |
-|-------|-------|----------|
-| Agent 1: Email Processing | 1 | Medium |
-| Agent 3: Backend APIs | 4 | High |
-| Agent 4: Frontend Components | 4 | High |
-| Agent 5: Integration | 0 | - |
-| Coordinator | 0 | - |
-| Organizer | 0 | - |
-| 🆕 Auth Agent (Future) | 2 | Phase 3 |
-| 🆕 Finance Agent | 2 | Medium |
-| Unassigned | 0 | - |
+| Agent | TODOs | Priority | Plan Reference |
+|-------|-------|----------|----------------|
+| Agent 1: Backend API | 4 | High | Week 1 P0 tasks |
+| Agent 2: Frontend | 4 | High | Week 1 P0 tasks |
+| Agent 3: Deployment | 0 | Week 1 | New work |
+| Agent 4: Data Pipeline | 1 | Medium | Ongoing |
+| Agent 5: Intelligence | 0 | Week 1-2 | New work |
+| Organizer | 0 | Ongoing | Maintenance |
 
-**Total: 13 TODOs**
+**Total: 9 code TODOs + Plan tasks**
 
 ---
 
-## Agent 1: Email Processing
+## Agent 1: Backend API
 
-*Mission: Process emails with AI analysis and build threads*
+**Prompt:** `.claude/agents/agent1-backend-api.md`
+**Owns:** `backend/`
 
+### Code TODOs
 | File | Line | TODO | Priority |
 |------|------|------|----------|
-| `backend/services/schedule_email_parser.py` | 277 | Match nickname to member_id from team_members table | Medium |
+| `backend/api/main.py` | 412 | Add logic for detecting wins from emails/payments | P1 |
+| `backend/api/main.py` | 3496 | Implement payment schedule | P2 |
+| `backend/api/main.py` | 3502 | Implement blockers tracking | P2 |
+| `backend/api/main.py` | 3503 | Implement task tracking | P2 |
+
+### Plan Tasks (Week 1)
+- [ ] P0: Meeting transcripts API (`GET /api/meeting-transcripts`)
+- [ ] P0: Unified timeline API (`GET /api/projects/{code}/unified-timeline`)
+- [ ] P1: RFI list improvements (add filters)
+- [ ] P1: Milestones with date filters
+- [ ] P2: Finance KPI endpoint (live data)
 
 ---
 
-## Agent 2: Database Schema Migration
+## Agent 2: Frontend
 
-*Mission: Schema unification and migrations*
+**Prompt:** `.claude/agents/agent2-frontend.md`
+**Owns:** `frontend/src/`
 
-✅ **No active TODOs** - Schema work complete
-
----
-
-## Agent 3: Backend APIs
-
-*Mission: Build FastAPI endpoints*
-
+### Code TODOs
 | File | Line | TODO | Priority |
 |------|------|------|----------|
-| `backend/api/main.py` | 412 | Add logic for detecting wins from emails/payments | High |
-| `backend/api/main.py` | 3496 | Implement payment schedule | Medium |
-| `backend/api/main.py` | 3502 | Implement blockers tracking | Medium |
-| `backend/api/main.py` | 3503 | Implement task tracking | Medium |
-
-**Notes:**
-- Win detection: Could use email sentiment + payment confirmation emails
-- Payment schedule: Need finance team data first
-- Blockers/tasks: New feature, needs design
-
----
-
-## Agent 4: Frontend Components
-
-*Mission: Build React components for dashboard*
-
-| File | Line | TODO | Priority |
-|------|------|------|----------|
-| `frontend/src/components/dashboard/dashboard-page.tsx` | 67 | Replace with proper empty states and error handling | High |
-| `frontend/src/components/dashboard/invoice-quick-actions.tsx` | 21 | Hook these up to actual functions | High |
-| `frontend/src/components/dashboard/payment-velocity-widget.tsx` | 13 | Hook this up to real API endpoint | Medium |
+| `frontend/src/components/dashboard/dashboard-page.tsx` | 67 | Replace with proper empty states and error handling | P1 |
+| `frontend/src/components/dashboard/invoice-quick-actions.tsx` | 21 | Hook these up to actual functions | P1 |
+| `frontend/src/components/dashboard/payment-velocity-widget.tsx` | 13 | Hook this up to real API endpoint | P2 |
 | `frontend/src/components/proposal-quick-edit-dialog.tsx` | 164 | Replace with actual user from auth system | Phase 3 |
 
-**Notes:**
-- Empty states: Use shadcn/ui Skeleton components
-- Invoice actions: Wire to existing `/api/invoices/*` endpoints
-- Payment velocity: Create new endpoint or use existing finance data
+### Plan Tasks (Week 1)
+- [ ] P0: Unified Timeline component (`unified-timeline.tsx`)
+- [ ] P0: Meeting Transcript viewer (`transcript-viewer.tsx`)
+- [ ] P1: RFI Tracker widget
+- [ ] P1: Milestones widget
+- [ ] P2: Projects page summary cards
 
 ---
 
-## Agent 5: Email Integration
+## Agent 3: Deployment
 
-*Mission: Wire up email components to pages*
+**Prompt:** `.claude/agents/agent3-deployment.md`
+**Owns:** Deployment configs, CI/CD
 
-✅ **No active TODOs** - Integration tasks tracked elsewhere
+### Code TODOs
+None - new work
+
+### Plan Tasks (Week 1)
+- [ ] P0: Deploy frontend to Vercel
+- [ ] P0: Deploy backend to Railway
+- [ ] P1: Database strategy (SQLite on Railway or Turso)
+- [ ] P1: Environment variables setup
+- [ ] P2: Custom domain (optional)
 
 ---
 
-## 🆕 Auth Agent (Phase 3)
+## Agent 4: Data Pipeline
 
-*Mission: Authentication and user management*
+**Prompt:** `.claude/agents/agent4-data-pipeline.md`
+**Owns:** `scripts/`, `voice_transcriber/`, `database/migrations/`
 
+### Code TODOs
 | File | Line | TODO | Priority |
 |------|------|------|----------|
-| `frontend/src/components/proposal-quick-edit-dialog.tsx` | 164 | Replace with actual user from auth system | Phase 3 |
-| `backend/services/training_data_service.py` | 71 | Get from auth context (currently hardcoded 'bill') | Phase 3 |
+| `backend/services/schedule_email_parser.py` | 277 | Match nickname to member_id from team_members table | P2 |
 
-**Notes:**
-- Defer until Phase 3 multi-user implementation
-- Will need: JWT/session, user table, role-based permissions
+### Plan Tasks (Week 1)
+- [ ] P0: Verify transcriber running
+- [ ] P1: Check email import status
+- [ ] P1: RFI data quality check
+- [ ] P2: Milestone data backfill (add planned_date)
 
 ---
 
-## 🆕 Finance Agent
+## Agent 5: Intelligence
 
-*Mission: Invoice, payment, and financial features*
+**Prompt:** `.claude/agents/agent5-intelligence.md`
+**Owns:** `scripts/core/query_brain.py`, `backend/services/ai_*.py`
 
+### Code TODOs
 | File | Line | TODO | Priority |
 |------|------|------|----------|
-| `backend/api/main.py` | 3496 | Implement payment schedule | Medium |
-| `frontend/src/components/dashboard/payment-velocity-widget.tsx` | 13 | Hook this up to real API endpoint | Medium |
+| `backend/services/training_data_service.py` | 71 | Get from auth context (hardcoded 'bill') | Phase 3 |
 
-**Notes:**
-- Blocked on accounting Excel from finance team
-- Payment velocity needs historical payment data
+### Plan Tasks (Week 1-2)
+- [ ] P1: Add transcripts to query context
+- [ ] P2: Test query with project history
+- [ ] P2: Document RAG requirements for Phase 2
 
 ---
 
 ## 🗂️ Organizer Agent
 
-*Mission: Codebase maintenance and organization*
+**Prompt:** `.claude/agents/organizer.md`
+**Owns:** File structure, archives, cleanup
 
-✅ **No code TODOs** - Maintenance tasks tracked separately
-
-**Ongoing responsibilities:**
+### Ongoing Tasks
 - [ ] Weekly: Run `make health-check`
 - [ ] Weekly: Update this TODO.md
-- [ ] Monthly: Archive stale files
-- [ ] Monthly: Review unused scripts
+- [ ] After each sprint: Archive completed agent files
+- [ ] Monthly: Review unused scripts for archival
+
+### Completed
+- [x] Archive old agent files to `.claude/agents/archive/`
+- [x] Archive old docs/agents files to `docs/agents/archive/`
+- [x] Update CODEBASE_INDEX.md with agent references
 
 ---
 
-## 🎯 Coordinator Agent
+## Quick Commands
 
-*Mission: Sprint planning and cross-agent coordination*
-
-✅ **No code TODOs** - Planning tracked in `docs/planning/`
-
----
-
-## Quick Actions
-
-### View all TODOs in code:
 ```bash
-make todos
-# or
-grep -rn "TODO\|FIXME" --include="*.py" --include="*.ts" --include="*.tsx" backend/ frontend/src/ scripts/
+make todos          # Scan codebase for TODOs
+make health-check   # Run 28 automated checks
+make test           # Run pytest
+cat TODO.md         # See this file
 ```
-
-### By priority:
-```bash
-# High priority (dashboard blockers)
-grep -rn "TODO" frontend/src/components/dashboard/
-
-# Backend API gaps
-grep -rn "TODO" backend/api/main.py
-```
-
----
-
-## Completed TODOs
-
-*Move items here when done*
-
-| Date | Agent | Description |
-|------|-------|-------------|
-| - | - | - |
 
 ---
 
@@ -170,17 +150,28 @@ grep -rn "TODO" backend/api/main.py
 
 When adding TODOs to code, use this format:
 ```python
-# TODO(agent-name): Description of what needs to be done
+# TODO(agent-1): Description of what needs to be done
+# TODO(agent-2): Frontend task
 ```
 
-Examples:
-```python
-# TODO(agent-3): Add pagination to this endpoint
-# TODO(finance): Wire up to accounting data when available
-# TODO(phase-3): Replace with auth context
-```
-
-This makes it easy to filter by agent:
+Filter by agent:
 ```bash
-grep -rn "TODO(agent-3)" backend/
+grep -rn "TODO(agent-1)" backend/
+grep -rn "TODO(agent-2)" frontend/
 ```
+
+---
+
+## Completed TODOs
+
+*Move items here when done, with date and agent*
+
+| Date | Agent | Description |
+|------|-------|-------------|
+| 2025-11-26 | Organizer | Archive old agent files |
+| 2025-11-26 | Organizer | Create TODO.md tracker |
+
+---
+
+**Last Updated:** 2025-11-26
+**Next Review:** End of Week 1 (Dec 2)

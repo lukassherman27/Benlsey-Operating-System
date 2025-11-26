@@ -58,6 +58,21 @@ Quick lookup for where things live. Use Ctrl+F to find what you need.
 
 ---
 
+## By Agent (January 2026 Plan)
+
+| Agent | Focus | Files Owned | Prompt |
+|-------|-------|-------------|--------|
+| **Agent 1** | Backend API | `backend/` | `.claude/agents/agent1-backend-api.md` |
+| **Agent 2** | Frontend | `frontend/src/` | `.claude/agents/agent2-frontend.md` |
+| **Agent 3** | Deployment | configs, CI/CD | `.claude/agents/agent3-deployment.md` |
+| **Agent 4** | Data Pipeline | `scripts/`, `voice_transcriber/` | `.claude/agents/agent4-data-pipeline.md` |
+| **Agent 5** | Intelligence | `query_brain.py`, AI services | `.claude/agents/agent5-intelligence.md` |
+| **Organizer** | File structure | All (read), archives | `.claude/agents/organizer.md` |
+
+**Master Plan:** `docs/planning/MASTER_JANUARY_PLAN.md`
+
+---
+
 ## By File Type
 
 ### Python Scripts
