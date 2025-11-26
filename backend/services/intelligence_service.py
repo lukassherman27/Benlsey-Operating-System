@@ -2,15 +2,18 @@
 """
 Intelligence Service - AI Suggestion Management
 Handles AI-generated database suggestions, decisions, and pattern learning
+
+Updated: 2025-11-26 - Fixed to match actual database schema
 """
 
 import sqlite3
 import json
+import os
 from typing import List, Dict, Any, Optional
-from datetime import datetime
-import uuid
+from datetime import datetime, timedelta
 
-DB_PATH = "/Users/lukassherman/Desktop/BDS_SYSTEM/01_DATABASES/bensley_master.db"
+# Use correct database path - OneDrive master database
+DB_PATH = os.getenv('DATABASE_PATH', 'database/bensley_master.db')
 
 
 class IntelligenceService:
@@ -28,135 +31,177 @@ class IntelligenceService:
     def get_suggestions(
         self,
         status: str = "pending",
-        bucket: Optional[str] = None,
+        data_table: Optional[str] = None,
         limit: int = 100
     ) -> Dict[str, Any]:
         """
-        Get suggestions filtered by status and bucket
+        Get suggestions filtered by status and table
 
         Args:
-            status: pending, approved, rejected, snoozed, auto_applied
-            bucket: urgent, needs_attention, fyi
+            status: pending, approved, rejected, applied
+            data_table: filter by table name (projects, proposals, etc)
             limit: max results to return
+
+        Returns:
+            Dict with 'group' and 'items' list
+
+        Schema: ai_suggestions_queue has columns:
+            suggestion_id, data_table, record_id, field_name,
+            current_value, suggested_value, confidence, reasoning,
+            evidence, status, created_at, reviewed_at, applied_at
         """
         conn = self._get_connection()
         cursor = conn.cursor()
 
         query = """
-            SELECT *
+            SELECT
+                suggestion_id,
+                data_table,
+                record_id,
+                field_name,
+                current_value,
+                suggested_value,
+                confidence,
+                reasoning,
+                evidence,
+                status,
+                created_at,
+                reviewed_at,
+                applied_at
             FROM ai_suggestions_queue
             WHERE status = ?
         """
         params = [status]
 
-        if bucket:
-            query += " AND bucket = ?"
-            params.append(bucket)
+        if data_table:
+            query += " AND data_table = ?"
+            params.append(data_table)
 
-        query += " ORDER BY severity DESC, confidence DESC LIMIT ?"
+        query += " ORDER BY confidence DESC, created_at DESC LIMIT ?"
         params.append(limit)
 
         cursor.execute(query, params)
         suggestions = []
 
         for row in cursor.fetchall():
+            # Parse evidence if it's JSON
+            evidence = row['evidence']
+            if evidence:
+                try:
+                    evidence = json.loads(evidence)
+                except:
+                    pass  # Keep as string if not valid JSON
+
             suggestion = {
-                'id': row['id'],
-                'project_code': row['project_code'],
-                'suggestion_type': row['suggestion_type'],
-                'proposed_fix': json.loads(row['proposed_fix']),
-                'evidence': json.loads(row['evidence']),
+                'id': row['suggestion_id'],
+                'suggestion_id': row['suggestion_id'],
+                'data_table': row['data_table'],
+                'record_id': row['record_id'],
+                'field_name': row['field_name'],
+                'current_value': row['current_value'],
+                'suggested_value': row['suggested_value'],
                 'confidence': row['confidence'],
-                'impact': {
-                    'type': row['impact_type'],
-                    'value_usd': row['impact_value_usd'],
-                    'summary': row['impact_summary'],
-                    'severity': row['severity']
-                },
-                'bucket': row['bucket'],
-                'pattern_id': row['pattern_id'],
-                'pattern_label': row['pattern_label'],
-                'auto_apply_candidate': bool(row['auto_apply_candidate']),
+                'reasoning': row['reasoning'],
+                'evidence': evidence,
                 'status': row['status'],
-                'created_at': row['created_at']
+                'created_at': row['created_at'],
+                'reviewed_at': row['reviewed_at'],
+                'applied_at': row['applied_at']
             }
 
-            # Get project name (from unified projects table after migration 015)
-            cursor.execute("""
-                SELECT project_title, is_active_project FROM projects WHERE project_code = ?
-                LIMIT 1
-            """, (row['project_code'],))
-            project = cursor.fetchone()
+            # Try to get related record info based on data_table
+            if row['data_table'] == 'projects' and row['record_id']:
+                cursor.execute("""
+                    SELECT project_code, project_title
+                    FROM projects WHERE project_id = ?
+                    LIMIT 1
+                """, (row['record_id'],))
+                project = cursor.fetchone()
+                if project:
+                    suggestion['project_code'] = project['project_code']
+                    suggestion['project_title'] = project['project_title']
 
-            if project:
-                suggestion['project_title'] = project['project_title']
-                suggestion['is_active_project'] = project['is_active_project']
+            elif row['data_table'] == 'proposals' and row['record_id']:
+                cursor.execute("""
+                    SELECT proposal_code, project_name
+                    FROM proposals WHERE proposal_id = ?
+                    LIMIT 1
+                """, (row['record_id'],))
+                proposal = cursor.fetchone()
+                if proposal:
+                    suggestion['proposal_code'] = proposal['proposal_code']
+                    suggestion['project_name'] = proposal['project_name']
 
             suggestions.append(suggestion)
 
         conn.close()
 
         return {
-            'group': bucket or 'all',
-            'items': suggestions
+            'group': data_table or 'all',
+            'items': suggestions,
+            'count': len(suggestions)
         }
 
     def get_patterns(self) -> Dict[str, Any]:
-        """Get all patterns with statistics"""
+        """Get all learned patterns with statistics"""
         conn = self._get_connection()
         cursor = conn.cursor()
 
         cursor.execute("""
             SELECT
-                p.*,
-                COUNT(s.id) as active_suggestions,
-                SUM(s.impact_value_usd) as total_impact_usd,
-                AVG(s.confidence) as avg_confidence
-            FROM suggestion_patterns p
-            LEFT JOIN ai_suggestions_queue s ON p.pattern_id = s.pattern_id AND s.status = 'pending'
-            GROUP BY p.pattern_id
-            ORDER BY active_suggestions DESC, p.approval_count DESC
+                pattern_id,
+                pattern_name,
+                pattern_type,
+                condition,
+                action,
+                confidence_score,
+                evidence_count,
+                is_active,
+                created_at,
+                updated_at
+            FROM learned_patterns
+            WHERE is_active = 1
+            ORDER BY confidence_score DESC, evidence_count DESC
         """)
 
         patterns = []
         for row in cursor.fetchall():
-            # Get sample projects for this pattern
-            cursor.execute("""
-                SELECT project_code
-                FROM ai_suggestions_queue
-                WHERE pattern_id = ? AND status = 'pending'
-                LIMIT 5
-            """, (row['pattern_id'],))
-            samples = [r['project_code'] for r in cursor.fetchall()]
+            # Parse JSON fields
+            condition = row['condition']
+            action = row['action']
+            try:
+                condition = json.loads(condition) if condition else {}
+            except:
+                pass
+            try:
+                action = json.loads(action) if action else {}
+            except:
+                pass
 
             pattern = {
                 'pattern_id': row['pattern_id'],
-                'label': row['label'],
-                'detection_logic': row['detection_logic'],
-                'count': row['active_suggestions'],
-                'impact_total_usd': row['total_impact_usd'],
-                'confidence_avg': row['avg_confidence'],
-                'sample_projects': samples,
-                'approval_rate': (
-                    row['approval_count'] / (row['approval_count'] + row['rejection_count'])
-                    if (row['approval_count'] + row['rejection_count']) > 0
-                    else 0.0
-                ),
-                'auto_apply_enabled': bool(row['auto_apply_enabled'])
+                'pattern_name': row['pattern_name'],
+                'pattern_type': row['pattern_type'],
+                'condition': condition,
+                'action': action,
+                'confidence_score': row['confidence_score'],
+                'evidence_count': row['evidence_count'],
+                'is_active': bool(row['is_active']),
+                'created_at': row['created_at'],
+                'updated_at': row['updated_at']
             }
             patterns.append(pattern)
 
         conn.close()
-        return {'patterns': patterns}
+        return {'patterns': patterns, 'count': len(patterns)}
 
     def apply_decision(
         self,
-        suggestion_id: str,
+        suggestion_id: int,
         decision: str,
         reason: Optional[str] = None,
         apply_now: bool = True,
         dry_run: bool = False,
-        batch_ids: Optional[List[str]] = None,
         decision_by: str = "user"
     ) -> Dict[str, Any]:
         """
@@ -164,159 +209,151 @@ class IntelligenceService:
 
         Args:
             suggestion_id: ID of the suggestion
-            decision: approved, rejected, snoozed
-            reason: optional reason for reject/snooze
-            apply_now: whether to apply changes to database
+            decision: approved, rejected
+            reason: optional reason for decision
+            apply_now: whether to apply changes to database immediately
             dry_run: preview changes without applying
-            batch_ids: additional suggestions to apply same decision
             decision_by: who made the decision
         """
         conn = self._get_connection()
         cursor = conn.cursor()
 
-        # Collect all suggestions to process
-        suggestion_ids = [suggestion_id]
-        if batch_ids:
-            suggestion_ids.extend(batch_ids)
-
         if dry_run:
-            # Preview mode - just count what would change
+            # Preview mode - get suggestion details
             cursor.execute("""
-                SELECT COUNT(*) as count
-                FROM ai_suggestions_queue
-                WHERE id IN ({})
-            """.format(','.join('?' * len(suggestion_ids))), suggestion_ids)
+                SELECT * FROM ai_suggestions_queue WHERE suggestion_id = ?
+            """, (suggestion_id,))
+            suggestion = cursor.fetchone()
 
+            if not suggestion:
+                conn.close()
+                return {'error': 'Suggestion not found', 'preview': [], 'applied': False}
+
+            conn.close()
             return {
-                'would_update': cursor.fetchone()['count'],
-                'preview': [],
-                'conflicts': [],
+                'would_update': 1,
+                'preview': [{
+                    'table': suggestion['data_table'],
+                    'record_id': suggestion['record_id'],
+                    'field': suggestion['field_name'],
+                    'from': suggestion['current_value'],
+                    'to': suggestion['suggested_value']
+                }],
                 'applied': False
             }
+
+        # Get suggestion
+        cursor.execute("SELECT * FROM ai_suggestions_queue WHERE suggestion_id = ?", (suggestion_id,))
+        suggestion = cursor.fetchone()
+
+        if not suggestion:
+            conn.close()
+            return {'error': 'Suggestion not found', 'updated': 0}
 
         results = {
             'updated': 0,
             'applied': [],
-            'decisions_logged': 0
+            'errors': []
         }
 
-        for sid in suggestion_ids:
-            # Get suggestion
-            cursor.execute("SELECT * FROM ai_suggestions_queue WHERE id = ?", (sid,))
-            suggestion = cursor.fetchone()
+        now = datetime.now().isoformat()
 
-            if not suggestion:
-                continue
+        if decision == 'approved':
+            if apply_now:
+                # Apply the change to the target table
+                try:
+                    data_table = suggestion['data_table']
+                    record_id = suggestion['record_id']
+                    field_name = suggestion['field_name']
+                    new_value = suggestion['suggested_value']
 
-            # Log decision
-            decision_id = str(uuid.uuid4())
+                    # Determine primary key column based on table
+                    pk_column = 'id'
+                    if data_table == 'projects':
+                        pk_column = 'project_id'
+                    elif data_table == 'proposals':
+                        pk_column = 'proposal_id'
+                    elif data_table == 'emails':
+                        pk_column = 'email_id'
+                    elif data_table == 'invoices':
+                        pk_column = 'invoice_id'
+
+                    cursor.execute(f"""
+                        UPDATE {data_table}
+                        SET {field_name} = ?
+                        WHERE {pk_column} = ?
+                    """, (new_value, record_id))
+
+                    results['applied'].append({
+                        'table': data_table,
+                        'record_id': record_id,
+                        'field': field_name,
+                        'new_value': new_value
+                    })
+
+                except Exception as e:
+                    results['errors'].append({
+                        'suggestion_id': suggestion_id,
+                        'error': str(e)
+                    })
+
+            # Update suggestion status
             cursor.execute("""
-                INSERT INTO suggestion_decisions
-                (decision_id, suggestion_id, project_code, suggestion_type,
-                 proposed_payload, evidence_snapshot, confidence, decision,
-                 decision_by, decision_reason, applied, decided_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                UPDATE ai_suggestions_queue
+                SET status = 'approved', reviewed_at = ?, applied_at = ?
+                WHERE suggestion_id = ?
+            """, (now, now if apply_now else None, suggestion_id))
+
+            results['updated'] += 1
+
+            # Log to training_data for future learning
+            cursor.execute("""
+                INSERT INTO training_data
+                (task_type, input_data, output_data, model_used, confidence, human_verified, feedback, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             """, (
-                decision_id,
-                sid,
-                suggestion['project_code'],
-                suggestion['suggestion_type'],
-                suggestion['proposed_fix'],
-                suggestion['evidence'],
+                'suggestion_approval',
+                json.dumps({
+                    'table': suggestion['data_table'],
+                    'field': suggestion['field_name'],
+                    'current': suggestion['current_value']
+                }),
+                json.dumps({'approved_value': suggestion['suggested_value']}),
+                'intelligence_service_v2',
                 suggestion['confidence'],
-                decision,
-                decision_by,
-                reason,
-                1 if (apply_now and decision == 'approved') else 0,
-                datetime.now().isoformat()
+                1,
+                reason or 'User approved suggestion',
+                now
             ))
 
-            # Apply changes if approved and apply_now=True
-            if decision == 'approved' and apply_now:
-                proposed_fix = json.loads(suggestion['proposed_fix'])
+        elif decision == 'rejected':
+            cursor.execute("""
+                UPDATE ai_suggestions_queue
+                SET status = 'rejected', reviewed_at = ?
+                WHERE suggestion_id = ?
+            """, (now, suggestion_id))
+            results['updated'] += 1
 
-                # Update projects table (unified after migration 015)
-                update_fields = []
-                update_values = []
-
-                for field, value in proposed_fix.items():
-                    update_fields.append(f"{field} = ?")
-                    update_values.append(value)
-
-                if update_fields:
-                    update_values.append(suggestion['project_code'])
-
-                    try:
-                        cursor.execute(f"""
-                            UPDATE projects
-                            SET {', '.join(update_fields)}, updated_at = CURRENT_TIMESTAMP
-                            WHERE project_code = ?
-                        """, update_values)
-
-                        results['applied'].append({
-                            'project_code': suggestion['project_code'],
-                            'changes': proposed_fix
-                        })
-                    except Exception as e:
-                        results['errors'].append({
-                            'project_code': suggestion['project_code'],
-                            'error': str(e)
-                        })
-
-                # Update suggestion status
-                cursor.execute("""
-                    UPDATE ai_suggestions_queue
-                    SET status = 'approved', updated_at = ?
-                    WHERE id = ?
-                """, (datetime.now().isoformat(), sid))
-
-                # Also log to training_data
-                cursor.execute("""
-                    INSERT INTO training_data
-                    (task_type, input_data, output_data, model_used, confidence, human_verified, feedback, created_at)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                """, (
-                    'database_intelligence',
-                    suggestion['evidence'],
-                    suggestion['proposed_fix'],
-                    'pattern_detector_v1',
-                    suggestion['confidence'],
-                    1,
-                    reason or 'User approved suggestion',
-                    datetime.now().isoformat()
-                ))
-
-                results['updated'] += 1
-
-            elif decision == 'rejected':
-                cursor.execute("""
-                    UPDATE ai_suggestions_queue
-                    SET status = 'rejected', updated_at = ?
-                    WHERE id = ?
-                """, (datetime.now().isoformat(), sid))
-                results['updated'] += 1
-
-            elif decision == 'snoozed':
-                # Snooze for 7 days by default
-                snooze_until = datetime.now() + timedelta(days=7)
-                cursor.execute("""
-                    UPDATE ai_suggestions_queue
-                    SET status = 'snoozed', snooze_until = ?, updated_at = ?
-                    WHERE id = ?
-                """, (snooze_until.isoformat(), datetime.now().isoformat(), sid))
-                results['updated'] += 1
-
-            results['decisions_logged'] += 1
-
-            # Update pattern statistics
-            if decision in ['approved', 'rejected']:
-                field = 'approval_count' if decision == 'approved' else 'rejection_count'
-                cursor.execute(f"""
-                    UPDATE suggestion_patterns
-                    SET {field} = {field} + 1,
-                        updated_at = ?
-                    WHERE pattern_id = ?
-                """, (datetime.now().isoformat(), suggestion['pattern_id']))
+            # Log rejection for learning
+            cursor.execute("""
+                INSERT INTO training_data
+                (task_type, input_data, output_data, model_used, confidence, human_verified, feedback, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
+                'suggestion_rejection',
+                json.dumps({
+                    'table': suggestion['data_table'],
+                    'field': suggestion['field_name'],
+                    'current': suggestion['current_value'],
+                    'suggested': suggestion['suggested_value']
+                }),
+                json.dumps({'rejected': True}),
+                'intelligence_service_v2',
+                suggestion['confidence'],
+                1,
+                reason or 'User rejected suggestion',
+                now
+            ))
 
         conn.commit()
         conn.close()
@@ -324,36 +361,94 @@ class IntelligenceService:
         return results
 
     def get_decisions(self, limit: int = 50) -> Dict[str, Any]:
-        """Get recent decisions for audit trail"""
+        """Get recent suggestion decisions for audit trail"""
         conn = self._get_connection()
         cursor = conn.cursor()
 
+        # Get recently reviewed suggestions
         cursor.execute("""
-            SELECT *
-            FROM suggestion_decisions
-            ORDER BY decided_at DESC
+            SELECT
+                suggestion_id,
+                data_table,
+                record_id,
+                field_name,
+                current_value,
+                suggested_value,
+                status,
+                reviewed_at,
+                applied_at
+            FROM ai_suggestions_queue
+            WHERE status IN ('approved', 'rejected')
+            ORDER BY reviewed_at DESC
             LIMIT ?
         """, (limit,))
 
         decisions = []
         for row in cursor.fetchall():
             decisions.append({
-                'decision_id': row['decision_id'],
                 'suggestion_id': row['suggestion_id'],
-                'project_code': row['project_code'],
-                'suggestion_type': row['suggestion_type'],
-                'decision': row['decision'],
-                'decided_at': row['decided_at'],
-                'applied': bool(row['applied']),
-                'decision_by': row['decision_by'],
-                'decision_reason': row['decision_reason']
+                'data_table': row['data_table'],
+                'record_id': row['record_id'],
+                'field_name': row['field_name'],
+                'current_value': row['current_value'],
+                'suggested_value': row['suggested_value'],
+                'decision': row['status'],
+                'reviewed_at': row['reviewed_at'],
+                'applied': row['applied_at'] is not None
             })
 
         conn.close()
 
         return {
             'decisions': decisions,
-            'export_ndjson_url': '/api/intel/training-data?format=ndjson'
+            'count': len(decisions)
+        }
+
+    def get_stats(self) -> Dict[str, Any]:
+        """Get overall suggestion statistics"""
+        conn = self._get_connection()
+        cursor = conn.cursor()
+
+        # Count by status
+        cursor.execute("""
+            SELECT status, COUNT(*) as count
+            FROM ai_suggestions_queue
+            GROUP BY status
+        """)
+
+        status_counts = {}
+        for row in cursor.fetchall():
+            status_counts[row['status']] = row['count']
+
+        # Count by table
+        cursor.execute("""
+            SELECT data_table, COUNT(*) as count
+            FROM ai_suggestions_queue
+            WHERE status = 'pending'
+            GROUP BY data_table
+        """)
+
+        table_counts = {}
+        for row in cursor.fetchall():
+            table_counts[row['data_table']] = row['count']
+
+        # Average confidence
+        cursor.execute("""
+            SELECT AVG(confidence) as avg_confidence
+            FROM ai_suggestions_queue
+            WHERE status = 'pending'
+        """)
+        avg_conf = cursor.fetchone()['avg_confidence'] or 0
+
+        conn.close()
+
+        return {
+            'by_status': status_counts,
+            'pending_by_table': table_counts,
+            'average_confidence': round(avg_conf, 2),
+            'total_pending': status_counts.get('pending', 0),
+            'total_approved': status_counts.get('approved', 0),
+            'total_rejected': status_counts.get('rejected', 0)
         }
 
     def export_training_data(self, format: str = 'ndjson', limit: int = 1000) -> str:
@@ -363,25 +458,27 @@ class IntelligenceService:
 
         cursor.execute("""
             SELECT *
-            FROM suggestion_decisions
-            WHERE applied = 1
-            ORDER BY decided_at DESC
+            FROM training_data
+            WHERE human_verified = 1
+            ORDER BY created_at DESC
             LIMIT ?
         """, (limit,))
 
         if format == 'ndjson':
             lines = []
             for row in cursor.fetchall():
-                line = json.dumps({
-                    'task_type': row['suggestion_type'],
-                    'input': json.loads(row['evidence_snapshot']),
-                    'output': json.loads(row['proposed_payload']),
-                    'confidence': row['confidence'],
-                    'human_verified': 1,
-                    'decision': row['decision'],
-                    'decided_at': row['decided_at']
-                })
-                lines.append(line)
+                try:
+                    line = json.dumps({
+                        'task_type': row['task_type'],
+                        'input': json.loads(row['input_data']) if row['input_data'] else {},
+                        'output': json.loads(row['output_data']) if row['output_data'] else {},
+                        'confidence': row['confidence'],
+                        'feedback': row['feedback'],
+                        'created_at': row['created_at']
+                    })
+                    lines.append(line)
+                except:
+                    continue
 
             conn.close()
             return '\n'.join(lines)
@@ -390,5 +487,5 @@ class IntelligenceService:
         return ''
 
 
-# Import for datetime timedelta
-from datetime import timedelta
+# Singleton instance
+intelligence_service = IntelligenceService()

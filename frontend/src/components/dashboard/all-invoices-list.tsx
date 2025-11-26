@@ -57,7 +57,7 @@ export function AllInvoicesList() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Projects</SelectItem>
-                {projects?.projects?.map((p: any) => (
+                {projects?.data?.map((p: any) => (
                   <SelectItem key={p.project_code} value={p.project_code}>
                     {p.project_code} - {p.project_title?.substring(0, 30)}...
                   </SelectItem>

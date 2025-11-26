@@ -31,7 +31,8 @@ EMAIL_SENDER = os.getenv("EMAIL_USERNAME", "lukas@bensley.com")
 EMAIL_PASSWORD = os.getenv("EMAIL_PASSWORD", "")
 EMAIL_RECIPIENTS = ["lukas@bensley.com"]  # Who gets the transcripts
 SMTP_SERVER = os.getenv("EMAIL_SERVER", "tmail.bensley.com")  # Same server for SMTP
-SMTP_PORT = 587  # TLS/STARTTLS port for sending (993 in .env is IMAP for receiving)
+SMTP_PORT = 465  # SSL port for Axigen (587 TLS didn't work)
+SMTP_USE_SSL = True  # Use SSL instead of STARTTLS
 
 # =============================================================================
 # VOICE MEMOS / RECORDINGS FOLDER

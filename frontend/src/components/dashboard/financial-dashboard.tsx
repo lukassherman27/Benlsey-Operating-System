@@ -202,7 +202,7 @@ export default function FinancialDashboard() {
                     >
                       <div className="flex-1">
                         <p className={cn(ds.typography.bodyBold, ds.textColors.primary)}>
-                          {payment.project_title || payment.project_code}
+                          {payment.project_name || payment.project_code}
                         </p>
                         <p className={cn(ds.typography.tiny, ds.textColors.tertiary)}>
                           {payment.paid_on

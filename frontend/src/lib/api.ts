@@ -1028,6 +1028,157 @@ export const api = {
 
   getLifecyclePhases: () =>
     request<LifecyclePhasesResponse>("/api/lifecycle-phases"),
+
+  // AI Learning API
+  getLearningStats: () =>
+    request<LearningStatsResponse>("/api/learning/stats"),
+
+  getLearningPatterns: (patternType?: string) =>
+    request<LearnedPatternsResponse>(
+      `/api/learning/patterns${patternType ? `?pattern_type=${patternType}` : ""}`
+    ),
+
+  getLearningPendingSuggestions: (suggestionType?: string, projectCode?: string, limit?: number) =>
+    request<AISuggestionsResponse>(
+      `/api/learning/suggestions${buildQuery({
+        suggestion_type: suggestionType,
+        project_code: projectCode,
+        limit: limit ?? 50,
+      })}`
+    ),
+
+  approveLearning: (suggestionId: number, reviewedBy: string, applyChanges: boolean = true) =>
+    request<{ success: boolean; suggestion_id: number; applied: boolean }>(
+      `/api/learning/suggestions/${suggestionId}/approve`,
+      {
+        method: "POST",
+        body: JSON.stringify({ reviewed_by: reviewedBy, apply_changes: applyChanges }),
+      }
+    ),
+
+  rejectLearning: (suggestionId: number, reviewedBy: string, reason?: string) =>
+    request<{ success: boolean; suggestion_id: number }>(
+      `/api/learning/suggestions/${suggestionId}/reject`,
+      {
+        method: "POST",
+        body: JSON.stringify({ reviewed_by: reviewedBy, reason }),
+      }
+    ),
+
+  generateRules: (minEvidence: number = 3) =>
+    request<RuleGenerationResponse>(
+      `/api/learning/generate-rules?min_evidence=${minEvidence}`,
+      { method: "POST" }
+    ),
+
+  // Follow-up Agent API
+  getFollowUpSummary: () =>
+    request<FollowUpSummaryResponse>("/api/agent/follow-up/summary"),
+
+  getFollowUpProposals: (daysThreshold?: number, limit?: number) =>
+    request<FollowUpProposalsResponse>(
+      `/api/agent/follow-up/proposals${buildQuery({
+        days_threshold: daysThreshold ?? 14,
+        include_analysis: true,
+        limit: limit ?? 50,
+      })}`
+    ),
+
+  draftFollowUpEmail: (proposalId: number, tone?: string) =>
+    request<{ success: boolean; subject?: string; body?: string; error?: string }>(
+      `/api/agent/follow-up/draft/${proposalId}?tone=${tone || "professional"}`,
+      { method: "POST" }
+    ),
+
+  // Pattern-Enhanced Query API
+  queryWithPatterns: (question: string, usePatterns: boolean = true) =>
+    request<EnhancedQueryResponse>(
+      `/api/query/ask-enhanced?question=${encodeURIComponent(question)}&use_patterns=${usePatterns}`,
+      { method: "POST" }
+    ),
+
+  submitQueryFeedback: (
+    question: string,
+    originalSql: string,
+    wasCorrect: boolean,
+    correctedSql?: string,
+    correctionReason?: string
+  ) =>
+    request<{ success: boolean; feedback_id?: number; message?: string }>(
+      "/api/query/feedback",
+      {
+        method: "POST",
+        body: JSON.stringify({
+          question,
+          original_sql: originalSql,
+          was_correct: wasCorrect,
+          corrected_sql: correctedSql,
+          correction_reason: correctionReason,
+        }),
+      }
+    ),
+
+  getIntelligentQuerySuggestions: (partialQuery: string = "") =>
+    request<{
+      success: boolean;
+      suggestions: QuerySuggestion[];
+    }>(`/api/query/intelligent-suggestions?partial_query=${encodeURIComponent(partialQuery)}`),
+
+  getQueryLearningStats: () =>
+    request<{
+      success: boolean;
+      stats: QueryLearningStats;
+    }>("/api/query/stats"),
+
+  // ============================================================================
+  // AI SUGGESTIONS QUEUE API
+  // ============================================================================
+
+  getSuggestions: (params: {
+    status?: string;
+    field_name?: string;
+    data_table?: string;
+    min_confidence?: number;
+    limit?: number;
+    offset?: number;
+  } = {}) =>
+    request<SuggestionsResponse>(
+      `/api/suggestions${buildQuery({
+        status: params.status ?? "pending",
+        field_name: params.field_name,
+        data_table: params.data_table,
+        min_confidence: params.min_confidence,
+        limit: params.limit ?? 50,
+        offset: params.offset ?? 0,
+      })}`
+    ),
+
+  getSuggestionsStats: () =>
+    request<SuggestionsStatsResponse>("/api/suggestions/stats"),
+
+  approveAISuggestion: (suggestionId: number) =>
+    request<{ success: boolean; message: string; result?: Record<string, unknown> }>(
+      `/api/suggestions/${suggestionId}/approve`,
+      { method: "POST" }
+    ),
+
+  rejectAISuggestion: (suggestionId: number, reason?: string) =>
+    request<{ success: boolean; message: string }>(
+      `/api/suggestions/${suggestionId}/reject`,
+      {
+        method: "POST",
+        body: JSON.stringify({ reason }),
+      }
+    ),
+
+  bulkApproveAISuggestions: (minConfidence: number = 0.8) =>
+    request<{ success: boolean; approved: number; skipped: number; errors: number }>(
+      `/api/suggestions/bulk-approve`,
+      {
+        method: "POST",
+        body: JSON.stringify({ min_confidence: minConfidence }),
+      }
+    ),
 };
 
 // Email Intelligence Types
@@ -1319,4 +1470,202 @@ export interface LifecyclePhasesResponse {
   success: boolean;
   phases: LifecyclePhase[];
   total_typical_months: number;
+}
+
+// AI Learning Types
+export interface AISuggestion {
+  suggestion_id: number;
+  suggestion_type: string;
+  priority: 'low' | 'medium' | 'high' | 'critical';
+  confidence_score: number;
+  source_type: string;
+  source_id: number | null;
+  source_reference: string;
+  title: string;
+  description: string | null;
+  suggested_action: string | null;
+  suggested_data: string | null;
+  target_table: string | null;
+  target_id: number | null;
+  project_code: string | null;
+  project_name: string | null;
+  proposal_id: number | null;
+  status: string;
+  reviewed_by: string | null;
+  reviewed_at: string | null;
+  review_notes: string | null;
+  correction_data: string | null;
+  created_at: string;
+}
+
+export interface AISuggestionsResponse {
+  success: boolean;
+  suggestions: AISuggestion[];
+  count: number;
+}
+
+export interface LearnedPattern {
+  pattern_id: number;
+  pattern_name: string;
+  pattern_type: string;
+  condition: Record<string, unknown>;
+  action: Record<string, unknown>;
+  confidence_score: number;
+  evidence_count: number;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface LearnedPatternsResponse {
+  success: boolean;
+  patterns: LearnedPattern[];
+  count: number;
+}
+
+export interface LearningStatsResponse {
+  success: boolean;
+  suggestions: Record<string, number>;
+  feedback: Record<string, number>;
+  active_patterns: number;
+  approval_rate: number;
+}
+
+export interface RuleGenerationResponse {
+  success: boolean;
+  rules_created: number;
+  rules_updated: number;
+  patterns_found: string[];
+}
+
+// Follow-up Agent Types
+export interface FollowUpProposal {
+  proposal_id: number;
+  project_code: string;
+  project_name: string;
+  client_company: string | null;
+  contact_person: string | null;
+  contact_email: string | null;
+  status: string;
+  last_contact_date: string | null;
+  days_since_contact: number | null;
+  next_action: string | null;
+  next_action_date: string | null;
+  project_value: number | null;
+  win_probability: number | null;
+  health_score: number | null;
+  priority_score: number;
+  urgency: string;
+  communication_history?: {
+    email_id: number;
+    subject: string;
+    date: string;
+    folder: string;
+  }[];
+  last_email_sentiment?: string;
+}
+
+export interface FollowUpProposalsResponse {
+  success: boolean;
+  proposals: FollowUpProposal[];
+  count: number;
+}
+
+export interface FollowUpSummaryResponse {
+  success: boolean;
+  total_active_proposals: number;
+  needing_follow_up: number;
+  by_urgency: Record<string, { count: number; value: number }>;
+  value_at_risk: number;
+  top_priority: {
+    project_code: string;
+    project_name: string;
+    client: string | null;
+    value: number;
+    urgency: string;
+    priority_score: number;
+  }[];
+  overdue_actions: {
+    project_code: string;
+    action: string | null;
+    due_date: string | null;
+  }[];
+}
+
+// Pattern-Enhanced Query Types
+export interface EnhancedQueryResponse {
+  success: boolean;
+  question: string;
+  results: Record<string, unknown>[];
+  count: number;
+  sql?: string;
+  summary?: string;
+  reasoning?: string;
+  confidence?: number;
+  patterns_used?: string[];
+  method: "ai" | "pattern_enhanced" | "pattern_matching" | "ai_with_context";
+  error?: string;
+}
+
+export interface QuerySuggestion {
+  query: string;
+  source: "learned_pattern" | "recent" | "default";
+  pattern?: string;
+  success_count?: number;
+}
+
+export interface QueryLearningStats {
+  active_patterns: number;
+  total_feedback?: number;
+  correct_queries?: number;
+  corrected_queries?: number;
+  accuracy_rate?: number;
+  error?: string;
+}
+
+// ============================================================================
+// AI SUGGESTIONS QUEUE TYPES
+// ============================================================================
+
+export interface SuggestionItem {
+  suggestion_id: number;
+  data_table: string;
+  record_id: number;
+  field_name: string;
+  current_value: string | null;
+  suggested_value: string | Record<string, unknown>; // JSON string or parsed object
+  confidence: number;
+  reasoning: string | null;
+  evidence: string | null;
+  status: "pending" | "approved" | "rejected" | "applied";
+  created_at: string;
+  reviewed_at: string | null;
+  applied_at: string | null;
+}
+
+export interface NewContactSuggestion {
+  name: string;
+  email: string;
+  company?: string;
+  related_project?: string;
+}
+
+export interface ProjectAliasSuggestion {
+  alias: string;
+  project_code: string;
+}
+
+export interface SuggestionsResponse {
+  success: boolean;
+  suggestions: SuggestionItem[];
+  total: number;
+  returned: number;
+}
+
+export interface SuggestionsStatsResponse {
+  success: boolean;
+  by_status: Record<string, number>;
+  pending_by_field: Record<string, number>;
+  high_confidence_pending: number;
+  avg_pending_confidence: number;
 }

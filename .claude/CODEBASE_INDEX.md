@@ -40,6 +40,22 @@ Quick lookup for where things live. Use Ctrl+F to find what you need.
 - **Service:** `backend/services/rfi_service.py`
 - **Detector:** `scripts/core/rfi_detector.py`
 - **Database:** `rfis`
+- **API Endpoints:**
+  - `GET /api/rfis` - List with filters: `project_code`, `status`, `overdue_only`, `limit`
+
+### Meeting Transcripts (NEW - Nov 26)
+- **API:** `backend/api/main.py` (search "meeting-transcripts")
+- **Database:** `meeting_transcripts`
+- **API Endpoints:**
+  - `GET /api/meeting-transcripts` - List transcripts with `project_code` filter
+  - `GET /api/meeting-transcripts/{id}` - Get single transcript with full details
+  - `GET /api/meeting-transcripts/{id}/action-items` - Get action items from transcript
+
+### Unified Timeline (NEW - Nov 26)
+- **API:** `backend/api/main.py` (search "unified-timeline")
+- **API Endpoints:**
+  - `GET /api/projects/{code}/unified-timeline` - Combined view of emails, meetings, RFIs, invoices, milestones for a project
+  - Supports `types` filter: `email,meeting,rfi,invoice,milestone`
 
 ### Contracts
 - **Service:** `backend/services/contract_service.py`

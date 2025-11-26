@@ -40,6 +40,9 @@ from services.training_data_service import TrainingDataService
 from services.admin_service import AdminService
 from services.email_intelligence_service import EmailIntelligenceService
 from services.deliverables_service import DeliverablesService
+from services.proposal_intelligence_service import ProposalIntelligenceService
+from services.ai_learning_service import AILearningService
+from services.follow_up_agent import FollowUpAgent
 
 # Add project root to path for utils
 project_root = Path(__file__).parent.parent.parent
@@ -144,6 +147,9 @@ try:
     training_data_service = TrainingDataService(DB_PATH)
     email_intelligence_service = EmailIntelligenceService(DB_PATH)
     deliverables_service = DeliverablesService(DB_PATH)
+    proposal_intelligence_service = ProposalIntelligenceService(DB_PATH)
+    ai_learning_service = AILearningService(DB_PATH)
+    follow_up_agent = FollowUpAgent(DB_PATH)
 
     logger.info("✅ All services initialized successfully")
 except Exception as e:
@@ -1860,6 +1866,40 @@ async def get_email_category_list():
         logger.error(f"Failed to get email category list: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Failed to get category list: {str(e)}")
 
+# IMPORTANT: validation-queue must come BEFORE /api/emails/{email_id} routes
+# otherwise FastAPI matches "validation-queue" as an email_id integer and fails
+@app.get("/api/emails/validation-queue")
+async def get_email_validation_queue(
+    status: Optional[str] = Query(None, description="unlinked|low_confidence|all"),
+    priority: Optional[str] = Query(None, description="high|medium|low|all"),
+    limit: int = Query(50, ge=1, le=200)
+):
+    """
+    Get emails needing validation
+
+    Priority levels:
+    - high: Unlinked emails with attachments (contracts!)
+    - medium: Low confidence links (<70%)
+    - low: Medium confidence links (70-85%)
+
+    Returns emails with:
+    - Current link (if exists)
+    - AI insights
+    - Attachments
+    - Suggested actions
+    """
+    try:
+        result = email_intelligence_service.get_validation_queue(
+            status=status,
+            priority=priority,
+            limit=limit
+        )
+        return result
+    except Exception as e:
+        logger.error(f"Failed to get validation queue: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to get validation queue: {str(e)}")
+
+
 @app.post("/api/emails/{email_id}/category")
 async def update_email_category(
     email_id: int,
@@ -2385,38 +2425,6 @@ class EmailLinkUpdateRequest(BaseModel):
     updated_by: str = Field(default="bill", description="Who is making the change")
 
 
-@app.get("/api/emails/validation-queue")
-async def get_email_validation_queue(
-    status: Optional[str] = Query(None, description="unlinked|low_confidence|all"),
-    priority: Optional[str] = Query(None, description="high|medium|low|all"),
-    limit: int = Query(50, ge=1, le=200)
-):
-    """
-    Get emails needing validation
-
-    Priority levels:
-    - high: Unlinked emails with attachments (contracts!)
-    - medium: Low confidence links (<70%)
-    - low: Medium confidence links (70-85%)
-
-    Returns emails with:
-    - Current link (if exists)
-    - AI insights
-    - Attachments
-    - Suggested actions
-    """
-    try:
-        result = email_intelligence_service.get_validation_queue(
-            status=status,
-            priority=priority,
-            limit=limit
-        )
-        return result
-    except Exception as e:
-        logger.error(f"Failed to get validation queue: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Failed to get validation queue: {str(e)}")
-
-
 @app.get("/api/emails/{email_id}/details")
 async def get_email_details(email_id: int):
     """
@@ -2892,20 +2900,95 @@ async def submit_context(
 @app.get("/api/milestones")
 async def list_milestones(
     proposal_id: Optional[int] = None,
-    status: Optional[str] = None
+    project_code: Optional[str] = Query(None, description="Filter by project code"),
+    status: Optional[str] = Query(None, description="Filter by status: pending, complete, overdue, upcoming"),
+    upcoming_days: Optional[int] = Query(None, description="Show milestones due within N days (e.g., 14 for 2 weeks)"),
+    limit: int = Query(50, description="Maximum records to return")
 ):
-    """List milestones with optional filtering"""
+    """
+    List milestones with optional filtering.
+
+    Enhanced filters:
+    - project_code: Filter by project
+    - status: pending, complete, overdue, or upcoming
+    - upcoming_days: Show milestones due within N days
+
+    NOTE: Some milestones may have NULL planned_date. These are still returned
+    but sorted to the end.
+    """
+    import sqlite3
+    from datetime import date, timedelta
+
     try:
-        if proposal_id:
+        # If only proposal_id provided, use existing service
+        if proposal_id and not project_code and not upcoming_days:
             milestones = milestone_service.get_milestones_by_proposal(proposal_id)
-        else:
-            # Get all overdue or upcoming milestones
+            return {"total": len(milestones), "milestones": milestones}
+
+        # Use direct query for enhanced filtering
+        conn = sqlite3.connect(DB_PATH)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+
+        query = """
+            SELECT milestone_id, project_id, project_code, phase,
+                   milestone_name, milestone_type, planned_date,
+                   actual_date, status, notes, created_at
+            FROM project_milestones
+            WHERE 1=1
+        """
+        params = []
+        today = date.today()
+
+        if project_code:
+            query += " AND (project_code = ? OR project_code LIKE ?)"
+            params.extend([project_code, f"%{project_code}%"])
+
+        if upcoming_days is not None:
+            future_date = (today + timedelta(days=upcoming_days)).isoformat()
+            today_str = today.isoformat()
+            query += " AND planned_date IS NOT NULL AND planned_date >= ? AND planned_date <= ?"
+            params.extend([today_str, future_date])
+        elif status:
             if status == "overdue":
-                milestones = milestone_service.get_overdue_milestones()
+                today_str = today.isoformat()
+                query += " AND status != 'complete' AND planned_date IS NOT NULL AND planned_date < ?"
+                params.append(today_str)
             elif status == "upcoming":
-                milestones = milestone_service.get_upcoming_milestones(days_ahead=30)
+                future_date = (today + timedelta(days=30)).isoformat()
+                today_str = today.isoformat()
+                query += " AND planned_date IS NOT NULL AND planned_date >= ? AND planned_date <= ?"
+                params.extend([today_str, future_date])
+            elif status in ("pending", "complete"):
+                query += " AND status = ?"
+                params.append(status)
             else:
-                raise HTTPException(status_code=400, detail="proposal_id or status parameter required")
+                # Unknown status, filter anyway
+                query += " AND status = ?"
+                params.append(status)
+
+        # Sort: milestones with dates first, then by date
+        query += " ORDER BY CASE WHEN planned_date IS NULL THEN 1 ELSE 0 END, planned_date ASC LIMIT ?"
+        params.append(limit)
+
+        cursor.execute(query, params)
+        rows = cursor.fetchall()
+        milestones = [dict(row) for row in rows]
+        conn.close()
+
+        # Add computed fields
+        today_str = today.isoformat()
+        for m in milestones:
+            if m.get('planned_date') and m.get('status') != 'complete':
+                m['is_overdue'] = m['planned_date'] < today_str
+                if not m['is_overdue']:
+                    days_until = (date.fromisoformat(m['planned_date']) - today).days
+                    m['days_until_due'] = days_until
+                else:
+                    days_overdue = (today - date.fromisoformat(m['planned_date'])).days
+                    m['days_overdue'] = days_overdue
+            else:
+                m['is_overdue'] = False
 
         return {"total": len(milestones), "milestones": milestones}
     except HTTPException:
@@ -2944,16 +3027,70 @@ async def create_milestone(
 @app.get("/api/rfis")
 async def list_rfis(
     proposal_id: Optional[int] = None,
-    status: Optional[str] = None
+    project_code: Optional[str] = Query(None, description="Filter by project code"),
+    status: Optional[str] = Query(None, description="Filter by status: open, answered, overdue"),
+    overdue_only: bool = Query(False, description="Show only overdue RFIs (date_due < today and status = 'open')"),
+    limit: int = Query(50, description="Maximum records to return")
 ):
-    """List RFIs with optional filtering"""
+    """
+    List RFIs with optional filtering.
+
+    Enhanced filters:
+    - project_code: Filter by project
+    - status: Filter by status (open, answered, overdue)
+    - overdue_only: Show only overdue RFIs
+
+    An RFI is "overdue" if: status = 'open' AND date_due < today
+    """
+    import sqlite3
+    from datetime import date
+
     try:
-        if proposal_id:
+        # If proposal_id provided, use existing service
+        if proposal_id and not project_code and not overdue_only:
             rfis = rfi_service.get_rfis_by_proposal(proposal_id)
+            return {"total": len(rfis), "rfis": rfis}
+
+        # Use direct query for enhanced filtering
+        conn = sqlite3.connect(DB_PATH)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+
+        query = "SELECT * FROM rfis WHERE 1=1"
+        params = []
+
+        if project_code:
+            query += " AND (project_code = ? OR project_code LIKE ?)"
+            params.extend([project_code, f"%{project_code}%"])
+
+        if overdue_only:
+            today = date.today().isoformat()
+            query += " AND status = 'open' AND date_due < ?"
+            params.append(today)
         elif status:
-            rfis = rfi_service.get_rfis_by_status(status)
-        else:
-            rfis = rfi_service.get_unanswered_rfis()
+            if status == 'overdue':
+                today = date.today().isoformat()
+                query += " AND status = 'open' AND date_due < ?"
+                params.append(today)
+            else:
+                query += " AND status = ?"
+                params.append(status)
+
+        query += " ORDER BY date_due ASC, priority DESC LIMIT ?"
+        params.append(limit)
+
+        cursor.execute(query, params)
+        rows = cursor.fetchall()
+        rfis = [dict(row) for row in rows]
+        conn.close()
+
+        # Calculate overdue status for each RFI
+        today = date.today().isoformat()
+        for rfi in rfis:
+            if rfi.get('status') == 'open' and rfi.get('date_due'):
+                rfi['is_overdue'] = rfi['date_due'] < today
+            else:
+                rfi['is_overdue'] = False
 
         return {"total": len(rfis), "rfis": rfis}
     except Exception as e:
@@ -4991,29 +5128,28 @@ from services.intelligence_service import IntelligenceService
 
 @app.get("/api/intel/suggestions")
 async def get_suggestions(
-    status: str = Query("pending", description="Filter by status"),
-    group: Optional[str] = Query(None, description="Filter by bucket: urgent, needs_attention, fyi"),
+    status: str = Query("pending", description="Filter by status: pending, approved, rejected, applied"),
+    data_table: Optional[str] = Query(None, description="Filter by table: projects, proposals, emails, etc"),
     limit: int = Query(100, description="Max results")
 ):
-    """Get AI-generated suggestions filtered by status and priority bucket"""
+    """Get AI-generated suggestions filtered by status and data table"""
     try:
         service = IntelligenceService()
-        return service.get_suggestions(status=status, bucket=group, limit=limit)
+        return service.get_suggestions(status=status, data_table=data_table, limit=limit)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to get suggestions: {str(e)}")
 
 
 class DecisionRequest(BaseModel):
-    decision: str = Field(..., description="approved, rejected, or snoozed")
-    reason: Optional[str] = Field(None, description="Reason for reject/snooze")
+    decision: str = Field(..., description="approved or rejected")
+    reason: Optional[str] = Field(None, description="Reason for decision")
     apply_now: bool = Field(True, description="Apply changes immediately")
     dry_run: bool = Field(False, description="Preview without applying")
-    batch_ids: Optional[List[str]] = Field(None, description="Additional suggestion IDs to process")
 
 
 @app.post("/api/intel/suggestions/{suggestion_id}/decision")
-async def apply_decision(suggestion_id: str, request: DecisionRequest):
-    """Apply a decision (approve/reject/snooze) to a suggestion"""
+async def apply_decision(suggestion_id: int, request: DecisionRequest):
+    """Apply a decision (approve/reject) to a suggestion"""
     try:
         service = IntelligenceService()
         return service.apply_decision(
@@ -5021,8 +5157,7 @@ async def apply_decision(suggestion_id: str, request: DecisionRequest):
             decision=request.decision,
             reason=request.reason,
             apply_now=request.apply_now,
-            dry_run=request.dry_run,
-            batch_ids=request.batch_ids
+            dry_run=request.dry_run
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to apply decision: {str(e)}")
@@ -6646,6 +6781,560 @@ async def chat_query_with_context(request: ChatQueryRequest):
             use_ai=request.use_ai
         )
         return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ============================================================================
+# PATTERN-ENHANCED QUERY ENDPOINTS
+# ============================================================================
+
+@app.post("/api/query/ask-enhanced")
+async def enhanced_query_with_patterns(
+    question: str = Query(..., description="Natural language question"),
+    use_patterns: bool = Query(True, description="Whether to use learned patterns")
+):
+    """
+    Ask a natural language question using pattern-enhanced query generation.
+
+    This endpoint uses learned patterns from previous corrections to improve
+    SQL generation accuracy. It includes hints from the AI Learning System.
+
+    Example: /api/query/ask-enhanced?question=Show me all active projects
+    """
+    try:
+        if use_patterns:
+            result = query_service.query_with_patterns(question)
+        else:
+            result = query_service.query(question)
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+class QueryFeedbackRequest(BaseModel):
+    question: str
+    original_sql: str
+    was_correct: bool
+    corrected_sql: Optional[str] = None
+    correction_reason: Optional[str] = None
+
+
+@app.post("/api/query/feedback")
+async def submit_query_feedback(request: QueryFeedbackRequest):
+    """
+    Submit feedback on a query result to help the AI learn.
+
+    Use this endpoint to:
+    1. Mark a query result as correct (positive feedback)
+    2. Mark a query result as incorrect and provide corrections (for learning)
+
+    The feedback is stored and used to generate hints for future queries.
+    """
+    try:
+        result = query_service.record_query_feedback(
+            question=request.question,
+            original_sql=request.original_sql,
+            was_correct=request.was_correct,
+            corrected_sql=request.corrected_sql,
+            correction_reason=request.correction_reason
+        )
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/query/intelligent-suggestions")
+async def get_intelligent_query_suggestions(
+    partial_query: str = Query("", description="Partial query for suggestions")
+):
+    """
+    Get intelligent query suggestions based on learned patterns and history.
+
+    Returns suggestions from:
+    1. Learned patterns (most reliable queries)
+    2. Recent successful queries
+    3. Default example queries
+
+    Use the partial_query parameter to filter suggestions as the user types.
+    """
+    try:
+        suggestions = query_service.get_intelligent_suggestions(partial_query)
+        return {
+            "success": True,
+            "suggestions": suggestions
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/query/stats")
+async def get_query_learning_stats():
+    """
+    Get statistics about query learning and pattern usage.
+
+    Returns:
+    - Number of active query patterns
+    - Total feedback received
+    - Query accuracy rate
+    """
+    try:
+        stats = query_service.get_query_stats()
+        return {
+            "success": True,
+            "stats": stats
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ============================================================================
+# PROPOSAL INTELLIGENCE ENDPOINTS
+# ============================================================================
+
+@app.get("/api/intelligence/proposal/{project_code}")
+async def get_proposal_intelligence(project_code: str):
+    """
+    Get comprehensive intelligence context for a proposal.
+
+    Returns:
+    - Proposal details with email/engagement metrics
+    - Recent emails with AI summaries
+    - Attachments
+    - Status history
+    - AI-generated summary of current state
+    """
+    try:
+        result = proposal_intelligence_service.get_proposal_context(project_code)
+        if not result.get('success'):
+            raise HTTPException(status_code=404, detail=result.get('error', 'Not found'))
+        return result
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/intelligence/attention")
+async def get_proposals_needing_attention():
+    """
+    Get proposals that need attention (urgent, action needed, or follow-up).
+
+    Returns proposals ordered by urgency:
+    1. Urgent (has urgent emails)
+    2. Action needed (has emails requiring action)
+    3. Follow-up needed (no contact > 14 days)
+    """
+    try:
+        proposals = proposal_intelligence_service.get_proposals_needing_attention()
+        return {
+            "success": True,
+            "count": len(proposals),
+            "proposals": proposals
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+class GenerateEmailRequest(BaseModel):
+    project_code: str
+    tone: str = "professional"  # professional, friendly, urgent
+    purpose: str = "follow_up"  # follow_up, check_status, schedule_meeting, send_update
+
+
+@app.post("/api/intelligence/generate-email")
+async def generate_follow_up_email(request: GenerateEmailRequest):
+    """
+    Generate a draft follow-up email based on proposal context.
+
+    Uses AI to analyze email history and generate an appropriate
+    follow-up email with proper tone and context.
+    """
+    try:
+        result = proposal_intelligence_service.generate_follow_up_email(
+            project_code=request.project_code,
+            tone=request.tone,
+            purpose=request.purpose
+        )
+        if not result.get('success'):
+            raise HTTPException(status_code=400, detail=result.get('error', 'Failed'))
+        return result
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+class AskQuestionRequest(BaseModel):
+    question: str
+    project_code: Optional[str] = None
+
+
+@app.post("/api/intelligence/ask")
+async def ask_proposal_question(request: AskQuestionRequest):
+    """
+    Ask a natural language question about proposals.
+
+    If project_code is provided, focuses on that specific proposal.
+    Otherwise, answers questions about all proposals.
+
+    Examples:
+    - "What's the status of Sabrah?"
+    - "Which proposals need follow-up?"
+    - "When was our last contact with Ritz Carlton?"
+    """
+    try:
+        result = proposal_intelligence_service.answer_proposal_question(
+            question=request.question,
+            project_code=request.project_code
+        )
+        if not result.get('success'):
+            raise HTTPException(status_code=400, detail=result.get('error', 'Failed'))
+        return result
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/intelligence/weekly-summary")
+async def get_weekly_summary():
+    """
+    Get a weekly summary of proposal activity.
+
+    Returns:
+    - Active proposals this week
+    - Email statistics
+    - Proposals needing attention
+    """
+    try:
+        result = proposal_intelligence_service.get_weekly_summary()
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ============================================================================
+# AI LEARNING SYSTEM ENDPOINTS
+# Human feedback loop for continuous AI improvement
+# ============================================================================
+
+class SuggestionAction(BaseModel):
+    """Model for suggestion review actions"""
+    reviewed_by: str
+    notes: Optional[str] = None
+    correction_data: Optional[Dict[str, Any]] = None
+
+
+class TeachPatternRequest(BaseModel):
+    """Model for teaching the AI new patterns"""
+    pattern_name: str
+    pattern_type: str  # 'client_preference', 'business_rule', etc.
+    condition: Dict[str, Any]
+    action: Dict[str, Any]
+    taught_by: str
+
+
+@app.get("/api/learning/suggestions")
+async def get_pending_suggestions(
+    limit: int = Query(20, ge=1, le=100),
+    suggestion_type: Optional[str] = None,
+    priority: Optional[str] = None
+):
+    """
+    Get pending AI suggestions for human review.
+
+    Returns suggestions the AI has generated that need approval/rejection.
+    """
+    try:
+        suggestions = ai_learning_service.get_pending_suggestions(
+            limit=limit,
+            suggestion_type=suggestion_type,
+            priority=priority
+        )
+        return {"success": True, "suggestions": suggestions, "count": len(suggestions)}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/learning/suggestions/{suggestion_id}/approve")
+async def approve_suggestion(suggestion_id: int, action: SuggestionAction):
+    """
+    Approve an AI suggestion and optionally apply changes.
+
+    This also records the approval as training feedback.
+    """
+    try:
+        result = ai_learning_service.approve_suggestion(
+            suggestion_id=suggestion_id,
+            reviewed_by=action.reviewed_by,
+            apply_changes=True
+        )
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/learning/suggestions/{suggestion_id}/reject")
+async def reject_suggestion(suggestion_id: int, action: SuggestionAction):
+    """
+    Reject an AI suggestion.
+
+    This records the rejection as training feedback to improve future suggestions.
+    """
+    try:
+        result = ai_learning_service.reject_suggestion(
+            suggestion_id=suggestion_id,
+            reviewed_by=action.reviewed_by,
+            reason=action.notes or "Rejected"
+        )
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/learning/suggestions/{suggestion_id}/modify")
+async def modify_suggestion(suggestion_id: int, action: SuggestionAction):
+    """
+    Approve a suggestion with modifications.
+
+    This is the most valuable feedback - it teaches the AI what was wrong
+    and what the correct answer should have been.
+    """
+    try:
+        if not action.correction_data:
+            raise HTTPException(status_code=400, detail="correction_data required for modifications")
+
+        result = ai_learning_service.modify_suggestion(
+            suggestion_id=suggestion_id,
+            reviewed_by=action.reviewed_by,
+            correction_data=action.correction_data
+        )
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/learning/scan-emails")
+async def scan_emails_for_suggestions(
+    hours: int = Query(168, ge=1, le=720, description="Hours of emails to scan"),
+    limit: int = Query(50, ge=1, le=200, description="Max emails to process")
+):
+    """
+    Scan recent emails and generate AI suggestions.
+
+    This triggers the AI to analyze emails and create suggestions for:
+    - New contacts detected
+    - Follow-up reminders needed
+    - Fee changes mentioned
+    - Deadlines mentioned
+    - Missing data detected
+    """
+    try:
+        result = ai_learning_service.process_recent_emails_for_suggestions(
+            hours=hours,
+            limit=limit
+        )
+        return {"success": True, **result}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/learning/teach-pattern")
+async def teach_pattern(request: TeachPatternRequest):
+    """
+    Directly teach the AI a new pattern.
+
+    Example: "When client_type is 'luxury', always use formal tone"
+    """
+    try:
+        result = ai_learning_service.teach_pattern(
+            pattern_name=request.pattern_name,
+            pattern_type=request.pattern_type,
+            condition=request.condition,
+            action=request.action,
+            taught_by=request.taught_by
+        )
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/learning/patterns")
+async def get_learned_patterns(
+    pattern_type: Optional[str] = None,
+    active_only: bool = True
+):
+    """
+    Get all learned patterns.
+
+    Shows what the AI has learned from human feedback.
+    """
+    try:
+        patterns = ai_learning_service.get_learned_patterns(
+            pattern_type=pattern_type,
+            active_only=active_only
+        )
+        return {"success": True, "patterns": patterns, "count": len(patterns)}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/learning/stats")
+async def get_learning_stats():
+    """
+    Get statistics on AI learning progress.
+
+    Shows how many suggestions have been reviewed, accuracy rate, etc.
+    """
+    try:
+        stats = ai_learning_service.get_learning_stats()
+        return {"success": True, **stats}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/learning/generate-rules")
+async def generate_rules_from_feedback(
+    min_evidence: int = Query(3, ge=1, le=10, description="Minimum corrections needed to create a rule")
+):
+    """
+    Analyze accumulated human feedback and automatically generate learned patterns.
+
+    This is the core of the learning system - it finds patterns in human
+    corrections and creates rules that improve future AI behavior.
+    """
+    try:
+        result = ai_learning_service.generate_rules_from_feedback(min_evidence)
+        return {"success": True, **result}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/learning/validate-patterns")
+async def validate_learned_patterns(
+    test_limit: int = Query(50, ge=10, le=200, description="Number of test cases")
+):
+    """
+    Test learned patterns against recent suggestions to validate accuracy.
+
+    Returns validation metrics showing if patterns are still effective.
+    """
+    try:
+        result = ai_learning_service.validate_patterns(test_limit)
+        return {"success": True, **result}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/learning/decay-patterns")
+async def decay_unused_patterns(
+    days_threshold: int = Query(30, ge=7, le=90, description="Days before pattern confidence decays")
+):
+    """
+    Reduce confidence of patterns that haven't been validated recently.
+
+    Prevents stale patterns from over-influencing the system.
+    """
+    try:
+        affected = ai_learning_service.decay_unused_patterns(days_threshold)
+        return {"success": True, "patterns_decayed": affected}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/learning/check-suppression")
+async def check_suggestion_suppression(
+    suggestion_type: str = Query(..., description="Type of suggestion to check"),
+    project_code: Optional[str] = Query(None, description="Project code to check")
+):
+    """
+    Check if a suggestion type should be suppressed based on learned patterns.
+
+    Used to preview what suggestions would be blocked.
+    """
+    try:
+        should_suppress = ai_learning_service.should_suppress_suggestion(suggestion_type, project_code)
+        return {"success": True, "should_suppress": should_suppress, "suggestion_type": suggestion_type, "project_code": project_code}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ============================================================================
+# FOLLOW-UP AGENT ENDPOINTS
+# ============================================================================
+
+@app.get("/api/agent/follow-up/proposals")
+async def get_proposals_needing_followup(
+    days_threshold: int = Query(14, ge=1, le=90, description="Days since last contact"),
+    include_analysis: bool = Query(True, description="Include detailed analysis"),
+    limit: int = Query(50, ge=1, le=200, description="Max proposals to return")
+):
+    """
+    Get all proposals that need follow-up with intelligent analysis.
+
+    Returns proposals sorted by priority score with communication history,
+    sentiment analysis, and recommended follow-up approach.
+    """
+    try:
+        proposals = follow_up_agent.get_proposals_needing_followup(
+            days_threshold=days_threshold,
+            include_analysis=include_analysis,
+            limit=limit
+        )
+        return {"success": True, "proposals": proposals, "count": len(proposals)}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/agent/follow-up/summary")
+async def get_follow_up_summary():
+    """
+    Get summary of follow-up status across all proposals.
+
+    Shows total active proposals, value at risk, urgency breakdown,
+    and top priority proposals.
+    """
+    try:
+        summary = follow_up_agent.get_follow_up_summary()
+        return {"success": True, **summary}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/agent/follow-up/draft/{proposal_id}")
+async def draft_follow_up_email(
+    proposal_id: int,
+    tone: str = Query("professional", description="Email tone: professional, casual, formal")
+):
+    """
+    Draft a personalized follow-up email using AI.
+
+    Analyzes communication history and learned patterns to generate
+    an appropriate follow-up email for the proposal.
+    """
+    try:
+        draft = follow_up_agent.draft_follow_up_email(
+            proposal_id=proposal_id,
+            tone=tone,
+            include_context=True
+        )
+        return {"success": True, **draft}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/agent/follow-up/run-daily")
+async def run_daily_follow_up_analysis():
+    """
+    Run daily follow-up analysis for all proposals.
+
+    Identifies new proposals needing follow-up, generates suggestions,
+    and drafts emails for critical cases.
+    """
+    try:
+        results = follow_up_agent.run_daily_analysis()
+        return {"success": True, **results}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -8431,3 +9120,779 @@ async def get_lifecycle_phases():
         "phases": DeliverablesService.LIFECYCLE_PHASES,
         "total_typical_months": sum(p['typical_duration_months'] for p in DeliverablesService.LIFECYCLE_PHASES if not p.get('is_optional'))
     }
+
+
+# ============================================================================
+# MEETING TRANSCRIPTS ENDPOINTS
+# ============================================================================
+
+@app.get("/api/meeting-transcripts")
+async def list_meeting_transcripts(
+    project_code: Optional[str] = None,
+    limit: int = Query(50, description="Maximum records to return"),
+    offset: int = Query(0, description="Records to skip for pagination")
+):
+    """
+    List meeting transcripts, optionally filtered by project.
+
+    Returns voice transcripts from team meetings with summaries,
+    key points, and action items extracted by AI.
+    """
+    import sqlite3
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+
+        query = """
+            SELECT id, audio_filename, transcript, summary, key_points,
+                   action_items, detected_project_code, match_confidence,
+                   meeting_type, participants, sentiment, duration_seconds,
+                   recorded_date, processed_date, created_at
+            FROM meeting_transcripts
+            WHERE 1=1
+        """
+        params = []
+
+        if project_code:
+            query += " AND (detected_project_code = ? OR detected_project_code LIKE ?)"
+            params.extend([project_code, f"%{project_code}%"])
+
+        # Get total count before pagination
+        count_query = query.replace(
+            "SELECT id, audio_filename, transcript, summary, key_points,\n                   action_items, detected_project_code, match_confidence,\n                   meeting_type, participants, sentiment, duration_seconds,\n                   recorded_date, processed_date, created_at",
+            "SELECT COUNT(*)"
+        )
+        cursor.execute(count_query, params)
+        total = cursor.fetchone()[0]
+
+        query += " ORDER BY recorded_date DESC, created_at DESC LIMIT ? OFFSET ?"
+        params.extend([limit, offset])
+
+        cursor.execute(query, params)
+        rows = cursor.fetchall()
+
+        transcripts = []
+        for row in rows:
+            transcript = dict(row)
+            # Parse JSON fields if they exist
+            import json
+            for json_field in ['key_points', 'action_items', 'participants']:
+                if transcript.get(json_field):
+                    try:
+                        transcript[json_field] = json.loads(transcript[json_field])
+                    except (json.JSONDecodeError, TypeError):
+                        pass  # Keep as string if not valid JSON
+            transcripts.append(transcript)
+
+        conn.close()
+
+        return {
+            "success": True,
+            "total": total,
+            "limit": limit,
+            "offset": offset,
+            "transcripts": transcripts
+        }
+
+    except Exception as e:
+        logger.error(f"Failed to list meeting transcripts: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/meeting-transcripts/{transcript_id}")
+async def get_meeting_transcript(transcript_id: int):
+    """
+    Get full details for a single meeting transcript.
+
+    Returns the complete transcript text, AI-generated summary,
+    key points, and action items.
+    """
+    import sqlite3
+    import json
+
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+
+        cursor.execute("""
+            SELECT * FROM meeting_transcripts WHERE id = ?
+        """, (transcript_id,))
+
+        row = cursor.fetchone()
+        conn.close()
+
+        if not row:
+            raise HTTPException(status_code=404, detail=f"Transcript {transcript_id} not found")
+
+        transcript = dict(row)
+
+        # Parse JSON fields
+        for json_field in ['key_points', 'action_items', 'participants']:
+            if transcript.get(json_field):
+                try:
+                    transcript[json_field] = json.loads(transcript[json_field])
+                except (json.JSONDecodeError, TypeError):
+                    pass
+
+        return {
+            "success": True,
+            "transcript": transcript
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to get transcript {transcript_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/meeting-transcripts/{transcript_id}/action-items")
+async def get_transcript_action_items(transcript_id: int):
+    """
+    Get just the action items from a meeting transcript.
+
+    Action items are structured as:
+    [{"task": "...", "owner": "...", "deadline": "..."}, ...]
+    """
+    import sqlite3
+    import json
+
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+
+        cursor.execute("""
+            SELECT id, audio_filename, action_items, detected_project_code, recorded_date
+            FROM meeting_transcripts WHERE id = ?
+        """, (transcript_id,))
+
+        row = cursor.fetchone()
+        conn.close()
+
+        if not row:
+            raise HTTPException(status_code=404, detail=f"Transcript {transcript_id} not found")
+
+        result = dict(row)
+
+        # Parse action items JSON
+        action_items = []
+        if result.get('action_items'):
+            try:
+                action_items = json.loads(result['action_items'])
+            except (json.JSONDecodeError, TypeError):
+                action_items = [{"task": result['action_items'], "owner": "Unknown", "deadline": None}]
+
+        return {
+            "success": True,
+            "transcript_id": transcript_id,
+            "audio_filename": result.get('audio_filename'),
+            "project_code": result.get('detected_project_code'),
+            "recorded_date": result.get('recorded_date'),
+            "action_items": action_items,
+            "count": len(action_items)
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to get action items for transcript {transcript_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ============================================================================
+# UNIFIED TIMELINE ENDPOINT
+# ============================================================================
+
+@app.get("/api/projects/{project_code}/unified-timeline")
+async def get_unified_timeline(
+    project_code: str,
+    types: Optional[str] = Query(None, description="Comma-separated event types: email,meeting,rfi,invoice,milestone"),
+    limit: int = Query(50, description="Maximum events to return"),
+    offset: int = Query(0, description="Events to skip for pagination")
+):
+    """
+    Get ALL communications and events for a project in chronological order.
+
+    Combines data from:
+    - emails (via email_project_links)
+    - meeting_transcripts
+    - rfis
+    - invoices
+    - project_milestones
+
+    This is THE endpoint for seeing a complete project history.
+    """
+    import sqlite3
+    import json
+
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+
+        # Parse types filter
+        allowed_types = {'email', 'meeting', 'rfi', 'invoice', 'milestone'}
+        if types:
+            type_filter = set(t.strip().lower() for t in types.split(','))
+            type_filter = type_filter & allowed_types
+        else:
+            type_filter = allowed_types
+
+        events = []
+
+        # Get emails linked to project
+        if 'email' in type_filter:
+            cursor.execute("""
+                SELECT e.email_id as id, e.date, e.subject as title,
+                       COALESCE(e.ai_summary, e.snippet, e.body_preview) as summary,
+                       e.sender_name, e.sender_email, e.has_attachments,
+                       'email' as event_type
+                FROM emails e
+                JOIN email_project_links epl ON e.email_id = epl.email_id
+                WHERE epl.project_code = ? OR epl.project_code LIKE ?
+            """, (project_code, f"%{project_code}%"))
+            for row in cursor.fetchall():
+                event = dict(row)
+                event['data'] = {
+                    'sender_name': event.pop('sender_name', None),
+                    'sender_email': event.pop('sender_email', None),
+                    'has_attachments': event.pop('has_attachments', False)
+                }
+                events.append(event)
+
+        # Get meeting transcripts
+        if 'meeting' in type_filter:
+            cursor.execute("""
+                SELECT id, recorded_date as date,
+                       COALESCE(audio_filename, 'Meeting') as title,
+                       summary, action_items, participants, meeting_type,
+                       'meeting' as event_type
+                FROM meeting_transcripts
+                WHERE detected_project_code = ? OR detected_project_code LIKE ?
+            """, (project_code, f"%{project_code}%"))
+            for row in cursor.fetchall():
+                event = dict(row)
+                # Parse JSON fields
+                for field in ['action_items', 'participants']:
+                    if event.get(field):
+                        try:
+                            event[field] = json.loads(event[field])
+                        except:
+                            pass
+                event['data'] = {
+                    'action_items': event.pop('action_items', []),
+                    'participants': event.pop('participants', []),
+                    'meeting_type': event.pop('meeting_type', None)
+                }
+                events.append(event)
+
+        # Get RFIs
+        if 'rfi' in type_filter:
+            cursor.execute("""
+                SELECT rfi_id as id, date_sent as date, subject as title,
+                       description as summary, status, priority, date_due,
+                       'rfi' as event_type
+                FROM rfis
+                WHERE project_code = ? OR project_code LIKE ?
+            """, (project_code, f"%{project_code}%"))
+            for row in cursor.fetchall():
+                event = dict(row)
+                event['data'] = {
+                    'status': event.pop('status', None),
+                    'priority': event.pop('priority', None),
+                    'date_due': event.pop('date_due', None)
+                }
+                events.append(event)
+
+        # Get invoices
+        if 'invoice' in type_filter:
+            cursor.execute("""
+                SELECT i.invoice_id as id, i.invoice_date as date,
+                       COALESCE(i.invoice_number, 'Invoice') as title,
+                       i.description as summary, i.invoice_amount, i.status, i.due_date,
+                       'invoice' as event_type
+                FROM invoices i
+                JOIN projects p ON i.project_id = p.project_id
+                WHERE p.project_code = ? OR p.project_code LIKE ?
+            """, (project_code, f"%{project_code}%"))
+            for row in cursor.fetchall():
+                event = dict(row)
+                event['data'] = {
+                    'amount': event.pop('invoice_amount', None),
+                    'status': event.pop('status', None),
+                    'due_date': event.pop('due_date', None)
+                }
+                events.append(event)
+
+        # Get milestones
+        if 'milestone' in type_filter:
+            cursor.execute("""
+                SELECT milestone_id as id,
+                       COALESCE(actual_date, planned_date) as date,
+                       milestone_name as title, notes as summary,
+                       phase, status, planned_date, actual_date,
+                       'milestone' as event_type
+                FROM project_milestones
+                WHERE project_code = ? OR project_code LIKE ?
+            """, (project_code, f"%{project_code}%"))
+            for row in cursor.fetchall():
+                event = dict(row)
+                event['data'] = {
+                    'phase': event.pop('phase', None),
+                    'status': event.pop('status', None),
+                    'planned_date': event.pop('planned_date', None),
+                    'actual_date': event.pop('actual_date', None)
+                }
+                events.append(event)
+
+        conn.close()
+
+        # Sort all events by date (most recent first)
+        def get_date(event):
+            d = event.get('date')
+            if d is None:
+                return ''
+            return str(d)
+
+        events.sort(key=get_date, reverse=True)
+
+        # Apply pagination
+        total = len(events)
+        events = events[offset:offset + limit]
+
+        return {
+            "success": True,
+            "project_code": project_code,
+            "total_events": total,
+            "limit": limit,
+            "offset": offset,
+            "event_types": list(type_filter),
+            "events": events
+        }
+
+    except Exception as e:
+        logger.error(f"Failed to get unified timeline for {project_code}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ============================================================================
+# AI SUGGESTIONS ENDPOINTS
+# ============================================================================
+
+class BulkApproveRequest(BaseModel):
+    min_confidence: float = Field(0.8, description="Minimum confidence threshold")
+    field_name: Optional[str] = Field(None, description="Filter by field name (e.g., 'new_contact')")
+
+
+@app.get("/api/suggestions")
+async def list_suggestions(
+    status: Optional[str] = Query(None, description="Filter by status: pending, approved, rejected"),
+    field_name: Optional[str] = Query(None, description="Filter by field_name (e.g., 'new_contact', 'project_alias')"),
+    data_table: Optional[str] = Query(None, description="Filter by data_table (e.g., 'contacts', 'learned_patterns')"),
+    min_confidence: Optional[float] = Query(None, description="Minimum confidence score"),
+    limit: int = Query(50, description="Maximum records to return"),
+    offset: int = Query(0, description="Records to skip for pagination")
+):
+    """
+    List AI suggestions from the queue.
+
+    Suggestions are AI-detected data like new contacts or project aliases
+    that need human review before being applied.
+    """
+    import sqlite3
+    import json
+
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+
+        query = """
+            SELECT suggestion_id, data_table, record_id, field_name,
+                   current_value, suggested_value, confidence, reasoning,
+                   evidence, status, created_at, reviewed_at, applied_at
+            FROM ai_suggestions_queue
+            WHERE 1=1
+        """
+        params = []
+
+        if status:
+            query += " AND status = ?"
+            params.append(status)
+
+        if field_name:
+            query += " AND field_name = ?"
+            params.append(field_name)
+
+        if data_table:
+            query += " AND data_table = ?"
+            params.append(data_table)
+
+        if min_confidence is not None:
+            query += " AND confidence >= ?"
+            params.append(min_confidence)
+
+        # Get total count
+        count_query = query.replace(
+            "SELECT suggestion_id, data_table, record_id, field_name,\n                   current_value, suggested_value, confidence, reasoning,\n                   evidence, status, created_at, reviewed_at, applied_at",
+            "SELECT COUNT(*)"
+        )
+        cursor.execute(count_query, params)
+        total = cursor.fetchone()[0]
+
+        query += " ORDER BY confidence DESC, created_at DESC LIMIT ? OFFSET ?"
+        params.extend([limit, offset])
+
+        cursor.execute(query, params)
+        rows = cursor.fetchall()
+
+        suggestions = []
+        for row in rows:
+            suggestion = dict(row)
+            # Parse suggested_value JSON
+            if suggestion.get('suggested_value'):
+                try:
+                    suggestion['suggested_value'] = json.loads(suggestion['suggested_value'])
+                except (json.JSONDecodeError, TypeError):
+                    pass
+            suggestions.append(suggestion)
+
+        conn.close()
+
+        return {
+            "success": True,
+            "total": total,
+            "limit": limit,
+            "offset": offset,
+            "suggestions": suggestions
+        }
+
+    except Exception as e:
+        logger.error(f"Failed to list suggestions: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/suggestions/{suggestion_id}/approve")
+async def approve_suggestion(suggestion_id: int):
+    """
+    Approve an AI suggestion and apply it to the database.
+
+    For 'new_contact': Inserts into contacts table
+    For 'project_alias': Inserts into learned_patterns table
+    """
+    import sqlite3
+    import json
+    from datetime import datetime
+
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+
+        # Get the suggestion
+        cursor.execute("""
+            SELECT * FROM ai_suggestions_queue WHERE suggestion_id = ?
+        """, (suggestion_id,))
+        row = cursor.fetchone()
+
+        if not row:
+            conn.close()
+            raise HTTPException(status_code=404, detail=f"Suggestion {suggestion_id} not found")
+
+        suggestion = dict(row)
+
+        if suggestion['status'] != 'pending':
+            conn.close()
+            raise HTTPException(status_code=400, detail=f"Suggestion already {suggestion['status']}")
+
+        # Parse suggested value
+        suggested_value = suggestion['suggested_value']
+        if isinstance(suggested_value, str):
+            try:
+                suggested_value = json.loads(suggested_value)
+            except:
+                pass
+
+        field_name = suggestion['field_name']
+        now = datetime.now().isoformat()
+
+        # Apply the suggestion based on field_name
+        if field_name == 'new_contact':
+            # Insert into contacts table
+            name = suggested_value.get('name', '')
+            email = suggested_value.get('email', '')
+            company = suggested_value.get('company', '')
+            role = suggested_value.get('role', '')
+
+            if email:
+                # Check if contact already exists
+                cursor.execute("SELECT contact_id FROM contacts WHERE email = ?", (email,))
+                existing = cursor.fetchone()
+                if not existing:
+                    cursor.execute("""
+                        INSERT INTO contacts (email, name, role, notes)
+                        VALUES (?, ?, ?, ?)
+                    """, (email, name, role or company, f"Auto-added from AI suggestion. Company: {company}"))
+                    logger.info(f"Created contact: {name} <{email}>")
+                else:
+                    logger.info(f"Contact already exists: {email}")
+
+        elif field_name == 'project_alias':
+            # Insert into learned_patterns table
+            alias = suggested_value.get('alias', '')
+            project_code = suggested_value.get('project_code', '')
+
+            if alias and project_code:
+                cursor.execute("""
+                    INSERT INTO learned_patterns
+                    (pattern_name, pattern_type, condition, action, confidence_score, is_active)
+                    VALUES (?, 'project_alias', ?, ?, ?, 1)
+                """, (
+                    f"Alias: {alias}",
+                    json.dumps({"alias": alias}),
+                    json.dumps({"project_code": project_code}),
+                    suggestion['confidence']
+                ))
+                logger.info(f"Created pattern: {alias} -> {project_code}")
+
+        # Mark suggestion as approved
+        cursor.execute("""
+            UPDATE ai_suggestions_queue
+            SET status = 'approved', applied_at = ?, reviewed_at = ?
+            WHERE suggestion_id = ?
+        """, (now, now, suggestion_id))
+
+        conn.commit()
+        conn.close()
+
+        return {
+            "success": True,
+            "message": f"Suggestion {suggestion_id} approved and applied",
+            "field_name": field_name,
+            "suggested_value": suggested_value
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to approve suggestion {suggestion_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/suggestions/{suggestion_id}/reject")
+async def reject_suggestion(suggestion_id: int):
+    """
+    Reject an AI suggestion.
+    """
+    import sqlite3
+    from datetime import datetime
+
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+
+        # Check if suggestion exists
+        cursor.execute("SELECT status FROM ai_suggestions_queue WHERE suggestion_id = ?", (suggestion_id,))
+        row = cursor.fetchone()
+
+        if not row:
+            conn.close()
+            raise HTTPException(status_code=404, detail=f"Suggestion {suggestion_id} not found")
+
+        if row[0] != 'pending':
+            conn.close()
+            raise HTTPException(status_code=400, detail=f"Suggestion already {row[0]}")
+
+        now = datetime.now().isoformat()
+
+        cursor.execute("""
+            UPDATE ai_suggestions_queue
+            SET status = 'rejected', reviewed_at = ?
+            WHERE suggestion_id = ?
+        """, (now, suggestion_id))
+
+        conn.commit()
+        conn.close()
+
+        return {
+            "success": True,
+            "message": f"Suggestion {suggestion_id} rejected"
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to reject suggestion {suggestion_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/suggestions/bulk-approve")
+async def bulk_approve_suggestions(request: BulkApproveRequest):
+    """
+    Bulk approve suggestions above a confidence threshold.
+
+    Approves all pending suggestions matching the criteria.
+    """
+    import sqlite3
+    import json
+    from datetime import datetime
+
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+
+        # Build query for matching suggestions
+        query = """
+            SELECT * FROM ai_suggestions_queue
+            WHERE status = 'pending' AND confidence >= ?
+        """
+        params = [request.min_confidence]
+
+        if request.field_name:
+            query += " AND field_name = ?"
+            params.append(request.field_name)
+
+        cursor.execute(query, params)
+        rows = cursor.fetchall()
+
+        approved_count = 0
+        skipped_count = 0
+        errors = []
+        now = datetime.now().isoformat()
+
+        for row in rows:
+            suggestion = dict(row)
+            suggestion_id = suggestion['suggestion_id']
+            field_name = suggestion['field_name']
+
+            try:
+                # Parse suggested value
+                suggested_value = suggestion['suggested_value']
+                if isinstance(suggested_value, str):
+                    try:
+                        suggested_value = json.loads(suggested_value)
+                    except:
+                        pass
+
+                # Apply based on field_name
+                if field_name == 'new_contact':
+                    email = suggested_value.get('email', '')
+                    if email:
+                        cursor.execute("SELECT contact_id FROM contacts WHERE email = ?", (email,))
+                        if not cursor.fetchone():
+                            name = suggested_value.get('name', '')
+                            company = suggested_value.get('company', '')
+                            role = suggested_value.get('role', '')
+                            cursor.execute("""
+                                INSERT INTO contacts (email, name, role, notes)
+                                VALUES (?, ?, ?, ?)
+                            """, (email, name, role or company, f"Bulk-added from AI suggestion. Company: {company}"))
+                        else:
+                            skipped_count += 1
+
+                elif field_name == 'project_alias':
+                    alias = suggested_value.get('alias', '')
+                    project_code = suggested_value.get('project_code', '')
+                    if alias and project_code:
+                        cursor.execute("""
+                            INSERT INTO learned_patterns
+                            (pattern_name, pattern_type, condition, action, confidence_score, is_active)
+                            VALUES (?, 'project_alias', ?, ?, ?, 1)
+                        """, (
+                            f"Alias: {alias}",
+                            json.dumps({"alias": alias}),
+                            json.dumps({"project_code": project_code}),
+                            suggestion['confidence']
+                        ))
+
+                # Mark as approved
+                cursor.execute("""
+                    UPDATE ai_suggestions_queue
+                    SET status = 'approved', applied_at = ?, reviewed_at = ?
+                    WHERE suggestion_id = ?
+                """, (now, now, suggestion_id))
+
+                approved_count += 1
+
+            except Exception as e:
+                errors.append({"suggestion_id": suggestion_id, "error": str(e)})
+
+        conn.commit()
+        conn.close()
+
+        return {
+            "success": True,
+            "approved_count": approved_count,
+            "skipped_count": skipped_count,
+            "error_count": len(errors),
+            "errors": errors[:10] if errors else [],  # Limit error details
+            "criteria": {
+                "min_confidence": request.min_confidence,
+                "field_name": request.field_name
+            }
+        }
+
+    except Exception as e:
+        logger.error(f"Failed to bulk approve suggestions: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/suggestions/stats")
+async def get_suggestion_stats():
+    """
+    Get statistics about AI suggestions.
+    """
+    import sqlite3
+
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+
+        stats = {}
+
+        # Total counts by status
+        cursor.execute("""
+            SELECT status, COUNT(*) as count
+            FROM ai_suggestions_queue
+            GROUP BY status
+        """)
+        stats['by_status'] = {row[0]: row[1] for row in cursor.fetchall()}
+
+        # Counts by field_name
+        cursor.execute("""
+            SELECT field_name, COUNT(*) as count
+            FROM ai_suggestions_queue
+            WHERE status = 'pending'
+            GROUP BY field_name
+        """)
+        stats['pending_by_field'] = {row[0]: row[1] for row in cursor.fetchall()}
+
+        # High confidence pending (>= 0.8)
+        cursor.execute("""
+            SELECT COUNT(*) FROM ai_suggestions_queue
+            WHERE status = 'pending' AND confidence >= 0.8
+        """)
+        stats['high_confidence_pending'] = cursor.fetchone()[0]
+
+        # Average confidence
+        cursor.execute("""
+            SELECT AVG(confidence) FROM ai_suggestions_queue
+            WHERE status = 'pending'
+        """)
+        avg = cursor.fetchone()[0]
+        stats['avg_pending_confidence'] = round(avg, 3) if avg else 0
+
+        conn.close()
+
+        return {
+            "success": True,
+            "stats": stats
+        }
+
+    except Exception as e:
+        logger.error(f"Failed to get suggestion stats: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))

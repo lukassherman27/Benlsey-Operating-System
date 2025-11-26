@@ -46,7 +46,7 @@ export function RecentActivityWidget() {
       activities.push({
         id: `payment-${payment.invoice_id}`,
         type: "payment",
-        title: payment.project_title || payment.project_code,
+        title: payment.project_name || payment.project_code,
         description: `${payment.project_code} • Invoice ${payment.invoice_number} • ${formatCurrency(payment.amount_usd)}`,
         timestamp: payment.paid_on || "Recently",
         amount: payment.amount_usd,

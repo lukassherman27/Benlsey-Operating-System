@@ -28,6 +28,17 @@ load_dotenv()
 
 DB_PATH = os.getenv('DATABASE_PATH', 'database/bensley_master.db')
 
+# Add backend to path for AILearningService
+backend_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'backend')
+sys.path.insert(0, backend_path)
+
+try:
+    from services.ai_learning_service import AILearningService
+    AI_LEARNING_ENABLED = True
+except ImportError:
+    AI_LEARNING_ENABLED = False
+    print("⚠️ AILearningService not available - advanced suggestions disabled")
+
 
 class SmartEmailBrain:
     def __init__(self):
@@ -36,6 +47,15 @@ class SmartEmailBrain:
         self.api_calls = 0
         self.estimated_cost = 0.0
         self.suggestions_created = 0
+
+        # Initialize AI Learning Service for advanced suggestions
+        self.learning_service = None
+        if AI_LEARNING_ENABLED:
+            try:
+                self.learning_service = AILearningService(DB_PATH)
+                print("✅ AI Learning Service connected - suggestions will flow to learning system")
+            except Exception as e:
+                print(f"⚠️ AI Learning Service init failed: {e}")
 
         # Load context on init
         self.proposals = []
@@ -79,12 +99,12 @@ class SmartEmailBrain:
         """)
         self.contacts = [dict(row) for row in cursor.fetchall()]
 
-        # 4. Load learned patterns
+        # 4. Load learned patterns (new schema from migration 032)
         cursor.execute("""
-            SELECT pattern_type, pattern_key, pattern_value, confidence
+            SELECT pattern_name, pattern_type, condition, action, confidence_score
             FROM learned_patterns
-            WHERE confidence > 0.7
-            ORDER BY confidence DESC
+            WHERE is_active = 1 AND confidence_score > 0.5
+            ORDER BY confidence_score DESC
         """)
         self.learned_patterns = [dict(row) for row in cursor.fetchall()]
 
@@ -409,12 +429,151 @@ Return ONLY valid JSON."""
 
             conn.commit()
             conn.close()
+
+            # Generate advanced learning suggestions using AILearningService
+            if self.learning_service and analysis.get('is_bds_work'):
+                try:
+                    learning_suggestions = self._generate_learning_suggestions(email_id, analysis)
+                    if learning_suggestions > 0:
+                        print(f"  🧠 {learning_suggestions} learning suggestion(s) created")
+                except Exception as e:
+                    print(f"  ⚠️ Learning service error: {e}")
+
             return True
 
         except Exception as e:
             print(f"  DB error: {e}")
             conn.close()
             return False
+
+    def _generate_learning_suggestions(self, email_id: int, analysis: Dict) -> int:
+        """Generate advanced suggestions using AILearningService"""
+        if not self.learning_service:
+            return 0
+
+        suggestions_count = 0
+
+        # Get email details for context
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM emails WHERE email_id = ?", (email_id,))
+        email_row = cursor.fetchone()
+        conn.close()
+
+        if not email_row:
+            return 0
+
+        email = dict(email_row)
+        project_code = analysis.get('linked_project_code')
+
+        # 1. Follow-up suggestion if email needs action and no recent outbound
+        if analysis.get('action_required') and project_code:
+            self.learning_service._save_suggestion({
+                'suggestion_type': 'follow_up_needed',
+                'priority': 'high' if analysis.get('urgency_level') == 'critical' else 'medium',
+                'confidence_score': analysis.get('importance_score', 0.7),
+                'source_type': 'email',
+                'source_id': email_id,
+                'source_reference': f"Email: {email.get('subject', '')[:50]}",
+                'title': f"Follow up required for {project_code}",
+                'description': analysis.get('ai_summary', ''),
+                'suggested_action': 'Review email and respond to client',
+                'suggested_data': json.dumps({
+                    'email_id': email_id,
+                    'subject': email.get('subject'),
+                    'sender': email.get('sender_email'),
+                    'key_points': analysis.get('key_points', [])
+                }),
+                'target_table': 'proposals',
+                'project_code': project_code,
+                'status': 'pending'
+            })
+            suggestions_count += 1
+
+        # 2. Fee/amount detection
+        entities = analysis.get('entities', {})
+        amounts = entities.get('amounts', [])
+        if amounts and project_code:
+            self.learning_service._save_suggestion({
+                'suggestion_type': 'fee_change',
+                'priority': 'high',
+                'confidence_score': 0.75,
+                'source_type': 'email',
+                'source_id': email_id,
+                'source_reference': f"Email: {email.get('subject', '')[:50]}",
+                'title': f"Fee amount detected: {', '.join(amounts[:3])}",
+                'description': f"Financial amounts mentioned in email regarding {project_code}",
+                'suggested_action': 'Verify if fee update needed',
+                'suggested_data': json.dumps({
+                    'amounts': amounts,
+                    'context': analysis.get('ai_summary', '')
+                }),
+                'target_table': 'contract_fee_breakdowns',
+                'project_code': project_code,
+                'status': 'pending'
+            })
+            suggestions_count += 1
+
+        # 3. New contact from entities
+        people = entities.get('people', [])
+        companies = entities.get('companies', [])
+        if people and project_code:
+            for person in people[:2]:  # Limit to 2 per email
+                # Check if it's not a known contact
+                if not self._is_known_contact(person):
+                    self.learning_service._save_suggestion({
+                        'suggestion_type': 'new_contact',
+                        'priority': 'medium',
+                        'confidence_score': 0.7,
+                        'source_type': 'email',
+                        'source_id': email_id,
+                        'source_reference': f"Email from {email.get('sender_email', '')}",
+                        'title': f"New contact: {person}",
+                        'description': f"Person mentioned in email about {project_code}",
+                        'suggested_action': 'Add to contacts database',
+                        'suggested_data': json.dumps({
+                            'name': person,
+                            'company': companies[0] if companies else None,
+                            'related_project': project_code
+                        }),
+                        'target_table': 'contacts',
+                        'project_code': project_code,
+                        'status': 'pending'
+                    })
+                    suggestions_count += 1
+
+        # 4. Deadline detection
+        dates = entities.get('dates', [])
+        if dates and project_code and analysis.get('urgency_level') in ['high', 'critical']:
+            self.learning_service._save_suggestion({
+                'suggestion_type': 'deadline_detected',
+                'priority': 'high',
+                'confidence_score': 0.8,
+                'source_type': 'email',
+                'source_id': email_id,
+                'source_reference': f"Email: {email.get('subject', '')[:50]}",
+                'title': f"Deadline mentioned: {', '.join(dates[:3])}",
+                'description': f"Important date(s) mentioned for {project_code}",
+                'suggested_action': 'Add to project milestones',
+                'suggested_data': json.dumps({
+                    'dates': dates,
+                    'context': analysis.get('ai_summary', '')
+                }),
+                'target_table': 'project_milestones',
+                'project_code': project_code,
+                'status': 'pending'
+            })
+            suggestions_count += 1
+
+        return suggestions_count
+
+    def _is_known_contact(self, name: str) -> bool:
+        """Check if a name is already in our contacts"""
+        name_lower = name.lower()
+        for contact in self.contacts:
+            if contact.get('name', '').lower() in name_lower or name_lower in contact.get('name', '').lower():
+                return True
+        return False
 
     def get_emails_to_process(self, limit: int = 100, reprocess: bool = False) -> List[Dict]:
         """Get emails needing processing"""

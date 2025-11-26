@@ -312,7 +312,7 @@ export function ProposalQuickEditDialog({
 
                 {/* Divider - Contact Information */}
                 <div className="pt-4 pb-2">
-                  <h4 className={cn(ds.typography.heading4, ds.textColors.primary)}>
+                  <h4 className={cn(ds.typography.heading3, ds.textColors.primary)}>
                     Contact Information
                   </h4>
                 </div>
@@ -370,7 +370,7 @@ export function ProposalQuickEditDialog({
 
                 {/* Divider - Project Details */}
                 <div className="pt-4 pb-2">
-                  <h4 className={cn(ds.typography.heading4, ds.textColors.primary)}>
+                  <h4 className={cn(ds.typography.heading3, ds.textColors.primary)}>
                     Project Details
                   </h4>
                 </div>
@@ -444,7 +444,7 @@ export function ProposalQuickEditDialog({
 
                 {/* Divider - Email Intelligence */}
                 <div className="pt-4 pb-2">
-                  <h4 className={cn(ds.typography.heading4, ds.textColors.primary)}>
+                  <h4 className={cn(ds.typography.heading3, ds.textColors.primary)}>
                     Email Intelligence
                   </h4>
                 </div>

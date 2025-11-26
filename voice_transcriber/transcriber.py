@@ -45,7 +45,7 @@ except ImportError:
 # Local imports
 from config import (
     OPENAI_API_KEY, ANTHROPIC_API_KEY,
-    EMAIL_SENDER, EMAIL_PASSWORD, EMAIL_RECIPIENTS, SMTP_SERVER, SMTP_PORT,
+    EMAIL_SENDER, EMAIL_PASSWORD, EMAIL_RECIPIENTS, SMTP_SERVER, SMTP_PORT, SMTP_USE_SSL,
     VOICE_MEMOS_FOLDER, OUTPUT_FOLDER, BDS_DATABASE,
     CHECK_INTERVAL, MIN_FILE_AGE, WHISPER_MODEL, CLAUDE_MODEL,
     AUTO_DETECT_PROJECT, PROJECT_MATCH_CONFIDENCE
@@ -91,12 +91,120 @@ def get_file_hash(filepath: Path) -> str:
     return hashlib.md5(f"{filepath}:{stat.st_mtime}:{stat.st_size}".encode()).hexdigest()
 
 # =============================================================================
+# AUDIO COMPRESSION & CHUNKING (for large/long files)
+# =============================================================================
+
+MAX_FILE_SIZE_MB = 24  # Whisper API limit is 25MB, leave buffer
+CHUNK_DURATION_MINUTES = 20  # Split long files into chunks
+
+def get_audio_duration(audio_path: Path) -> float:
+    """Get audio duration in seconds using ffprobe."""
+    import subprocess
+    try:
+        result = subprocess.run([
+            'ffprobe', '-v', 'error', '-show_entries', 'format=duration',
+            '-of', 'default=noprint_wrappers=1:nokey=1', str(audio_path)
+        ], capture_output=True, text=True)
+        return float(result.stdout.strip())
+    except:
+        return 0
+
+def split_audio_into_chunks(audio_path: Path, chunk_minutes: int = CHUNK_DURATION_MINUTES) -> List[Path]:
+    """
+    Split audio file into chunks of specified duration.
+    Returns list of chunk file paths.
+    """
+    import subprocess
+
+    duration = get_audio_duration(audio_path)
+    chunk_seconds = chunk_minutes * 60
+
+    if duration <= chunk_seconds:
+        return [audio_path]  # No splitting needed
+
+    num_chunks = int(duration / chunk_seconds) + 1
+    logger.info(f"Splitting {duration/60:.1f} min audio into {num_chunks} chunks...")
+
+    chunks = []
+    for i in range(num_chunks):
+        start_time = i * chunk_seconds
+        chunk_path = audio_path.parent / f"{audio_path.stem}_chunk{i+1}.m4a"
+
+        try:
+            result = subprocess.run([
+                'ffmpeg', '-y', '-i', str(audio_path),
+                '-ss', str(start_time), '-t', str(chunk_seconds),
+                '-c:a', 'aac', '-b:a', '64k', '-ar', '16000',
+                str(chunk_path)
+            ], capture_output=True, text=True)
+
+            if result.returncode == 0 and chunk_path.exists():
+                chunks.append(chunk_path)
+                logger.info(f"  Created chunk {i+1}/{num_chunks}")
+            else:
+                logger.error(f"Failed to create chunk {i+1}: {result.stderr}")
+        except Exception as e:
+            logger.error(f"Chunk creation error: {e}")
+
+    return chunks if chunks else [audio_path]
+
+def compress_audio_if_needed(audio_path: Path) -> Path:
+    """
+    Compress audio file if it exceeds Whisper's 25MB limit.
+    Converts WAV to M4A using ffmpeg (if available).
+    Returns path to compressed file, or original if no compression needed.
+    """
+    import subprocess
+
+    file_size_mb = audio_path.stat().st_size / (1024 * 1024)
+
+    if file_size_mb <= MAX_FILE_SIZE_MB:
+        logger.info(f"File size: {file_size_mb:.1f}MB (within limit)")
+        return audio_path
+
+    logger.info(f"File size: {file_size_mb:.1f}MB - compressing for Whisper API...")
+
+    # Check if ffmpeg is available
+    try:
+        subprocess.run(['ffmpeg', '-version'], capture_output=True, check=True)
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        logger.warning("ffmpeg not installed - cannot compress. Try: brew install ffmpeg")
+        logger.warning("Proceeding with original file (may fail if >25MB)")
+        return audio_path
+
+    # Create compressed version
+    compressed_path = audio_path.with_suffix('.m4a')
+
+    try:
+        # Convert to M4A with good compression
+        result = subprocess.run([
+            'ffmpeg', '-y', '-i', str(audio_path),
+            '-c:a', 'aac', '-b:a', '64k',  # Low bitrate for speech
+            '-ar', '16000',  # 16kHz is fine for speech
+            str(compressed_path)
+        ], capture_output=True, text=True)
+
+        if result.returncode == 0 and compressed_path.exists():
+            new_size_mb = compressed_path.stat().st_size / (1024 * 1024)
+            logger.info(f"Compressed: {file_size_mb:.1f}MB → {new_size_mb:.1f}MB")
+            return compressed_path
+        else:
+            logger.error(f"Compression failed: {result.stderr}")
+            return audio_path
+
+    except Exception as e:
+        logger.error(f"Compression error: {e}")
+        return audio_path
+
+# =============================================================================
 # TRANSCRIPTION (OpenAI Whisper)
 # =============================================================================
 
 def transcribe_audio(audio_path: Path) -> str:
     """
     Transcribe audio file using OpenAI Whisper API.
+    Automatically handles long recordings by chunking.
+    Automatically compresses large files before sending.
 
     Args:
         audio_path: Path to audio file (m4a, mp3, wav, etc.)
@@ -106,17 +214,84 @@ def transcribe_audio(audio_path: Path) -> str:
     """
     logger.info(f"Transcribing: {audio_path.name}")
 
+    # Check duration and split into chunks if needed (for long meetings)
+    duration = get_audio_duration(audio_path)
+    duration_minutes = duration / 60 if duration > 0 else 0
+
+    if duration_minutes > CHUNK_DURATION_MINUTES:
+        logger.info(f"Long recording detected: {duration_minutes:.1f} minutes")
+        return transcribe_long_audio(audio_path)
+
+    # For shorter files, compress if needed and transcribe directly
+    file_to_transcribe = compress_audio_if_needed(audio_path)
+
     client = openai.OpenAI(api_key=OPENAI_API_KEY)
 
-    with open(audio_path, "rb") as audio_file:
+    with open(file_to_transcribe, "rb") as audio_file:
         transcript = client.audio.transcriptions.create(
             model=WHISPER_MODEL,
             file=audio_file,
             response_format="text"
         )
 
+    # Clean up compressed file if we created one
+    if file_to_transcribe != audio_path and file_to_transcribe.exists():
+        file_to_transcribe.unlink()
+        logger.info("Cleaned up compressed file")
+
     logger.info(f"Transcription complete: {len(transcript)} characters")
     return transcript
+
+
+def transcribe_long_audio(audio_path: Path) -> str:
+    """
+    Transcribe long audio files by splitting into chunks.
+    Handles recordings of any length.
+    """
+    # Split into chunks
+    chunks = split_audio_into_chunks(audio_path)
+
+    if len(chunks) == 1 and chunks[0] == audio_path:
+        # Splitting failed or wasn't needed, try direct transcription
+        return transcribe_audio(audio_path)
+
+    client = openai.OpenAI(api_key=OPENAI_API_KEY)
+    transcripts = []
+    cleanup_files = []
+
+    for i, chunk_path in enumerate(chunks):
+        logger.info(f"Transcribing chunk {i+1}/{len(chunks)}...")
+
+        try:
+            with open(chunk_path, "rb") as audio_file:
+                transcript = client.audio.transcriptions.create(
+                    model=WHISPER_MODEL,
+                    file=audio_file,
+                    response_format="text"
+                )
+            transcripts.append(transcript)
+            logger.info(f"  Chunk {i+1}: {len(transcript)} characters")
+
+            # Mark for cleanup if it's a generated chunk file
+            if chunk_path != audio_path:
+                cleanup_files.append(chunk_path)
+
+        except Exception as e:
+            logger.error(f"Failed to transcribe chunk {i+1}: {e}")
+
+    # Clean up chunk files
+    for chunk_file in cleanup_files:
+        try:
+            chunk_file.unlink()
+        except:
+            pass
+    logger.info(f"Cleaned up {len(cleanup_files)} chunk files")
+
+    # Combine transcripts
+    full_transcript = "\n\n".join(transcripts)
+    logger.info(f"Combined transcript: {len(full_transcript)} characters from {len(chunks)} chunks")
+
+    return full_transcript
 
 # =============================================================================
 # SUMMARIZATION (Claude)
@@ -526,11 +701,16 @@ def send_email(
                 part.add_header('Content-Disposition', f'attachment; filename="{filename}"')
                 msg.attach(part)
 
-        # Send
-        with smtplib.SMTP(SMTP_SERVER, SMTP_PORT) as server:
-            server.starttls()
-            server.login(EMAIL_SENDER, EMAIL_PASSWORD)
-            server.send_message(msg)
+        # Send (use SSL or STARTTLS based on config)
+        if SMTP_USE_SSL:
+            with smtplib.SMTP_SSL(SMTP_SERVER, SMTP_PORT) as server:
+                server.login(EMAIL_SENDER, EMAIL_PASSWORD)
+                server.send_message(msg)
+        else:
+            with smtplib.SMTP(SMTP_SERVER, SMTP_PORT) as server:
+                server.starttls()
+                server.login(EMAIL_SENDER, EMAIL_PASSWORD)
+                server.send_message(msg)
 
         logger.info("Email sent successfully")
         return True
