@@ -135,30 +135,31 @@ def get_project_list() -> List[Dict]:
         conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
 
-        # Get projects with their codes and names
+        # Get projects with their codes and names (joined with clients for client name)
         cursor.execute("""
             SELECT
-                id,
-                project_code,
-                project_name,
-                client_name,
-                status,
-                country,
-                location
-            FROM projects
-            WHERE status NOT IN ('Completed', 'Cancelled', 'Lost')
-            ORDER BY project_code
+                p.project_id,
+                p.project_code,
+                p.project_title,
+                COALESCE(c.company_name, 'Unknown Client') as client_name,
+                p.status,
+                p.country,
+                p.city
+            FROM projects p
+            LEFT JOIN clients c ON p.client_id = c.client_id
+            WHERE p.status NOT IN ('Completed', 'Cancelled', 'Lost')
+            ORDER BY p.project_code
         """)
 
         for row in cursor.fetchall():
             projects.append({
-                'id': row['id'],
+                'id': row['project_id'],
                 'code': row['project_code'],
-                'name': row['project_name'],
+                'name': row['project_title'],
                 'client': row['client_name'],
                 'status': row['status'],
                 'country': row['country'],
-                'location': row['location']
+                'location': row['city']
             })
 
         conn.close()
@@ -182,18 +183,18 @@ def get_contacts_list() -> List[Dict]:
         conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
 
-        # Get contacts with their roles and associated projects
+        # Get contacts with their roles and client/company name
         cursor.execute("""
             SELECT DISTINCT
-                c.contact_id,
-                c.name,
-                c.email,
-                c.company,
-                c.role,
-                c.contact_type
-            FROM contacts c
-            WHERE c.name IS NOT NULL AND c.name != ''
-            ORDER BY c.name
+                co.contact_id,
+                co.name,
+                co.email,
+                co.role,
+                COALESCE(cl.company_name, 'Unknown') as company
+            FROM contacts co
+            LEFT JOIN clients cl ON co.client_id = cl.client_id
+            WHERE co.name IS NOT NULL AND co.name != ''
+            ORDER BY co.name
             LIMIT 100
         """)
 
@@ -204,7 +205,7 @@ def get_contacts_list() -> List[Dict]:
                 'email': row['email'],
                 'company': row['company'],
                 'role': row['role'],
-                'type': row['contact_type']
+                'type': 'client'
             })
 
         conn.close()
@@ -317,8 +318,13 @@ def summarize_transcript(transcript: str, audio_filename: str) -> Dict:
 {transcript}
 
 {project_context}
+{contacts_context}
+{team_context}
 
 ## Instructions:
+Analyze the transcript carefully. Match any mentioned names to the Known Contacts or Team Members lists.
+Identify which project is being discussed based on project names, codes, client names, or locations mentioned.
+
 Provide your analysis in the following JSON format:
 
 ```json
@@ -330,20 +336,26 @@ Provide your analysis in the following JSON format:
         "Key point 3"
     ],
     "action_items": [
-        {{"task": "Description", "owner": "Person if mentioned", "deadline": "If mentioned"}}
+        {{"task": "Description", "owner": "Person name", "deadline": "If mentioned", "owner_role": "Their role if known"}}
     ],
     "detected_project": {{
-        "code": "Project code if detected, null if not",
+        "code": "Project code if detected (e.g. BK-070), null if not",
+        "name": "Project name",
         "confidence": 0.0 to 1.0,
         "reasoning": "Why this project was matched"
     }},
-    "participants": ["List of people mentioned or speaking"],
-    "meeting_type": "One of: Client Call, Internal Meeting, Site Visit, Vendor Call, Other",
-    "sentiment": "Positive, Neutral, or Negative overall tone"
+    "participants": [
+        {{"name": "Person name", "role": "Their role", "type": "client/team/vendor/unknown"}}
+    ],
+    "meeting_type": "One of: Client Call, Internal Meeting, Site Visit, Vendor Call, Design Review, Other",
+    "sentiment": "Positive, Neutral, or Negative overall tone",
+    "follow_up_required": true or false,
+    "next_meeting_mentioned": "Date/time if mentioned, null if not"
 }}
 ```
 
-Be accurate and concise. If no project is clearly mentioned, set detected_project.code to null.
+Be accurate and concise. Match names to known contacts when possible.
+If no project is clearly mentioned, set detected_project.code to null.
 Only include action items that were explicitly discussed.
 """
 
@@ -526,7 +538,7 @@ def format_email_html(
             <strong>Processed:</strong> {datetime.now().strftime('%Y-%m-%d %H:%M')}
             {duration_str}<br>
             <strong>Type:</strong> {summary.get('meeting_type', 'Unknown')}<br>
-            <strong>Participants:</strong> {', '.join(summary.get('participants', ['Unknown']))}
+            <strong>Participants:</strong> {', '.join([p.get('name', p) if isinstance(p, dict) else str(p) for p in summary.get('participants', ['Unknown'])])}
         </div>
 
         {project_info}
