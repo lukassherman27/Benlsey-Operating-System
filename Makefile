@@ -105,7 +105,7 @@ import-emails:
 
 health-check:
 	@echo "Running health checks..."
-	python scripts/core/health_check.py
+	python3 scripts/core/health_check.py
 
 validate:
 	@echo "Running tests and linting..."

@@ -56,6 +56,17 @@ Quick lookup for where things live. Use Ctrl+F to find what you need.
 - **Brain:** `scripts/core/query_brain.py`
 - **Frontend:** `frontend/src/components/query-interface.tsx`
 
+### Intelligence & Learning (NEW - Nov 26)
+- **Learning Service:** `backend/services/ai_learning_service.py`
+- **Follow-up Agent:** `backend/services/follow_up_agent.py`
+- **Proposal Intelligence:** `backend/services/proposal_intelligence_service.py`
+- **Frontend Admin:** `frontend/src/app/(dashboard)/admin/intelligence/page.tsx`
+- **Database:** `learned_patterns`, `ai_suggestions_queue`, `training_data`
+- **API Endpoints:**
+  - `/api/learning/*` - Rule generation, pattern validation
+  - `/api/agent/follow-up/*` - Proposal follow-up agent
+  - `/api/query/ask-enhanced` - Pattern-enhanced queries
+
 ---
 
 ## By Agent (January 2026 Plan)
