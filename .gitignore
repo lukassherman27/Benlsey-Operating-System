@@ -150,3 +150,5 @@ data/*.xlsx
 data/*.csv
 data/*.json
 !data/README.md
+exports/*.html
+voice_transcriber/feedback.json

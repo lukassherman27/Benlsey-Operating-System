@@ -91,6 +91,66 @@ def get_file_hash(filepath: Path) -> str:
     return hashlib.md5(f"{filepath}:{stat.st_mtime}:{stat.st_size}".encode()).hexdigest()
 
 # =============================================================================
+# FEEDBACK & LEARNING SYSTEM
+# =============================================================================
+
+FEEDBACK_FILE = Path(__file__).parent / "feedback.json"
+
+def load_feedback() -> Dict:
+    """Load user feedback/corrections to improve future summaries."""
+    if FEEDBACK_FILE.exists():
+        with open(FEEDBACK_FILE) as f:
+            return json.load(f)
+    return {"rules": [], "corrections": [], "participant_clarifications": {}}
+
+def format_feedback_for_prompt(feedback: Dict) -> str:
+    """Format feedback into instructions for the AI prompt."""
+    sections = []
+
+    if feedback.get("rules"):
+        sections.append("## IMPORTANT RULES (learned from past corrections):")
+        for rule in feedback["rules"]:
+            sections.append(f"- {rule}")
+
+    if feedback.get("formatting_rules"):
+        sections.append("\n## FORMATTING RULES:")
+        for rule in feedback["formatting_rules"]:
+            sections.append(f"- {rule}")
+
+    if feedback.get("corrections"):
+        sections.append("\n## PAST MISTAKES TO AVOID:")
+        for c in feedback["corrections"][-5:]:  # Last 5 corrections
+            sections.append(f"- Error: {c['original_error']}")
+            sections.append(f"  Correct: {c['correction']}")
+            sections.append(f"  Lesson: {c['lesson']}\n")
+
+    if feedback.get("participant_clarifications"):
+        sections.append("\n## KNOWN PARTICIPANT CLARIFICATIONS:")
+        for name, info in feedback["participant_clarifications"].items():
+            sections.append(f"- {name}: {info}")
+
+    if feedback.get("name_corrections"):
+        sections.append("\n## NAME CORRECTIONS (fix these transcription errors):")
+        for wrong, correct in feedback["name_corrections"].items():
+            sections.append(f"- '{wrong}' should be '{correct}'")
+
+    return "\n".join(sections)
+
+def add_feedback(meeting_name: str, original_error: str, correction: str, lesson: str):
+    """Add a new correction to the feedback file."""
+    feedback = load_feedback()
+    feedback["corrections"].append({
+        "date": datetime.now().strftime("%Y-%m-%d"),
+        "meeting": meeting_name,
+        "original_error": original_error,
+        "correction": correction,
+        "lesson": lesson
+    })
+    with open(FEEDBACK_FILE, 'w') as f:
+        json.dump(feedback, f, indent=2)
+    logger.info(f"Added feedback: {lesson}")
+
+# =============================================================================
 # AUDIO COMPRESSION & CHUNKING (for large/long files)
 # =============================================================================
 
@@ -547,6 +607,12 @@ def summarize_transcript(transcript: str, audio_filename: str) -> Dict:
     ])
     logger.info(f"Total context items loaded: {total_items} (projects: {len(context['projects'])}, proposals: {len(context['proposals'])}, contacts: {len(context['contacts'])}, clients: {len(context['clients'])})")
 
+    # Load user feedback/corrections for improved summaries
+    feedback = load_feedback()
+    feedback_context = format_feedback_for_prompt(feedback)
+    if feedback_context:
+        logger.info(f"Loaded {len(feedback.get('rules', []))} rules and {len(feedback.get('corrections', []))} corrections from feedback")
+
     prompt = f"""Analyze this meeting transcript and provide a structured summary.
 
 ## Recording Info:
@@ -558,6 +624,8 @@ def summarize_transcript(transcript: str, audio_filename: str) -> Dict:
 
 ## DATABASE CONTEXT (use this to match projects, clients, and contacts mentioned)
 {database_context}
+
+{feedback_context}
 
 ## Instructions:
 Analyze the transcript carefully. Match any mentioned names to the Known Contacts or Team Members lists.
@@ -585,6 +653,15 @@ Provide your analysis in the following JSON format:
     "action_items": [
         {{"task": "Description", "owner": "Person name", "deadline": "If mentioned", "owner_role": "Their role if known"}}
     ],
+    "new_project_candidate": {{
+        "is_new_project": true or false,
+        "client_name": "Client/company or family name if new, null if unknown",
+        "project_name": "If a name was given, else null",
+        "location": "City, Country if mentioned",
+        "scope": "Short freeform scope (e.g., 'interiors + facade + landscape for 10-story residence')",
+        "approximate_size_sqft": "Number if mentioned, else null",
+        "notes": "Any other pertinent details about the new opportunity"
+    }},
     "detected_project": {{
         "code": "Project code if detected (e.g. BK-070), null if not",
         "name": "Project name",
@@ -602,7 +679,7 @@ Provide your analysis in the following JSON format:
 ```
 
 Be accurate and concise. Match names to known contacts when possible.
-If no project is clearly mentioned, set detected_project.code to null.
+If no existing project is clearly mentioned but the conversation is about a new potential project/client, set new_project_candidate.is_new_project to true and fill in as many details as possible. If no project is clearly mentioned, set detected_project.code to null.
 Only include action items that were explicitly discussed.
 """
 
@@ -641,6 +718,16 @@ Only include action items that were explicitly discussed.
     try:
         result = json.loads(json_str.strip())
         result['model_used'] = model_used
+        # Ensure new_project_candidate exists for downstream consumers
+        result.setdefault('new_project_candidate', {
+            "is_new_project": False,
+            "client_name": None,
+            "project_name": None,
+            "location": None,
+            "scope": None,
+            "approximate_size_sqft": None,
+            "notes": None
+        })
         logger.info(f"Summary generated with {model_used}. Project detected: {result.get('detected_project', {}).get('code', 'None')}")
         return result
     except json.JSONDecodeError as e:
@@ -654,6 +741,15 @@ Only include action items that were explicitly discussed.
             "participants": [],
             "meeting_type": "Unknown",
             "sentiment": "Neutral",
+            "new_project_candidate": {
+                "is_new_project": False,
+                "client_name": None,
+                "project_name": None,
+                "location": None,
+                "scope": None,
+                "approximate_size_sqft": None,
+                "notes": None
+            },
             "model_used": model_used
         }
 
@@ -752,6 +848,23 @@ def format_email_html(
         <ul>{items}</ul>
         """
 
+    new_project_html = ""
+    new_proj = summary.get('new_project_candidate', {})
+    if new_proj and new_proj.get('is_new_project'):
+        new_project_html = f"""
+        <div style="background: #fff7e6; padding: 15px; border-radius: 8px; margin: 15px 0; border-left: 4px solid #ffa000;">
+            <h3 style="margin-top: 0;">New Potential Project</h3>
+            <p>
+                <strong>Client:</strong> {new_proj.get('client_name') or 'Unknown'}<br>
+                <strong>Project Name:</strong> {new_proj.get('project_name') or 'Not provided'}<br>
+                <strong>Location:</strong> {new_proj.get('location') or 'Not provided'}<br>
+                <strong>Scope:</strong> {new_proj.get('scope') or 'Not provided'}<br>
+                <strong>Approx. Size (sqft):</strong> {new_proj.get('approximate_size_sqft') or 'Not mentioned'}<br>
+                <strong>Notes:</strong> {new_proj.get('notes') or '—'}
+            </p>
+        </div>
+        """
+
     key_points_html = ""
     if summary.get('key_points'):
         points = "".join([f"<li>{point}</li>" for point in summary['key_points']])
@@ -794,6 +907,7 @@ def format_email_html(
         </div>
 
         {project_info}
+        {new_project_html}
 
         <div class="summary">
             <h2>Summary</h2>
@@ -826,8 +940,12 @@ def send_macos_notification(audio_filename: str, summary: Dict):
     project_code = summary.get('detected_project', {}).get('code', '')
     project_name = summary.get('detected_project', {}).get('name', '')
     meeting_summary = summary.get('summary', 'Transcription complete')[:100]
+    new_project = summary.get('new_project_candidate', {})
 
-    if project_code:
+    if new_project.get('is_new_project'):
+        title = "New Project Lead"
+        subtitle = new_project.get('client_name') or audio_filename
+    elif project_code:
         title = f"Transcribed: {project_code}"
         subtitle = project_name
     else:
@@ -1022,6 +1140,8 @@ def process_audio_file(audio_path: Path) -> bool:
         ]
 
         subject = f"Meeting Transcript: {audio_path.stem}"
+        if summary.get('new_project_candidate', {}).get('is_new_project'):
+            subject = f"[New Project] {subject}"
         if summary.get('detected_project', {}).get('code'):
             subject = f"[{summary['detected_project']['code']}] {subject}"
 

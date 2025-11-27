@@ -10,7 +10,7 @@ import json
 import logging
 from datetime import datetime, timedelta
 from typing import Optional, List, Dict, Any
-from backend.services.base_service import BaseService
+from .base_service import BaseService
 
 logger = logging.getLogger(__name__)
 

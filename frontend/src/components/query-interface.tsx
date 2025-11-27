@@ -249,9 +249,30 @@ export default function QueryInterface() {
     });
   };
 
+  // State for expanded results per message
+  const [expandedResults, setExpandedResults] = useState<Set<string>>(new Set());
+
+  const toggleExpandResults = (messageId: string) => {
+    setExpandedResults(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(messageId)) {
+        newSet.delete(messageId);
+      } else {
+        newSet.add(messageId);
+      }
+      return newSet;
+    });
+  };
+
   // Render results table for a message
-  const renderResultsTable = (messageResults: Record<string, unknown>[]) => {
+  const renderResultsTable = (messageResults: Record<string, unknown>[], messageId: string) => {
     if (!messageResults || messageResults.length === 0) return null;
+
+    const isExpanded = expandedResults.has(messageId);
+    // Show all results up to 50 by default, or all if expanded
+    const defaultLimit = 50;
+    const displayResults = isExpanded ? messageResults : messageResults.slice(0, defaultLimit);
+    const hasMore = messageResults.length > defaultLimit;
 
     return (
       <div className="overflow-x-auto rounded-lg border border-gray-200 mt-3">
@@ -269,7 +290,7 @@ export default function QueryInterface() {
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
-            {messageResults.slice(0, 10).map((row, idx) => (
+            {displayResults.map((row, idx) => (
               <tr key={idx} className="hover:bg-gray-50 transition-colors">
                 {Object.values(row).map((value, vidx) => (
                   <td key={vidx} className="px-4 py-2 text-sm text-gray-900">
@@ -280,9 +301,21 @@ export default function QueryInterface() {
             ))}
           </tbody>
         </table>
-        {messageResults.length > 10 && (
+        {hasMore && (
+          <div className="px-4 py-2 bg-gray-50 text-center">
+            <button
+              onClick={() => toggleExpandResults(messageId)}
+              className="text-xs text-blue-600 hover:text-blue-800 font-medium"
+            >
+              {isExpanded
+                ? `Show less (${defaultLimit} of ${messageResults.length})`
+                : `Show all ${messageResults.length} results`}
+            </button>
+          </div>
+        )}
+        {!hasMore && messageResults.length > 10 && (
           <div className="px-4 py-2 bg-gray-50 text-xs text-gray-500 text-center">
-            Showing 10 of {messageResults.length} results
+            Showing all {messageResults.length} results
           </div>
         )}
       </div>
@@ -382,7 +415,7 @@ export default function QueryInterface() {
 
                 {/* Results for assistant messages */}
                 {message.role === 'assistant' && message.results && message.results.length > 0 && (
-                  renderResultsTable(message.results)
+                  renderResultsTable(message.results, message.id)
                 )}
 
                 {/* SQL Query for assistant messages */}
