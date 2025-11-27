@@ -8,6 +8,7 @@ from datetime import datetime
 from .base_service import BaseService
 
 logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 
 class AdminService(BaseService):
@@ -15,6 +16,70 @@ class AdminService(BaseService):
 
     def __init__(self, db_path: str):
         super().__init__(db_path)
+
+    # ============================================================================
+    # TRAINING FEEDBACK RECORDING
+    # ============================================================================
+
+    def _record_training_feedback(
+        self,
+        feature_name: str,
+        original_value: Optional[str],
+        correction_value: Optional[str],
+        helpful: bool,
+        project_code: Optional[str] = None,
+        context_data: Optional[Dict] = None,
+        user_id: str = "system"
+    ) -> bool:
+        """
+        Record human feedback to training_data_feedback table for RLHF.
+
+        This captures all human decisions on AI suggestions so we can:
+        1. Track accuracy of AI suggestions
+        2. Learn patterns from corrections
+        3. Build training data for future model improvement
+
+        Args:
+            feature_name: Type of feature (e.g., 'data_validation', 'email_category')
+            original_value: What AI suggested
+            correction_value: What human corrected to (or 'approved'/'rejected')
+            helpful: Whether the suggestion was helpful (approved)
+            project_code: Related project if applicable
+            context_data: Additional context as dict (will be JSON-ified)
+            user_id: Who made the decision
+
+        Returns:
+            True if recorded successfully
+        """
+        import json
+
+        try:
+            with self.get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute("""
+                    INSERT INTO training_data_feedback (
+                        user_id, feature_name, component_name,
+                        original_value, correction_value, helpful,
+                        project_code, context_data, created_at, source
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """, (
+                    user_id,
+                    feature_name,
+                    'admin_validation',
+                    original_value,
+                    correction_value,
+                    1 if helpful else 0,
+                    project_code,
+                    json.dumps(context_data) if context_data else None,
+                    datetime.now().isoformat(),
+                    'admin_ui'
+                ))
+                conn.commit()
+                logger.info(f"Recorded training feedback: {feature_name}, helpful={helpful}")
+                return True
+        except Exception as e:
+            logger.error(f"Failed to record training feedback: {e}")
+            return False
 
     # ============================================================================
     # DATA VALIDATION SUGGESTIONS
@@ -237,6 +302,24 @@ class AdminService(BaseService):
 
                 conn.commit()
 
+                # Record training feedback for RLHF
+                self._record_training_feedback(
+                    feature_name='data_validation_suggestion',
+                    original_value=current_value,
+                    correction_value=suggested_value,
+                    helpful=True,  # Approved = helpful
+                    project_code=project_code,
+                    context_data={
+                        'suggestion_id': suggestion_id,
+                        'entity_type': entity_type,
+                        'entity_id': entity_id,
+                        'field_name': field_name,
+                        'action': 'approved_and_applied',
+                        'review_notes': review_notes
+                    },
+                    user_id=reviewed_by
+                )
+
                 return {
                     "success": True,
                     "suggestion_id": suggestion_id,
@@ -295,6 +378,22 @@ class AdminService(BaseService):
             cursor = conn.cursor()
 
             try:
+                # First get the suggestion details for feedback recording
+                cursor.execute("""
+                    SELECT
+                        entity_type, entity_id, field_name,
+                        current_value, suggested_value, project_code
+                    FROM data_validation_suggestions
+                    WHERE suggestion_id = ?
+                """, (suggestion_id,))
+
+                row = cursor.fetchone()
+                if not row:
+                    return {"success": False, "error": "Suggestion not found"}
+
+                entity_type, entity_id, field_name, current_value, suggested_value, project_code = row
+
+                # Update status to denied
                 cursor.execute("""
                     UPDATE data_validation_suggestions
                     SET
@@ -306,6 +405,25 @@ class AdminService(BaseService):
                 """, (reviewed_by, datetime.now().isoformat(), review_notes, suggestion_id))
 
                 conn.commit()
+
+                # Record training feedback for RLHF (denied = not helpful)
+                self._record_training_feedback(
+                    feature_name='data_validation_suggestion',
+                    original_value=suggested_value,  # What AI suggested
+                    correction_value='rejected',  # Human rejected it
+                    helpful=False,  # Denied = not helpful
+                    project_code=project_code,
+                    context_data={
+                        'suggestion_id': suggestion_id,
+                        'entity_type': entity_type,
+                        'entity_id': entity_id,
+                        'field_name': field_name,
+                        'current_value': current_value,
+                        'action': 'denied',
+                        'denial_reason': review_notes
+                    },
+                    user_id=reviewed_by
+                )
 
                 return {
                     "success": True,

@@ -3245,6 +3245,184 @@ async def get_rfis_by_project(project_code: str):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to get RFIs: {str(e)}")
 
+class RFIUpdateRequest(BaseModel):
+    """Request body for updating RFI fields"""
+    subject: Optional[str] = None
+    description: Optional[str] = None
+    status: Optional[str] = None
+    priority: Optional[str] = None
+    date_due: Optional[str] = None
+    assigned_pm_id: Optional[int] = None
+    assigned_to: Optional[str] = None
+
+@app.patch("/api/rfis/{rfi_id}")
+async def update_rfi(rfi_id: int, request: RFIUpdateRequest):
+    """
+    Update RFI fields (general update endpoint)
+
+    Allowed status values: open, responded, closed
+    Allowed priority values: low, normal, high, critical
+    """
+    try:
+        update_data = {k: v for k, v in request.dict().items() if v is not None}
+        if not update_data:
+            raise HTTPException(status_code=400, detail="No fields to update")
+
+        success = rfi_service.update_rfi(rfi_id, update_data)
+        if not success:
+            raise HTTPException(status_code=404, detail=f"RFI {rfi_id} not found")
+
+        return {
+            "success": True,
+            "message": "RFI updated",
+            "rfi_id": rfi_id,
+            "updated_fields": list(update_data.keys())
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to update RFI: {str(e)}")
+
+@app.delete("/api/rfis/{rfi_id}")
+async def delete_rfi(rfi_id: int):
+    """Delete an RFI"""
+    try:
+        success = rfi_service.delete_rfi(rfi_id)
+        if not success:
+            raise HTTPException(status_code=404, detail=f"RFI {rfi_id} not found")
+
+        return {
+            "success": True,
+            "message": f"RFI {rfi_id} deleted"
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to delete RFI: {str(e)}")
+
+@app.post("/api/rfis/scan")
+async def scan_for_rfis(
+    limit: int = Query(100, description="Max emails to scan"),
+    min_confidence: float = Query(0.6, description="Minimum confidence threshold (0.0-1.0)")
+):
+    """
+    Scan unprocessed emails for potential RFIs
+
+    Returns list of potential RFIs without creating records.
+    Use POST /api/rfis/extract-from-email to create RFI from detected email.
+    """
+    try:
+        from scripts.core.rfi_detector import RFIDetector
+
+        detector = RFIDetector(DB_PATH)
+        results = detector.scan_unprocessed_emails(limit=limit)
+
+        # Filter by confidence
+        filtered = [r for r in results if r['confidence'] >= min_confidence]
+
+        return {
+            "scanned": limit,
+            "potential_rfis": len(filtered),
+            "candidates": filtered
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to scan for RFIs: {str(e)}")
+
+@app.post("/api/rfis/extract-from-email/{email_id}")
+async def extract_rfi_from_email(
+    email_id: int,
+    project_code: Optional[str] = Query(None, description="Override project code")
+):
+    """
+    Create RFI from a specific email
+
+    The email will be analyzed and if detected as RFI, a record will be created.
+    """
+    try:
+        from scripts.core.rfi_detector import RFIDetector
+
+        detector = RFIDetector(DB_PATH)
+        result = detector.detect_and_create_rfi(
+            email_id=email_id,
+            project_code=project_code
+        )
+
+        if not result['is_rfi']:
+            return {
+                "success": False,
+                "message": "Email not detected as RFI",
+                "reason": result.get('reason'),
+                "confidence": result.get('confidence', 0)
+            }
+
+        if result.get('rfi_id'):
+            return {
+                "success": True,
+                "rfi_id": result['rfi_id'],
+                "rfi_number": result.get('rfi_number'),
+                "project_code": result.get('project_code'),
+                "date_due": result.get('date_due'),
+                "confidence": result['confidence'],
+                "message": result['message']
+            }
+        else:
+            return {
+                "success": False,
+                "message": result.get('message', 'Could not create RFI'),
+                "reason": result.get('reason')
+            }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to extract RFI: {str(e)}")
+
+@app.post("/api/rfis/process-batch")
+async def process_rfi_batch(
+    min_confidence: float = Query(0.75, description="Minimum confidence to auto-create")
+):
+    """
+    Auto-process emails and create RFIs for high-confidence matches
+
+    Only creates RFIs for emails with confidence >= min_confidence.
+    Returns summary of created RFIs.
+    """
+    try:
+        from scripts.core.rfi_detector import RFIDetector
+
+        detector = RFIDetector(DB_PATH)
+        candidates = detector.scan_unprocessed_emails(limit=200)
+
+        created = []
+        skipped = []
+
+        for candidate in candidates:
+            if candidate['confidence'] >= min_confidence:
+                result = detector.detect_and_create_rfi(
+                    email_id=candidate['email_id'],
+                    project_code=candidate.get('project_code')
+                )
+                if result.get('rfi_id'):
+                    created.append({
+                        'rfi_id': result['rfi_id'],
+                        'rfi_number': result.get('rfi_number'),
+                        'project_code': result.get('project_code'),
+                        'subject': candidate.get('subject', '')[:80]
+                    })
+                else:
+                    skipped.append({
+                        'email_id': candidate['email_id'],
+                        'reason': result.get('reason', 'unknown')
+                    })
+
+        return {
+            "success": True,
+            "scanned": len(candidates),
+            "created": len(created),
+            "skipped": len(skipped),
+            "rfis": created,
+            "skip_details": skipped[:10]
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to process RFI batch: {str(e)}")
+
 # ============================================================================
 # MEETING ENDPOINTS
 # ============================================================================
@@ -3424,10 +3602,19 @@ async def get_query_suggestions():
     """Get suggested queries for the query panel"""
     return {
         "suggestions": [
+            # Financial queries - most useful for Bill
+            "Show financial breakdown for Wynn Al Marjan",
+            "What's the total outstanding for all projects?",
+            "Show invoices and payments for 22 BK-095",
+            "Which projects have unpaid invoices?",
+            "Show phase breakdown for Rosewood",
+            # Project queries
             "Show me all active projects",
             "Which proposals need follow-up?",
+            "Find proposals from 2024",
+            # Email queries
             "List all emails from last week",
-            "What's the health score distribution?"
+            "Show recent emails for BK-095"
         ]
     }
 
@@ -6744,6 +6931,194 @@ async def get_project_financial_summary(project_code: str):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@app.get("/api/projects/{project_identifier}/status-report")
+async def get_project_status_report(project_identifier: str):
+    """
+    Get comprehensive project status report with full financial breakdown.
+
+    Returns:
+    - Project summary (contract value, total invoiced, paid, outstanding)
+    - Breakdown by scope (day-club, night-club, etc.)
+    - Detailed invoice timeline with payment dates
+    - Outstanding invoices list
+    - Remaining to invoice by scope
+
+    The project_identifier can be:
+    - Project code (e.g., "22 BK-095")
+    - Partial project name (e.g., "Wynn", "Marjan")
+    """
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+
+        # Find project by code or name (fuzzy match)
+        cursor.execute("""
+            SELECT project_id, project_code, project_title, status, total_fee_usd, country, city
+            FROM projects
+            WHERE project_code = ?
+               OR project_code LIKE ?
+               OR project_title LIKE ?
+            LIMIT 1
+        """, (project_identifier, f"%{project_identifier}%", f"%{project_identifier}%"))
+
+        project_row = cursor.fetchone()
+        if not project_row:
+            conn.close()
+            raise HTTPException(status_code=404, detail=f"Project not found: {project_identifier}")
+
+        project = dict(project_row)
+        project_code = project['project_code']
+        project_id = project['project_id']
+
+        # Get fee breakdown by scope
+        cursor.execute("""
+            SELECT
+                scope,
+                discipline,
+                phase,
+                phase_fee_usd,
+                total_invoiced,
+                total_paid,
+                breakdown_id
+            FROM project_fee_breakdown
+            WHERE project_code = ?
+            ORDER BY scope,
+                CASE phase
+                    WHEN 'Mobilization' THEN 1
+                    WHEN 'Concept Design' THEN 2
+                    WHEN 'Design Development' THEN 3
+                    WHEN 'Construction Documents' THEN 4
+                    WHEN 'Construction Observation' THEN 5
+                    WHEN 'Additional Services' THEN 6
+                    ELSE 7
+                END
+        """, (project_code,))
+
+        breakdown_rows = cursor.fetchall()
+
+        # Get all invoices linked to this project
+        cursor.execute("""
+            SELECT
+                i.invoice_id,
+                i.invoice_number,
+                i.description,
+                i.invoice_amount,
+                i.invoice_date,
+                i.payment_amount,
+                i.payment_date,
+                i.status,
+                i.breakdown_id,
+                b.scope,
+                b.phase
+            FROM invoices i
+            LEFT JOIN project_fee_breakdown b ON i.breakdown_id = b.breakdown_id
+            WHERE i.project_id = ?
+               OR i.invoice_number LIKE ?
+               OR i.description LIKE ?
+            ORDER BY i.invoice_date, i.invoice_number
+        """, (project_id, f"%{project_code}%", f"%{project['project_title'].split()[0]}%"))
+
+        invoice_rows = cursor.fetchall()
+        conn.close()
+
+        # Organize breakdown by scope
+        scopes = {}
+        for row in breakdown_rows:
+            scope = row['scope'] or 'unassigned'
+            if scope not in scopes:
+                scopes[scope] = {
+                    'scope': scope,
+                    'discipline': row['discipline'],
+                    'phases': [],
+                    'contract_total': 0,
+                    'invoiced_total': 0,
+                    'paid_total': 0,
+                    'outstanding': 0,
+                    'remaining_to_invoice': 0
+                }
+
+            phase_data = {
+                'phase': row['phase'],
+                'contract_fee': row['phase_fee_usd'] or 0,
+                'invoiced': row['total_invoiced'] or 0,
+                'paid': row['total_paid'] or 0,
+                'outstanding': (row['total_invoiced'] or 0) - (row['total_paid'] or 0),
+                'remaining_to_invoice': (row['phase_fee_usd'] or 0) - (row['total_invoiced'] or 0),
+                'breakdown_id': row['breakdown_id']
+            }
+            scopes[scope]['phases'].append(phase_data)
+            scopes[scope]['contract_total'] += phase_data['contract_fee']
+            scopes[scope]['invoiced_total'] += phase_data['invoiced']
+            scopes[scope]['paid_total'] += phase_data['paid']
+            scopes[scope]['outstanding'] += phase_data['outstanding']
+            scopes[scope]['remaining_to_invoice'] += phase_data['remaining_to_invoice']
+
+        # Organize invoices by scope with full details
+        invoices_by_scope = {}
+        all_invoices = []
+        outstanding_invoices = []
+
+        for row in invoice_rows:
+            invoice = {
+                'invoice_id': row['invoice_id'],
+                'invoice_number': row['invoice_number'],
+                'description': row['description'],
+                'scope': row['scope'] or 'unassigned',
+                'phase': row['phase'],
+                'invoice_amount': row['invoice_amount'] or 0,
+                'invoice_date': row['invoice_date'],
+                'payment_amount': row['payment_amount'] or 0,
+                'payment_date': row['payment_date'],
+                'status': row['status']
+            }
+
+            all_invoices.append(invoice)
+
+            if row['status'] == 'outstanding' or (row['invoice_amount'] and not row['payment_date']):
+                outstanding_invoices.append(invoice)
+
+            scope = invoice['scope']
+            if scope not in invoices_by_scope:
+                invoices_by_scope[scope] = []
+            invoices_by_scope[scope].append(invoice)
+
+        # Calculate grand totals
+        grand_total = {
+            'contract_value': project['total_fee_usd'] or sum(s['contract_total'] for s in scopes.values()),
+            'total_invoiced': sum(s['invoiced_total'] for s in scopes.values()),
+            'total_paid': sum(s['paid_total'] for s in scopes.values()),
+            'total_outstanding': sum(s['outstanding'] for s in scopes.values()),
+            'remaining_to_invoice': sum(s['remaining_to_invoice'] for s in scopes.values())
+        }
+
+        return {
+            "success": True,
+            "report_type": "project_status_report",
+            "project": {
+                "project_code": project_code,
+                "project_title": project['project_title'],
+                "status": project['status'],
+                "country": project['country'],
+                "city": project['city']
+            },
+            "summary": grand_total,
+            "scopes": list(scopes.values()),
+            "invoices_by_scope": invoices_by_scope,
+            "all_invoices": all_invoices,
+            "outstanding_invoices": outstanding_invoices,
+            "outstanding_count": len(outstanding_invoices),
+            "outstanding_total": sum(inv['invoice_amount'] - inv['payment_amount'] for inv in outstanding_invoices)
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 # ==================== End Invoice Management ====================
 
 
@@ -6951,6 +7326,169 @@ async def get_query_learning_stats():
             "success": True,
             "stats": stats
         }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/query/project-status/{project_search}")
+async def get_project_status_report(project_search: str):
+    """
+    Get comprehensive project status report with all financial details.
+
+    Returns structured report showing:
+    - Project summary (total contract, invoiced, paid, outstanding, remaining)
+    - Breakdown by scope (for multi-scope projects like Wynn Marjan)
+    - Phase breakdown within each scope
+    - All invoices with dates, amounts, and payment status
+
+    Example: /api/query/project-status/Wynn%20Marjan
+    """
+    try:
+        report = query_service.get_project_status_report(project_search)
+        if not report.get('success'):
+            raise HTTPException(status_code=404, detail=report.get('error', 'Not found'))
+        return report
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ============================================================================
+# ENHANCED CONTEXT & INTELLIGENCE ENDPOINTS
+# ============================================================================
+
+@app.get("/api/query/context/{project_search}")
+async def get_full_project_context(
+    project_search: str,
+    generate_summary: bool = Query(True, description="Generate AI summary")
+):
+    """
+    Get comprehensive context for a project combining all data sources.
+
+    Returns:
+    - Project info and financials
+    - Recent emails with key senders
+    - Meeting transcripts and action items
+    - RFIs (open and recent)
+    - Invoices and payment status
+    - AI-generated summary of current state
+
+    Example: /api/query/context/Wynn
+    """
+    try:
+        result = query_service.get_full_project_context(project_search, generate_summary)
+        if not result.get('success'):
+            raise HTTPException(status_code=404, detail=result.get('error', 'Not found'))
+        return result
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/query/timeline/{project_search}")
+async def get_project_timeline(
+    project_search: str,
+    limit: int = Query(50, description="Maximum events to return")
+):
+    """
+    Get chronological timeline of all events for a project.
+
+    Combines: emails, meetings, RFIs, invoices, action items.
+    Events are sorted by date (most recent first).
+
+    Example: /api/query/timeline/BK-095
+    """
+    try:
+        result = query_service.get_project_timeline(project_search, limit)
+        if not result.get('success'):
+            raise HTTPException(status_code=404, detail=result.get('error', 'Not found'))
+        return result
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/query/outstanding/{project_search}")
+async def get_outstanding_items(project_search: str):
+    """
+    Get all outstanding/pending items for a project.
+
+    Returns:
+    - Open RFIs (with overdue status)
+    - Open action items (with overdue status)
+    - Unpaid invoices
+
+    Example: /api/query/outstanding/Wynn
+    """
+    try:
+        result = query_service.get_outstanding_items(project_search)
+        if not result.get('success'):
+            raise HTTPException(status_code=404, detail=result.get('error', 'Not found'))
+        return result
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/query/search-communications")
+async def search_communications(
+    topic: str = Query(..., description="Topic to search for"),
+    project: Optional[str] = Query(None, description="Optional project to filter by"),
+    sender: Optional[str] = Query(None, description="Optional sender/participant to filter by"),
+    limit: int = Query(20, description="Maximum results to return")
+):
+    """
+    Search across emails and meeting transcripts for a topic.
+
+    Answers questions like "What did [client] say about [topic]?"
+
+    Examples:
+    - /api/query/search-communications?topic=stone
+    - /api/query/search-communications?topic=payment&project=Wynn
+    - /api/query/search-communications?topic=timeline&sender=John
+
+    Returns matching emails and meeting transcripts with AI summary.
+    """
+    try:
+        result = query_service.search_communications(
+            topic=topic,
+            project_search=project,
+            sender=sender,
+            limit=limit
+        )
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/briefing/{project_search}")
+async def get_pre_meeting_briefing(project_search: str):
+    """
+    Generate pre-meeting briefing for a project.
+
+    Returns comprehensive briefing including:
+    - Project overview and current status
+    - Client information
+    - Last meeting notes and outcomes
+    - Recent correspondence summary (last 14 days)
+    - Open issues (RFIs, action items)
+    - Financial status and fee breakdown
+    - Key contacts
+    - AI-generated briefing summary
+
+    Example: /api/briefing/Wynn%20Marjan
+    """
+    try:
+        result = query_service.get_pre_meeting_briefing(project_search)
+        if not result.get('success'):
+            raise HTTPException(status_code=404, detail=result.get('error', 'Not found'))
+        return result
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -9778,6 +10316,22 @@ async def approve_suggestion(suggestion_id: int, edits: Optional[ApproveSuggesti
             WHERE suggestion_id = ?
         """, (now, now, suggestion_id))
 
+        # Record training feedback for learning
+        cursor.execute("""
+            INSERT INTO training_feedback
+            (suggestion_id, feedback_type, original_value, corrected_value,
+             context_type, context_id, lesson, taught_by, taught_at)
+            VALUES (?, 'suggestion_correction', ?, ?, ?, ?, ?, 'user', ?)
+        """, (
+            suggestion_id,
+            suggestion.get('current_value'),
+            json.dumps(suggested_value) if isinstance(suggested_value, dict) else suggested_value,
+            suggestion.get('data_table'),
+            suggestion.get('record_id'),
+            'User approved AI suggestion via API',
+            now
+        ))
+
         conn.commit()
         conn.close()
 
@@ -9821,11 +10375,32 @@ async def reject_suggestion(suggestion_id: int):
 
         now = datetime.now().isoformat()
 
+        # Get the suggestion first for feedback recording
+        cursor.execute("SELECT * FROM ai_suggestions_queue WHERE suggestion_id = ?", (suggestion_id,))
+        suggestion_row = cursor.fetchone()
+
         cursor.execute("""
             UPDATE ai_suggestions_queue
             SET status = 'rejected', reviewed_at = ?
             WHERE suggestion_id = ?
         """, (now, suggestion_id))
+
+        # Record training feedback for learning
+        if suggestion_row:
+            import json
+            cursor.execute("""
+                INSERT INTO training_feedback
+                (suggestion_id, feedback_type, original_value, corrected_value,
+                 context_type, context_id, lesson, taught_by, taught_at)
+                VALUES (?, 'suggestion_correction', ?, 'REJECTED', ?, ?, ?, 'user', ?)
+            """, (
+                suggestion_id,
+                suggestion_row[5] if suggestion_row else None,  # suggested_value
+                suggestion_row[1] if suggestion_row else None,  # data_table
+                suggestion_row[2] if suggestion_row else None,  # record_id
+                'User rejected AI suggestion via API',
+                now
+            ))
 
         conn.commit()
         conn.close()

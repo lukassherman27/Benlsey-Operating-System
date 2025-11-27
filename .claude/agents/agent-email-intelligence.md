@@ -5,16 +5,16 @@
 
 ---
 
-## Current State (Audit Results)
+## Current State (Audit Results - Updated Nov 27, 2025)
 
 ### Email Statistics
 | Metric | Count | % |
 |--------|-------|---|
 | Total emails | 3,356 | 100% |
 | Linked to projects | 521 | 16% |
-| Linked to proposals | 1,723 | 51% |
-| **Linked (either)** | 1,754 | **52%** |
-| **Unlinked** | 1,602 | **48%** |
+| Linked to proposals | 2,268 | 68% |
+| **Linked (either)** | 2,290 | **68%** |
+| **Unlinked** | 1,066 | **32%** |
 | With full body | 3,292 | 98% |
 | AI categorized | 3,356 | 100% |
 
@@ -24,14 +24,13 @@
 | `training_data` | 3,576 | Raw training examples |
 | `training_data_feedback` | 0 | **No feedback collected!** |
 | `user_feedback` | 5 | Minimal |
-| `ai_suggestions` | 973 | Suggestions generated |
-| `ai_suggestions_queue` | 3,450 | **Queue not processed!** |
+| `ai_suggestions_queue` | 801 | 553 project_alias, 248 new_contact |
 | `learned_patterns` | 1 | Almost nothing learned |
 
 ### Key Problems
-1. **48% of emails unlinked** - 1,602 emails not connected to any project/proposal
+1. **32% of emails unlinked** - 1,066 emails not connected to any project/proposal
 2. **No feedback loop** - `training_data_feedback` is empty
-3. **Suggestions queue backed up** - 3,450 items never processed
+3. **Suggestions queue** - 801 items (7% duplicates, not 87%)
 4. **No pattern learning** - Only 1 pattern in `learned_patterns`
 5. **Human approval not improving AI** - Feedback not being used
 

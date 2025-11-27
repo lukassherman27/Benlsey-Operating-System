@@ -306,25 +306,30 @@ class IntelligenceService:
 
             results['updated'] += 1
 
-            # Log to training_data for future learning
+            # Log to training_feedback for future learning (fixed table name)
             cursor.execute("""
-                INSERT INTO training_data
-                (task_type, input_data, output_data, model_used, confidence, human_verified, feedback, created_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                INSERT INTO training_feedback
+                (suggestion_id, feedback_type, original_value, corrected_value,
+                 context_type, context_id, lesson, taught_by, taught_at)
+                VALUES (?, 'suggestion_correction', ?, ?, ?, ?, ?, ?, ?)
             """, (
-                'suggestion_approval',
-                json.dumps({
-                    'table': suggestion['data_table'],
-                    'field': suggestion['field_name'],
-                    'current': suggestion['current_value']
-                }),
-                json.dumps({'approved_value': suggestion['suggested_value']}),
-                'intelligence_service_v2',
-                suggestion['confidence'],
-                1,
-                reason or 'User approved suggestion',
+                suggestion_id,
+                suggestion['current_value'],
+                suggestion['suggested_value'],
+                suggestion['data_table'],
+                suggestion['record_id'],
+                reason or 'User approved AI suggestion',
+                'system',
                 now
             ))
+
+            # Also create/update learned pattern if this is a new_contact or project_alias
+            if suggestion['field_name'] in ('new_contact', 'project_alias'):
+                try:
+                    self._create_learned_pattern_from_approval(cursor, suggestion)
+                except Exception as e:
+                    # Don't fail the whole operation if pattern creation fails
+                    pass
 
         elif decision == 'rejected':
             cursor.execute("""
@@ -334,24 +339,20 @@ class IntelligenceService:
             """, (now, suggestion_id))
             results['updated'] += 1
 
-            # Log rejection for learning
+            # Log rejection for learning (fixed table name)
             cursor.execute("""
-                INSERT INTO training_data
-                (task_type, input_data, output_data, model_used, confidence, human_verified, feedback, created_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                INSERT INTO training_feedback
+                (suggestion_id, feedback_type, original_value, corrected_value,
+                 context_type, context_id, lesson, taught_by, taught_at)
+                VALUES (?, 'suggestion_correction', ?, ?, ?, ?, ?, ?, ?)
             """, (
-                'suggestion_rejection',
-                json.dumps({
-                    'table': suggestion['data_table'],
-                    'field': suggestion['field_name'],
-                    'current': suggestion['current_value'],
-                    'suggested': suggestion['suggested_value']
-                }),
-                json.dumps({'rejected': True}),
-                'intelligence_service_v2',
-                suggestion['confidence'],
-                1,
-                reason or 'User rejected suggestion',
+                suggestion_id,
+                suggestion['suggested_value'],  # What AI suggested (wrong)
+                'REJECTED',  # Marked as rejected
+                suggestion['data_table'],
+                suggestion['record_id'],
+                reason or 'User rejected AI suggestion',
+                'system',
                 now
             ))
 
@@ -359,6 +360,74 @@ class IntelligenceService:
         conn.close()
 
         return results
+
+    def _create_learned_pattern_from_approval(self, cursor, suggestion: sqlite3.Row) -> None:
+        """
+        Create a learned pattern from an approved suggestion.
+        This helps the AI learn from human approvals.
+        """
+        field_name = suggestion['field_name']
+        suggested_value = suggestion['suggested_value']
+
+        if field_name == 'new_contact':
+            # Learn: emails from this domain → this company/project
+            try:
+                data = json.loads(suggested_value)
+                email = data.get('email', '')
+                company = data.get('company', '')
+                project = data.get('related_project', '')
+
+                if '@' in email:
+                    domain = email.split('@')[1].lower()
+
+                    if company:
+                        # Pattern: email domain → company
+                        cursor.execute("""
+                            INSERT OR REPLACE INTO learned_patterns
+                            (pattern_name, pattern_type, condition, action,
+                             confidence_score, evidence_count, is_active, created_at, updated_at)
+                            VALUES (?, 'email_domain_company', ?, ?, 0.8, 1, 1, datetime('now'), datetime('now'))
+                        """, (
+                            f"domain_{domain}_company",
+                            json.dumps({'sender_domain': domain}),
+                            json.dumps({'company': company})
+                        ))
+
+                    if project:
+                        # Pattern: email domain → project
+                        cursor.execute("""
+                            INSERT OR REPLACE INTO learned_patterns
+                            (pattern_name, pattern_type, condition, action,
+                             confidence_score, evidence_count, is_active, created_at, updated_at)
+                            VALUES (?, 'email_domain_project', ?, ?, 0.7, 1, 1, datetime('now'), datetime('now'))
+                        """, (
+                            f"domain_{domain}_project",
+                            json.dumps({'sender_domain': domain}),
+                            json.dumps({'project_code': project})
+                        ))
+            except (json.JSONDecodeError, KeyError):
+                pass
+
+        elif field_name == 'project_alias':
+            # Learn: alias → project code
+            try:
+                data = json.loads(suggested_value)
+                alias = data.get('alias', '')
+                project_code = data.get('project_code', '')
+
+                if alias and project_code:
+                    cursor.execute("""
+                        INSERT OR REPLACE INTO learned_patterns
+                        (pattern_name, pattern_type, condition, action,
+                         confidence_score, evidence_count, is_active, created_at, updated_at)
+                        VALUES (?, 'project_alias', ?, ?, 0.9, 1, 1, datetime('now'), datetime('now'))
+                    """, (
+                        f"alias_{alias.lower().replace(' ', '_')[:30]}",
+                        json.dumps({'alias': alias.lower()}),
+                        json.dumps({'project_code': project_code})
+                    ))
+            except (json.JSONDecodeError, KeyError):
+                pass
 
     def get_decisions(self, limit: int = 50) -> Dict[str, Any]:
         """Get recent suggestion decisions for audit trail"""

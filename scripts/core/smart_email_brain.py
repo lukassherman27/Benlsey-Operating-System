@@ -221,6 +221,317 @@ LEARNED PROJECT ALIASES:
 - SOW/Scope of Work: Defines what BDS will deliver
 """
 
+    # ==========================================================================
+    # TIERED CATEGORIZATION - Skip AI for obvious cases
+    # ==========================================================================
+
+    def _tier1_pattern_categorization(self, email: Dict) -> Optional[Dict]:
+        """
+        Tier 1: Instant categorization for obvious patterns (NO AI cost).
+        Returns full analysis dict if confident, None otherwise.
+        """
+        sender = email.get('sender_email', '').lower()
+        subject = email.get('subject', '').lower()
+        body = (email.get('body_full', '') or '')[:500].lower()
+
+        # Social media / newsletters → Auto-categorize as non-BDS
+        ignore_domains = ['linkedin.com', 'facebook.com', 'twitter.com',
+                         'mailchimp.com', 'sendgrid.com', 'noreply',
+                         'newsletter', 'marketing', 'promo']
+        if any(d in sender for d in ignore_domains):
+            return {
+                'clean_body': '',
+                'category': 'other',
+                'subcategory': 'social_newsletter',
+                'is_bds_work': False,
+                'linked_project_code': None,
+                'key_points': ['Auto-categorized: Newsletter/Social media'],
+                'entities': {},
+                'sentiment': 'neutral',
+                'importance_score': 0.1,
+                'ai_summary': 'Newsletter or social media notification - auto-categorized',
+                'urgency_level': 'low',
+                'action_required': False,
+                'suggestions': {},
+                '_tier': 1,
+                '_confidence': 0.99
+            }
+
+        # Bensley internal emails (both .com and .co.id domains)
+        if '@bensley.com' in sender or '@bensley.co.id' in sender:
+            return {
+                'clean_body': '',
+                'category': 'internal',
+                'subcategory': 'internal_communication',
+                'is_bds_work': True,
+                'linked_project_code': None,
+                'key_points': ['Internal Bensley communication'],
+                'entities': {},
+                'sentiment': 'neutral',
+                'importance_score': 0.5,
+                'ai_summary': 'Internal email from Bensley team member',
+                'urgency_level': 'low',
+                'action_required': False,
+                'suggestions': {},
+                '_tier': 1,
+                '_confidence': 0.95
+            }
+
+        # Invoices / payments
+        if any(word in subject for word in ['invoice', 'payment', 'receipt', 'billing']):
+            return {
+                'clean_body': '',
+                'category': 'financial',
+                'subcategory': 'invoice_payment',
+                'is_bds_work': True,
+                'linked_project_code': None,
+                'key_points': ['Financial document - invoice or payment related'],
+                'entities': {},
+                'sentiment': 'neutral',
+                'importance_score': 0.7,
+                'ai_summary': 'Invoice or payment related email',
+                'urgency_level': 'medium',
+                'action_required': False,
+                'suggestions': {},
+                '_tier': 1,
+                '_confidence': 0.90
+            }
+
+        # Calendar / meeting invites
+        if any(word in subject for word in ['meeting', 'calendar', 'invite', 'zoom', 'teams call']):
+            return {
+                'clean_body': '',
+                'category': 'meeting',
+                'subcategory': 'calendar_invite',
+                'is_bds_work': True,
+                'linked_project_code': None,
+                'key_points': ['Meeting or calendar invitation'],
+                'entities': {},
+                'sentiment': 'neutral',
+                'importance_score': 0.6,
+                'ai_summary': 'Meeting invitation or calendar update',
+                'urgency_level': 'medium',
+                'action_required': False,
+                'suggestions': {},
+                '_tier': 1,
+                '_confidence': 0.85
+            }
+
+        # Out-of-office / auto-replies - don't process these
+        if any(phrase in body for phrase in ['out of office', 'automatic reply', 'auto-reply',
+                                              'i am currently away', 'on vacation', 'on leave']):
+            return {
+                'clean_body': '',
+                'category': 'other',
+                'subcategory': 'auto_reply',
+                'is_bds_work': False,
+                'linked_project_code': None,
+                'key_points': ['Auto-reply detected - no action needed'],
+                'entities': {},
+                'sentiment': 'neutral',
+                'importance_score': 0.1,
+                'ai_summary': 'Out-of-office or automatic reply - skipped',
+                'urgency_level': 'low',
+                'action_required': False,
+                'suggestions': {},
+                '_tier': 1,
+                '_confidence': 0.95
+            }
+
+        # No-reply system emails
+        if 'noreply' in sender or 'no-reply' in sender or 'donotreply' in sender:
+            return {
+                'clean_body': '',
+                'category': 'other',
+                'subcategory': 'system_notification',
+                'is_bds_work': False,
+                'linked_project_code': None,
+                'key_points': ['System notification from no-reply address'],
+                'entities': {},
+                'sentiment': 'neutral',
+                'importance_score': 0.2,
+                'ai_summary': 'Automated system notification',
+                'urgency_level': 'low',
+                'action_required': False,
+                'suggestions': {},
+                '_tier': 1,
+                '_confidence': 0.90
+            }
+
+        # RFI detection - high priority
+        if any(phrase in subject for phrase in ['rfi', 'request for information', 'clarification needed']):
+            return {
+                'clean_body': '',
+                'category': 'rfi',
+                'subcategory': 'rfi_request',
+                'is_bds_work': True,
+                'linked_project_code': None,  # Will be linked in Tier 2
+                'key_points': ['RFI detected - needs project linking'],
+                'entities': {},
+                'sentiment': 'neutral',
+                'importance_score': 0.9,
+                'ai_summary': 'Request for Information detected',
+                'urgency_level': 'high',
+                'action_required': True,
+                'suggestions': {},
+                '_tier': 1,
+                '_confidence': 0.85
+            }
+
+        # Contract/legal documents
+        if any(phrase in subject for phrase in ['contract', 'agreement', 'nda', 'mou', 'loi', 'amendment']):
+            return {
+                'clean_body': '',
+                'category': 'contract',
+                'subcategory': 'legal_document',
+                'is_bds_work': True,
+                'linked_project_code': None,
+                'key_points': ['Contract or legal document detected'],
+                'entities': {},
+                'sentiment': 'neutral',
+                'importance_score': 0.8,
+                'ai_summary': 'Contract or legal document email',
+                'urgency_level': 'medium',
+                'action_required': False,
+                'suggestions': {},
+                '_tier': 1,
+                '_confidence': 0.80
+            }
+
+        return None  # Not confident, proceed to Tier 2
+
+    def _tier2_database_matching(self, email: Dict) -> Optional[Dict]:
+        """
+        Tier 2: Match against known contacts/projects (fast DB lookup).
+        Returns analysis dict if matched, None otherwise.
+        """
+        sender = email.get('sender_email', '').lower().strip()
+        subject = email.get('subject', '') or ''
+
+        conn = self.get_connection()
+        cursor = conn.cursor()
+
+        # Check 1: Is sender a known proposal contact?
+        cursor.execute("""
+            SELECT p.project_code, p.project_name, p.client_company, p.status
+            FROM proposals p
+            WHERE LOWER(TRIM(p.contact_email)) = ?
+            LIMIT 1
+        """, (sender,))
+        proposal = cursor.fetchone()
+
+        if proposal:
+            conn.close()
+            return {
+                'clean_body': '',
+                'category': 'contract' if proposal['status'] in ('active', 'negotiating') else 'design',
+                'subcategory': f"project_{proposal['status']}",
+                'is_bds_work': True,
+                'linked_project_code': proposal['project_code'],
+                'key_points': [f"Email from known contact for {proposal['project_name']}"],
+                'entities': {'companies': [proposal['client_company']] if proposal['client_company'] else []},
+                'sentiment': 'neutral',
+                'importance_score': 0.7,
+                'ai_summary': f"Email from {proposal['project_code']} contact regarding {proposal['project_name']}",
+                'urgency_level': 'medium',
+                'action_required': False,
+                'suggestions': {},
+                '_tier': 2,
+                '_confidence': 0.90,
+                '_match_reason': 'sender_is_proposal_contact'
+            }
+
+        # NOTE: Removed domain-based company matching here too.
+        # Reason: Hotel operators (Marriott, Four Seasons, etc.) work on MANY projects.
+        # One domain ≠ one project. This caused incorrect linking.
+
+        # Check 3: Smart weighted keyword matching
+        # Uses same logic as link_emails_by_subject_keywords:
+        # - City names, client names = 3 points
+        # - Project words = 2 points
+        # - Countries (if many projects) = 0.5 points
+        import re
+
+        keyword_index = self._build_smart_keyword_index(cursor)
+
+        body = (email.get('body_full', '') or '')[:300].lower()
+        text_to_match = f"{subject.lower()} {body}"
+
+        # Find matching keywords with weighted scoring
+        scores = {}
+        match_reasons = {}
+
+        for keyword, proposals_list in keyword_index.items():
+            if re.search(rf'\b{re.escape(keyword)}\b', text_to_match):
+                for p in proposals_list:
+                    pid = p['proposal_id']
+                    weight = p['weight']
+                    if pid not in scores:
+                        scores[pid] = 0
+                        match_reasons[pid] = []
+                    scores[pid] += weight
+                    match_reasons[pid].append((keyword, weight))
+
+        # Require score >= 3 (one city name, or country + project word)
+        if scores:
+            best_pid = max(scores, key=scores.get)
+            best_score = scores[best_pid]
+
+            if best_score >= 3:
+                # Get project details
+                cursor.execute("""
+                    SELECT project_code, project_name FROM proposals WHERE proposal_id = ?
+                """, (best_pid,))
+                project = cursor.fetchone()
+
+                if project:
+                    conn.close()
+                    confidence = min(0.5 + (best_score * 0.1), 0.90)
+                    keywords = [f"{kw}" for kw, w in match_reasons[best_pid][:3]]
+
+                    return {
+                        'clean_body': '',
+                        'category': 'contract',
+                        'subcategory': 'smart_keyword_match',
+                        'is_bds_work': True,
+                        'linked_project_code': project['project_code'],
+                        'key_points': [f"Score {best_score:.1f}: {', '.join(keywords)}"],
+                        'entities': {'projects': [project['project_name']]},
+                        'sentiment': 'neutral',
+                        'importance_score': 0.7,
+                        'ai_summary': f"Email about {project['project_name']} (matched: {', '.join(keywords[:2])})",
+                        'urgency_level': 'medium',
+                        'action_required': False,
+                        'suggestions': {},
+                        '_tier': 2,
+                        '_confidence': confidence,
+                        '_match_reason': f"score {best_score:.1f}: {', '.join(keywords)}"
+                    }
+
+        conn.close()
+        return None  # Not confident, proceed to Tier 3
+
+    def categorize_email_tiered(self, email: Dict) -> Dict:
+        """
+        Main tiered categorization entry point.
+        Tries tiers in order, falls back to AI only if needed.
+        """
+        # Tier 1: Pattern matching (instant, free)
+        result = self._tier1_pattern_categorization(email)
+        if result:
+            print(f"  ⚡ Tier 1: {result['category']}/{result['subcategory']} (conf: {result['_confidence']})")
+            return result
+
+        # Tier 2: Database matching (fast, free)
+        result = self._tier2_database_matching(email)
+        if result:
+            print(f"  🔍 Tier 2: {result['category']}/{result['subcategory']} → {result['linked_project_code']} (conf: {result['_confidence']})")
+            return result
+
+        # Tier 3: Full AI analysis (expensive, last resort)
+        print(f"  🤖 Tier 3: Using AI for full analysis...")
+        return None  # Signal to use AI
+
     def analyze_email_with_context(self, email: Dict) -> Dict:
         """Analyze email WITH full business context"""
 
@@ -394,12 +705,13 @@ Return ONLY valid JSON."""
                     email_id
                 ))
 
-            # Queue suggestions
+            # Queue suggestions (WITH DEDUP CHECKS)
             suggestions = analysis.get('suggestions') or {}
 
-            # New contact suggestion
+            # New contact suggestion - with dedup check
             new_contact = suggestions.get('new_contact') or {}
-            if new_contact.get('email'):
+            contact_email = new_contact.get('email', '').strip()
+            if contact_email and self._should_create_contact_suggestion(contact_email):
                 contact = suggestions['new_contact']
                 cursor.execute("""
                     INSERT INTO ai_suggestions_queue
@@ -411,10 +723,13 @@ Return ONLY valid JSON."""
                     f"New contact found in email: {contact.get('name')} from {contact.get('company')}"
                 ))
                 self.suggestions_created += 1
+            elif contact_email:
+                print(f"  ⏭️ Skipped duplicate contact suggestion: {contact_email}")
 
-            # Project alias suggestion
+            # Project alias suggestion - with dedup check
             project_alias = suggestions.get('project_alias') or {}
-            if project_alias.get('alias'):
+            alias_value = project_alias.get('alias', '').strip()
+            if alias_value and self._should_create_alias_suggestion(alias_value):
                 alias = project_alias
                 cursor.execute("""
                     INSERT INTO ai_suggestions_queue
@@ -426,6 +741,8 @@ Return ONLY valid JSON."""
                     f"Project alias: '{alias.get('alias')}' may refer to {alias.get('project_code')}"
                 ))
                 self.suggestions_created += 1
+            elif alias_value:
+                print(f"  ⏭️ Skipped duplicate alias suggestion: {alias_value}")
 
             conn.commit()
             conn.close()
@@ -575,6 +892,522 @@ Return ONLY valid JSON."""
                 return True
         return False
 
+    def _should_create_contact_suggestion(self, email: str) -> bool:
+        """
+        Check if we should create a contact suggestion - dedup check.
+        Returns False if:
+        1. Contact already exists in contacts table
+        2. Already pending in suggestions queue
+        3. Was previously rejected
+        """
+        if not email:
+            return False
+
+        email_lower = email.lower().strip()
+        conn = self.get_connection()
+        cursor = conn.cursor()
+
+        # CHECK 1: Already in contacts table?
+        cursor.execute("SELECT 1 FROM contacts WHERE LOWER(email) = ?", (email_lower,))
+        if cursor.fetchone():
+            conn.close()
+            return False  # Already exists
+
+        # CHECK 2: Already pending in suggestions?
+        cursor.execute("""
+            SELECT 1 FROM ai_suggestions_queue
+            WHERE field_name = 'new_contact'
+            AND LOWER(json_extract(suggested_value, '$.email')) = ?
+            AND status = 'pending'
+        """, (email_lower,))
+        if cursor.fetchone():
+            conn.close()
+            return False  # Already suggested
+
+        # CHECK 3: Previously rejected?
+        cursor.execute("""
+            SELECT 1 FROM ai_suggestions_queue
+            WHERE field_name = 'new_contact'
+            AND LOWER(json_extract(suggested_value, '$.email')) = ?
+            AND status = 'rejected'
+        """, (email_lower,))
+        if cursor.fetchone():
+            conn.close()
+            return False  # Was rejected, don't suggest again
+
+        conn.close()
+        return True
+
+    # ==========================================================================
+    # EMAIL LINKING STRATEGIES - Run these to link unlinked emails
+    # ==========================================================================
+
+    def link_emails_by_sender(self) -> int:
+        """
+        Strategy 1: Link unlinked emails by matching sender to known contacts/proposals.
+        Two approaches:
+        A) Sender email matches proposal's contact_email directly
+        B) Sender email matches a contact in contacts table linked to proposals
+        """
+        conn = self.get_connection()
+        cursor = conn.cursor()
+
+        # Approach A: Direct match - sender email matches proposal's contact_email
+        cursor.execute("""
+            SELECT DISTINCT e.email_id, e.sender_email,
+                   p.project_code, p.proposal_id, p.project_name
+            FROM emails e
+            JOIN proposals p ON LOWER(TRIM(e.sender_email)) = LOWER(TRIM(p.contact_email))
+            WHERE e.email_id NOT IN (SELECT email_id FROM email_project_links)
+              AND e.email_id NOT IN (SELECT email_id FROM email_proposal_links)
+              AND p.contact_email IS NOT NULL
+              AND p.proposal_id IS NOT NULL
+        """)
+
+        links_created = 0
+        for row in cursor.fetchall():
+            try:
+                cursor.execute("""
+                    INSERT OR IGNORE INTO email_proposal_links
+                    (email_id, proposal_id, confidence_score, match_reasons, auto_linked, created_at)
+                    VALUES (?, ?, 0.95, ?, 1, datetime('now'))
+                """, (
+                    row['email_id'],
+                    row['proposal_id'],
+                    f"Sender {row['sender_email']} is contact for {row['project_code']}"
+                ))
+                if cursor.rowcount > 0:
+                    links_created += 1
+            except Exception as e:
+                print(f"  Error linking email {row['email_id']}: {e}")
+
+        # NOTE: Removed domain-based company matching (Strategy A part B)
+        # Reason: Hotel operators (Marriott, Four Seasons) work on MANY different projects
+        # One company domain ≠ one project. Only direct contact_email match is reliable.
+
+        conn.commit()
+        conn.close()
+        print(f"✅ Sender-based linking: {links_created} emails linked (direct contact matches only)")
+        return links_created
+
+    def _build_smart_keyword_index(self, cursor) -> dict:
+        """
+        Build a weighted keyword index for smart project matching.
+
+        Keywords are categorized by uniqueness:
+        - TIER_A (weight 3): Very unique - city names, brand names, client names
+        - TIER_B (weight 2): Somewhat unique - distinctive descriptors
+        - TIER_C (weight 1): Less unique - countries with multiple projects
+
+        Returns: {keyword: [(proposal_id, project_code, weight), ...]}
+        """
+        import re
+
+        cursor.execute("""
+            SELECT proposal_id, project_code, project_name, location, country, client_company
+            FROM proposals
+            WHERE project_name IS NOT NULL OR location IS NOT NULL
+        """)
+        proposals = [dict(row) for row in cursor.fetchall()]
+
+        # Count how many projects use each country (for weighting)
+        cursor.execute("""
+            SELECT LOWER(country) as country, COUNT(*) as cnt
+            FROM proposals
+            WHERE country IS NOT NULL
+            GROUP BY LOWER(country)
+        """)
+        country_counts = {row['country']: row['cnt'] for row in cursor.fetchall()}
+
+        # Generic words to ignore completely
+        generic_words = {
+            'project', 'phase', 'hotel', 'resort', 'villa', 'design', 'development',
+            'luxury', 'beach', 'new', 'the', 'and', 'for', 'with', 'private',
+            'residential', 'group', 'additional', 'services', 'star', 'high',
+            'end', 'club', 'area', 'zone', 'keys', 'extension', 'center'
+        }
+
+        # Build weighted index
+        keyword_index = {}
+
+        for p in proposals:
+            # TIER A: City/specific location names (weight 3)
+            if p['location']:
+                for word in re.split(r'[,\s\-/()\d]+', p['location']):
+                    word = word.strip().lower()
+                    if len(word) >= 3 and word not in generic_words:
+                        # Skip if it's just the country name
+                        if p['country'] and word == p['country'].lower():
+                            continue
+                        self._add_to_index(keyword_index, word, p, weight=3)
+
+            # TIER A: Client/developer company names (weight 3)
+            if p['client_company']:
+                for word in re.split(r'[,\s\-/()\d]+', p['client_company']):
+                    word = word.strip().lower()
+                    if len(word) >= 3 and word not in generic_words:
+                        self._add_to_index(keyword_index, word, p, weight=3)
+
+            # TIER B: Distinctive words from project name (weight 2)
+            if p['project_name']:
+                # Look for brand names, unique descriptors
+                brand_words = {'cheval', 'blanc', 'hyatt', 'ritz', 'carlton', 'millennium',
+                              'sukhothai', 'santani', 'solaire', 'botanica', 'oasis'}
+                for word in re.split(r'[,\s\-/()\d]+', p['project_name']):
+                    word = word.strip().lower()
+                    if len(word) >= 3 and word not in generic_words:
+                        weight = 3 if word in brand_words else 2
+                        self._add_to_index(keyword_index, word, p, weight=weight)
+
+            # TIER C: Country names - lower weight if many projects there (weight 1)
+            if p['country']:
+                country = p['country'].strip().lower()
+                if len(country) >= 3:
+                    count = country_counts.get(country, 1)
+                    # If 3+ projects in country, weight is only 0.5
+                    weight = 0.5 if count >= 3 else 1
+                    self._add_to_index(keyword_index, country, p, weight=weight)
+
+        return keyword_index
+
+    def _add_to_index(self, index: dict, keyword: str, proposal: dict, weight: float):
+        """Helper to add keyword to index with weight"""
+        if keyword not in index:
+            index[keyword] = []
+        index[keyword].append({
+            'proposal_id': proposal['proposal_id'],
+            'project_code': proposal['project_code'],
+            'project_name': proposal['project_name'],
+            'weight': weight
+        })
+
+    def link_emails_by_subject_keywords(self) -> int:
+        """
+        Strategy 2: Smart fuzzy match using weighted keyword index.
+
+        Matching strategy:
+        - City names, brand names, client names = 3 points each
+        - Distinctive project words = 2 points each
+        - Country names (if few projects there) = 1 point
+        - Country names (if many projects there) = 0.5 points
+
+        Requires score >= 3 to link (e.g., one city name, or country + project word)
+        """
+        import re
+
+        conn = self.get_connection()
+        cursor = conn.cursor()
+
+        # Build the smart weighted keyword index
+        keyword_index = self._build_smart_keyword_index(cursor)
+        print(f"  Built weighted keyword index with {len(keyword_index)} terms")
+
+        # Get unlinked emails
+        cursor.execute("""
+            SELECT email_id, subject, body_full FROM emails
+            WHERE email_id NOT IN (SELECT email_id FROM email_project_links)
+              AND email_id NOT IN (SELECT email_id FROM email_proposal_links)
+              AND (subject IS NOT NULL OR body_full IS NOT NULL)
+        """)
+
+        links_created = 0
+        for row in cursor.fetchall():
+            # Combine subject and first part of body for matching
+            text = f"{row['subject'] or ''} {(row['body_full'] or '')[:500]}".lower()
+
+            # Find matching keywords with weighted scoring
+            scores = {}  # proposal_id -> weighted score
+            match_reasons = {}  # proposal_id -> [(keyword, weight), ...]
+
+            for keyword, proposals_list in keyword_index.items():
+                # Use word boundary matching to avoid partial matches
+                if re.search(rf'\b{re.escape(keyword)}\b', text):
+                    for p in proposals_list:
+                        pid = p['proposal_id']
+                        weight = p['weight']
+                        if pid not in scores:
+                            scores[pid] = 0
+                            match_reasons[pid] = []
+                        scores[pid] += weight
+                        match_reasons[pid].append((keyword, weight))
+
+            # Link to the proposal with the highest score (if score >= 3)
+            # Score 3 = one city name, or country + distinctive word, or 1.5 city names
+            if scores:
+                best_pid = max(scores, key=scores.get)
+                best_score = scores[best_pid]
+
+                if best_score >= 3:  # Require score of at least 3
+                    # Confidence based on score
+                    confidence = min(0.5 + (best_score * 0.1), 0.95)
+                    keywords_matched = [f"{kw}({w})" for kw, w in match_reasons[best_pid][:3]]
+
+                    try:
+                        cursor.execute("""
+                            INSERT OR IGNORE INTO email_proposal_links
+                            (email_id, proposal_id, confidence_score, match_reasons, auto_linked, created_at)
+                            VALUES (?, ?, ?, ?, 1, datetime('now'))
+                        """, (
+                            row['email_id'],
+                            best_pid,
+                            confidence,
+                            f"Score {best_score:.1f}: {', '.join(keywords_matched)}"
+                        ))
+                        if cursor.rowcount > 0:
+                            links_created += 1
+                    except Exception as e:
+                        pass
+
+        conn.commit()
+        conn.close()
+        print(f"✅ Smart keyword linking: {links_created} emails linked (score >= 3 required)")
+        return links_created
+
+    def link_emails_by_thread(self) -> int:
+        """
+        Strategy 3: If any email in a thread is linked, link all others in that thread.
+        Uses thread_id field (derived from Gmail/IMAP threading).
+
+        NOTE: Skip threads where ALL participants are @bensley.com (internal scheduling).
+        These shouldn't auto-link to projects just because one email mentioned a project.
+        """
+        conn = self.get_connection()
+        cursor = conn.cursor()
+
+        # Find unlinked emails that share a thread_id with linked emails
+        # BUT exclude threads where ALL emails are from/to @bensley.com only
+        cursor.execute("""
+            SELECT DISTINCT
+                e.email_id,
+                epl.proposal_id,
+                e.thread_id,
+                e.sender_email,
+                e.recipient_emails
+            FROM emails e
+            JOIN emails linked_e ON e.thread_id = linked_e.thread_id
+            JOIN email_proposal_links epl ON linked_e.email_id = epl.email_id
+            WHERE e.email_id NOT IN (SELECT email_id FROM email_proposal_links)
+              AND e.thread_id IS NOT NULL
+              AND e.thread_id != ''
+        """)
+
+        links_created = 0
+        skipped_internal = 0
+
+        for row in cursor.fetchall():
+            # Check if this is an internal-only thread (all bensley.com)
+            sender = (row['sender_email'] or '').lower()
+            recipients = (row['recipient_emails'] or '').lower()
+            all_addresses = f"{sender} {recipients}"
+
+            # Skip if ALL addresses are @bensley.com
+            # (internal scheduling threads shouldn't auto-link)
+            non_bensley = [addr for addr in all_addresses.split()
+                          if '@' in addr and 'bensley.com' not in addr and 'bensley.co.id' not in addr]
+
+            if not non_bensley:
+                # All participants are Bensley internal - skip
+                skipped_internal += 1
+                continue
+
+            try:
+                cursor.execute("""
+                    INSERT OR IGNORE INTO email_proposal_links
+                    (email_id, proposal_id, confidence_score, match_reasons, auto_linked, created_at)
+                    VALUES (?, ?, 0.90, ?, 1, datetime('now'))
+                """, (row['email_id'], row['proposal_id'], f"Same thread as linked email"))
+                if cursor.rowcount > 0:
+                    links_created += 1
+            except Exception as e:
+                print(f"  Error: {e}")
+
+        conn.commit()
+        conn.close()
+        print(f"✅ Thread-based linking: {links_created} emails linked (skipped {skipped_internal} internal-only threads)")
+        return links_created
+
+    def link_emails_by_recurring_sender(self) -> int:
+        """
+        Strategy 4: If a sender has multiple emails already linked to a project,
+        link their unlinked emails to the same project.
+
+        Logic: If sender@example.com has 5 emails linked to "25 BK-045",
+        and 3 unlinked emails, link those 3 to the same project.
+
+        Requires at least 3 existing links to the same project to avoid false positives.
+        """
+        conn = self.get_connection()
+        cursor = conn.cursor()
+
+        # Find senders with multiple emails linked to the same project
+        cursor.execute("""
+            SELECT
+                e.sender_email,
+                epl.proposal_id,
+                p.project_code,
+                COUNT(*) as link_count
+            FROM emails e
+            JOIN email_proposal_links epl ON e.email_id = epl.email_id
+            JOIN proposals p ON epl.proposal_id = p.proposal_id
+            WHERE e.sender_email IS NOT NULL
+              AND e.sender_email NOT LIKE '%bensley.com%'
+              AND e.sender_email NOT LIKE '%bensley.co.id%'
+            GROUP BY e.sender_email, epl.proposal_id
+            HAVING link_count >= 3
+        """)
+
+        sender_project_map = {}
+        for row in cursor.fetchall():
+            sender = row['sender_email'].lower().strip()
+            if sender not in sender_project_map:
+                sender_project_map[sender] = []
+            sender_project_map[sender].append({
+                'proposal_id': row['proposal_id'],
+                'project_code': row['project_code'],
+                'count': row['link_count']
+            })
+
+        print(f"  Found {len(sender_project_map)} senders with 3+ emails to same project")
+
+        # For each sender, link their unlinked emails to their most common project
+        links_created = 0
+
+        for sender, projects in sender_project_map.items():
+            # Get the project this sender emails most about
+            best_project = max(projects, key=lambda x: x['count'])
+
+            # Find unlinked emails from this sender
+            cursor.execute("""
+                SELECT email_id FROM emails
+                WHERE LOWER(TRIM(sender_email)) = ?
+                  AND email_id NOT IN (SELECT email_id FROM email_proposal_links)
+                  AND email_id NOT IN (SELECT email_id FROM email_project_links)
+            """, (sender,))
+
+            unlinked = cursor.fetchall()
+
+            for row in unlinked:
+                try:
+                    cursor.execute("""
+                        INSERT OR IGNORE INTO email_proposal_links
+                        (email_id, proposal_id, confidence_score, match_reasons, auto_linked, created_at)
+                        VALUES (?, ?, 0.85, ?, 1, datetime('now'))
+                    """, (
+                        row['email_id'],
+                        best_project['proposal_id'],
+                        f"Recurring sender: {best_project['count']} emails to {best_project['project_code']}"
+                    ))
+                    if cursor.rowcount > 0:
+                        links_created += 1
+                except Exception as e:
+                    pass
+
+        conn.commit()
+        conn.close()
+        print(f"✅ Recurring sender linking: {links_created} emails linked")
+        return links_created
+
+    def run_all_linking_strategies(self) -> dict:
+        """Run all linking strategies and return stats."""
+        print("\n🔗 RUNNING EMAIL LINKING STRATEGIES")
+        print("=" * 60)
+
+        # Get baseline
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT COUNT(*) as total,
+                   (SELECT COUNT(DISTINCT email_id) FROM email_proposal_links) as linked_proposals,
+                   (SELECT COUNT(DISTINCT email_id) FROM email_project_links) as linked_projects
+            FROM emails
+        """)
+        before = dict(cursor.fetchone())
+        conn.close()
+
+        print(f"Before: {before['total']} emails, {before['linked_proposals']} linked to proposals, {before['linked_projects']} linked to projects")
+
+        # Run strategies in order of precision (most precise first)
+        sender_links = self.link_emails_by_sender()           # Strategy 1: Direct contact match
+        keyword_links = self.link_emails_by_subject_keywords() # Strategy 2: Smart keyword matching
+        thread_links = self.link_emails_by_thread()            # Strategy 3: Thread-based (skip internal)
+        recurring_links = self.link_emails_by_recurring_sender() # Strategy 4: Recurring sender patterns
+
+        # Get new stats
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT COUNT(*) as total,
+                   (SELECT COUNT(DISTINCT email_id) FROM email_proposal_links) as linked_proposals,
+                   (SELECT COUNT(DISTINCT email_id) FROM email_project_links) as linked_projects
+            FROM emails
+        """)
+        after = dict(cursor.fetchone())
+        conn.close()
+
+        total_new = sender_links + keyword_links + thread_links + recurring_links
+        print(f"\nAfter: {after['total']} emails, {after['linked_proposals']} linked to proposals, {after['linked_projects']} linked to projects")
+        print(f"Total new links: {total_new}")
+
+        return {
+            'sender_links': sender_links,
+            'keyword_links': keyword_links,
+            'thread_links': thread_links,
+            'recurring_links': recurring_links,
+            'total_new': total_new,
+            'before': before,
+            'after': after
+        }
+
+    def _should_create_alias_suggestion(self, alias: str) -> bool:
+        """
+        Check if we should create an alias suggestion - dedup check.
+        Returns False if:
+        1. Alias already exists in learned_patterns
+        2. Already pending in suggestions queue
+        3. Was previously rejected
+        """
+        if not alias:
+            return False
+
+        alias_lower = alias.lower().strip()
+        conn = self.get_connection()
+        cursor = conn.cursor()
+
+        # CHECK 1: Already in learned_patterns?
+        cursor.execute("""
+            SELECT 1 FROM learned_patterns
+            WHERE pattern_type = 'project_alias'
+            AND LOWER(condition) LIKE ?
+        """, (f'%{alias_lower}%',))
+        if cursor.fetchone():
+            conn.close()
+            return False  # Already learned
+
+        # CHECK 2: Already pending?
+        cursor.execute("""
+            SELECT 1 FROM ai_suggestions_queue
+            WHERE field_name = 'project_alias'
+            AND LOWER(json_extract(suggested_value, '$.alias')) = ?
+            AND status = 'pending'
+        """, (alias_lower,))
+        if cursor.fetchone():
+            conn.close()
+            return False  # Already suggested
+
+        # CHECK 3: Previously rejected?
+        cursor.execute("""
+            SELECT 1 FROM ai_suggestions_queue
+            WHERE field_name = 'project_alias'
+            AND LOWER(json_extract(suggested_value, '$.alias')) = ?
+            AND status = 'rejected'
+        """, (alias_lower,))
+        if cursor.fetchone():
+            conn.close()
+            return False  # Was rejected
+
+        conn.close()
+        return True
+
     def get_emails_to_process(self, limit: int = 100, reprocess: bool = False) -> List[Dict]:
         """Get emails needing processing"""
         conn = self.get_connection()
@@ -607,19 +1440,35 @@ Return ONLY valid JSON."""
         return emails
 
     def process_batch(self, emails: List[Dict]) -> Dict:
-        """Process a batch of emails with context"""
+        """Process a batch of emails with context - using tiered categorization"""
         stats = {
             'processed': 0,
             'bds_work': 0,
             'other': 0,
             'suggestions': 0,
-            'errors': 0
+            'errors': 0,
+            'tier1': 0,  # Categorized by pattern matching
+            'tier2': 0,  # Categorized by database lookup
+            'tier3': 0   # Required full AI analysis
         }
 
         for i, email in enumerate(emails, 1):
             print(f"\n[{i}/{len(emails)}] {email['email_id']}: {email['subject'][:50]}...")
 
-            analysis = self.analyze_email_with_context(email)
+            # Try tiered categorization first (saves API costs)
+            analysis = self.categorize_email_tiered(email)
+
+            if analysis:
+                # Tiered categorization succeeded
+                tier = analysis.get('_tier', 0)
+                if tier == 1:
+                    stats['tier1'] += 1
+                elif tier == 2:
+                    stats['tier2'] += 1
+            else:
+                # Fall back to full AI analysis (Tier 3)
+                analysis = self.analyze_email_with_context(email)
+                stats['tier3'] += 1
 
             if self.store_analysis(email['email_id'], analysis):
                 stats['processed'] += 1
@@ -745,6 +1594,7 @@ def main():
     parser.add_argument('--show-suggestions', action='store_true')
     parser.add_argument('--approve', type=int, help='Approve suggestion by ID')
     parser.add_argument('--reject', type=int, help='Reject suggestion by ID')
+    parser.add_argument('--link-emails', action='store_true', help='Run all email linking strategies')
     parser.add_argument('--yes', '-y', action='store_true')
     args = parser.parse_args()
 
@@ -765,6 +1615,10 @@ def main():
 
     if args.reject:
         brain.reject_suggestion(args.reject)
+        return
+
+    if args.link_emails:
+        brain.run_all_linking_strategies()
         return
 
     # Load context
@@ -801,7 +1655,20 @@ def main():
     print(f"BDS Work: {stats['bds_work']} | Other: {stats['other']}")
     print(f"Suggestions created: {stats['suggestions']}")
     print(f"Errors: {stats['errors']}")
-    print(f"Time: {elapsed/60:.1f} min | Cost: ${brain.estimated_cost:.2f}")
+
+    # Tiered categorization stats
+    tier1 = stats.get('tier1', 0)
+    tier2 = stats.get('tier2', 0)
+    tier3 = stats.get('tier3', 0)
+    total = tier1 + tier2 + tier3
+    if total > 0:
+        print(f"\n📊 Categorization Tiers:")
+        print(f"  ⚡ Tier 1 (patterns): {tier1} ({tier1*100/total:.0f}%) - FREE")
+        print(f"  🔍 Tier 2 (database): {tier2} ({tier2*100/total:.0f}%) - FREE")
+        print(f"  🤖 Tier 3 (AI):       {tier3} ({tier3*100/total:.0f}%) - ${tier3 * 0.025:.2f}")
+        print(f"  💰 AI Cost Saved: ${(tier1 + tier2) * 0.025:.2f}")
+
+    print(f"\nTime: {elapsed/60:.1f} min | Actual Cost: ${brain.estimated_cost:.2f}")
 
     if brain.suggestions_created > 0:
         print(f"\n💡 {brain.suggestions_created} suggestions await your review!")
