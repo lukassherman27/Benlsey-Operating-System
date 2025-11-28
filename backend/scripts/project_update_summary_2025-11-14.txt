@@ -1,0 +1,352 @@
+====================================================================================================
+PROJECT FINANCIAL DATA UPDATE SUMMARY
+Date: 2025-11-14 22:06:53
+Source: Project Status as of 10 Nov 25 (Updated).pdf
+====================================================================================================
+
+SUMMARY STATISTICS:
+----------------------------------------------------------------------------------------------------
+Total Active Projects:     29
+Total Contract Value:      $50,175,020.00
+Total Paid to Date:        $25,526,740.63
+Total Outstanding:         $4,596,578.75
+Total Remaining Work:      $20,208,950.63
+
+VERIFICATION:
+----------------------------------------------------------------------------------------------------
+Paid + Outstanding + Remaining = $50,332,270.01
+Total Contract Value           = $50,175,020.00
+Difference:                      $157,250.01
+
+PERCENTAGE BREAKDOWN:
+----------------------------------------------------------------------------------------------------
+Paid to Date:     50.9%
+Outstanding:      9.2%
+Remaining Work:   40.3%
+
+
+ALL 29 ACTIVE PROJECTS:
+====================================================================================================
+
+Project Code:      19 BK-018
+Project Name:      Villa Project in Ahmedabad, India (Landscape/Arch/Interior)
+Client:            Ingit Anand / Kalpesh Shah
+Total Fee:         $1,900,000.00
+Paid to Date:      $1,748,000.00
+Outstanding:       $152,000.00
+Remaining Work:    $0.00
+Contract Expiry:   2023-11-30
+Project Phase:     CO
+----------------------------------------------------------------------------------------------------
+
+Project Code:      19 BK-052
+Project Name:      The Siam Hotel Chiangmai (Landscape/Arch/Interior)
+Client:            The Siam
+Total Fee:         $814,500.00
+Paid to Date:      $368,700.00
+Outstanding:       $0.00
+Remaining Work:    $445,800.00
+Contract Expiry:   2026-12-31
+Project Phase:     DD
+----------------------------------------------------------------------------------------------------
+
+Project Code:      20 BK-047
+Project Name:      Audley Square House-Communal Spa
+Client:            Uri Mizrahi
+Total Fee:         $148,000.00
+Paid to Date:      $24,000.00
+Outstanding:       $8,000.00
+Remaining Work:    $116,000.00
+Contract Expiry:   2026-09-30
+Project Phase:     CA
+----------------------------------------------------------------------------------------------------
+
+Project Code:      22 BK-013
+Project Name:      Tel Aviv High Rise Project (Landscape/Interior + Monthly)
+Client:            Ronen Lavan
+Total Fee:         $4,155,000.00
+Paid to Date:      $1,857,000.00
+Outstanding:       $231,000.00
+Remaining Work:    $2,067,000.00
+Contract Expiry:   2025-08-31
+Project Phase:     DD
+----------------------------------------------------------------------------------------------------
+
+Project Code:      22 BK-046
+Project Name:      Resort and Hotel Project at Nusa Penida (Landscape/Arch/Interior)
+Client:            Suwito Gunawan
+Total Fee:         $1,700,000.00
+Paid to Date:      $680,000.00
+Outstanding:       $255,000.00
+Remaining Work:    $765,000.00
+Contract Expiry:   2026-06-30
+Project Phase:     DD
+----------------------------------------------------------------------------------------------------
+
+Project Code:      22 BK-095
+Project Name:      Wynn Al Marjan Island (Indian Brasserie + Mediterranean Restaurant + Day Club + Night Club)
+Client:            Wynn Al Marjan
+Total Fee:         $3,775,000.00
+Paid to Date:      $3,097,605.00
+Outstanding:       $155,728.75
+Remaining Work:    $521,666.25
+Contract Expiry:   2026-12-31
+Project Phase:     CO
+----------------------------------------------------------------------------------------------------
+
+Project Code:      23 BK-009
+Project Name:      Villa Project in Ahmedabad, India (Le Parqe Sector 5 and 7)
+Client:            Le Parqe
+Total Fee:         $730,000.00
+Paid to Date:      $511,000.00
+Outstanding:       $219,000.00
+Remaining Work:    $0.00
+Contract Expiry:   2024-09-30
+Project Phase:     CD
+----------------------------------------------------------------------------------------------------
+
+Project Code:      23 BK-028
+Project Name:      Proscenium Penthouse in Manila + Mural
+Client:            Proscenium
+Total Fee:         $1,797,520.00
+Paid to Date:      $1,629,520.00
+Outstanding:       $0.00
+Remaining Work:    $168,000.00
+Contract Expiry:   2024-11-30
+Project Phase:     CO
+----------------------------------------------------------------------------------------------------
+
+Project Code:      23 BK-050
+Project Name:      Ultra Luxury Beach Resort Hotel and Residence, Bodrum, Turkey
+Client:            Elif Gizem KAYA / Semra HALEPLI
+Total Fee:         $4,650,000.00
+Paid to Date:      $2,088,640.63
+Outstanding:       $0.00
+Remaining Work:    $2,561,359.38
+Contract Expiry:   2027-05-31
+Project Phase:     SD
+----------------------------------------------------------------------------------------------------
+
+Project Code:      23 BK-067
+Project Name:      Treasure Island Resort, Intercontinental Hotel (Interior)
+Client:            Intercontinental
+Total Fee:         $1,200,000.00
+Paid to Date:      $552,000.00
+Outstanding:       $0.00
+Remaining Work:    $648,000.00
+Contract Expiry:   2025-11-30
+Project Phase:     DD
+----------------------------------------------------------------------------------------------------
+
+Project Code:      23 BK-071
+Project Name:      St. Regis Hotel in Thousand Island Lake, China (Interior)
+Client:            St. Regis
+Total Fee:         $1,350,000.00
+Paid to Date:      $540,000.00
+Outstanding:       $101,250.00
+Remaining Work:    $708,750.00
+Contract Expiry:   2026-02-28
+Project Phase:     DD
+----------------------------------------------------------------------------------------------------
+
+Project Code:      23 BK-080
+Project Name:      Treasure Island Resort, Intercontinental Hotel (Landscape)
+Client:            Intercontinental
+Total Fee:         $400,000.00
+Paid to Date:      $184,000.00
+Outstanding:       $0.00
+Remaining Work:    $216,000.00
+Contract Expiry:   2025-11-30
+Project Phase:     DD
+----------------------------------------------------------------------------------------------------
+
+Project Code:      23 BK-088
+Project Name:      Mandarin Oriental Bali Hotel and Branded Residential
+Client:            Mandarin Oriental
+Total Fee:         $575,000.00
+Paid to Date:      $402,500.00
+Outstanding:       $43,125.00
+Remaining Work:    $129,375.00
+Contract Expiry:   2025-09-30
+Project Phase:     CD
+----------------------------------------------------------------------------------------------------
+
+Project Code:      23 BK-089
+Project Name:      Jyoti's farm house in Delhi, India
+Client:            Jyoti
+Total Fee:         $1,000,000.00
+Paid to Date:      $775,000.00
+Outstanding:       $0.00
+Remaining Work:    $225,000.00
+Contract Expiry:   2025-12-31
+Project Phase:     CD
+----------------------------------------------------------------------------------------------------
+
+Project Code:      23 BK-093
+Project Name:      25 Downtown Mumbai (Landscape/Interior + Redesign)
+Client:            Khilen Shah
+Total Fee:         $3,250,000.00
+Paid to Date:      $2,387,500.00
+Outstanding:       $262,500.00
+Remaining Work:    $600,000.00
+Contract Expiry:   2025-11-30
+Project Phase:     CD
+----------------------------------------------------------------------------------------------------
+
+Project Code:      23 BK-096
+Project Name:      St. Regis Hotel in Thousand Island Lake (Landscape/Arch Addendum)
+Client:            St. Regis
+Total Fee:         $500,000.00
+Paid to Date:      $312,500.00
+Outstanding:       $75,000.00
+Remaining Work:    $112,500.00
+Contract Expiry:   2026-02-28
+Project Phase:     CD
+----------------------------------------------------------------------------------------------------
+
+Project Code:      24 BK-018
+Project Name:      Luang Prabang Heritage Arcade and Hotel (Landscape/Arch/Interior)
+Client:            Shinta Mani
+Total Fee:         $1,450,000.00
+Paid to Date:      $580,000.00
+Outstanding:       $0.00
+Remaining Work:    $870,000.00
+Contract Expiry:   2026-03-31
+Project Phase:     CD
+----------------------------------------------------------------------------------------------------
+
+Project Code:      24 BK-021
+Project Name:      Capella Hotel and Resort, Ubud Bali (Extension)
+Client:            Capella
+Total Fee:         $345,000.00
+Paid to Date:      $94,875.00
+Outstanding:       $43,125.00
+Remaining Work:    $207,000.00
+Contract Expiry:   2026-03-31
+Project Phase:     CD
+----------------------------------------------------------------------------------------------------
+
+Project Code:      24 BK-029
+Project Name:      Qinhu Resort Project, China (Landscape/Arch/Interior)
+Client:            Qinhu
+Total Fee:         $3,250,000.00
+Paid to Date:      $243,750.00
+Outstanding:       $650,000.00
+Remaining Work:    $2,356,250.00
+Contract Expiry:   2026-09-30
+Project Phase:     CD
+----------------------------------------------------------------------------------------------------
+
+Project Code:      24 BK-033
+Project Name:      Renovation Work for Three of Four Seasons Properties
+Client:            Four Seasons
+Total Fee:         $1,500,000.00
+Paid to Date:      $434,375.00
+Outstanding:       $34,375.00
+Remaining Work:    $1,031,250.00
+Contract Expiry:   2028-04-30
+Project Phase:     Monthly
+----------------------------------------------------------------------------------------------------
+
+Project Code:      24 BK-058
+Project Name:      Luxury Resort Development at Fenfushi Island, Maldives (Landscape/Arch/Interior)
+Client:            Bharath / Chen Huifang
+Total Fee:         $2,990,000.00
+Paid to Date:      $2,015,500.00
+Outstanding:       $526,000.00
+Remaining Work:    $448,500.00
+Contract Expiry:   2026-11-30
+Project Phase:     CD
+----------------------------------------------------------------------------------------------------
+
+Project Code:      24 BK-074
+Project Name:      43 Dang Thai Mai Project, Hanoi, Vietnam (Landscape/Arch/Interior)
+Client:            Vietnam
+Total Fee:         $4,900,000.00
+Paid to Date:      $3,089,775.00
+Outstanding:       $1,001,725.00
+Remaining Work:    $808,500.00
+Contract Expiry:   2024-12-31
+Project Phase:     CD
+----------------------------------------------------------------------------------------------------
+
+Project Code:      24 BK-077
+Project Name:      Restaurant at the Raffles Hotel, Singapore
+Client:            Raffles
+Total Fee:         $195,000.00
+Paid to Date:      $165,750.00
+Outstanding:       $0.00
+Remaining Work:    $29,250.00
+Contract Expiry:   2026-01-31
+Project Phase:     CO
+----------------------------------------------------------------------------------------------------
+
+Project Code:      25 BK-015
+Project Name:      Shinta Mani Mustang, Nepal (Two hotels)
+Client:            Shinta Mani
+Total Fee:         $300,000.00
+Paid to Date:      $45,000.00
+Outstanding:       $120,000.00
+Remaining Work:    $135,000.00
+Contract Expiry:   2027-05-31
+Project Phase:     DD
+----------------------------------------------------------------------------------------------------
+
+Project Code:      25 BK-017
+Project Name:      TARC's Luxury Branded Residence Project in New Delhi (Landscape/Interior)
+Client:            TARC
+Total Fee:         $3,000,000.00
+Paid to Date:      $450,000.00
+Outstanding:       $131,250.00
+Remaining Work:    $2,418,750.00
+Contract Expiry:   2029-02-28
+Project Phase:     CD
+----------------------------------------------------------------------------------------------------
+
+Project Code:      25 BK-018
+Project Name:      The Ritz Carlton Hotel Nanyan Bay, China (Extension)
+Client:            Ritz Carlton
+Total Fee:         $225,000.00
+Paid to Date:      $112,500.00
+Outstanding:       $56,250.00
+Remaining Work:    $56,250.00
+Contract Expiry:   2026-03-31
+Project Phase:     Extension
+----------------------------------------------------------------------------------------------------
+
+Project Code:      25 BK-030
+Project Name:      Beach Club at Mandarin Oriental Bali (Arch/Interior)
+Client:            Mandarin Oriental
+Total Fee:         $550,000.00
+Paid to Date:      $82,500.00
+Outstanding:       $137,500.00
+Remaining Work:    $330,000.00
+Contract Expiry:   2027-06-30
+Project Phase:     CD
+----------------------------------------------------------------------------------------------------
+
+Project Code:      25 BK-033
+Project Name:      The Ritz Carlton Reserve, Nusa Dua, Bali (Landscape/Arch/Interior + Branding)
+Client:            Ritz Carlton
+Total Fee:         $3,275,000.00
+Paid to Date:      $1,054,750.00
+Outstanding:       $393,750.00
+Remaining Work:    $1,983,750.00
+Contract Expiry:   2027-07-31
+Project Phase:     CD
+----------------------------------------------------------------------------------------------------
+
+Project Code:      25 BK-039
+Project Name:      Wynn Al Marjan Island - Additional Service
+Client:            Wynn Al Marjan
+Total Fee:         $250,000.00
+Paid to Date:      $0.00
+Outstanding:       $0.00
+Remaining Work:    $250,000.00
+Contract Expiry:   2026-12-31
+Project Phase:     Design
+----------------------------------------------------------------------------------------------------
+
+====================================================================================================
+END OF REPORT
+====================================================================================================

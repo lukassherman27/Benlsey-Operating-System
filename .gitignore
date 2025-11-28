@@ -134,3 +134,4 @@ dump.rdb
 
 # Pytest
 .pytest_cache/
+training/
