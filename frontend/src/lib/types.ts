@@ -144,18 +144,43 @@ export interface KPITrend {
 
 export interface KPIValue {
   value: number;
-  previous: number;
+  previous?: number;
   trend: KPITrend;
 }
 
 export interface DashboardKPIs {
+  // Period info
+  period?: string;
+  period_label?: string;
+  date_range?: {
+    start: string | null;
+    end: string | null;
+  };
+  // Core KPIs
   active_projects: KPIValue;
   active_proposals: KPIValue;
   remaining_contract_value: KPIValue;
-  outstanding_invoices: KPIValue;
+  outstanding_invoices: KPIValue & {
+    overdue_count?: number;
+    overdue_amount?: number;
+  };
   revenue_ytd: KPIValue;
-  timestamp: string;
-  currency: string;
+  // Period-based KPIs
+  contracts_signed?: KPIValue & { amount?: number };
+  contracts_signed_2025?: KPIValue;
+  paid_in_period?: KPIValue & { previous_value?: number };
+  total_paid_to_date?: KPIValue;
+  // Additional KPIs
+  avg_days_to_payment?: number;
+  largest_outstanding?: {
+    amount: number;
+    invoice_number: string | null;
+  };
+  win_rate?: number;
+  pipeline_value?: number;
+  // Meta
+  timestamp?: string;
+  currency?: string;
   trend_period_days: number;
 }
 
@@ -865,11 +890,11 @@ export interface DenySuggestionRequest {
 
 // Admin - Email Links types
 export interface EmailLink {
-  link_id: number;
+  link_id: string;  // Composite key: "email_id-project_id"
   email_id: number;
-  proposal_id: number;
+  project_id: number;
   confidence_score: number;
-  link_type: "auto" | "manual";
+  link_type: string;  // "auto" | "manual" | "ai" | "alias"
   match_reasons: string | null;
   created_at: string;
   subject: string;
@@ -879,7 +904,7 @@ export interface EmailLink {
   category: string;
   project_code: string;
   project_name: string;
-  proposal_status: string;
+  project_status: string;
 }
 
 export interface EmailLinksResponse {
@@ -1069,4 +1094,147 @@ export interface ProjectHierarchy {
   total_invoiced: number;
   total_paid: number;
   disciplines: Record<string, DisciplineBreakdown>;
+}
+
+
+// ============================================================================
+// Enhanced Review UI Types
+// ============================================================================
+
+/**
+ * Source content (email or transcript) for a suggestion
+ */
+export interface SourceContent {
+  type: 'email' | 'transcript';
+  id: number;
+  subject?: string;
+  sender?: string;
+  recipient?: string;
+  date: string;
+  body: string;
+  attachments?: { filename: string; size: number }[];
+  thread_context?: string[];  // Previous emails in thread
+}
+
+/**
+ * Detected entities from AI analysis
+ */
+export interface DetectedEntities {
+  projects: string[];
+  fees: { amount: number; currency: string }[];
+  contacts: { name: string; email: string }[];
+  dates: string[];
+  keywords: string[];
+}
+
+/**
+ * Pattern that will be learned from this action
+ */
+export interface PatternToLearn {
+  type: 'sender_to_project' | 'domain_to_project' | 'keyword_to_project';
+  pattern_key: string;
+  target: string;
+  confidence_boost: number;
+}
+
+/**
+ * Suggested action that can be applied
+ */
+export interface SuggestedAction {
+  id: string;
+  type: 'link_email' | 'update_fee' | 'link_contact' | 'learn_pattern';
+  description: string;
+  enabled_by_default: boolean;
+  data: Record<string, unknown>;
+  database_change: string;  // Human-readable SQL description
+}
+
+/**
+ * AI analysis of a suggestion
+ */
+export interface AIAnalysis {
+  detected_entities: DetectedEntities;
+  suggested_actions: SuggestedAction[];
+  pattern_to_learn: PatternToLearn | null;
+  overall_confidence: number;
+}
+
+/**
+ * User context provided during review
+ */
+export interface UserContext {
+  notes: string;
+  tags: string[];
+  contact_role?: string;
+  priority?: string;
+}
+
+/**
+ * Actions to apply when approving
+ */
+export interface ApprovalAction {
+  type: 'link_email' | 'update_fee' | 'link_contact' | 'learn_pattern';
+  enabled: boolean;
+  data: Record<string, unknown>;
+}
+
+/**
+ * Full context for reviewing a suggestion
+ * Note: SuggestionItem and SuggestionPreviewResponse are defined in api.ts
+ */
+export interface SuggestionFullContext {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  suggestion: any; // SuggestionItem from api.ts
+  source_content: SourceContent | null;
+  ai_analysis: AIAnalysis;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  preview: any; // SuggestionPreviewResponse from api.ts
+  existing_feedback?: {
+    notes: string;
+    tags: string[];
+    contact_role?: string;
+    priority?: string;
+  };
+}
+
+/**
+ * Request to approve with context
+ */
+export interface ApproveWithContextRequest {
+  actions: ApprovalAction[];
+  user_context: UserContext;
+  create_sender_pattern?: boolean;
+  create_domain_pattern?: boolean;
+}
+
+/**
+ * Response from approve with context
+ */
+export interface ApproveWithContextResponse {
+  success: boolean;
+  message: string;
+  data: {
+    suggestion_id: number;
+    actions_applied: string[];
+    patterns_created: Array<{ type: string; key: string }>;
+    feedback_saved: boolean;
+  };
+}
+
+/**
+ * Suggestion tag for autocomplete
+ */
+export interface SuggestionTag {
+  tag_id: number;
+  tag_name: string;
+  tag_category: string;
+  usage_count: number;
+}
+
+/**
+ * Response with available tags
+ */
+export interface SuggestionTagsResponse {
+  success: boolean;
+  tags: SuggestionTag[];
 }
