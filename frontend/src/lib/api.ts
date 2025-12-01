@@ -2442,7 +2442,7 @@ export interface SuggestionPreviewResponse {
 
 export interface SuggestionSourceResponse {
   success: boolean;
-  source_type: 'email' | 'transcript' | 'pattern' | null;
+  source_type: 'email' | 'transcript' | 'pattern' | 'contact_summary' | null;
   content: string | null;
   metadata: {
     email_id?: number;

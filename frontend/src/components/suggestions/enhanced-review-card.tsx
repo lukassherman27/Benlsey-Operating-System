@@ -50,6 +50,7 @@ interface EnhancedReviewCardProps {
   aiAnalysis: AIAnalysis | null;
   isLoading: boolean;
   projectOptions: ProjectOption[];
+  proposalOptions?: ProjectOption[];
   availableTags: SuggestionTag[];
   onApprove: (data: {
     actions: string[];
@@ -81,6 +82,7 @@ export function EnhancedReviewCard({
   aiAnalysis,
   isLoading,
   projectOptions,
+  proposalOptions = [],
   availableTags,
   onApprove,
   onReject,
@@ -416,6 +418,7 @@ export function EnhancedReviewCard({
         onOpenChange={setCorrectionDialogOpen}
         suggestion={suggestion}
         projectOptions={projectOptions}
+        proposalOptions={proposalOptions}
         onSubmit={handleReject}
         isSubmitting={isRejecting}
       />

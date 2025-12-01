@@ -211,6 +211,7 @@ export default function SuggestionsPage() {
     ai_analysis: AIAnalysis;
     source_content: { type: string; id: number; subject?: string; sender?: string; date: string; body: string } | null;
     preview: { is_actionable: boolean; action: string; table: string; summary: string; changes: { field: string; old_value: string | null; new_value: string | null }[] } | null;
+    suggestion?: { project_name?: string };
   } | null>(null);
   const [loadingEnhancedContext, setLoadingEnhancedContext] = useState(false);
 
@@ -317,6 +318,19 @@ export default function SuggestionsPage() {
   });
   const projectOptions = projectsQuery.data?.projects || [];
 
+  // Fetch proposals for correction dialog
+  const proposalsQuery = useQuery({
+    queryKey: ["proposals-for-linking"],
+    queryFn: () => api.getProposals({ per_page: 200 }),
+    staleTime: 60 * 1000,
+  });
+  // api.getProposals uses normalizePaginationResponse which returns {data: [...], pagination: {...}}
+  const proposalOptions = (proposalsQuery.data?.data || []).map((p) => ({
+    code: p.project_code,
+    name: p.project_name || p.project_code,
+  }));
+  console.log('[SuggestionsPage] proposalsQuery:', proposalsQuery.status, 'count:', proposalOptions.length);
+
   // Enhanced reject with correction mutation
   const rejectWithCorrectionMutation = useMutation({
     mutationFn: (data: {
@@ -417,6 +431,7 @@ export default function SuggestionsPage() {
             ai_analysis: data.ai_analysis as AIAnalysis,
             source_content: data.source_content,
             preview: data.preview,
+            suggestion: data.suggestion as { project_name?: string } | undefined,
           });
         })
         .catch((e) => {
@@ -1136,6 +1151,7 @@ export default function SuggestionsPage() {
                     aiAnalysis={enhancedContextData?.ai_analysis || null}
                     isLoading={loadingEnhancedContext}
                     projectOptions={projectOptions.map(p => ({ code: p.code, name: p.name || p.code }))}
+                    proposalOptions={proposalOptions}
                     availableTags={availableTags}
                     onApprove={async (data) => {
                       try {
@@ -1626,25 +1642,51 @@ export default function SuggestionsPage() {
                 </Select>
               </div>
 
-              {/* Correct Project (for email_link suggestions) */}
-              {selectedSuggestion?.suggestion_type === "email_link" && rejectReason === "wrong_project" && (
+              {/* Correct Project/Proposal (for link-type suggestions) */}
+              {(selectedSuggestion?.suggestion_type === "email_link" ||
+                selectedSuggestion?.suggestion_type === "contact_link" ||
+                selectedSuggestion?.suggestion_type === "transcript_link") &&
+               rejectReason === "wrong_project" && (
                 <div className="space-y-2">
-                  <Label>Which project should this be linked to?</Label>
-                  <Select value={correctProjectCode} onValueChange={setCorrectProjectCode}>
+                  <Label>Which project or proposal should this be linked to?</Label>
+                  <Select value={correctProjectCode || "none"} onValueChange={(v) => setCorrectProjectCode(v === "none" ? "" : v)}>
                     <SelectTrigger>
-                      <SelectValue placeholder="Select correct project" />
+                      <SelectValue placeholder="Select correct project or proposal" />
                     </SelectTrigger>
                     <SelectContent className="max-h-[300px]">
-                      <SelectItem value="">-- None / Don&apos;t link --</SelectItem>
+                      <SelectItem value="none">-- None / Don&apos;t link --</SelectItem>
+                      {/* Projects */}
+                      {projectOptions.length > 0 && (
+                        <SelectItem value="__header_projects" disabled className="font-bold text-emerald-700 bg-emerald-50">
+                          ── ACTIVE PROJECTS ──
+                        </SelectItem>
+                      )}
                       {projectOptions.map((p) => (
-                        <SelectItem key={p.code} value={p.code}>
-                          {p.code} - {p.name}
+                        <SelectItem key={`proj-${p.code}`} value={p.code}>
+                          <span className="flex items-center gap-2">
+                            <span className="text-[10px] bg-emerald-100 text-emerald-700 px-1 rounded">PROJECT</span>
+                            {p.code} - {p.name}
+                          </span>
+                        </SelectItem>
+                      ))}
+                      {/* Proposals */}
+                      {proposalOptions.length > 0 && (
+                        <SelectItem value="__header_proposals" disabled className="font-bold text-amber-700 bg-amber-50">
+                          ── PROPOSALS ──
+                        </SelectItem>
+                      )}
+                      {proposalOptions.map((p) => (
+                        <SelectItem key={`prop-${p.code}`} value={p.code}>
+                          <span className="flex items-center gap-2">
+                            <span className="text-[10px] bg-amber-100 text-amber-700 px-1 rounded">PROPOSAL</span>
+                            {p.code} - {p.name}
+                          </span>
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                   <p className="text-xs text-slate-500">
-                    Selecting a project will create the correct link for this email.
+                    Selecting a project/proposal will create the correct link.
                   </p>
                 </div>
               )}
