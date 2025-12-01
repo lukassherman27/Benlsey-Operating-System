@@ -1755,8 +1755,63 @@ async def get_suggestion_full_context(suggestion_id: int):
         source_content = None
         source_type = suggestion.get('source_type')
         source_id = suggestion.get('source_id')
+        suggestion_type = suggestion.get('suggestion_type')
 
-        if source_type == 'email' and source_id:
+        # Special handling for contact_link suggestions
+        if suggestion_type == 'contact_link' and source_id:
+            # source_id is actually the contact_id for contact_link suggestions
+            contact_id = source_id
+            project_code = suggested_data.get('project_code')
+
+            # Get contact info
+            cursor.execute("""
+                SELECT contact_id, name, email, company, role
+                FROM contacts WHERE contact_id = ?
+            """, (contact_id,))
+            contact_row = cursor.fetchone()
+            contact_info = dict(contact_row) if contact_row else {}
+
+            # Get sample emails from this contact about this project
+            cursor.execute("""
+                SELECT e.email_id, e.subject, e.body_full, e.sender_email, e.date
+                FROM emails e
+                JOIN email_project_links epl ON e.email_id = epl.email_id
+                JOIN projects p ON epl.project_id = p.project_id
+                WHERE e.sender_email LIKE ?
+                AND p.project_code = ?
+                ORDER BY e.date DESC
+                LIMIT 5
+            """, (f"%{contact_info.get('email', '')}%", project_code))
+            sample_emails = [dict(row) for row in cursor.fetchall()]
+
+            # Build explanation
+            email_summaries = []
+            for em in sample_emails[:3]:
+                subj = em.get('subject', 'No subject')[:60]
+                date = em.get('date', '')[:10] if em.get('date') else ''
+                email_summaries.append(f"• {date}: {subj}")
+
+            explanation = f"Contact {contact_info.get('name', 'Unknown')} ({contact_info.get('email', '')}) has sent {suggested_data.get('email_count', 0)} emails linked to project {project_code}."
+            if email_summaries:
+                explanation += "\n\nRecent emails:\n" + "\n".join(email_summaries)
+
+            source_content = {
+                "type": "contact_summary",
+                "id": contact_id,
+                "subject": f"Contact: {contact_info.get('name', 'Unknown')}",
+                "sender": contact_info.get('email'),
+                "date": suggested_data.get('first_email_date', ''),
+                "body": explanation,
+                "metadata": {
+                    "contact_name": contact_info.get('name'),
+                    "contact_email": contact_info.get('email'),
+                    "contact_company": contact_info.get('company'),
+                    "email_count": suggested_data.get('email_count', 0),
+                    "sample_emails": sample_emails
+                }
+            }
+
+        elif source_type == 'email' and source_id:
             cursor.execute("""
                 SELECT email_id, subject, body_full, sender_email,
                        recipient_emails, date, folder
