@@ -14,7 +14,7 @@ from datetime import datetime, timedelta
 from typing import List, Dict, Optional
 from pathlib import Path
 
-DB_PATH = "/Users/lukassherman/Desktop/BDS_SYSTEM/01_DATABASES/bensley_master.db"
+DB_PATH = os.getenv('DATABASE_PATH', 'database/bensley_master.db')
 
 
 class ScheduleEmailer:

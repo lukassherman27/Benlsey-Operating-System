@@ -278,6 +278,15 @@ class AdminService(BaseService):
                 """
                 cursor.execute(update_query, (suggested_value, datetime.now().isoformat(), entity_id))
 
+                # Verify the update actually affected a row (entity exists)
+                if cursor.rowcount == 0:
+                    conn.rollback()
+                    return {
+                        "success": False,
+                        "error": f"{entity_type.title()} with ID {entity_id} not found in {table}",
+                        "suggestion_id": suggestion_id
+                    }
+
                 # Update suggestion status to applied
                 cursor.execute("""
                     UPDATE data_validation_suggestions
@@ -447,12 +456,12 @@ class AdminService(BaseService):
         offset: int = 0
     ) -> Dict[str, Any]:
         """
-        Get email-to-proposal links with evidence
+        Get email-to-project links with evidence
 
         Args:
             project_code: Filter by project code
             confidence_min: Minimum confidence score (0-1)
-            link_type: Filter by link type (auto/manual/ai_suggested)
+            link_type: Filter by link type (auto/manual/ai/alias)
             limit: Max results
             offset: Pagination offset
 
@@ -466,29 +475,32 @@ class AdminService(BaseService):
             params = []
 
             if project_code:
-                where_clauses.append("p.project_code = ?")
-                params.append(project_code)
+                # Support partial match on project_code
+                where_clauses.append("(epl.project_code LIKE ? OR p.project_code LIKE ?)")
+                params.extend([f"%{project_code}%", f"%{project_code}%"])
 
             if confidence_min is not None:
-                where_clauses.append("epl.confidence_score >= ?")
+                where_clauses.append("epl.confidence >= ?")
                 params.append(confidence_min)
 
             if link_type:
-                if link_type == "auto":
-                    where_clauses.append("epl.auto_linked = 1")
-                elif link_type == "manual":
-                    where_clauses.append("epl.auto_linked = 0")
+                where_clauses.append("epl.link_method = ?")
+                params.append(link_type)
 
             where_sql = f"WHERE {' AND '.join(where_clauses)}" if where_clauses else ""
 
+            # Query email_project_links table (the one with valid data)
+            # Join with both projects and proposals tables to get names
+            # Email links may be to proposals (pre-contract) or projects (active)
             query = f"""
                 SELECT
-                    epl.link_id,
+                    epl.email_id || '-' || COALESCE(epl.project_id, p.project_id, pr.proposal_id, 0) as link_id,
                     epl.email_id,
-                    epl.proposal_id,
-                    epl.confidence_score,
-                    CASE WHEN epl.auto_linked = 1 THEN 'auto' ELSE 'manual' END as link_type,
-                    epl.match_reasons,
+                    COALESCE(epl.project_id, p.project_id) as project_id,
+                    pr.proposal_id,
+                    epl.confidence as confidence_score,
+                    epl.link_method as link_type,
+                    epl.evidence as match_reasons,
                     epl.created_at,
                     -- Email details
                     e.subject,
@@ -496,13 +508,26 @@ class AdminService(BaseService):
                     e.date as email_date,
                     e.snippet,
                     e.category,
-                    -- Proposal details
-                    p.project_code,
-                    p.project_name,
-                    p.status as proposal_status
-                FROM email_proposal_links epl
+                    -- Project/Proposal details
+                    COALESCE(epl.project_code, p.project_code, pr.project_code) as project_code,
+                    COALESCE(p.project_title, pr.project_name) as project_name,
+                    COALESCE(p.status, pr.status) as project_status
+                FROM email_project_links epl
                 JOIN emails e ON epl.email_id = e.email_id
-                JOIN proposals p ON epl.proposal_id = p.proposal_id
+                LEFT JOIN projects p ON (
+                    epl.project_id = p.project_id
+                    OR (epl.project_id IS NULL AND (
+                        epl.project_code = p.project_code
+                        OR p.project_code LIKE '%' || epl.project_code
+                    ))
+                )
+                LEFT JOIN proposals pr ON (
+                    p.project_id IS NULL
+                    AND (
+                        epl.project_code = pr.project_code
+                        OR pr.project_code LIKE '%' || epl.project_code
+                    )
+                )
                 {where_sql}
                 ORDER BY epl.created_at DESC
                 LIMIT ? OFFSET ?
@@ -517,8 +542,15 @@ class AdminService(BaseService):
             # Get total count
             count_query = f"""
                 SELECT COUNT(*) as total
-                FROM email_proposal_links epl
-                JOIN proposals p ON epl.proposal_id = p.proposal_id
+                FROM email_project_links epl
+                LEFT JOIN projects p ON (
+                    epl.project_id = p.project_id
+                    OR (epl.project_id IS NULL AND epl.project_code = p.project_code)
+                )
+                LEFT JOIN proposals pr ON (
+                    p.project_id IS NULL
+                    AND epl.project_code = pr.project_code
+                )
                 {where_sql}
             """
             cursor.execute(count_query, params[:-2])
@@ -531,27 +563,40 @@ class AdminService(BaseService):
                 "offset": offset
             }
 
-    def unlink_email(self, link_id: int, user: str) -> Dict[str, Any]:
-        """Delete an email-to-proposal link with retry on OneDrive sync lock"""
+    def unlink_email(self, link_id: str, user: str) -> Dict[str, Any]:
+        """Delete an email-to-project link with retry on OneDrive sync lock
+
+        Args:
+            link_id: Composite key in format "email_id-project_id"
+            user: Username performing the unlink
+        """
         def _do_unlink():
             with self.get_connection() as conn:
                 cursor = conn.cursor()
 
                 try:
-                    # Get link details for logging
+                    # Parse composite link_id (format: "email_id-project_id")
+                    parts = str(link_id).split('-')
+                    if len(parts) != 2:
+                        return {"success": False, "error": "Invalid link_id format. Expected 'email_id-project_id'"}
+
+                    email_id, project_id = int(parts[0]), int(parts[1])
+
+                    # Check if link exists
                     cursor.execute("""
-                        SELECT email_id, proposal_id FROM email_proposal_links
-                        WHERE link_id = ?
-                    """, (link_id,))
+                        SELECT email_id, project_id FROM email_project_links
+                        WHERE email_id = ? AND project_id = ?
+                    """, (email_id, project_id))
 
                     row = cursor.fetchone()
                     if not row:
                         return {"success": False, "error": "Link not found"}
 
-                    email_id, proposal_id = row
-
                     # Delete the link
-                    cursor.execute("DELETE FROM email_proposal_links WHERE link_id = ?", (link_id,))
+                    cursor.execute("""
+                        DELETE FROM email_project_links
+                        WHERE email_id = ? AND project_id = ?
+                    """, (email_id, project_id))
 
                     conn.commit()
 
@@ -560,6 +605,8 @@ class AdminService(BaseService):
                         "link_id": link_id,
                         "message": "✓ Email unlinked successfully"
                     }
+                except ValueError:
+                    return {"success": False, "error": "Invalid link_id format"}
                 except Exception as e:
                     conn.rollback()
                     return {"success": False, "error": str(e)}

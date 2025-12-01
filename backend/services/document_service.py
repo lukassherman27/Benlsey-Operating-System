@@ -19,8 +19,10 @@ class DocumentService(BaseService):
         search_query: Optional[str] = None,
         document_type: Optional[str] = None,
         proposal_id: Optional[int] = None,
+        project_code: Optional[str] = None,
         page: int = 1,
-        per_page: int = 20
+        per_page: int = 20,
+        limit: Optional[int] = None
     ) -> Dict[str, Any]:
         """
         Get all documents with search and filtering
@@ -29,12 +31,18 @@ class DocumentService(BaseService):
             search_query: Search in filename field
             document_type: Filter by document type
             proposal_id: Filter by linked proposal
+            project_code: Filter by project code
             page: Page number
             per_page: Results per page
+            limit: Alternative to per_page for direct limit
 
         Returns:
             Paginated document results
         """
+        # Use limit as per_page if provided
+        if limit:
+            per_page = limit
+
         sql = """
             SELECT
                 d.document_id,
@@ -57,6 +65,10 @@ class DocumentService(BaseService):
         if document_type:
             sql += " AND d.document_type = ?"
             params.append(document_type)
+
+        if project_code:
+            sql += " AND d.project_code = ?"
+            params.append(project_code)
 
         if proposal_id:
             sql += """ AND d.document_id IN (

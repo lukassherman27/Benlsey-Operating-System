@@ -27,11 +27,14 @@ import {
 import { format } from "date-fns";
 import { HealthBadge } from "@/components/dashboard/health-badge";
 import { ProposalTimeline } from "@/components/proposals/proposal-timeline";
+import { UnifiedTimeline } from "@/components/project/unified-timeline";
 
 export default function ProjectDetailPage() {
   const params = useParams();
   const router = useRouter();
-  const projectCode = params?.projectCode as string;
+  // Decode the project code in case it's URL-encoded (e.g., "24%20BK-015" -> "24 BK-015")
+  const rawProjectCode = params?.projectCode as string;
+  const projectCode = rawProjectCode ? decodeURIComponent(rawProjectCode) : "";
 
   const proposalQuery = useQuery({
     queryKey: ["proposal", projectCode],
@@ -421,6 +424,9 @@ export default function ProjectDetailPage() {
 
           {/* Status Timeline */}
           <ProposalTimeline projectCode={projectCode} />
+
+          {/* Full Timeline - The Story */}
+          <UnifiedTimeline projectCode={projectCode} limit={50} showStory={true} />
 
           {/* Milestones */}
           {briefing?.milestones && briefing.milestones.length > 0 && (

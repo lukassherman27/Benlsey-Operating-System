@@ -95,17 +95,7 @@ export function ProposalTimeline({
 }: ProposalTimelineProps) {
   const { data, isLoading, error } = useQuery({
     queryKey: ["proposalHistory", projectCode],
-    queryFn: async () => {
-      const response = await fetch(
-        `http://localhost:8000/api/proposals/${encodeURIComponent(
-          projectCode
-        )}/history`
-      );
-      if (!response.ok) {
-        throw new Error("Failed to fetch proposal history");
-      }
-      return response.json();
-    },
+    queryFn: () => api.getProposalHistory(projectCode),
   });
 
   if (isLoading) {
@@ -148,7 +138,7 @@ export function ProposalTimeline({
     );
   }
 
-  const timeline = data?.history || [];
+  const timeline = (data?.history || []) as unknown as TimelineEvent[];
   const currentStatus = data?.current_status || "Unknown";
 
   if (timeline.length === 0) {

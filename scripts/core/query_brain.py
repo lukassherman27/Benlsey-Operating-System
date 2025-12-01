@@ -608,8 +608,8 @@ if __name__ == '__main__':
     if len(sys.argv) < 2:
         print("Usage: python3 query_brain.py <database_path> [question]")
         print("\nExamples:")
-        print('  python3 query_brain.py ~/Desktop/BDS_SYSTEM/01_DATABASES/bensley_master.db')
-        print('  python3 query_brain.py ~/Desktop/BDS_SYSTEM/01_DATABASES/bensley_master.db "Show me all proposals from 2024"')
+        print('  python3 query_brain.py database/bensley_master.db')
+        print('  python3 query_brain.py database/bensley_master.db "Show me all proposals from 2024"')
         sys.exit(1)
 
     db_path = sys.argv[1]

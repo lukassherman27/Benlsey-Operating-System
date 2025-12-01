@@ -214,9 +214,10 @@ class MilestoneService:
                 m.*,
                 p.project_code,
                 p.project_title,
-                COALESCE(pr.client_company, 'Unknown')
+                COALESCE(pr.client_company, 'Unknown') as client_company
             FROM project_milestones m
             JOIN projects p ON m.project_id = p.project_id
+            LEFT JOIN proposals pr ON p.project_code = pr.project_code
             WHERE m.planned_date < ?
               AND m.status != 'completed'
               AND m.status != 'cancelled'
@@ -242,9 +243,10 @@ class MilestoneService:
                 m.*,
                 p.project_code,
                 p.project_title,
-                COALESCE(pr.client_company, 'Unknown')
+                COALESCE(pr.client_company, 'Unknown') as client_company
             FROM project_milestones m
             JOIN projects p ON m.project_id = p.project_id
+            LEFT JOIN proposals pr ON p.project_code = pr.project_code
             WHERE m.planned_date BETWEEN ? AND ?
               AND m.status != 'completed'
               AND m.status != 'cancelled'

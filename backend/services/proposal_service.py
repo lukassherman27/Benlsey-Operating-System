@@ -600,3 +600,50 @@ class ProposalService(BaseService):
             'stalled_proposals': stalled_proposals,
             'won_proposals': won_proposals
         }
+
+    def get_proposal_stats(self) -> Dict[str, Any]:
+        """
+        Get proposal statistics for dashboard/API
+
+        Returns:
+            Dict with active_count, won_count, lost_count, total_value
+        """
+        # Get counts by status
+        active_sql = """
+            SELECT COUNT(*) as count, COALESCE(SUM(project_value), 0) as value
+            FROM proposals
+            WHERE status IN ('proposal', 'active', 'active_project')
+            AND is_active_project = 1
+        """
+        active_result = self.execute_query(active_sql, (), fetch_one=True)
+
+        won_sql = """
+            SELECT COUNT(*) as count, COALESCE(SUM(project_value), 0) as value
+            FROM proposals
+            WHERE status = 'won'
+        """
+        won_result = self.execute_query(won_sql, (), fetch_one=True)
+
+        lost_sql = """
+            SELECT COUNT(*) as count, COALESCE(SUM(project_value), 0) as value
+            FROM proposals
+            WHERE status IN ('lost', 'declined', 'cancelled')
+        """
+        lost_result = self.execute_query(lost_sql, (), fetch_one=True)
+
+        total_sql = """
+            SELECT COUNT(*) as count, COALESCE(SUM(project_value), 0) as value
+            FROM proposals
+        """
+        total_result = self.execute_query(total_sql, (), fetch_one=True)
+
+        return {
+            'active_count': active_result['count'] if active_result else 0,
+            'active_value': active_result['value'] if active_result else 0,
+            'won_count': won_result['count'] if won_result else 0,
+            'won_value': won_result['value'] if won_result else 0,
+            'lost_count': lost_result['count'] if lost_result else 0,
+            'lost_value': lost_result['value'] if lost_result else 0,
+            'total_count': total_result['count'] if total_result else 0,
+            'total_value': total_result['value'] if total_result else 0
+        }

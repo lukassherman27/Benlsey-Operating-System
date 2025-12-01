@@ -10,6 +10,8 @@ import { Button } from '@/components/ui/button'
 import { Mail, Paperclip, TrendingUp, Calendar, FileText, Check, ArrowLeft, AlertCircle } from 'lucide-react'
 import Link from 'next/link'
 import { EmailDetailsPanel } from '@/components/emails/email-details-panel'
+import { ds, bensleyVoice } from '@/lib/design-system'
+import { cn } from '@/lib/utils'
 
 export default function ProjectEmailsPage() {
   const params = useParams()
@@ -83,94 +85,124 @@ export default function ProjectEmailsPage() {
 
   if (isLoading) {
     return (
-      <div className="container mx-auto p-6">
-        <div className="text-center py-12">Loading email history...</div>
+      <div className="container mx-auto p-6 bg-slate-50 min-h-screen">
+        <div className="space-y-6">
+          {/* Skeleton for header */}
+          <div className="animate-pulse space-y-2">
+            <div className="h-6 w-32 bg-slate-200 rounded" />
+            <div className="h-10 w-64 bg-slate-200 rounded" />
+            <div className="h-4 w-48 bg-slate-200 rounded" />
+          </div>
+          {/* Skeleton for stats */}
+          <div className="grid grid-cols-4 gap-4">
+            {[1, 2, 3, 4].map((i) => (
+              <Card key={i} className={cn(ds.cards.default, "animate-pulse")}>
+                <CardContent className="p-6">
+                  <div className="h-4 w-20 bg-slate-200 rounded mb-2" />
+                  <div className="h-8 w-16 bg-slate-200 rounded" />
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
       </div>
     )
   }
 
   if (error || !data?.success) {
     return (
-      <div className="container mx-auto p-6">
-        <div className="text-center py-12 text-red-600">
-          Failed to load email history. Make sure the project code is correct.
-        </div>
+      <div className="container mx-auto p-6 bg-slate-50 min-h-screen">
+        <Card className={cn(ds.cards.default, "border-red-200 bg-red-50 p-8 text-center")}>
+          <AlertCircle className="mx-auto h-12 w-12 text-red-500 mb-4" />
+          <p className={ds.typography.cardHeader}>Failed to Load Emails</p>
+          <p className={cn(ds.typography.caption, "mt-2")}>
+            Make sure the project code is correct and try again.
+          </p>
+          <Link href="/projects">
+            <Button className={cn(ds.buttons.secondary, "mt-4")}>
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Back to Projects
+            </Button>
+          </Link>
+        </Card>
       </div>
     )
   }
 
   return (
-    <div className="container mx-auto p-6">
+    <div className="container mx-auto p-6 bg-slate-50 min-h-screen">
       {/* Header */}
       <div className="mb-6">
         <Link href={`/projects/${encodeURIComponent(projectCode)}`}>
-          <Button variant="ghost" size="sm" className="mb-2">
+          <Button variant="ghost" size="sm" className={cn(ds.buttons.ghost, "mb-2")}>
             <ArrowLeft className="h-4 w-4 mr-1" />
             Back to Project
           </Button>
         </Link>
 
-        <h1 className="text-3xl font-bold mb-2">
+        <h1 className={ds.typography.pageTitle}>
           {project?.code} - {project?.name}
         </h1>
-        <p className="text-muted-foreground">Complete Email & Attachment History</p>
+        <p className={cn(ds.typography.bodySmall, "mt-2")}>Complete Email & Attachment History</p>
       </div>
 
       {/* Stats */}
       <div className="grid grid-cols-4 gap-4 mb-6">
-        <Card>
+        <Card className={ds.cards.default}>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+            <CardTitle className={cn(ds.typography.metricLabel, "flex items-center gap-2")}>
               <Mail className="h-4 w-4" />
               Total Emails
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats?.total_emails || 0}</div>
+            <div className={ds.typography.metric}>{stats?.total_emails || 0}</div>
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className={ds.cards.default}>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+            <CardTitle className={cn(ds.typography.metricLabel, "flex items-center gap-2")}>
               <Paperclip className="h-4 w-4" />
               Attachments
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats?.total_attachments || 0}</div>
+            <div className={ds.typography.metric}>{stats?.total_attachments || 0}</div>
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className={ds.cards.default}>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+            <CardTitle className={cn(ds.typography.metricLabel, "flex items-center gap-2")}>
               <FileText className="h-4 w-4" />
               Contracts
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats?.contract_count || 0}</div>
+            <div className={ds.typography.metric}>{stats?.contract_count || 0}</div>
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className={ds.cards.default}>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+            <CardTitle className={cn(ds.typography.metricLabel, "flex items-center gap-2")}>
               <FileText className="h-4 w-4" />
               Design Docs
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats?.design_doc_count || 0}</div>
+            <div className={ds.typography.metric}>{stats?.design_doc_count || 0}</div>
           </CardContent>
         </Card>
       </div>
 
       {/* Timeline */}
       {emails.length === 0 ? (
-        <Card className="p-12 text-center text-muted-foreground">
-          No emails linked to this project yet.
+        <Card className={cn(ds.cards.default, "py-16 text-center")}>
+          <Mail className="mx-auto h-16 w-16 text-slate-300 mb-4" />
+          <p className={ds.typography.cardHeader}>{bensleyVoice.emptyStates.emails}</p>
+          <p className={cn(ds.typography.caption, "mt-2")}>No emails linked to this project yet.</p>
         </Card>
       ) : (
         <div className="space-y-8">

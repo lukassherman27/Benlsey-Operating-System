@@ -45,11 +45,16 @@ export function InvoiceAgingWidget({ compact = false }: InvoiceAgingWidgetProps)
     )
   }
 
-  const agingData = data?.data
+  // Handle both response formats: data.data.aging and data.aging
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const breakdown = (agingData?.aging_breakdown || {}) as any
-  const totalOutstanding = agingData?.summary?.total_outstanding_amount || 0
-  const totalInvoices = agingData?.summary?.total_outstanding_count || 0
+  const rawData = data as any
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const breakdown = (rawData?.data?.aging || rawData?.aging || rawData?.data?.aging_breakdown || {}) as any
+
+  // Calculate totals from aging buckets if no summary provided
+  const buckets = ['0_to_10', '10_to_30', '30_to_90', 'over_90']
+  const totalOutstanding = buckets.reduce((sum, bucket) => sum + (breakdown[bucket]?.amount || 0), 0)
+  const totalInvoices = buckets.reduce((sum, bucket) => sum + (breakdown[bucket]?.count || 0), 0)
 
   // Prepare data for bar chart with Bill's requested buckets
   const chartData = [

@@ -493,7 +493,7 @@ class FinancialService:
         cursor.execute("""
             SELECT
                 p.project_code,
-                p.project_title,
+                p.project_title as project_name,
                 '' as client_company,
                 p.total_fee_usd as contract_value,
                 SUM(i.invoice_amount) as total_invoiced_usd,
@@ -554,7 +554,7 @@ class FinancialService:
             SELECT
                 i.invoice_id,
                 p.project_code,
-                p.project_title,
+                p.project_title as project_name,
                 '' as client_company,
                 i.invoice_number,
                 i.invoice_date,
@@ -585,6 +585,49 @@ class FinancialService:
 
         return invoices
 
+    def get_invoices_by_project(self, project_code: str) -> List[Dict[str, Any]]:
+        """
+        Get all invoices for a specific project
+
+        Args:
+            project_code: The project code to get invoices for
+
+        Returns:
+            List of invoices for the project
+        """
+        conn = self._get_connection()
+        cursor = conn.cursor()
+
+        cursor.execute("""
+            SELECT
+                i.invoice_id,
+                p.project_code,
+                p.project_title as project_name,
+                i.invoice_number,
+                i.description,
+                i.invoice_date,
+                i.due_date,
+                i.invoice_amount,
+                i.invoice_amount as amount_usd,
+                i.payment_amount,
+                i.payment_amount as amount_paid,
+                i.payment_date,
+                i.status,
+                fb.phase as discipline,
+                fb.phase,
+                (i.invoice_amount - COALESCE(i.payment_amount, 0)) as amount_outstanding
+            FROM invoices i
+            JOIN projects p ON i.project_id = p.project_id
+            LEFT JOIN project_fee_breakdown fb ON i.breakdown_id = fb.breakdown_id
+            WHERE p.project_code = ?
+            ORDER BY i.invoice_date DESC
+        """, (project_code,))
+
+        invoices = [dict(row) for row in cursor.fetchall()]
+        conn.close()
+
+        return invoices
+
     def get_projects_by_remaining_value(self, limit: int = 5) -> List[Dict[str, Any]]:
         """
         Get projects with highest remaining uninvoiced contract value
@@ -601,7 +644,7 @@ class FinancialService:
         cursor.execute("""
             SELECT
                 p.project_code,
-                p.project_title,
+                p.project_title as project_name,
                 '' as client_company,
                 p.total_fee_usd as contract_value,
                 COALESCE(SUM(i.invoice_amount), 0) as total_invoiced_usd,
@@ -921,6 +964,45 @@ class FinancialService:
 
         return disciplines
 
+    def get_invoice_stats(self) -> Dict[str, Any]:
+        """
+        Get basic invoice statistics for the /api/invoices/stats endpoint
+
+        Returns:
+            - total_invoices: Total count of all invoices
+            - total_amount: Sum of all invoice amounts
+            - paid_count: Count of paid invoices
+            - outstanding_count: Count of unpaid invoices
+            - total_paid: Sum of all payments received
+            - total_outstanding: Sum of outstanding amounts
+        """
+        conn = self._get_connection()
+        cursor = conn.cursor()
+
+        # Get total invoices and amounts
+        cursor.execute("""
+            SELECT
+                COUNT(*) as total_invoices,
+                COALESCE(SUM(invoice_amount), 0) as total_amount,
+                COUNT(CASE WHEN status = 'paid' THEN 1 END) as paid_count,
+                COUNT(CASE WHEN status != 'paid' THEN 1 END) as outstanding_count,
+                COALESCE(SUM(CASE WHEN status = 'paid' THEN payment_amount ELSE 0 END), 0) as total_paid,
+                COALESCE(SUM(CASE WHEN status != 'paid' THEN invoice_amount - COALESCE(payment_amount, 0) ELSE 0 END), 0) as total_outstanding
+            FROM invoices
+        """)
+
+        row = cursor.fetchone()
+        conn.close()
+
+        return {
+            'total_invoices': row['total_invoices'] or 0,
+            'total_amount': row['total_amount'] or 0.0,
+            'paid_count': row['paid_count'] or 0,
+            'outstanding_count': row['outstanding_count'] or 0,
+            'total_paid': row['total_paid'] or 0.0,
+            'total_outstanding': row['total_outstanding'] or 0.0
+        }
+
     def get_invoice_aging_summary(self) -> Dict[str, Any]:
         """
         Get aging summary across all unpaid invoices
@@ -971,3 +1053,25 @@ class FinancialService:
             'total_unpaid_invoices': total_unpaid_invoices,
             'total_unpaid_amount': total_unpaid_amount
         }
+
+    def get_fee_breakdown(self, project_code: str) -> List[Dict]:
+        """Get fee breakdown for a project from project_fee_breakdown table"""
+        conn = self._get_connection()
+        cursor = conn.cursor()
+
+        # Normalize project code - try both formats (space and dash)
+        # fee_breakdown table uses "25 BK-015" format (space before BK)
+        # projects table may use "25-BK-015" format (dash before BK)
+        import re
+        # Convert "25-BK-015" to "25 BK-015"
+        normalized_code = re.sub(r'^(\d{2})-BK-', r'\1 BK-', project_code)
+
+        cursor.execute("""
+            SELECT * FROM project_fee_breakdown
+            WHERE project_code = ? OR project_code = ?
+            ORDER BY discipline, phase
+        """, (project_code, normalized_code))
+        rows = cursor.fetchall()
+        conn.close()
+
+        return [dict(row) for row in rows]

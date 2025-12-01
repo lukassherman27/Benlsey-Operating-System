@@ -18,7 +18,7 @@ export function QuickActionsWidget() {
     {
       label: "New Proposal",
       icon: Plus,
-      href: "/proposals",
+      href: "/tracker",
       iconBg: "bg-blue-500",
       iconHover: "group-hover:bg-blue-600",
       description: "Create proposal"
@@ -42,10 +42,10 @@ export function QuickActionsWidget() {
     {
       label: "Search Emails",
       icon: Mail,
-      href: "/emails",
+      href: "/query",
       iconBg: "bg-orange-500",
       iconHover: "group-hover:bg-orange-600",
-      description: "Email history"
+      description: "AI email search"
     },
     {
       label: "Query System",

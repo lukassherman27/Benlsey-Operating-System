@@ -87,7 +87,7 @@ export function RecentEmailsWidget({
           <div className="space-y-2">
             <div className="flex justify-between items-center mb-3">
               <span className="text-2xl font-bold">{totalCount}</span>
-              <Link href="/emails">
+              <Link href="/query">
                 <Badge variant="secondary" className="cursor-pointer hover:bg-secondary/80">
                   View All
                 </Badge>
@@ -131,7 +131,7 @@ export function RecentEmailsWidget({
             <Mail className="h-5 w-5" />
             Recent Emails
           </CardTitle>
-          <Link href="/emails">
+          <Link href="/query">
             <Badge variant="outline" className="gap-1 cursor-pointer hover:bg-secondary">
               <ExternalLink className="h-3 w-3" />
               View All
@@ -150,7 +150,7 @@ export function RecentEmailsWidget({
             return (
               <Link
                 key={email.email_id}
-                href={`/emails?email_id=${email.email_id}`}
+                href={`/query?email_id=${email.email_id}`}
                 className="block"
               >
                 <div
@@ -232,7 +232,7 @@ export function RecentEmailsWidget({
               <span className="text-muted-foreground">
                 Showing {emails.length} of {totalCount} recent emails
               </span>
-              <Link href="/emails">
+              <Link href="/query">
                 <button className="text-primary hover:underline text-sm font-medium">
                   View all emails →
                 </button>

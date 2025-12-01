@@ -196,6 +196,19 @@ IMPORTANT:
         # Fall back to pattern matching
         return self._query_with_patterns(question)
 
+    def process_query(self, query: str, context: Optional[Dict] = None) -> Dict[str, Any]:
+        """
+        Process a natural language query - alias for query() used by router.
+
+        Args:
+            query: Natural language question
+            context: Optional context dict (currently unused, for future expansion)
+
+        Returns:
+            Dict with query results and metadata
+        """
+        return self.query(query)
+
     def _check_status_report_query(self, question: str) -> Optional[Dict[str, Any]]:
         """
         Check if the question is asking for a project status report.
@@ -1549,6 +1562,10 @@ If the question is unclear or cannot be answered with available data, set sql to
         except Exception as e:
             return {'success': False, 'error': str(e)}
 
+    def get_stats(self) -> Dict[str, Any]:
+        """Get statistics about query usage and learning (alias for get_query_stats)"""
+        return self.get_query_stats()
+
     def get_query_stats(self) -> Dict[str, Any]:
         """Get statistics about query usage and learning"""
         try:
@@ -1567,19 +1584,16 @@ If the question is unclear or cannot be answered with available data, set sql to
             feedback_count = self.execute_query("""
                 SELECT
                     COUNT(*) as total,
-                    SUM(CASE WHEN correction_reason = 'correct' THEN 1 ELSE 0 END) as correct,
-                    SUM(CASE WHEN correction_reason != 'correct' THEN 1 ELSE 0 END) as corrected
+                    SUM(CASE WHEN incorporated = 1 THEN 1 ELSE 0 END) as incorporated,
+                    SUM(CASE WHEN corrected_value IS NOT NULL THEN 1 ELSE 0 END) as corrected
                 FROM training_feedback
                 WHERE feedback_type = 'query_correction'
             """, [])
 
             if feedback_count:
                 stats['total_feedback'] = feedback_count[0]['total'] or 0
-                stats['correct_queries'] = feedback_count[0]['correct'] or 0
+                stats['incorporated'] = feedback_count[0]['incorporated'] or 0
                 stats['corrected_queries'] = feedback_count[0]['corrected'] or 0
-                total = stats['total_feedback']
-                if total > 0:
-                    stats['accuracy_rate'] = round(stats['correct_queries'] / total, 2)
 
             return stats
 
@@ -2034,7 +2048,7 @@ Focus on what needs attention and the overall project health."""
                 }
 
                 # Build email query
-                email_conditions = ["(e.subject LIKE ? OR e.snippet LIKE ? OR e.body LIKE ?)"]
+                email_conditions = ["(e.subject LIKE ? OR e.snippet LIKE ? OR e.body_full LIKE ?)"]
                 email_params = [f"%{topic}%", f"%{topic}%", f"%{topic}%"]
 
                 if project_search:
@@ -2219,10 +2233,11 @@ Focus on what needs attention and the overall project health."""
                 """, (project_code,))
                 fee_breakdown = [dict(row) for row in cursor.fetchall()]
 
-                # Get key contacts
+                # Get key contacts (join with clients for company name)
                 cursor.execute("""
-                    SELECT DISTINCT c.name, c.email, c.company, c.role
+                    SELECT DISTINCT c.name, c.email, cl.company_name as company, c.role
                     FROM contacts c
+                    LEFT JOIN clients cl ON c.client_id = cl.client_id
                     JOIN emails e ON c.email = e.sender_email
                     JOIN email_project_links epl ON e.email_id = epl.email_id
                     WHERE epl.project_code = ?

@@ -1,46 +1,39 @@
 'use client'
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { api, Deliverable, DeliverableAlert, PMWorkload } from '@/lib/api'
+import { api, Deliverable, PMWorkload } from '@/lib/api'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Skeleton } from '@/components/ui/skeleton'
 import {
-  AlertTriangle,
-  Calendar,
   CheckCircle2,
   Clock,
   Users,
   ChevronRight,
-  Bell,
-  RefreshCw
+  RefreshCw,
+  Package,
+  AlertCircle,
+  FileCheck,
+  ExternalLink,
 } from 'lucide-react'
 import { useState } from 'react'
 import { cn } from '@/lib/utils'
+import { ds } from '@/lib/design-system'
+import Link from 'next/link'
 
 export default function DeliverablesPage() {
   const queryClient = useQueryClient()
   const [selectedPM, setSelectedPM] = useState<string | null>(null)
 
   // Fetch data
-  const { data: alerts, isLoading: alertsLoading } = useQuery({
-    queryKey: ['deliverable-alerts'],
-    queryFn: () => api.getDeliverableAlerts(),
-    refetchInterval: 60000, // Refresh every minute
-  })
-
-  const { data: workload, isLoading: workloadLoading } = useQuery({
+  const { data: workload, isLoading: workloadLoading, error: workloadError } = useQuery({
     queryKey: ['pm-workload'],
     queryFn: () => api.getPMWorkload(),
   })
 
-  const { data: upcoming, isLoading: upcomingLoading } = useQuery({
-    queryKey: ['upcoming-deliverables'],
-    queryFn: () => api.getUpcomingDeliverables(14),
-  })
-
-  const { data: deliverables, isLoading: deliverablesLoading } = useQuery({
+  const { data: deliverables, isLoading: deliverablesLoading, error: deliverablesError } = useQuery({
     queryKey: ['deliverables', selectedPM],
     queryFn: () => api.getDeliverables(selectedPM ? { assigned_pm: selectedPM } : undefined),
   })
@@ -56,34 +49,82 @@ export default function DeliverablesPage() {
       api.updateDeliverableStatus(id, { status }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['deliverables'] })
-      queryClient.invalidateQueries({ queryKey: ['deliverable-alerts'] })
       queryClient.invalidateQueries({ queryKey: ['pm-workload'] })
     },
   })
 
-  const priorityColors = {
-    critical: 'bg-red-100 text-red-800 border-red-200',
-    high: 'bg-orange-100 text-orange-800 border-orange-200',
-    medium: 'bg-yellow-100 text-yellow-800 border-yellow-200',
-    low: 'bg-blue-100 text-blue-800 border-blue-200',
+  const statusColors: Record<string, string> = {
+    pending: 'bg-slate-100 text-slate-700 border-slate-200',
+    in_progress: 'bg-blue-100 text-blue-700 border-blue-200',
+    completed: 'bg-emerald-100 text-emerald-700 border-emerald-200',
+    submitted: 'bg-purple-100 text-purple-700 border-purple-200',
+    approved: 'bg-teal-100 text-teal-700 border-teal-200',
   }
 
-  const statusColors = {
-    pending: 'bg-gray-100 text-gray-800',
-    in_progress: 'bg-blue-100 text-blue-800',
-    completed: 'bg-green-100 text-green-800',
-    submitted: 'bg-purple-100 text-purple-800',
-    approved: 'bg-emerald-100 text-emerald-800',
+  // Calculate stats
+  const stats = {
+    total: deliverables?.count || 0,
+    completed: deliverables?.deliverables?.filter((d: Deliverable) => d.status === 'completed').length || 0,
+    inProgress: deliverables?.deliverables?.filter((d: Deliverable) => d.status === 'in_progress').length || 0,
+    pending: deliverables?.deliverables?.filter((d: Deliverable) => d.status === 'pending').length || 0,
+  }
+
+  // Loading skeleton
+  if (deliverablesLoading && workloadLoading) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <Skeleton className="h-8 w-48 mb-2" />
+            <Skeleton className="h-4 w-96" />
+          </div>
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {[...Array(4)].map((_, i) => (
+            <Card key={i}><CardContent className="pt-6"><Skeleton className="h-16 w-full" /></CardContent></Card>
+          ))}
+        </div>
+        <Card><CardContent className="py-8"><Skeleton className="h-48 w-full" /></CardContent></Card>
+      </div>
+    )
+  }
+
+  // Error state
+  if (deliverablesError || workloadError) {
+    return (
+      <div className="space-y-6">
+        <Card className={cn(ds.borderRadius.card, "border-red-200 bg-red-50")}>
+          <CardContent className="py-12 text-center">
+            <AlertCircle className="mx-auto h-12 w-12 text-red-400 mb-4" />
+            <p className={cn(ds.typography.heading3, "text-red-700 mb-2")}>
+              Failed to load deliverables
+            </p>
+            <p className={cn(ds.typography.body, "text-red-600 mb-4")}>
+              Something broke. Our fault, not yours.
+            </p>
+            <Button
+              onClick={() => queryClient.invalidateQueries()}
+              variant="outline"
+              className="border-red-200 text-red-700 hover:bg-red-100"
+            >
+              Try Again
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    )
   }
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-6 w-full max-w-full overflow-x-hidden">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold">Deliverables & PM Workload</h1>
-          <p className="text-muted-foreground">
-            Track project deliverables, deadlines, and team assignments
+          <h1 className={cn(ds.typography.heading1, ds.textColors.primary)}>
+            Deliverables
+          </h1>
+          <p className={cn(ds.typography.body, ds.textColors.secondary, "mt-1")}>
+            Track project deliverables and team workload
           </p>
         </div>
         <Button
@@ -96,353 +137,308 @@ export default function DeliverablesPage() {
         </Button>
       </div>
 
-      {/* Alerts Summary */}
-      {alerts && alerts.count > 0 && (
-        <Card className="border-red-200 bg-red-50">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-lg flex items-center gap-2">
-              <Bell className="h-5 w-5 text-red-600" />
-              Active Alerts ({alerts.count})
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-4 gap-4">
-              <div className="text-center">
-                <div className="text-2xl font-bold text-red-600">
-                  {alerts.by_priority.critical.length}
-                </div>
-                <div className="text-sm text-muted-foreground">Critical</div>
+      {/* Stats Cards */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <Card className={cn(ds.borderRadius.card, "border-slate-200")}>
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-slate-100">
+                <Package className="h-5 w-5 text-slate-700" />
               </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold text-orange-600">
-                  {alerts.by_priority.high.length}
-                </div>
-                <div className="text-sm text-muted-foreground">High</div>
-              </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold text-yellow-600">
-                  {alerts.by_priority.medium.length}
-                </div>
-                <div className="text-sm text-muted-foreground">Medium</div>
-              </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold text-blue-600">
-                  {alerts.by_priority.low.length}
-                </div>
-                <div className="text-sm text-muted-foreground">Low</div>
+              <div>
+                <p className={cn(ds.typography.caption, ds.textColors.tertiary)}>Total</p>
+                <p className={cn(ds.typography.heading2, ds.textColors.primary)}>
+                  {stats.total}
+                </p>
               </div>
             </div>
           </CardContent>
         </Card>
-      )}
 
-      <Tabs defaultValue="overview" className="space-y-4">
+        <Card className={cn(ds.borderRadius.card, "border-emerald-200 bg-emerald-50/30")}>
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-emerald-100">
+                <CheckCircle2 className="h-5 w-5 text-emerald-700" />
+              </div>
+              <div>
+                <p className={cn(ds.typography.caption, "text-emerald-700")}>Completed</p>
+                <p className={cn(ds.typography.heading2, "text-emerald-800")}>
+                  {stats.completed}
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className={cn(ds.borderRadius.card, "border-blue-200 bg-blue-50/30")}>
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-blue-100">
+                <Clock className="h-5 w-5 text-blue-700" />
+              </div>
+              <div>
+                <p className={cn(ds.typography.caption, "text-blue-700")}>In Progress</p>
+                <p className={cn(ds.typography.heading2, "text-blue-800")}>
+                  {stats.inProgress}
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className={cn(ds.borderRadius.card, "border-slate-200 bg-slate-50/30")}>
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-slate-100">
+                <FileCheck className="h-5 w-5 text-slate-600" />
+              </div>
+              <div>
+                <p className={cn(ds.typography.caption, ds.textColors.tertiary)}>Pending</p>
+                <p className={cn(ds.typography.heading2, ds.textColors.primary)}>
+                  {stats.pending}
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      <Tabs defaultValue="all" className="space-y-4">
         <TabsList>
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="alerts">
-            Alerts {alerts && alerts.count > 0 && (
-              <Badge variant="destructive" className="ml-2">{alerts.count}</Badge>
-            )}
-          </TabsTrigger>
-          <TabsTrigger value="upcoming">Upcoming</TabsTrigger>
           <TabsTrigger value="all">All Deliverables</TabsTrigger>
+          <TabsTrigger value="workload">
+            <Users className="h-4 w-4 mr-2" />
+            PM Workload
+          </TabsTrigger>
         </TabsList>
 
-        {/* Overview Tab */}
-        <TabsContent value="overview" className="space-y-4">
-          <div className="grid md:grid-cols-2 gap-4">
-            {/* PM Workload Summary */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Users className="h-5 w-5" />
-                  PM Workload
-                </CardTitle>
-                <CardDescription>
-                  Deliverable distribution by team member
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                {workloadLoading ? (
-                  <div className="text-muted-foreground">Loading...</div>
-                ) : workload?.workload.length === 0 ? (
-                  <div className="text-muted-foreground">No workload data</div>
-                ) : (
-                  <div className="space-y-3">
-                    {workload?.workload.map((pm: PMWorkload) => (
-                      <div
-                        key={pm.pm_name}
-                        className="flex items-center justify-between p-2 rounded-lg hover:bg-muted cursor-pointer"
-                        onClick={() => setSelectedPM(pm.pm_name === 'Unassigned' ? null : pm.pm_name)}
-                      >
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
-                            {pm.pm_name.charAt(0)}
-                          </div>
-                          <div>
-                            <div className="font-medium">{pm.pm_name}</div>
-                            <div className="text-sm text-muted-foreground">
-                              {pm.total_deliverables} total
-                            </div>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          {pm.overdue_count > 0 && (
-                            <Badge variant="destructive">{pm.overdue_count} overdue</Badge>
-                          )}
-                          {pm.due_this_week > 0 && (
-                            <Badge variant="secondary">{pm.due_this_week} this week</Badge>
-                          )}
-                          <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-
-            {/* Quick Stats */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Calendar className="h-5 w-5" />
-                  Delivery Timeline
-                </CardTitle>
-                <CardDescription>
-                  Upcoming deliverables summary
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                {upcomingLoading ? (
-                  <div className="text-muted-foreground">Loading...</div>
-                ) : (
-                  <div className="space-y-4">
-                    <div className="grid grid-cols-3 gap-4 text-center">
-                      <div className="p-3 bg-red-50 rounded-lg">
-                        <div className="text-2xl font-bold text-red-600">
-                          {alerts?.by_priority.critical.filter(a => a.type === 'overdue').length || 0}
-                        </div>
-                        <div className="text-sm text-muted-foreground">Overdue</div>
-                      </div>
-                      <div className="p-3 bg-orange-50 rounded-lg">
-                        <div className="text-2xl font-bold text-orange-600">
-                          {upcoming?.upcoming_deliverables.filter(d =>
-                            d.days_until_due !== undefined && d.days_until_due <= 7
-                          ).length || 0}
-                        </div>
-                        <div className="text-sm text-muted-foreground">This Week</div>
-                      </div>
-                      <div className="p-3 bg-blue-50 rounded-lg">
-                        <div className="text-2xl font-bold text-blue-600">
-                          {upcoming?.count || 0}
-                        </div>
-                        <div className="text-sm text-muted-foreground">Next 14 Days</div>
-                      </div>
-                    </div>
-
-                    {/* Next 3 deliverables */}
-                    <div className="space-y-2">
-                      <h4 className="font-medium text-sm text-muted-foreground">Coming Up</h4>
-                      {upcoming?.upcoming_deliverables.slice(0, 3).map((d: Deliverable) => (
-                        <div key={d.deliverable_id} className="flex justify-between items-center p-2 bg-muted/50 rounded">
-                          <div className="truncate flex-1">
-                            <div className="font-medium text-sm truncate">{d.deliverable_name}</div>
-                            <div className="text-xs text-muted-foreground">{d.project_code}</div>
-                          </div>
-                          <Badge variant="outline" className="ml-2">
-                            {d.days_until_due !== undefined && d.days_until_due <= 0
-                              ? 'Today'
-                              : `${Math.ceil(d.days_until_due || 0)} days`}
-                          </Badge>
-                        </div>
-                      ))}
-                      {(!upcoming || upcoming.count === 0) && (
-                        <div className="text-sm text-muted-foreground text-center py-4">
-                          No upcoming deliverables in next 14 days
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </div>
-        </TabsContent>
-
-        {/* Alerts Tab */}
-        <TabsContent value="alerts" className="space-y-4">
-          {alertsLoading ? (
-            <div className="text-muted-foreground">Loading alerts...</div>
-          ) : alerts?.count === 0 ? (
-            <Card>
-              <CardContent className="py-8 text-center">
-                <CheckCircle2 className="h-12 w-12 mx-auto text-green-500 mb-3" />
-                <h3 className="font-medium">All Clear!</h3>
-                <p className="text-muted-foreground">No active alerts at this time</p>
-              </CardContent>
-            </Card>
-          ) : (
-            <div className="space-y-3">
-              {alerts?.alerts.map((alert: DeliverableAlert) => (
-                <Card
-                  key={`${alert.deliverable_id}-${alert.type}`}
-                  className={cn('border-l-4', {
-                    'border-l-red-500': alert.priority === 'critical',
-                    'border-l-orange-500': alert.priority === 'high',
-                    'border-l-yellow-500': alert.priority === 'medium',
-                    'border-l-blue-500': alert.priority === 'low',
-                  })}
-                >
-                  <CardContent className="py-3">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        {alert.type === 'overdue' ? (
-                          <AlertTriangle className="h-5 w-5 text-red-500" />
-                        ) : (
-                          <Clock className="h-5 w-5 text-muted-foreground" />
-                        )}
-                        <div>
-                          <div className="font-medium">{alert.message}</div>
-                          <div className="text-sm text-muted-foreground">
-                            {alert.project_code}
-                            {alert.assigned_pm && ` | ${alert.assigned_pm}`}
-                          </div>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Badge className={priorityColors[alert.priority]}>
-                          {alert.priority}
-                        </Badge>
-                        {alert.type !== 'overdue' && (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => updateStatus.mutate({
-                              id: alert.deliverable_id,
-                              status: 'completed'
-                            })}
-                          >
-                            Mark Complete
-                          </Button>
-                        )}
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          )}
-        </TabsContent>
-
-        {/* Upcoming Tab */}
-        <TabsContent value="upcoming" className="space-y-4">
-          <Card>
+        {/* All Deliverables Tab */}
+        <TabsContent value="all" className="space-y-4">
+          <Card className={cn(ds.borderRadius.card, "border-slate-200")}>
             <CardHeader>
-              <CardTitle>Upcoming Deliverables (Next 14 Days)</CardTitle>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className={ds.typography.heading3}>All Deliverables</CardTitle>
+                  {selectedPM && (
+                    <p className={cn(ds.typography.caption, "text-teal-600 mt-1")}>
+                      Filtered by: {selectedPM}
+                    </p>
+                  )}
+                </div>
+                <div className="flex items-center gap-2">
+                  <select
+                    className="border rounded-lg px-3 py-1.5 text-sm bg-white"
+                    value={selectedPM || ''}
+                    onChange={(e) => setSelectedPM(e.target.value || null)}
+                  >
+                    <option value="">All PMs</option>
+                    <option value="Unassigned">Unassigned</option>
+                    {pmList?.pms?.map((pm) => (
+                      <option key={pm.member_id} value={pm.full_name}>
+                        {pm.full_name}
+                      </option>
+                    ))}
+                  </select>
+                  {selectedPM && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setSelectedPM(null)}
+                      className="text-slate-500 hover:text-slate-700"
+                    >
+                      Clear
+                    </Button>
+                  )}
+                </div>
+              </div>
             </CardHeader>
             <CardContent>
-              {upcomingLoading ? (
-                <div className="text-muted-foreground">Loading...</div>
-              ) : upcoming?.count === 0 ? (
-                <div className="text-center py-8 text-muted-foreground">
-                  No deliverables due in the next 14 days
+              {deliverables?.count === 0 ? (
+                <div className="text-center py-12">
+                  <Package className="mx-auto h-12 w-12 text-slate-300 mb-4" />
+                  <p className={cn(ds.typography.heading3, ds.textColors.primary, "mb-2")}>
+                    No deliverables tracked yet
+                  </p>
+                  <p className={cn(ds.typography.body, ds.textColors.tertiary, "max-w-md mx-auto")}>
+                    Deliverables are things you need to deliver to clients: drawings, presentations, reports, etc.
+                    Add them from a project&apos;s detail page.
+                  </p>
                 </div>
               ) : (
-                <div className="space-y-2">
-                  {upcoming?.upcoming_deliverables.map((d: Deliverable) => (
-                    <div
+                <div className="space-y-2 max-h-[600px] overflow-y-auto">
+                  {deliverables?.deliverables?.map((d: Deliverable) => (
+                    <Link
                       key={d.deliverable_id}
-                      className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50"
+                      href={d.project_code ? `/projects/${encodeURIComponent(d.project_code)}` : '#'}
+                      className="flex items-center justify-between p-4 border rounded-lg hover:bg-slate-50 hover:border-teal-300 transition-colors cursor-pointer group block"
                     >
-                      <div className="flex-1">
-                        <div className="font-medium">{d.deliverable_name}</div>
-                        <div className="text-sm text-muted-foreground">
-                          {d.project_code} | {d.phase || 'No phase'} | {d.assigned_pm || 'Unassigned'}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <p className={cn(ds.typography.bodyBold, ds.textColors.primary, "truncate group-hover:text-teal-700")}>
+                            {d.deliverable_name || d.title || "Unnamed deliverable"}
+                          </p>
+                          <ExternalLink className="h-3 w-3 text-slate-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+                        </div>
+                        <div className="flex items-center gap-2 mt-1">
+                          <span className={cn(ds.typography.caption, "text-teal-600 font-medium")}>
+                            {d.project_code}
+                          </span>
+                          {d.project_title && (
+                            <>
+                              <span className={ds.textColors.tertiary}>•</span>
+                              <span className={cn(ds.typography.caption, ds.textColors.tertiary, "truncate max-w-[200px]")}>
+                                {d.project_title}
+                              </span>
+                            </>
+                          )}
+                          {d.phase && (
+                            <>
+                              <span className={ds.textColors.tertiary}>•</span>
+                              <span className={cn(ds.typography.caption, ds.textColors.tertiary)}>
+                                {d.phase}
+                              </span>
+                            </>
+                          )}
+                          {d.assigned_pm && (
+                            <>
+                              <span className={ds.textColors.tertiary}>•</span>
+                              <span className={cn(ds.typography.caption, ds.textColors.secondary)}>
+                                {d.assigned_pm}
+                              </span>
+                            </>
+                          )}
+                          {d.due_date && (
+                            <>
+                              <span className={ds.textColors.tertiary}>•</span>
+                              <span className={cn(ds.typography.caption, ds.textColors.tertiary)}>
+                                Due: {d.due_date}
+                              </span>
+                            </>
+                          )}
                         </div>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <Badge className={statusColors[d.status as keyof typeof statusColors] || 'bg-gray-100'}>
-                          {d.status}
-                        </Badge>
+                      <div className="flex items-center gap-2 ml-4">
                         <Badge
                           variant="outline"
-                          className={cn({
-                            'border-red-300 text-red-700': d.days_until_due !== undefined && d.days_until_due <= 1,
-                            'border-orange-300 text-orange-700': d.days_until_due !== undefined && d.days_until_due <= 7 && d.days_until_due > 1,
-                          })}
+                          className={statusColors[d.status] || 'bg-slate-100 text-slate-600'}
                         >
-                          {d.days_until_due !== undefined && d.days_until_due <= 0
-                            ? 'Due Today'
-                            : `${Math.ceil(d.days_until_due || 0)} days`}
+                          {d.status.replace('_', ' ')}
                         </Badge>
+                        {d.is_overdue === 1 && (
+                          <Badge variant="destructive">Overdue</Badge>
+                        )}
+                        <ChevronRight className="h-4 w-4 text-slate-400 group-hover:text-teal-600 transition-colors" />
                       </div>
-                    </div>
+                    </Link>
                   ))}
+                </div>
+              )}
+              {deliverables && deliverables.count > 0 && (
+                <div className="mt-4 pt-4 border-t">
+                  <p className={cn(ds.typography.caption, ds.textColors.tertiary, "text-center")}>
+                    Showing {deliverables.count} deliverables
+                  </p>
                 </div>
               )}
             </CardContent>
           </Card>
         </TabsContent>
 
-        {/* All Deliverables Tab */}
-        <TabsContent value="all" className="space-y-4">
-          <Card>
+        {/* PM Workload Tab */}
+        <TabsContent value="workload" className="space-y-4">
+          <Card className={cn(ds.borderRadius.card, "border-slate-200")}>
             <CardHeader>
               <div className="flex items-center justify-between">
-                <CardTitle>All Deliverables</CardTitle>
-                <div className="flex items-center gap-2">
-                  <select
-                    className="border rounded px-2 py-1 text-sm"
-                    value={selectedPM || ''}
-                    onChange={(e) => setSelectedPM(e.target.value || null)}
-                  >
-                    <option value="">All PMs</option>
-                    {pmList?.pms.map((pm) => (
-                      <option key={pm.member_id} value={pm.full_name}>
-                        {pm.full_name}
-                      </option>
-                    ))}
-                  </select>
+                <div>
+                  <CardTitle className={cn(ds.typography.heading3, "flex items-center gap-2")}>
+                    <Users className="h-5 w-5" />
+                    PM Workload
+                  </CardTitle>
+                  <CardDescription className={ds.typography.body}>
+                    Deliverables grouped by assigned team member. Click to filter.
+                  </CardDescription>
                 </div>
+                {selectedPM && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setSelectedPM(null)}
+                    className="text-teal-600 border-teal-200 hover:bg-teal-50"
+                  >
+                    Clear filter: {selectedPM}
+                  </Button>
+                )}
               </div>
             </CardHeader>
             <CardContent>
-              {deliverablesLoading ? (
-                <div className="text-muted-foreground">Loading...</div>
-              ) : deliverables?.count === 0 ? (
-                <div className="text-center py-8 text-muted-foreground">
-                  No deliverables found
+              {workloadLoading ? (
+                <div className="space-y-2">
+                  {[...Array(3)].map((_, i) => (
+                    <Skeleton key={i} className="h-16 w-full" />
+                  ))}
+                </div>
+              ) : workload?.workload?.length === 0 ? (
+                <div className="text-center py-12">
+                  <Users className="mx-auto h-12 w-12 text-slate-300 mb-4" />
+                  <p className={cn(ds.typography.heading3, ds.textColors.primary, "mb-2")}>
+                    No deliverables to distribute
+                  </p>
+                  <p className={cn(ds.typography.body, ds.textColors.tertiary)}>
+                    Once deliverables are created, you&apos;ll see workload by PM here.
+                  </p>
                 </div>
               ) : (
-                <div className="space-y-2 max-h-96 overflow-y-auto">
-                  {deliverables?.deliverables.map((d: Deliverable) => (
+                <div className="space-y-3">
+                  {workload?.workload?.map((pm: PMWorkload) => (
                     <div
-                      key={d.deliverable_id}
-                      className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50"
+                      key={pm.pm_name}
+                      className={cn(
+                        "flex items-center justify-between p-4 rounded-lg border cursor-pointer transition-colors",
+                        selectedPM === pm.pm_name
+                          ? "bg-teal-50 border-teal-300 ring-1 ring-teal-200"
+                          : "hover:bg-slate-50"
+                      )}
+                      onClick={() => setSelectedPM(selectedPM === pm.pm_name ? null : pm.pm_name)}
                     >
-                      <div className="flex-1">
-                        <div className="font-medium">{d.deliverable_name}</div>
-                        <div className="text-sm text-muted-foreground">
-                          {d.project_code} | {d.phase || 'No phase'}
-                          {d.due_date && ` | Due: ${d.due_date}`}
+                      <div className="flex items-center gap-3">
+                        <div className={cn(
+                          "w-10 h-10 rounded-full flex items-center justify-center font-medium",
+                          pm.pm_name === 'Unassigned'
+                            ? "bg-slate-100 text-slate-600"
+                            : "bg-teal-100 text-teal-700"
+                        )}>
+                          {pm.pm_name === 'Unassigned' ? '?' : pm.pm_name.charAt(0)}
+                        </div>
+                        <div>
+                          <p className={cn(ds.typography.bodyBold, ds.textColors.primary)}>
+                            {pm.pm_name}
+                          </p>
+                          <p className={cn(ds.typography.caption, ds.textColors.tertiary)}>
+                            {pm.total_deliverables} deliverables
+                          </p>
                         </div>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <Badge className={statusColors[d.status as keyof typeof statusColors] || 'bg-gray-100'}>
-                          {d.status}
-                        </Badge>
-                        {d.is_overdue === 1 && (
-                          <Badge variant="destructive">Overdue</Badge>
+                      <div className="flex items-center gap-3">
+                        {pm.overdue_count > 0 && (
+                          <Badge variant="destructive">{pm.overdue_count} overdue</Badge>
                         )}
+                        {pm.due_this_week > 0 && (
+                          <Badge variant="secondary" className="bg-amber-100 text-amber-700 border-amber-200">
+                            {pm.due_this_week} this week
+                          </Badge>
+                        )}
+                        {pm.completed_count > 0 && (
+                          <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200">
+                            {pm.completed_count} done
+                          </Badge>
+                        )}
+                        <ChevronRight className="h-4 w-4 text-slate-400" />
                       </div>
                     </div>
                   ))}
                 </div>
               )}
-              <div className="mt-4 text-sm text-muted-foreground text-center">
-                Showing {deliverables?.count || 0} deliverables
-              </div>
             </CardContent>
           </Card>
         </TabsContent>

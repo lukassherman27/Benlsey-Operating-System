@@ -1,18 +1,36 @@
 #!/usr/bin/env python3
 """
 Learning Service - Continuous Learning from User Feedback
-Analyzes user decisions and feedback to improve pattern detection accuracy
+
+Two main functions:
+1. General user feedback on AI suggestions (scope, fees, etc.)
+2. Pattern learning from approved email->project links
+
+The email link pattern learning loop:
+1. User approves "link email from nigel@rosewood.com to BK-070"
+2. System stores pattern: sender_to_project nigel@rosewood.com -> BK-070
+3. Next email from nigel@rosewood.com auto-suggests BK-070 with higher confidence
+4. Pattern confidence increases with each approval
 """
 
 import sqlite3
 import json
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, Optional, List, Tuple
 from datetime import datetime
 import uuid
 import re
+import logging
 
 import os
 DB_PATH = os.getenv('DATABASE_PATH', 'database/bensley_master.db')
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+# Constants for pattern learning
+PATTERN_CONFIDENCE_BOOST = 0.15
+MIN_PATTERN_CONFIDENCE = 0.5
+MAX_PATTERN_CONFIDENCE = 0.95
 
 
 class LearningService:
@@ -450,6 +468,683 @@ class LearningService:
         conn.close()
 
         return success
+
+
+    # =========================================================================
+    # EMAIL LINK PATTERN LEARNING
+    # =========================================================================
+    # These methods enable the system to learn from approved email->project links
+
+    def extract_patterns_from_email_suggestion(
+        self,
+        suggestion: Dict[str, Any],
+        email: Dict[str, Any]
+    ) -> List[Dict[str, Any]]:
+        """
+        Extract learnable patterns from an approved email_link suggestion.
+
+        Args:
+            suggestion: The approved suggestion record
+            email: The email that was linked
+
+        Returns:
+            List of pattern dicts to store
+        """
+        patterns = []
+        suggested_data = suggestion.get('suggested_data', {})
+
+        if isinstance(suggested_data, str):
+            try:
+                suggested_data = json.loads(suggested_data)
+            except json.JSONDecodeError:
+                suggested_data = {}
+
+        # Target info
+        proposal_id = suggested_data.get('proposal_id')
+        project_id = suggested_data.get('project_id')
+        project_code = suggested_data.get('project_code') or suggestion.get('project_code')
+
+        if not (proposal_id or project_id):
+            return patterns
+
+        target_type = 'proposal' if proposal_id else 'project'
+        target_id = proposal_id or project_id
+
+        # Get target name
+        target_name = self._get_target_name(target_type, target_id)
+
+        # Pattern 1: Sender email -> project
+        sender_email = email.get('sender_email')
+        if sender_email:
+            patterns.append({
+                'pattern_type': f'sender_to_{target_type}',
+                'pattern_key': sender_email,
+                'pattern_key_normalized': sender_email.lower().strip(),
+                'target_type': target_type,
+                'target_id': target_id,
+                'target_code': project_code,
+                'target_name': target_name,
+                'confidence': 0.75,  # Good starting confidence for sender match
+            })
+
+            # Pattern 2: Domain -> project (if corporate email)
+            domain = self._extract_domain(sender_email)
+            if domain and not self._is_generic_domain(domain):
+                patterns.append({
+                    'pattern_type': f'domain_to_{target_type}',
+                    'pattern_key': domain,
+                    'pattern_key_normalized': domain.lower().strip(),
+                    'target_type': target_type,
+                    'target_id': target_id,
+                    'target_code': project_code,
+                    'target_name': target_name,
+                    'confidence': 0.65,  # Lower for domain (could have multiple projects)
+                })
+
+        # Pattern 3: Sender name -> project (if available)
+        sender_name = email.get('sender_name')
+        if sender_name and len(sender_name) > 3:
+            patterns.append({
+                'pattern_type': f'sender_name_to_{target_type}',
+                'pattern_key': sender_name,
+                'pattern_key_normalized': sender_name.lower().strip(),
+                'target_type': target_type,
+                'target_id': target_id,
+                'target_code': project_code,
+                'target_name': target_name,
+                'confidence': 0.60,  # Lower confidence (names can be ambiguous)
+            })
+
+        return patterns
+
+    def store_email_pattern(
+        self,
+        pattern: Dict[str, Any],
+        suggestion_id: Optional[int] = None,
+        email_id: Optional[int] = None
+    ) -> Optional[int]:
+        """
+        Store a learned email pattern, updating if it already exists.
+
+        If pattern already exists:
+        - Increment times_correct
+        - Boost confidence (up to max)
+
+        Args:
+            pattern: Pattern dict from extract_patterns_from_email_suggestion
+            suggestion_id: ID of the suggestion that created this pattern
+            email_id: ID of the email that triggered the suggestion
+
+        Returns:
+            pattern_id or None on failure
+        """
+        conn = self._get_connection()
+        cursor = conn.cursor()
+
+        # Check if pattern already exists
+        cursor.execute("""
+            SELECT pattern_id, confidence, times_correct, times_used
+            FROM email_learned_patterns
+            WHERE pattern_type = ?
+              AND pattern_key_normalized = ?
+              AND target_type = ?
+              AND target_id = ?
+        """, (
+            pattern['pattern_type'],
+            pattern['pattern_key_normalized'],
+            pattern['target_type'],
+            pattern['target_id']
+        ))
+        existing = cursor.fetchone()
+
+        if existing:
+            # Pattern exists - boost it
+            new_confidence = min(
+                existing['confidence'] + 0.05,  # Small boost per approval
+                MAX_PATTERN_CONFIDENCE
+            )
+
+            cursor.execute("""
+                UPDATE email_learned_patterns
+                SET confidence = ?,
+                    times_correct = times_correct + 1,
+                    last_used_at = datetime('now')
+                WHERE pattern_id = ?
+            """, (new_confidence, existing['pattern_id']))
+
+            conn.commit()
+            conn.close()
+
+            logger.info(
+                f"Boosted pattern {existing['pattern_id']}: "
+                f"{pattern['pattern_key']} -> {pattern['target_code']} "
+                f"(confidence: {existing['confidence']:.2f} -> {new_confidence:.2f})"
+            )
+
+            return existing['pattern_id']
+        else:
+            # New pattern - insert
+            cursor.execute("""
+                INSERT INTO email_learned_patterns (
+                    pattern_type, pattern_key, pattern_key_normalized,
+                    target_type, target_id, target_code, target_name,
+                    confidence, times_correct,
+                    created_from_suggestion_id, created_from_email_id
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)
+            """, (
+                pattern['pattern_type'],
+                pattern['pattern_key'],
+                pattern['pattern_key_normalized'],
+                pattern['target_type'],
+                pattern['target_id'],
+                pattern['target_code'],
+                pattern['target_name'],
+                pattern['confidence'],
+                suggestion_id,
+                email_id
+            ))
+
+            pattern_id = cursor.lastrowid
+            conn.commit()
+            conn.close()
+
+            logger.info(
+                f"Created pattern {pattern_id}: {pattern['pattern_type']} "
+                f"{pattern['pattern_key']} -> {pattern['target_code']} "
+                f"(confidence: {pattern['confidence']:.2f})"
+            )
+
+            return pattern_id
+
+    def on_email_link_approved(
+        self,
+        suggestion: Dict[str, Any],
+        suggestion_id: int
+    ) -> List[int]:
+        """
+        Called when an email_link suggestion is approved.
+        Extracts and stores patterns for future learning.
+
+        Args:
+            suggestion: The approved suggestion record
+            suggestion_id: ID of the suggestion
+
+        Returns:
+            List of created/updated pattern IDs
+        """
+        suggestion_type = suggestion.get('suggestion_type')
+        if suggestion_type != 'email_link':
+            return []
+
+        # Get the email that was linked
+        suggested_data = suggestion.get('suggested_data', {})
+        if isinstance(suggested_data, str):
+            try:
+                suggested_data = json.loads(suggested_data)
+            except json.JSONDecodeError:
+                return []
+
+        email_id = suggested_data.get('email_id')
+        if not email_id:
+            return []
+
+        conn = self._get_connection()
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT email_id, sender_email, sender_name, subject
+            FROM emails
+            WHERE email_id = ?
+        """, (email_id,))
+        row = cursor.fetchone()
+        conn.close()
+
+        if not row:
+            return []
+
+        email = dict(row)
+
+        # Extract patterns
+        patterns = self.extract_patterns_from_email_suggestion(suggestion, email)
+
+        # Store each pattern
+        pattern_ids = []
+        for pattern in patterns:
+            pattern_id = self.store_email_pattern(pattern, suggestion_id, email_id)
+            if pattern_id:
+                pattern_ids.append(pattern_id)
+
+        return pattern_ids
+
+    def on_email_link_rejected(
+        self,
+        suggestion: Dict[str, Any],
+        suggestion_id: int
+    ) -> None:
+        """
+        Called when an email_link suggestion is rejected.
+        Decreases confidence of matching patterns.
+
+        Args:
+            suggestion: The rejected suggestion record
+            suggestion_id: ID of the suggestion
+        """
+        suggestion_type = suggestion.get('suggestion_type')
+        if suggestion_type != 'email_link':
+            return
+
+        suggested_data = suggestion.get('suggested_data', {})
+        if isinstance(suggested_data, str):
+            try:
+                suggested_data = json.loads(suggested_data)
+            except json.JSONDecodeError:
+                return
+
+        email_id = suggested_data.get('email_id')
+        if not email_id:
+            return
+
+        conn = self._get_connection()
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT sender_email
+            FROM emails
+            WHERE email_id = ?
+        """, (email_id,))
+        row = cursor.fetchone()
+
+        if not row or not row['sender_email']:
+            conn.close()
+            return
+
+        sender_normalized = row['sender_email'].lower().strip()
+
+        # Find and penalize matching patterns
+        cursor.execute("""
+            UPDATE email_learned_patterns
+            SET times_rejected = times_rejected + 1,
+                confidence = MAX(confidence - 0.1, ?)
+            WHERE pattern_key_normalized = ?
+              AND is_active = 1
+        """, (MIN_PATTERN_CONFIDENCE, sender_normalized))
+
+        conn.commit()
+        conn.close()
+
+        logger.info(f"Penalized patterns for sender: {sender_normalized}")
+
+    def match_patterns_for_email(
+        self,
+        email: Dict[str, Any]
+    ) -> List[Dict[str, Any]]:
+        """
+        Find all learned patterns that match this email.
+
+        Args:
+            email: Email record with sender_email, sender_name, subject
+
+        Returns:
+            List of matching patterns with match scores
+        """
+        matches = []
+        sender_email = (email.get('sender_email') or '').lower().strip()
+        sender_name = (email.get('sender_name') or '').lower().strip()
+
+        if not sender_email:
+            return matches
+
+        conn = self._get_connection()
+        cursor = conn.cursor()
+
+        # Match by exact sender email
+        cursor.execute("""
+            SELECT *
+            FROM email_learned_patterns
+            WHERE pattern_key_normalized = ?
+              AND pattern_type IN ('sender_to_project', 'sender_to_proposal')
+              AND is_active = 1
+            ORDER BY confidence DESC
+        """, (sender_email,))
+
+        for row in cursor.fetchall():
+            matches.append({
+                **dict(row),
+                'match_type': 'sender_email',
+                'match_score': 1.0  # Exact match
+            })
+
+        # Match by domain
+        domain = self._extract_domain(sender_email)
+        if domain:
+            cursor.execute("""
+                SELECT *
+                FROM email_learned_patterns
+                WHERE pattern_key_normalized = ?
+                  AND pattern_type IN ('domain_to_project', 'domain_to_proposal')
+                  AND is_active = 1
+                ORDER BY confidence DESC
+            """, (domain.lower(),))
+
+            for row in cursor.fetchall():
+                matches.append({
+                    **dict(row),
+                    'match_type': 'domain',
+                    'match_score': 0.8
+                })
+
+        # Match by sender name (exact)
+        if sender_name and len(sender_name) > 3:
+            cursor.execute("""
+                SELECT *
+                FROM email_learned_patterns
+                WHERE pattern_key_normalized = ?
+                  AND pattern_type IN ('sender_name_to_project', 'sender_name_to_proposal')
+                  AND is_active = 1
+                ORDER BY confidence DESC
+            """, (sender_name,))
+
+            for row in cursor.fetchall():
+                matches.append({
+                    **dict(row),
+                    'match_type': 'sender_name',
+                    'match_score': 0.7
+                })
+
+        conn.close()
+        return matches
+
+    def get_best_pattern_match_for_email(
+        self,
+        email: Dict[str, Any]
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Get the best pattern match for an email, if any.
+
+        Returns:
+            Best matching pattern with adjusted confidence, or None
+        """
+        matches = self.match_patterns_for_email(email)
+
+        if not matches:
+            return None
+
+        # Score = pattern confidence * match score
+        for m in matches:
+            m['effective_score'] = m['confidence'] * m['match_score']
+
+        # Return highest scoring match
+        best = max(matches, key=lambda x: x['effective_score'])
+
+        # Only return if score is meaningful
+        if best['effective_score'] >= 0.5:
+            return best
+
+        return None
+
+    def suggest_link_from_patterns(
+        self,
+        email: Dict[str, Any]
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Generate a suggestion for an email based on learned patterns.
+
+        Args:
+            email: Email record
+
+        Returns:
+            Suggestion dict or None if no good pattern match
+        """
+        best_match = self.get_best_pattern_match_for_email(email)
+
+        if not best_match:
+            return None
+
+        # Build suggestion
+        email_id = email.get('email_id')
+        target_type = best_match['target_type']
+        target_id = best_match['target_id']
+        target_code = best_match['target_code']
+
+        # Calculate boosted confidence
+        base_confidence = best_match['effective_score']
+        boosted_confidence = min(
+            base_confidence + PATTERN_CONFIDENCE_BOOST,
+            MAX_PATTERN_CONFIDENCE
+        )
+
+        # Build evidence string
+        pattern_type = best_match['pattern_type']
+        pattern_key = best_match['pattern_key']
+        times_correct = best_match.get('times_correct', 0)
+
+        evidence = (
+            f"Based on {times_correct} previous approvals: "
+            f"{pattern_type.replace('_', ' ')} '{pattern_key}' -> {target_code}"
+        )
+
+        suggestion_data = {
+            'email_id': email_id,
+            'project_code': target_code,
+            'confidence_score': boosted_confidence,
+            'match_method': 'learned_pattern',
+            'match_reason': evidence,
+            'pattern_id': best_match['pattern_id'],
+        }
+
+        if target_type == 'proposal':
+            suggestion_data['proposal_id'] = target_id
+        else:
+            suggestion_data['project_id'] = target_id
+
+        return {
+            'suggestion_type': 'email_link',
+            'title': f"Link to {target_code} (learned)",
+            'description': evidence,
+            'confidence_score': boosted_confidence,
+            'priority': 'high' if boosted_confidence > 0.8 else 'medium',
+            'source_type': 'pattern',
+            'source_id': email_id,
+            'project_code': target_code,
+            'proposal_id': target_id if target_type == 'proposal' else None,
+            'suggested_data': suggestion_data,
+            'target_table': (
+                'email_proposal_links' if target_type == 'proposal'
+                else 'email_project_links'
+            ),
+        }
+
+    def log_pattern_usage(
+        self,
+        pattern_id: int,
+        suggestion_id: Optional[int] = None,
+        email_id: Optional[int] = None,
+        action: str = 'matched',
+        match_score: Optional[float] = None,
+        confidence_contribution: Optional[float] = None
+    ) -> None:
+        """
+        Log usage of a pattern for analytics.
+
+        Args:
+            pattern_id: ID of the pattern used
+            suggestion_id: ID of resulting suggestion (if any)
+            email_id: ID of email being processed
+            action: 'matched', 'suggested', 'approved', 'rejected', 'boosted'
+            match_score: How well the pattern matched
+            confidence_contribution: How much confidence the pattern added
+        """
+        conn = self._get_connection()
+        cursor = conn.cursor()
+
+        cursor.execute("""
+            INSERT INTO email_pattern_usage_log (
+                pattern_id, suggestion_id, email_id,
+                action, match_score, confidence_contribution
+            ) VALUES (?, ?, ?, ?, ?, ?)
+        """, (
+            pattern_id, suggestion_id, email_id,
+            action, match_score, confidence_contribution
+        ))
+
+        # Update times_used on the pattern
+        if action in ('matched', 'suggested'):
+            cursor.execute("""
+                UPDATE email_learned_patterns
+                SET times_used = times_used + 1,
+                    last_used_at = datetime('now')
+                WHERE pattern_id = ?
+            """, (pattern_id,))
+
+        conn.commit()
+        conn.close()
+
+    def get_email_pattern_stats(self) -> Dict[str, Any]:
+        """
+        Get statistics about learned email patterns.
+
+        Returns:
+            Dict with pattern counts, effectiveness, etc.
+        """
+        conn = self._get_connection()
+        cursor = conn.cursor()
+        stats = {}
+
+        # Check if email_learned_patterns table exists
+        cursor.execute("""
+            SELECT name FROM sqlite_master
+            WHERE type='table' AND name='email_learned_patterns'
+        """)
+        if not cursor.fetchone():
+            conn.close()
+            return {'error': 'email_learned_patterns table not found - run migration 051'}
+
+        # Total patterns
+        cursor.execute("SELECT COUNT(*) as cnt FROM email_learned_patterns")
+        stats['total_patterns'] = cursor.fetchone()['cnt']
+
+        cursor.execute(
+            "SELECT COUNT(*) as cnt FROM email_learned_patterns WHERE is_active = 1"
+        )
+        stats['active_patterns'] = cursor.fetchone()['cnt']
+
+        # By type
+        cursor.execute("""
+            SELECT pattern_type, COUNT(*) as count
+            FROM email_learned_patterns
+            WHERE is_active = 1
+            GROUP BY pattern_type
+            ORDER BY count DESC
+        """)
+        stats['by_type'] = {r['pattern_type']: r['count'] for r in cursor.fetchall()}
+
+        # By target project
+        cursor.execute("""
+            SELECT target_code, COUNT(*) as pattern_count
+            FROM email_learned_patterns
+            WHERE is_active = 1
+            GROUP BY target_code
+            ORDER BY pattern_count DESC
+            LIMIT 10
+        """)
+        stats['top_projects'] = [
+            {'project': r['target_code'], 'patterns': r['pattern_count']}
+            for r in cursor.fetchall()
+        ]
+
+        # Effectiveness
+        cursor.execute("""
+            SELECT
+                COUNT(*) as total,
+                SUM(times_used) as total_uses,
+                SUM(times_correct) as total_correct,
+                SUM(times_rejected) as total_rejected,
+                AVG(confidence) as avg_confidence
+            FROM email_learned_patterns
+            WHERE is_active = 1
+        """)
+        row = cursor.fetchone()
+        stats['effectiveness'] = {
+            'total': row['total'],
+            'total_uses': row['total_uses'] or 0,
+            'total_correct': row['total_correct'] or 0,
+            'total_rejected': row['total_rejected'] or 0,
+            'avg_confidence': row['avg_confidence'] or 0,
+        }
+
+        # Success rate
+        if stats['effectiveness']['total_uses'] > 0:
+            stats['effectiveness']['success_rate'] = (
+                stats['effectiveness']['total_correct'] /
+                stats['effectiveness']['total_uses']
+            )
+        else:
+            stats['effectiveness']['success_rate'] = 0
+
+        conn.close()
+        return stats
+
+    def get_patterns_for_project(self, project_code: str) -> List[Dict[str, Any]]:
+        """
+        Get all learned patterns for a specific project.
+
+        Args:
+            project_code: Project code (e.g., 'BK-070')
+
+        Returns:
+            List of patterns
+        """
+        conn = self._get_connection()
+        cursor = conn.cursor()
+
+        cursor.execute("""
+            SELECT *
+            FROM email_learned_patterns
+            WHERE target_code = ?
+              AND is_active = 1
+            ORDER BY confidence DESC, times_correct DESC
+        """, (project_code,))
+
+        patterns = [dict(row) for row in cursor.fetchall()]
+        conn.close()
+        return patterns
+
+    # Helper methods for email pattern learning
+
+    def _extract_domain(self, email: str) -> Optional[str]:
+        """Extract domain from email address"""
+        if not email or '@' not in email:
+            return None
+        return email.split('@')[1].lower()
+
+    def _is_generic_domain(self, domain: str) -> bool:
+        """Check if domain is a generic email provider"""
+        generic_domains = {
+            'gmail.com', 'yahoo.com', 'hotmail.com', 'outlook.com',
+            'aol.com', 'icloud.com', 'mail.com', 'protonmail.com',
+            'live.com', 'msn.com', 'ymail.com', 'googlemail.com'
+        }
+        return domain.lower() in generic_domains
+
+    def _get_target_name(self, target_type: str, target_id: int) -> Optional[str]:
+        """Get the name of a project or proposal"""
+        conn = self._get_connection()
+        cursor = conn.cursor()
+
+        if target_type == 'proposal':
+            cursor.execute(
+                "SELECT project_name FROM proposals WHERE proposal_id = ?",
+                (target_id,)
+            )
+            row = cursor.fetchone()
+            conn.close()
+            return row['project_name'] if row else None
+        else:
+            cursor.execute(
+                "SELECT project_title FROM projects WHERE project_id = ?",
+                (target_id,)
+            )
+            row = cursor.fetchone()
+            conn.close()
+            return row['project_title'] if row else None
 
 
 if __name__ == '__main__':

@@ -9,7 +9,7 @@
   --card-foreground: 240 10% 3.9%;
   --popover: 0 0% 100%;
   --popover-foreground: 240 10% 3.9%;
-  --primary: 251 77% 53%;
+  --primary: 168 76% 36%;
   --primary-foreground: 0 0% 100%;
   --secondary: 240 4.8% 95.9%;
   --secondary-foreground: 240 5.9% 10%;
@@ -21,7 +21,7 @@
   --destructive-foreground: 0 0% 100%;
   --border: 240 5.9% 90%;
   --input: 240 5.9% 90%;
-  --ring: 251 77% 53%;
+  --ring: 168 76% 36%;
   --chart-1: 217 91% 60%;
   --chart-2: 142 76% 36%;
   --chart-3: 291 64% 42%;
@@ -29,12 +29,12 @@
   --chart-5: 334 81% 60%;
   --sidebar: 240 5.9% 98%;
   --sidebar-foreground: 240 5.3% 26.1%;
-  --sidebar-primary: 251 77% 53%;
+  --sidebar-primary: 168 76% 36%;
   --sidebar-primary-foreground: 0 0% 100%;
   --sidebar-accent: 240 4.8% 95.9%;
   --sidebar-accent-foreground: 240 5.9% 10%;
   --sidebar-border: 240 5.9% 90%;
-  --sidebar-ring: 251 77% 53%;
+  --sidebar-ring: 168 76% 36%;
   --radius: 0.75rem;
 }
 
@@ -45,7 +45,7 @@
   --card-foreground: 0 0% 98%;
   --popover: 240 10% 3.9%;
   --popover-foreground: 0 0% 98%;
-  --primary: 251 77% 63%;
+  --primary: 168 70% 45%;
   --primary-foreground: 240 5.9% 10%;
   --secondary: 240 3.7% 15.9%;
   --secondary-foreground: 0 0% 98%;
@@ -57,7 +57,7 @@
   --destructive-foreground: 0 0% 98%;
   --border: 240 3.7% 15.9%;
   --input: 240 3.7% 15.9%;
-  --ring: 251 77% 63%;
+  --ring: 168 70% 45%;
   --chart-1: 220 70% 50%;
   --chart-2: 160 60% 45%;
   --chart-3: 280 65% 60%;
@@ -65,19 +65,30 @@
   --chart-5: 340 75% 60%;
   --sidebar: 240 3.7% 15.9%;
   --sidebar-foreground: 0 0% 98%;
-  --sidebar-primary: 251 77% 63%;
+  --sidebar-primary: 168 70% 45%;
   --sidebar-primary-foreground: 240 5.9% 10%;
   --sidebar-accent: 240 3.7% 20%;
   --sidebar-accent-foreground: 0 0% 98%;
   --sidebar-border: 240 3.7% 30%;
-  --sidebar-ring: 251 77% 63%;
+  --sidebar-ring: 168 70% 45%;
 }
 
 @layer base {
   * {
     @apply border-border;
   }
+  html {
+    @apply overflow-x-hidden;
+  }
   body {
-    @apply min-h-screen bg-background font-sans text-foreground antialiased;
+    @apply min-h-screen bg-background font-sans text-foreground antialiased overflow-x-hidden;
+  }
+  /* Prevent horizontal scroll from tables and wide content */
+  table {
+    @apply w-full table-fixed;
+  }
+  /* Ensure flex children can shrink */
+  .flex > * {
+    min-width: 0;
   }
 }

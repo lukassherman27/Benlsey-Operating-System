@@ -29,6 +29,27 @@ except ImportError:
     OPENAI_AVAILABLE = False
     print("⚠️  OpenAI not available - install with: pip install openai")
 
+# Import EmailCategoryService for rule-based categorization
+try:
+    from .email_category_service import EmailCategoryService
+    CATEGORY_SERVICE_AVAILABLE = True
+except ImportError:
+    CATEGORY_SERVICE_AVAILABLE = False
+    print("⚠️  EmailCategoryService not available")
+
+# Category mapping: old names → new schema (migration 050)
+CATEGORY_MAPPING = {
+    'meeting': 'internal_scheduling',
+    'invoice': 'project_financial',
+    'contract': 'project_contracts',
+    'proposal': 'project_contracts',
+    'design': 'project_design',
+    'rfi': 'project_design',
+    'schedule': 'internal_scheduling',
+    'project_update': 'client_communication',
+    'general': 'client_communication',
+}
+
 
 class EmailContentProcessor:
     def __init__(self, db_path):
@@ -37,12 +58,20 @@ class EmailContentProcessor:
         self.conn.row_factory = sqlite3.Row
         self.cursor = self.conn.cursor()
 
-        # OpenAI setup
+        # EmailCategoryService for rule-based categorization
+        if CATEGORY_SERVICE_AVAILABLE:
+            self.category_service = EmailCategoryService(str(self.db_path))
+            print("✓ EmailCategoryService enabled")
+        else:
+            self.category_service = None
+            print("⚠️  EmailCategoryService disabled")
+
+        # OpenAI setup (fallback for when rules don't match)
         self.openai_key = os.getenv('OPENAI_API_KEY')
         if self.openai_key and OPENAI_AVAILABLE:
             self.client = OpenAI(api_key=self.openai_key)
             self.ai_enabled = True
-            print("✓ OpenAI enabled")
+            print("✓ OpenAI enabled (fallback)")
         else:
             self.ai_enabled = False
             print("⚠️  OpenAI disabled (no API key or module)")
@@ -127,8 +156,56 @@ class EmailContentProcessor:
 
         return clean_body, quoted_text
 
-    def categorize_email_ai(self, subject, body, proposal_context=None):
-        """Use AI to categorize email with proposal/project context"""
+    def categorize_email(self, email_id: int, subject: str = None, body: str = None, proposal_context=None):
+        """
+        Categorize email using EmailCategoryService (rule-based) with AI fallback.
+
+        Uses the new email category system (migration 050) with:
+        1. Rule-based matching via EmailCategoryService
+        2. AI fallback if no rules match
+
+        Args:
+            email_id: Email ID to categorize
+            subject: Email subject (for AI fallback)
+            body: Email body (for AI fallback)
+            proposal_context: Optional proposal context for AI fallback
+
+        Returns:
+            Tuple of (category_name, confidence)
+        """
+        # Try rule-based categorization first
+        if self.category_service:
+            try:
+                result = self.category_service.categorize_email(email_id)
+
+                if result.get('categorized'):
+                    # Rule matched - return the category
+                    return result['category_name'], result.get('confidence', 0.8)
+
+                # No rule matched - try AI suggestion via service first
+                suggestion = self.category_service.suggest_category(email_id)
+                if suggestion.get('suggested_category_name') and suggestion.get('confidence', 0) >= 0.7:
+                    return suggestion['suggested_category_name'], suggestion['confidence']
+
+            except Exception as e:
+                print(f"  ⚠️ EmailCategoryService error: {e}")
+
+        # Fallback to AI categorization
+        if self.ai_enabled and subject:
+            old_category, confidence = self._categorize_email_ai_legacy(subject, body, proposal_context)
+            # Map old category to new schema
+            new_category = CATEGORY_MAPPING.get(old_category, 'client_communication')
+            return new_category, confidence
+
+        # Default fallback
+        return 'client_communication', 0.5
+
+    def _categorize_email_ai_legacy(self, subject, body, proposal_context=None):
+        """
+        Legacy AI-based categorization (fallback when rules don't match).
+
+        Note: Returns OLD category names. Caller should map to new schema.
+        """
         if not self.ai_enabled:
             return "general", 0.5
 
@@ -341,17 +418,22 @@ Focus on: What action, decision, or key information does this contain?
         """Calculate importance score (0-1)"""
         score = 0.5  # Base score
 
-        # Category weights
+        # Category weights (aligned with new schema from migration 050)
         category_weights = {
-            'contract': 0.3,
-            'invoice': 0.2,
-            'proposal': 0.15,
-            'design': 0.15,
-            'rfi': 0.15,
-            'project_update': 0.1,
-            'schedule': 0.1,
-            'meeting': 0.1,
-            'general': 0.0
+            # High priority - legal/financial
+            'project_contracts': 0.3,
+            'project_financial': 0.2,
+            # Medium priority - design/client
+            'project_design': 0.15,
+            'client_communication': 0.1,
+            # Lower priority - internal
+            'internal_scheduling': 0.1,
+            'internal_operations': 0.05,
+            # External/other
+            'vendor_supplier': 0.1,
+            'marketing_outreach': 0.05,
+            'personal': 0.0,
+            'automated_notification': 0.0,
         }
         score += category_weights.get(category, 0)
 
@@ -397,8 +479,8 @@ Focus on: What action, decision, or key information does this contain?
             clean_body, quoted_text = self.clean_email_body(body)
             self.stats['cleaned'] += 1
 
-            # Categorize with proposal context
-            category, confidence = self.categorize_email_ai(subject, clean_body, proposal_context)
+            # Categorize using EmailCategoryService (rule-based) with AI fallback
+            category, confidence = self.categorize_email(email_id, subject, clean_body, proposal_context)
             self.stats['categorized'] += 1
 
             # Extract entities
@@ -670,9 +752,9 @@ Focus on: What action, decision, or key information does this contain?
             # Clean body
             clean_body, quoted = self.clean_email_body(body)
 
-            # Process with rich context
-            category, cat_confidence = self.categorize_email_ai(
-                subject, clean_body, rich_context
+            # Process with rich context - use new EmailCategoryService
+            category, cat_confidence = self.categorize_email(
+                email_id, subject, clean_body, rich_context
             )
             entities = self.extract_entities_ai(subject, clean_body)
             summary = self.generate_summary_ai(subject, clean_body, category)

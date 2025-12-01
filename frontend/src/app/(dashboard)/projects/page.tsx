@@ -2,7 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
-import { api } from "@/lib/api";
+import { api, FeeBreakdown } from "@/lib/api";
 import type { Project } from "@/lib/types";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -21,12 +21,14 @@ import {
   ChevronDown,
   ChevronRight,
   AlertTriangle,
+  FolderOpen,
 } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { Edit } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ProjectQuickEditDialog } from "@/components/project-quick-edit-dialog";
+import { ds, bensleyVoice } from "@/lib/design-system";
 
 const formatCurrency = (value?: number | null) => {
   if (value == null) return "$0";
@@ -45,6 +47,7 @@ const formatDisplayDate = (value?: string | null) => {
 export default function ProjectsPage() {
   const [expandedProjects, setExpandedProjects] = useState<Set<string>>(new Set());
   const [expandedDisciplines, setExpandedDisciplines] = useState<Set<string>>(new Set());
+  const [expandedPhaseInvoices, setExpandedPhaseInvoices] = useState<Set<string>>(new Set());
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
 
@@ -118,22 +121,35 @@ export default function ProjectsPage() {
     });
   };
 
+  const togglePhaseInvoices = (projectCode: string, discipline: string, phase: string) => {
+    const key = `${projectCode}-${discipline}-${phase}`;
+    setExpandedPhaseInvoices((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) {
+        next.delete(key);
+      } else {
+        next.add(key);
+      }
+      return next;
+    });
+  };
+
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white">
-      <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-slate-50 w-full max-w-full overflow-x-hidden">
+      <div className="mx-auto max-w-full px-4 py-8 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="mb-8">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-3xl font-bold text-slate-900 lg:text-4xl">
-                Active Projects
+              <h1 className={ds.typography.pageTitle}>
+                {bensleyVoice.sectionHeaders.projects}
               </h1>
-              <p className="mt-2 text-lg text-slate-600">
+              <p className={cn(ds.typography.bodySmall, "mt-2")}>
                 Track payments, schedules, and deliverables across all active contracts
               </p>
             </div>
-            <Badge variant="secondary" className="gap-1 rounded-full">
-              <TrendingUp className="h-3.5 w-3.5" />
+            <Badge variant="secondary" className={ds.badges.default}>
+              <TrendingUp className="h-3.5 w-3.5 mr-1" />
               Updated 5 min ago
             </Badge>
           </div>
@@ -155,7 +171,7 @@ export default function ProjectsPage() {
         {/* Financial Insight Widgets */}
         <div className="mb-8 grid gap-6 md:grid-cols-2">
           {/* Widget 1: Recent Payments */}
-          <Card className="rounded-3xl border-slate-200/70">
+          <Card className={ds.cards.default}>
             <div className="p-6">
               <div className="flex items-center justify-between mb-4">
                 <div>
@@ -188,16 +204,17 @@ export default function ProjectsPage() {
                       >
                         <div className="flex-1">
                           <p className="font-semibold text-slate-900">
-                            {(payment.invoice_number as string) || 'N/A'} - {(payment.project_name as string) || (payment.project_code as string)}
+                            {(payment.project_name as string) || (payment.project_code as string) || 'Unknown Project'}
                           </p>
                           <p className="text-xs text-slate-500">
                             {payment.paid_on
                               ? formatDisplayDate(payment.paid_on)
-                              : "Date unknown"}{" "}
-                            {payment.discipline && `• ${payment.discipline}`}
+                              : "Date unknown"}
+                            {payment.invoice_number && ` • #${payment.invoice_number}`}
+                            {payment.discipline && ` • ${payment.discipline}`}
                           </p>
                         </div>
-                        <p className="font-semibold text-green-600">
+                        <p className="text-lg font-bold text-green-600">
                           {formatCurrency(payment.amount_usd)}
                         </p>
                       </div>
@@ -209,7 +226,7 @@ export default function ProjectsPage() {
           </Card>
 
           {/* Widget 2: Projects by Outstanding - IMPROVED CLARITY */}
-          <Card className="rounded-3xl border-slate-200/70">
+          <Card className={ds.cards.default}>
             <div className="p-6">
               <div className="flex items-center justify-between mb-4">
                 <div>
@@ -236,7 +253,7 @@ export default function ProjectsPage() {
                   <div className="space-y-3">
                     {projectsByOutstandingQuery.data.projects.map((project: Record<string, unknown>, idx: number) => {
                       const overdueAmount = (project.overdue_amount as number) || 0;
-                      const outstandingAmount = (project.outstanding_usd as number) || 0;
+                      const outstandingAmount = (project.outstanding_balance_usd as number) || (project.outstanding_usd as number) || 0;
                       const hasOverdue = overdueAmount > 0;
 
                       return (
@@ -283,7 +300,7 @@ export default function ProjectsPage() {
           </Card>
 
           {/* Widget 3: Oldest Unpaid Invoices */}
-          <Card className="rounded-3xl border-slate-200/70">
+          <Card className={ds.cards.default}>
             <div className="p-6">
               <div className="flex items-center justify-between mb-4">
                 <div>
@@ -343,7 +360,7 @@ export default function ProjectsPage() {
           </Card>
 
           {/* Widget 4: Remaining Contract Value */}
-          <Card className="rounded-3xl border-slate-200/70">
+          <Card className={ds.cards.default}>
             <div className="p-6">
               <div className="flex items-center justify-between mb-4">
                 <div>
@@ -383,7 +400,7 @@ export default function ProjectsPage() {
                           </p>
                         </div>
                         <p className="font-semibold text-blue-600">
-                          {formatCurrency(project.total_remaining_usd as number)}
+                          {formatCurrency((project.remaining_value as number) || (project.total_remaining_usd as number))}
                         </p>
                       </div>
                     ))}
@@ -402,7 +419,7 @@ export default function ProjectsPage() {
 
         {/* All Active Projects Table */}
         <section>
-          <Card className="rounded-3xl border-slate-200">
+          <Card className={ds.cards.default}>
             <CardContent className="p-6">
               <div className="mb-6">
                 <div className="flex items-baseline justify-between">
@@ -427,28 +444,36 @@ export default function ProjectsPage() {
               </div>
               <div className="overflow-x-auto">
                 <table className="w-full">
-                  <thead>
-                    <tr className="border-b-2 border-slate-200 text-left text-xs uppercase tracking-wider text-slate-500">
-                      <th className="pb-4 pt-2 font-semibold">Project Code</th>
-                      <th className="pb-4 pt-2 font-semibold">Project Name</th>
-                      <th className="pb-4 pt-2 font-semibold text-right">Contract Value</th>
-                      <th className="pb-4 pt-2 font-semibold text-right">Amount Due</th>
-                      <th className="pb-4 pt-2 font-semibold text-right">Uninvoiced</th>
-                      <th className="pb-4 pt-2 font-semibold text-center">Health</th>
-                      <th className="pb-4 pt-2 font-semibold text-center">Actions</th>
+                  <thead className={ds.tables.header}>
+                    <tr>
+                      <th className={ds.tables.headerCell}>Project</th>
+                      <th className={ds.tables.headerCellRight}>Contract Value</th>
+                      <th className={ds.tables.headerCellRight}>Paid</th>
+                      <th className={ds.tables.headerCellRight}>Outstanding</th>
+                      <th className={cn(ds.tables.headerCell, "text-center")}>Health</th>
+                      <th className={cn(ds.tables.headerCell, "text-center")}>Actions</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-100">
+                  <tbody className={ds.tables.divider}>
                     {activeProjectsQuery.isLoading ? (
-                      <tr>
-                        <td colSpan={7} className="py-8 text-center text-sm text-slate-500">
-                          Loading projects...
-                        </td>
-                      </tr>
+                      <>
+                        {[1, 2, 3, 4, 5].map((i) => (
+                          <tr key={i} className="animate-pulse">
+                            <td className="py-4"><div className="h-4 w-48 bg-slate-200 rounded" /></td>
+                            <td className="py-4 text-right"><div className="h-4 w-20 bg-slate-200 rounded ml-auto" /></td>
+                            <td className="py-4 text-right"><div className="h-4 w-16 bg-slate-200 rounded ml-auto" /></td>
+                            <td className="py-4 text-right"><div className="h-4 w-16 bg-slate-200 rounded ml-auto" /></td>
+                            <td className="py-4 text-center"><div className="h-6 w-16 bg-slate-200 rounded mx-auto" /></td>
+                            <td className="py-4 text-center"><div className="h-8 w-8 bg-slate-200 rounded mx-auto" /></td>
+                          </tr>
+                        ))}
+                      </>
                     ) : activeProjects.length === 0 ? (
                       <tr>
-                        <td colSpan={7} className="py-8 text-center text-sm text-slate-500">
-                          No active projects found
+                        <td colSpan={6} className="py-16 text-center">
+                          <FolderOpen className="mx-auto h-16 w-16 text-slate-300 mb-4" />
+                          <p className={ds.typography.cardHeader}>{bensleyVoice.emptyStates.projects}</p>
+                          <p className={cn(ds.typography.caption, "mt-2")}>Projects will appear here once contracts are signed</p>
                         </td>
                       </tr>
                     ) : (
@@ -458,8 +483,10 @@ export default function ProjectsPage() {
                           project={project}
                           isExpanded={expandedProjects.has(project.project_code as string)}
                           expandedDisciplines={expandedDisciplines}
+                          expandedPhaseInvoices={expandedPhaseInvoices}
                           onToggle={() => toggleProject(project.project_code as string)}
                           onToggleDiscipline={(discipline) => toggleDiscipline(project.project_code as string, discipline)}
+                          onTogglePhaseInvoices={(discipline, phase) => togglePhaseInvoices(project.project_code as string, discipline, phase)}
                           onEdit={(proj) => {
                             setSelectedProject(proj as unknown as Project);
                             setEditDialogOpen(true);
@@ -506,15 +533,19 @@ function ProjectRow({
   project,
   isExpanded,
   expandedDisciplines,
+  expandedPhaseInvoices,
   onToggle,
   onToggleDiscipline,
+  onTogglePhaseInvoices,
   onEdit,
 }: {
   project: Record<string, unknown>;
   isExpanded: boolean;
   expandedDisciplines: Set<string>;
+  expandedPhaseInvoices: Set<string>;
   onToggle: () => void;
   onToggleDiscipline: (discipline: string) => void;
+  onTogglePhaseInvoices: (discipline: string, phase: string) => void;
   onEdit: (project: Record<string, unknown>) => void;
 }) {
   const projectCode = project.project_code as string;
@@ -529,28 +560,26 @@ function ProjectRow({
   // Fetch contract fee breakdown (always load to calculate totals)
   const feeBreakdownQuery = useQuery({
     queryKey: ["fee-breakdown", "project", projectCode],
-    queryFn: async () => {
-      const response = await fetch(`http://localhost:8000/api/projects/${encodeURIComponent(projectCode)}/fee-breakdown`);
-      return response.json();
-    },
+    queryFn: () => api.getProjectFeeBreakdowns(projectCode),
     staleTime: 1000 * 60 * 5,
   });
 
   const invoices = invoicesQuery.data?.invoices ?? [];
-  const feeBreakdowns = feeBreakdownQuery.data?.fee_breakdowns ?? [];
+  const feeBreakdowns = feeBreakdownQuery.data?.breakdowns ?? [];
 
-  // Normalize discipline names to the three main categories
+  // Normalize discipline names to the main categories
   const normalizeDiscipline = (discipline: string | null | undefined): string | null => {
     if (!discipline) return null;
     const lower = discipline.toLowerCase().trim();
 
-    // Map variations to main categories
-    if (lower.includes('architect')) return 'Architecture';
+    // Map variations to main categories (in priority order)
+    if (lower.includes('architect') && !lower.includes('landscape')) return 'Architecture';
     if (lower.includes('interior')) return 'Interior';
     if (lower.includes('landscape')) return 'Landscape';
+    if (lower.includes('specialty') || lower.includes('branding')) return 'Specialty';
 
-    // Filter out non-main disciplines
-    return null;
+    // Return original discipline if not matched
+    return discipline;
   };
 
   // Group invoices by normalized discipline
@@ -565,8 +594,8 @@ function ProjectRow({
     return acc;
   }, {});
 
-  // Sort disciplines in desired order
-  const disciplineOrder = ['Landscape', 'Interior', 'Architecture'];
+  // Sort disciplines in desired order: Architecture, Interior, Landscape, Specialty/Branding
+  const disciplineOrder = ['Architecture', 'Interior', 'Landscape', 'Specialty', 'Branding'];
   const sortedDisciplines = disciplineOrder.filter(d => invoicesByDiscipline[d]);
 
   // Calculate project-level totals
@@ -580,13 +609,13 @@ function ProjectRow({
   );
   const projectTotalOutstanding = projectTotalInvoiced - projectTotalPaid;
   const projectContractFee = feeBreakdowns.reduce(
-    (sum: number, fb: Record<string, unknown>) => sum + ((fb.phase_fee_usd as number) || 0),
+    (sum: number, fb: FeeBreakdown) => sum + (fb.phase_fee_usd || 0),
     0
   );
   // Use contract fee breakdowns if available, otherwise use total project fee
-  const totalProjectFee = projectContractFee > 0
+  const totalProjectFee: number = projectContractFee > 0
     ? projectContractFee
-    : (project.contract_value || project.total_fee_usd || 0);
+    : (Number(project.contract_value) || Number(project.total_fee_usd) || 0);
   const projectTotalRemaining = totalProjectFee - projectTotalInvoiced;
 
   // Group invoices by phase within each discipline
@@ -607,6 +636,7 @@ function ProjectRow({
         className="group cursor-pointer hover:bg-slate-50"
         onClick={onToggle}
       >
+        {/* Project Name (primary) with Code (secondary) */}
         <td className="py-4">
           <div className="flex items-center gap-2">
             {isExpanded ? (
@@ -614,51 +644,50 @@ function ProjectRow({
             ) : (
               <ChevronRight className="h-4 w-4 text-slate-400" />
             )}
-            <span className="font-medium text-blue-600">
-              {(project.project_code as string)}
-            </span>
+            <div>
+              <div className="font-medium text-slate-900">
+                {(project.project_title as string) || (project.client_name as string) || "Unnamed Project"}
+              </div>
+              <div className="text-xs text-slate-500">
+                {(project.project_code as string)}
+              </div>
+            </div>
           </div>
         </td>
-        <td className="py-4 text-sm text-slate-900">
-          {(project.project_title as string) || (project.client_name as string)}
-        </td>
+        {/* Contract Value */}
         <td className="py-4">
           <div className="text-right">
             <div className="text-sm font-medium text-slate-900">
               {formatCurrency(totalProjectFee)}
             </div>
-            <div className="text-xs text-slate-500">Total Fee</div>
           </div>
         </td>
+        {/* Total Paid */}
         <td className="py-4">
           <div className="text-right">
-            <div className="text-sm font-medium text-amber-600">
-              {formatCurrency(projectTotalOutstanding)}
+            <div className="text-sm font-medium text-emerald-600">
+              {formatCurrency(projectTotalPaid)}
             </div>
-            <div className="text-xs text-slate-500">Outstanding</div>
           </div>
         </td>
+        {/* Outstanding */}
         <td className="py-4">
           <div className="text-right">
             <div className={cn(
               "text-sm font-medium",
-              projectTotalRemaining > 1000000
-                ? "text-rose-700 font-bold text-base"
-                : projectTotalRemaining > 500000
-                ? "text-rose-700 font-semibold"
-                : "text-rose-700"
+              projectTotalOutstanding > 500000
+                ? "text-amber-600 font-bold"
+                : "text-amber-600"
             )}>
-              {formatCurrency(projectTotalRemaining)}
-              {projectTotalRemaining > 1000000 && (
-                <span className="ml-1 text-xs">!</span>
-              )}
+              {formatCurrency(projectTotalOutstanding)}
             </div>
-            <div className="text-xs text-slate-500">Remaining</div>
           </div>
         </td>
+        {/* Health Status */}
         <td className="py-4">
           <StatusBadge status={(project.status as string) || "active"} />
         </td>
+        {/* Actions */}
         <td className="py-4 text-center">
           <Button
             variant="ghost"
@@ -677,7 +706,7 @@ function ProjectRow({
 
       {isExpanded && (
         <tr>
-          <td colSpan={7} className="bg-slate-50 p-0">
+          <td colSpan={6} className="bg-slate-50 p-0">
             <div className="p-6">
               {invoicesQuery.isLoading ? (
                 <div className="py-4 text-center text-sm text-slate-500">
@@ -750,8 +779,8 @@ function ProjectRow({
 
                     // Get contract fee for this discipline (sum of all phases)
                     const contractFee = feeBreakdowns
-                      .filter((fb: Record<string, unknown>) => normalizeDiscipline(fb.discipline as string | null | undefined) === discipline)
-                      .reduce((sum: number, fb: Record<string, unknown>) => sum + ((fb.phase_fee_usd as number) || 0), 0);
+                      .filter((fb: FeeBreakdown) => normalizeDiscipline(fb.discipline) === discipline)
+                      .reduce((sum: number, fb: FeeBreakdown) => sum + (fb.phase_fee_usd || 0), 0);
 
                     // Calculate discipline totals
                     const totalInvoiced = disciplineInvoices.reduce(
@@ -821,13 +850,13 @@ function ProjectRow({
                               {(() => {
                                 // Get all phases from contract for this discipline
                                 const contractPhases = feeBreakdowns
-                                  .filter((fb: Record<string, unknown>) => normalizeDiscipline(fb.discipline as string | null | undefined) === discipline)
-                                  .map((fb: Record<string, unknown>) => fb.phase);
+                                  .filter((fb: FeeBreakdown) => normalizeDiscipline(fb.discipline) === discipline)
+                                  .map((fb: FeeBreakdown) => fb.phase);
 
                                 // Combine contract phases with invoice phases
                                 const allPhases = new Set([...contractPhases, ...Object.keys(invoicesByPhase)]);
 
-                                // Define phase order
+                                // Define phase order (correct sequence per user requirements)
                                 const phaseOrder = [
                                   'Mobilization',
                                   'Concept Design',
@@ -855,11 +884,11 @@ function ProjectRow({
                                 return sortedPhases.map((phase: string) => {
                                 // Get contract fee for this phase
                                 const phaseFee = feeBreakdowns
-                                  .filter((fb: Record<string, unknown>) =>
-                                    normalizeDiscipline(fb.discipline as string | null | undefined) === discipline &&
+                                  .filter((fb: FeeBreakdown) =>
+                                    normalizeDiscipline(fb.discipline) === discipline &&
                                     fb.phase === phase
                                   )
-                                  .reduce((sum: number, fb: Record<string, unknown>) => sum + ((fb.phase_fee_usd as number) || 0), 0);
+                                  .reduce((sum: number, fb: FeeBreakdown) => sum + (fb.phase_fee_usd || 0), 0);
 
                                 // Get invoices for this phase (might be empty array)
                                 const phaseInvoices = invoicesByPhase[phase] || [];
@@ -932,82 +961,106 @@ function ProjectRow({
                                         )}
                                       </div>
                                     </div>
-                                    <div className="space-y-2">
-                                      {phaseInvoices.length > 0 ? (
-                                        <>
-                                          {phaseInvoices.map((invoice: Record<string, unknown>) => (
-                                            <div
-                                              key={String(invoice.invoice_id || invoice.invoice_number)}
-                                              className="grid grid-cols-5 gap-4 rounded-lg border border-slate-200 bg-white p-3 text-sm hover:bg-slate-50 transition-colors"
-                                            >
-                                              <div>
-                                                <div className="text-xs uppercase tracking-wider text-slate-500 font-semibold">Invoice #</div>
-                                                <div className="font-semibold text-slate-900 mt-1">
-                                                  {(invoice.invoice_number as string)}
-                                                </div>
-                                              </div>
-                                              <div>
-                                                <div className="text-xs uppercase tracking-wider text-slate-500 font-semibold">Invoice Date</div>
-                                                <div className="text-slate-900 mt-1">
-                                                  {formatDisplayDate((invoice.invoice_date as string) || (invoice.issued_date as string))}
-                                                </div>
-                                              </div>
-                                              <div>
-                                                <div className="text-xs uppercase tracking-wider text-slate-500 font-semibold">Payment Amount</div>
-                                                <div className="font-bold text-emerald-600 mt-1">
-                                                  {formatCurrency((invoice.payment_amount as number) || (invoice.amount_paid as number) || 0)}
-                                                </div>
-                                              </div>
-                                              <div>
-                                                <div className="text-xs uppercase tracking-wider text-slate-500 font-semibold">Payment Date</div>
-                                                <div className="text-slate-900 mt-1">
-                                                  {formatDisplayDate(invoice.payment_date as string) || '-'}
-                                                </div>
-                                              </div>
-                                              <div>
-                                                <div className="text-xs uppercase tracking-wider text-slate-500 font-semibold">Outstanding Amount</div>
-                                                <div className="font-bold text-amber-600 mt-1">
-                                                  {formatCurrency(((invoice.invoice_amount as number) || (invoice.amount_usd as number) || 0) - ((invoice.payment_amount as number) || (invoice.amount_paid as number) || 0))}
-                                                </div>
-                                              </div>
-                                            </div>
-                                          ))}
-                                          {phaseRemaining > 0 && (
-                                            <div className="rounded-lg border-2 border-dashed border-slate-300 bg-slate-50 p-4">
-                                              <div className="flex items-center justify-between">
+                                    {/* Invoice Details - Collapsible */}
+                                    {phaseInvoices.length > 0 ? (
+                                      <div className="mt-2">
+                                        <button
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            onTogglePhaseInvoices(discipline, phase);
+                                          }}
+                                          className="flex items-center gap-2 text-sm text-blue-600 hover:text-blue-800 font-medium transition-colors"
+                                        >
+                                          {expandedPhaseInvoices.has(`${projectCode}-${discipline}-${phase}`) ? (
+                                            <>
+                                              <ChevronDown className="h-4 w-4" />
+                                              Hide {phaseInvoices.length} invoice{phaseInvoices.length !== 1 ? 's' : ''}
+                                            </>
+                                          ) : (
+                                            <>
+                                              <ChevronRight className="h-4 w-4" />
+                                              View {phaseInvoices.length} invoice{phaseInvoices.length !== 1 ? 's' : ''}
+                                            </>
+                                          )}
+                                        </button>
+
+                                        {expandedPhaseInvoices.has(`${projectCode}-${discipline}-${phase}`) && (
+                                          <div className="mt-2 space-y-2">
+                                            {phaseInvoices.map((invoice: Record<string, unknown>) => (
+                                              <div
+                                                key={String(invoice.invoice_id || invoice.invoice_number)}
+                                                className="grid grid-cols-5 gap-4 rounded-lg border border-slate-200 bg-white p-3 text-sm hover:bg-slate-50 transition-colors"
+                                              >
                                                 <div>
-                                                  <p className="text-sm font-semibold text-slate-700">
-                                                    Remaining Uninvoiced
-                                                  </p>
-                                                  <p className="text-xs text-slate-500 mt-0.5">
-                                                    Not yet billed
-                                                  </p>
+                                                  <div className="text-xs uppercase tracking-wider text-slate-500 font-semibold">Invoice #</div>
+                                                  <div className="font-semibold text-slate-900 mt-1">
+                                                    {(invoice.invoice_number as string)}
+                                                  </div>
                                                 </div>
-                                                <p className="text-lg font-bold text-slate-700">
-                                                  {formatCurrency(phaseRemaining)}
+                                                <div>
+                                                  <div className="text-xs uppercase tracking-wider text-slate-500 font-semibold">Invoice Date</div>
+                                                  <div className="text-slate-900 mt-1">
+                                                    {formatDisplayDate((invoice.invoice_date as string) || (invoice.issued_date as string))}
+                                                  </div>
+                                                </div>
+                                                <div>
+                                                  <div className="text-xs uppercase tracking-wider text-slate-500 font-semibold">Payment Amount</div>
+                                                  <div className="font-bold text-emerald-600 mt-1">
+                                                    {formatCurrency((invoice.payment_amount as number) || (invoice.amount_paid as number) || 0)}
+                                                  </div>
+                                                </div>
+                                                <div>
+                                                  <div className="text-xs uppercase tracking-wider text-slate-500 font-semibold">Payment Date</div>
+                                                  <div className="text-slate-900 mt-1">
+                                                    {formatDisplayDate(invoice.payment_date as string) || '-'}
+                                                  </div>
+                                                </div>
+                                                <div>
+                                                  <div className="text-xs uppercase tracking-wider text-slate-500 font-semibold">Outstanding Amount</div>
+                                                  <div className="font-bold text-amber-600 mt-1">
+                                                    {formatCurrency(((invoice.invoice_amount as number) || (invoice.amount_usd as number) || 0) - ((invoice.payment_amount as number) || (invoice.amount_paid as number) || 0))}
+                                                  </div>
+                                                </div>
+                                              </div>
+                                            ))}
+                                          </div>
+                                        )}
+
+                                        {phaseRemaining > 0 && (
+                                          <div className="mt-2 rounded-lg border-2 border-dashed border-slate-300 bg-slate-50 p-4">
+                                            <div className="flex items-center justify-between">
+                                              <div>
+                                                <p className="text-sm font-semibold text-slate-700">
+                                                  Remaining Uninvoiced
+                                                </p>
+                                                <p className="text-xs text-slate-500 mt-0.5">
+                                                  Not yet billed
                                                 </p>
                                               </div>
-                                            </div>
-                                          )}
-                                        </>
-                                      ) : (
-                                        <div className="rounded-lg border-2 border-dashed border-slate-300 bg-slate-50 p-4">
-                                          <div className="flex items-center justify-between">
-                                            <div>
-                                              <p className="text-sm font-semibold text-slate-700">
-                                                Not Yet Invoiced
-                                              </p>
-                                              <p className="text-xs text-slate-500 mt-0.5">
-                                                Full phase fee remaining
+                                              <p className="text-lg font-bold text-slate-700">
+                                                {formatCurrency(phaseRemaining)}
                                               </p>
                                             </div>
-                                            <p className="text-lg font-bold text-slate-700">
-                                              {formatCurrency(phaseRemaining)}
+                                          </div>
+                                        )}
+                                      </div>
+                                    ) : (
+                                      <div className="mt-2 rounded-lg border-2 border-dashed border-slate-300 bg-slate-50 p-4">
+                                        <div className="flex items-center justify-between">
+                                          <div>
+                                            <p className="text-sm font-semibold text-slate-700">
+                                              Not Yet Invoiced
+                                            </p>
+                                            <p className="text-xs text-slate-500 mt-0.5">
+                                              Full phase fee remaining
                                             </p>
                                           </div>
+                                          <p className="text-lg font-bold text-slate-700">
+                                            {formatCurrency(phaseRemaining)}
+                                          </p>
                                         </div>
-                                      )}
-                                    </div>
+                                      </div>
+                                    )}
                                   </div>
                                 );
                               });
@@ -1048,21 +1101,24 @@ function ProjectRow({
 
 
 function StatusBadge({ status }: { status: string }) {
-  const statusConfig: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
-    active: { label: "Active", variant: "default" },
-    on_hold: { label: "On Hold", variant: "secondary" },
-    at_risk: { label: "At Risk", variant: "destructive" },
-    completed: { label: "Completed", variant: "outline" },
+  const statusConfig: Record<string, { label: string; className: string }> = {
+    active: { label: "Active", className: ds.badges.success },
+    on_hold: { label: "On Hold", className: ds.badges.warning },
+    at_risk: { label: "At Risk", className: ds.badges.danger },
+    completed: { label: "Completed", className: ds.badges.default },
+    cancelled: { label: "Cancelled", className: ds.badges.danger },
+    archived: { label: "Archived", className: ds.badges.neutral },
+    proposal: { label: "Proposal", className: ds.badges.info },
   };
 
   const config = statusConfig[status.toLowerCase()] || {
     label: status,
-    variant: "outline" as const,
+    className: ds.badges.neutral,
   };
 
   return (
-    <Badge variant={config.variant} className="rounded-full">
+    <span className={config.className}>
       {config.label}
-    </Badge>
+    </span>
   );
 }

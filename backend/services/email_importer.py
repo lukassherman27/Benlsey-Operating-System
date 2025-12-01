@@ -25,10 +25,10 @@ class EmailImporter:
     def __init__(self):
         self.server = os.getenv('EMAIL_SERVER')
         self.port = int(os.getenv('EMAIL_PORT', 993))
-        self.username = os.getenv('EMAIL_USER')
+        self.username = os.getenv('EMAIL_USERNAME')
         self.password = os.getenv('EMAIL_PASSWORD')
-        self.db_path = os.getenv('DATABASE_PATH')
-        self.attachments_dir = '/Users/lukassherman/Desktop/BDS_SYSTEM/05_FILES/BY_DATE'
+        self.db_path = os.getenv('DATABASE_PATH', 'database/bensley_master.db')
+        self.attachments_dir = os.getenv('ATTACHMENTS_DIR', 'files/attachments')
 
     def connect(self):
         """Connect to IMAP server"""
@@ -100,8 +100,8 @@ class EmailImporter:
                             # Extract fields
                             message_id = msg['Message-ID'] or f"imported-{email_id.decode()}"
                             subject = self.decode_header_value(msg['Subject'])
-                            sender = msg['From']
-                            recipients = msg['To']
+                            sender = self.decode_header_value(msg['From'])
+                            recipients = self.decode_header_value(msg['To'])
                             date_str = msg['Date']
 
                             # Parse date

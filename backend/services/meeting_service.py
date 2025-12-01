@@ -25,7 +25,21 @@ class MeetingService:
         cursor = conn.cursor()
 
         query = """
-            SELECT * FROM project_meetings
+            SELECT
+                meeting_id as id,
+                title,
+                description,
+                meeting_type,
+                meeting_date,
+                start_time,
+                end_time,
+                location,
+                meeting_link,
+                project_code,
+                participants,
+                status,
+                notes
+            FROM meetings
             WHERE proposal_id = ?
         """
         params = [proposal_id]
@@ -34,7 +48,7 @@ class MeetingService:
             query += " AND status = ?"
             params.append(status)
 
-        query += " ORDER BY scheduled_date DESC"
+        query += " ORDER BY meeting_date DESC"
 
         cursor.execute(query, params)
 
@@ -49,7 +63,21 @@ class MeetingService:
         cursor = conn.cursor()
 
         cursor.execute("""
-            SELECT * FROM project_meetings
+            SELECT
+                meeting_id as id,
+                title,
+                description,
+                meeting_type,
+                meeting_date,
+                start_time,
+                end_time,
+                location,
+                meeting_link,
+                project_code,
+                participants,
+                status,
+                notes
+            FROM meetings
             WHERE meeting_id = ?
         """, (meeting_id,))
 
@@ -73,7 +101,7 @@ class MeetingService:
             action_items = json.dumps(action_items)
 
         cursor.execute("""
-            INSERT INTO project_meetings (
+            INSERT INTO meetings (
                 proposal_id,
                 meeting_type,
                 meeting_title,
@@ -144,7 +172,7 @@ class MeetingService:
             return False
 
         values.append(meeting_id)
-        query = f"UPDATE project_meetings SET {', '.join(update_fields)} WHERE meeting_id = ?"
+        query = f"UPDATE meetings SET {', '.join(update_fields)} WHERE meeting_id = ?"
 
         cursor.execute(query, values)
         conn.commit()
@@ -158,7 +186,7 @@ class MeetingService:
         conn = self._get_connection()
         cursor = conn.cursor()
 
-        cursor.execute("DELETE FROM project_meetings WHERE meeting_id = ?", (meeting_id,))
+        cursor.execute("DELETE FROM meetings WHERE meeting_id = ?", (meeting_id,))
         conn.commit()
         success = cursor.rowcount > 0
         conn.close()
@@ -171,8 +199,8 @@ class MeetingService:
         cursor = conn.cursor()
 
         cursor.execute("""
-            UPDATE project_meetings
-            SET meeting_notes = ?
+            UPDATE meetings
+            SET notes = ?
             WHERE meeting_id = ?
         """, (notes, meeting_id))
 
@@ -188,8 +216,8 @@ class MeetingService:
         cursor = conn.cursor()
 
         cursor.execute("""
-            UPDATE project_meetings
-            SET action_items = ?
+            UPDATE meetings
+            SET agenda = ?
             WHERE meeting_id = ?
         """, (json.dumps(action_items), meeting_id))
 
@@ -205,7 +233,7 @@ class MeetingService:
         cursor = conn.cursor()
 
         cursor.execute("""
-            UPDATE project_meetings
+            UPDATE meetings
             SET status = 'completed'
             WHERE meeting_id = ?
         """, (meeting_id,))
@@ -221,22 +249,32 @@ class MeetingService:
         conn = self._get_connection()
         cursor = conn.cursor()
 
-        now = datetime.now()
-        future_date = (now + timedelta(days=days_ahead)).isoformat()
-        now_str = now.isoformat()
+        today = date.today()
+        future_date = (today + timedelta(days=days_ahead)).isoformat()
+        today_str = today.isoformat()
 
         cursor.execute("""
             SELECT
-                m.*,
-                p.project_code,
-                p.project_title,
-                COALESCE(pr.client_company, 'Unknown')
-            FROM project_meetings m
-            JOIN projects p ON m.proposal_id = p.project_id
-            WHERE m.scheduled_date BETWEEN ? AND ?
-              AND m.status = 'scheduled'
-            ORDER BY m.scheduled_date ASC
-        """, (now_str, future_date))
+                m.meeting_id as id,
+                m.title,
+                m.description,
+                m.meeting_type,
+                m.meeting_date,
+                m.start_time,
+                m.end_time,
+                m.location,
+                m.meeting_link,
+                m.project_code,
+                m.participants,
+                m.status,
+                m.notes,
+                p.project_title as project_name
+            FROM meetings m
+            LEFT JOIN projects p ON m.project_code = p.project_code
+            WHERE m.meeting_date BETWEEN ? AND ?
+              AND m.status IN ('scheduled', 'confirmed')
+            ORDER BY m.meeting_date ASC, m.start_time ASC
+        """, (today_str, future_date))
 
         meetings = [dict(row) for row in cursor.fetchall()]
         conn.close()
@@ -248,22 +286,30 @@ class MeetingService:
         conn = self._get_connection()
         cursor = conn.cursor()
 
-        today = date.today()
-        start_of_day = datetime.combine(today, datetime.min.time()).isoformat()
-        end_of_day = datetime.combine(today, datetime.max.time()).isoformat()
+        today_str = date.today().isoformat()
 
         cursor.execute("""
             SELECT
-                m.*,
-                p.project_code,
-                p.project_title,
-                COALESCE(pr.client_company, 'Unknown')
-            FROM project_meetings m
-            JOIN projects p ON m.proposal_id = p.project_id
-            WHERE m.scheduled_date BETWEEN ? AND ?
-              AND m.status = 'scheduled'
-            ORDER BY m.scheduled_date ASC
-        """, (start_of_day, end_of_day))
+                m.meeting_id as id,
+                m.title,
+                m.description,
+                m.meeting_type,
+                m.meeting_date,
+                m.start_time,
+                m.end_time,
+                m.location,
+                m.meeting_link,
+                m.project_code,
+                m.participants,
+                m.status,
+                m.notes,
+                p.project_title as project_name
+            FROM meetings m
+            LEFT JOIN projects p ON m.project_code = p.project_code
+            WHERE m.meeting_date = ?
+              AND m.status IN ('scheduled', 'confirmed')
+            ORDER BY m.start_time ASC
+        """, (today_str,))
 
         meetings = [dict(row) for row in cursor.fetchall()]
         conn.close()
@@ -275,17 +321,23 @@ class MeetingService:
         conn = self._get_connection()
         cursor = conn.cursor()
 
-        now = datetime.now().isoformat()
+        today = date.today().isoformat()
 
         cursor.execute("""
-            SELECT * FROM project_meetings
+            SELECT
+                meeting_id as id,
+                title,
+                meeting_date,
+                status,
+                notes
+            FROM meetings
             WHERE proposal_id = ?
               AND (
-                  scheduled_date < ?
+                  meeting_date < ?
                   OR status = 'completed'
               )
-            ORDER BY scheduled_date DESC
-        """, (proposal_id, now))
+            ORDER BY meeting_date DESC
+        """, (proposal_id, today))
 
         meetings = [dict(row) for row in cursor.fetchall()]
         conn.close()
@@ -300,23 +352,26 @@ class MeetingService:
         conn = self._get_connection()
         cursor = conn.cursor()
 
-        now = datetime.now()
-        future_time = (now + timedelta(hours=hours_ahead)).isoformat()
-        now_str = now.isoformat()
+        today = date.today()
+        # For hourly precision, check meetings within next few days
+        future_date = (today + timedelta(days=2)).isoformat()
+        today_str = today.isoformat()
 
         cursor.execute("""
             SELECT
-                m.*,
-                p.project_code,
-                p.project_title,
-                COALESCE(pr.client_company, 'Unknown')
-            FROM project_meetings m
-            JOIN projects p ON m.proposal_id = p.project_id
-            WHERE m.scheduled_date BETWEEN ? AND ?
-              AND m.status = 'scheduled'
-              AND m.reminder_sent = 0
-            ORDER BY m.scheduled_date ASC
-        """, (now_str, future_time))
+                m.meeting_id as id,
+                m.title,
+                m.meeting_date,
+                m.start_time,
+                m.project_code,
+                m.status,
+                p.project_title as project_name
+            FROM meetings m
+            LEFT JOIN projects p ON m.project_code = p.project_code
+            WHERE m.meeting_date BETWEEN ? AND ?
+              AND m.status IN ('scheduled', 'confirmed')
+            ORDER BY m.meeting_date ASC, m.start_time ASC
+        """, (today_str, future_date))
 
         meetings = [dict(row) for row in cursor.fetchall()]
         conn.close()
@@ -328,9 +383,11 @@ class MeetingService:
         conn = self._get_connection()
         cursor = conn.cursor()
 
+        # Note: The meetings table doesn't have reminder_sent column
+        # This is a no-op until the schema is updated
         cursor.execute("""
-            UPDATE project_meetings
-            SET reminder_sent = 1
+            UPDATE meetings
+            SET updated_at = CURRENT_TIMESTAMP
             WHERE meeting_id = ?
         """, (meeting_id,))
 

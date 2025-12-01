@@ -1,21 +1,59 @@
 "use client";
 
+import { useQuery } from "@tanstack/react-query";
+import { api } from "@/lib/api";
 import { InvoiceAgingWidgetEnhanced } from "@/components/dashboard/invoice-aging-widget-enhanced";
 import { PaymentVelocityWidget } from "@/components/dashboard/payment-velocity-widget";
 import { InvoiceQuickActions } from "@/components/dashboard/invoice-quick-actions";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { DollarSign, TrendingUp, Calendar, Download } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
+import { DollarSign, TrendingUp, Calendar, Download, AlertTriangle, Clock } from "lucide-react";
 
 /**
  * Finance Dashboard Page
  * Comprehensive view of all financial metrics and invoice aging
  */
 export default function FinancePage() {
+  // Fetch real financial metrics
+  const { data: metricsData, isLoading: metricsLoading } = useQuery({
+    queryKey: ["finance-dashboard-metrics"],
+    queryFn: api.getDashboardFinancialMetrics,
+    staleTime: 1000 * 60 * 5, // 5 minutes
+  });
+
+  // Fetch invoice aging data
+  const { data: agingData, isLoading: agingLoading } = useQuery({
+    queryKey: ["invoice-aging-finance"],
+    queryFn: api.getInvoiceAging,
+    staleTime: 1000 * 60 * 5,
+  });
+
+  const metrics = metricsData?.metrics;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const aging = (agingData as any)?.aging || (agingData as any)?.data?.aging;
+
+  // Calculate derived metrics
+  const totalOutstanding = metrics?.total_outstanding || 0;
+  const totalPaid = metrics?.total_paid || 0;
+  const totalInvoiced = metrics?.total_invoiced || 0;
+  const criticalCount = aging?.over_90?.count || 0;
+  const collectionRate = totalInvoiced > 0 ? (totalPaid / totalInvoiced) * 100 : 0;
+
+  // Format currency
+  const formatCurrency = (amount: number) => {
+    if (amount >= 1000000) {
+      return `$${(amount / 1000000).toFixed(2)}M`;
+    }
+    return `$${(amount / 1000).toFixed(0)}K`;
+  };
+
+  const isLoading = metricsLoading || agingLoading;
+
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-6 w-full max-w-full overflow-x-hidden">
       {/* Page Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold flex items-center gap-3">
             <DollarSign className="h-8 w-8 text-blue-600" />
@@ -39,38 +77,45 @@ export default function FinancePage() {
 
       {/* KPI Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <KPICard
-          title="Total Outstanding"
-          value="$4.87M"
-          change="+5.2%"
-          trend="up"
-          icon={DollarSign}
-          color="blue"
-        />
-        <KPICard
-          title="Avg Days to Pay"
-          value="42 days"
-          change="-5 days"
-          trend="down"
-          icon={TrendingUp}
-          color="green"
-        />
-        <KPICard
-          title="Critical (>90d)"
-          value="15"
-          change="+2"
-          trend="up"
-          icon={TrendingUp}
-          color="red"
-        />
-        <KPICard
-          title="Collection Rate"
-          value="94%"
-          change="+2.1%"
-          trend="up"
-          icon={TrendingUp}
-          color="purple"
-        />
+        {isLoading ? (
+          <>
+            <Skeleton className="h-24 rounded-lg" />
+            <Skeleton className="h-24 rounded-lg" />
+            <Skeleton className="h-24 rounded-lg" />
+            <Skeleton className="h-24 rounded-lg" />
+          </>
+        ) : (
+          <>
+            <KPICard
+              title="Total Outstanding"
+              value={formatCurrency(totalOutstanding)}
+              subtitle={`of ${formatCurrency(totalInvoiced)} invoiced`}
+              icon={DollarSign}
+              color="blue"
+            />
+            <KPICard
+              title="Total Paid"
+              value={formatCurrency(totalPaid)}
+              subtitle={`${metrics?.active_project_count || 0} active projects`}
+              icon={TrendingUp}
+              color="green"
+            />
+            <KPICard
+              title="Critical (>90d)"
+              value={String(criticalCount)}
+              subtitle={aging?.over_90?.amount ? formatCurrency(aging.over_90.amount) : "$0"}
+              icon={AlertTriangle}
+              color="red"
+            />
+            <KPICard
+              title="Collection Rate"
+              value={`${collectionRate.toFixed(1)}%`}
+              subtitle="of invoiced amount"
+              icon={Clock}
+              color="purple"
+            />
+          </>
+        )}
       </div>
 
       {/* Main Content Grid */}
@@ -107,15 +152,13 @@ export default function FinancePage() {
 function KPICard({
   title,
   value,
-  change,
-  trend,
+  subtitle,
   icon: Icon,
   color,
 }: {
   title: string;
   value: string;
-  change: string;
-  trend: "up" | "down";
+  subtitle: string;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   icon: any;
   color: "blue" | "green" | "red" | "purple";
@@ -127,12 +170,6 @@ function KPICard({
     purple: "bg-purple-50 border-purple-200 text-purple-700",
   };
 
-  const trendColor = trend === "down" && (title.includes("Days") || title.includes("Critical"))
-    ? "text-green-600"
-    : trend === "up"
-    ? "text-green-600"
-    : "text-red-600";
-
   return (
     <div
       className={`rounded-lg border p-4 transition-all duration-200 hover:shadow-md ${
@@ -143,12 +180,8 @@ function KPICard({
         <p className="text-xs font-medium opacity-75">{title}</p>
         <Icon className="h-4 w-4 opacity-75" />
       </div>
-      <div className="flex items-baseline justify-between">
-        <p className="text-2xl font-bold">{value}</p>
-        <Badge variant="outline" className={`text-xs ${trendColor} border-current`}>
-          {change}
-        </Badge>
-      </div>
+      <p className="text-2xl font-bold">{value}</p>
+      <p className="text-xs opacity-75 mt-1">{subtitle}</p>
     </div>
   );
 }

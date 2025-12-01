@@ -125,8 +125,11 @@ class DeliverablesService(BaseService):
                 params.append(status)
 
             if assigned_pm:
-                query += " AND d.assigned_pm = ?"
-                params.append(assigned_pm)
+                if assigned_pm.lower() == 'unassigned':
+                    query += " AND d.assigned_pm IS NULL"
+                else:
+                    query += " AND d.assigned_pm = ?"
+                    params.append(assigned_pm)
 
             if phase:
                 query += " AND d.phase = ?"

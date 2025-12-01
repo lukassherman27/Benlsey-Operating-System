@@ -1,67 +1,122 @@
 # BDS Operations Platform - Claude Context
 
-**Read these files FIRST before responding:**
-1. `.claude/PROJECT_CONTEXT.md` - Core principles and current phase
-2. `2_MONTH_MVP_PLAN.md` - Current 8-week plan
-3. `docs/architecture/COMPLETE_ARCHITECTURE_ASSESSMENT.md` - Long-term vision
-4. `CONTRIBUTING.md` - File organization and naming standards
+## Single Sources of Truth (SSOT) - START HERE
 
-**Specialized Agents (invoke when needed):**
-- `.claude/agents/organizer.md` - **Organizer Agent**: Find files, check structure, archive old stuff
-- `.claude/CODEBASE_INDEX.md` - Quick lookup for where features live
+| Document | Owner | Purpose |
+|----------|-------|---------|
+| `docs/roadmap.md` | Brain Agent | Sprint goals, priorities, blockers |
+| `docs/agents/registry.md` | Organizer | Agent definitions, contracts |
+| `docs/context/index.md` | Organizer | File maps, integration status |
+| `docs/processes/runbooks.md` | Ops Agent | How-to guides, commands |
+
+**Context Bundles:**
+- `docs/context/architecture.md` - System diagram, tech decisions
+- `docs/context/backend.md` - API, services, endpoints
+- `docs/context/frontend.md` - Pages, components, state
+- `docs/context/ai_agents.md` - AI features, query system
+- `docs/context/business.md` - Bensley studio context, voice/tone
+- `docs/context/workspaces.md` - Multi-context OS documentation
+
+**Active Task Packs:**
+- `docs/tasks/connect-orphaned-services.md`
+- `docs/tasks/ux-design-system.md`
+- `docs/tasks/backend-router-refactor.md`
+- `docs/tasks/missing-frontend-pages.md`
 
 ---
 
-## Current Status (Updated: 2025-11-26)
+## Current Status (Updated: 2025-12-01)
 
-**Phase:** Phase 1 - Week 5 (Dashboard Polish & Data)
-**Goal:** Complete Projects Dashboard, polish Proposal Dashboard, fill data gaps
-**Codebase:** Reorganized to 9/10 quality (Nov 26)
+**Phase:** 1.5 - Integration & Data Quality
+**Sprint:** Dec 1-15 - "Beautiful, Connected, Demo-Ready"
+**Primary Goal:** Weekly proposal status reports for Bill + email/contract drafting
 
-**🔥 CRITICAL: Database Consolidated (Nov 24, 2025)**
-- **Master Database:** `database/bensley_master.db` (OneDrive)
-- Desktop database ARCHIVED - do not use
-- See `DATABASE_MIGRATION_SUMMARY.md` for details
+**See:** `docs/roadmap.md` for current sprint priorities
 
 ---
 
-## Core Working Principles (CRITICAL!)
+## CURRENT PRIORITY (Dec 2025)
+
+**#1 Focus:** Generate weekly proposal status reports for Bill using:
+- Meeting transcripts linked to proposals
+- Emails linked to proposals
+- Contacts extracted from both
+
+**Near-term deliverables:**
+1. Link transcripts → proposals (via suggestions, never auto-link)
+2. Improve email → proposal linking
+3. Extract contacts from emails/transcripts
+4. Generate weekly proposal status reports
+5. Draft follow-up emails with context
+6. Draft contracts using existing templates
+
+**NOT the priority right now:** RAG, vector stores, fancy AI features
+
+---
+
+## Tech Stack
+
+**AI:** OpenAI API (gpt-4o-mini) - NOT Claude/Anthropic API
+**Backend:** FastAPI on port 8000, 27 router files (main.py is only 255 lines)
+**Frontend:** Next.js 15 on port 3002
+**Database:** SQLite at `database/bensley_master.db` (80+ tables, ~107MB)
+
+---
+
+## Core Working Principles
 
 ### 1. Always Question & Challenge
 - Don't blindly implement requests
 - Ask: "Does this make sense architecturally?"
 - Suggest better alternatives
-- Be analytical, not just a code generator
 
 ### 2. Clean Data is Sacred
 - NO junk in database
-- NO unused files in folders
 - Validate before inserting
 - Test on sample data first
 
 ### 3. Always Debug & Test
 - NEVER assume code works
 - Test every script
-- Check edge cases
-- Validate database state after imports
+- Validate database state after changes
 
-### 4. Balance Short-Term vs. Long-Term
-- Reference `COMPLETE_ARCHITECTURE_ASSESSMENT.md` for vision
-- Don't over-engineer, but don't paint into corners
-- Document technical debt
+### 4. Update Docs When You Change Code
+- API endpoint changed → update `docs/context/backend.md`
+- Frontend changed → update `docs/context/frontend.md`
+- Database changed → create migration in `database/migrations/`
+- Always update `docs/context/index.md` integration status
+
+### 5. SSOT Enforcement - DO NOT CREATE NEW FILES
+**⚠️ CRITICAL: Only these markdown files should exist outside of `docs/archive/`:**
+
+| Location | Files |
+|----------|-------|
+| `docs/` root | `roadmap.md` only |
+| `docs/context/` | 8 context bundles (architecture, backend, frontend, ai_agents, business, data, index, workspaces) |
+| `docs/agents/` | `registry.md`, `task-pack-template.md` |
+| `docs/guides/` | `DESIGN_SYSTEM.md` only |
+| `docs/processes/` | `runbooks.md` only |
+| `docs/tasks/` | Active task packs only |
+| `.claude/` | `STATUS.md`, `commands/*.md` only |
+
+**Rules:**
+1. **NEVER create new planning/architecture/session docs** → Update `docs/roadmap.md` instead
+2. **NEVER create new context docs** → Update existing `docs/context/*.md`
+3. **NEVER create new agent docs** → Update `docs/agents/registry.md`
+4. **When you find stale info in SSOT** → Fix it immediately, don't create a new file
+5. **Historical/completed work** → Archive to `docs/archive/` or `.claude/archive/`
 
 ---
 
-## Critical Distinctions
-
-### Proposals ` Projects
+## Proposals vs. Projects
 
 | Proposals | Projects |
 |-----------|----------|
 | Pre-contract, sales pipeline | Won contracts, active delivery |
-| Track: health, follow-ups | Track: payments, schedules, RFIs |
-| Dashboard: /dashboard/proposals | Dashboard: /dashboard/projects |
-| Owner: Bill (BD) | Owner: Project Managers |
+| Track: health, follow-ups, status | Track: payments, schedules, RFIs |
+| **Bill's #1 priority** | Secondary priority |
+| Tables: `proposals`, `proposal_tracker` | Tables: `projects`, `invoices` |
+| Links: `email_proposal_links` | Links: `email_project_links` |
 
 **Never confuse these!**
 
@@ -69,104 +124,68 @@
 
 ## Quick Reference
 
-**Backend:** FastAPI, 93+ endpoints, SQLite (backend/api/main.py)
-**Frontend:** Next.js 15 at localhost:3002 (operational)
-**Database:** `database/bensley_master.db` - 66 tables, ~90MB (OneDrive)
-**Current Blocker:** Finance team slow to provide contract/invoice PDFs (2+ weeks)
+**Run Commands:**
+```bash
+# Backend
+cd backend && uvicorn api.main:app --reload --port 8000
 
-**Tech Stack Decisions:**
--  SQLite (not PostgreSQL) - until 10GB or concurrent writes needed
--  Claude API (not local LLM) - until Phase 2
--  No RAG yet - defer to Phase 2
+# Frontend
+cd frontend && npm run dev
 
-### 📁 Folder Structure (Updated Nov 26, 2025)
-
-```
-/bensley-operating-system/
-├── scripts/
-│   ├── core/           # Active scripts (smart_email_brain.py, query_brain.py)
-│   ├── analysis/       # Audit tools
-│   ├── maintenance/    # Utilities
-│   └── archive/        # Old/deprecated (don't use)
-├── docs/
-│   ├── architecture/   # System design
-│   ├── guides/         # How-to docs
-│   ├── planning/       # Roadmaps
-│   └── archive/        # Old docs
-├── backend/            # FastAPI services
-├── frontend/           # Next.js app
-├── database/           # SQLite + migrations
-├── exports/            # Temporary CSV exports (gitignored)
-└── tests/              # Test files
+# Health check
+make health-check
 ```
 
-**See:** `CONTRIBUTING.md` for naming conventions and where to put new files.
+**Database:**
+- Master: `database/bensley_master.db`
+- All scripts use: `os.getenv('DATABASE_PATH', 'database/bensley_master.db')`
 
-### 🗄️ Database (IMPORTANT - Nov 24, 2025)
-
-**✅ MASTER DATABASE:** `database/bensley_master.db` (OneDrive)
-- 54 projects, 89 proposals, 253 invoices
-- 3,356 emails with processing working
-- 465 contacts
-- Frontend API connected and working
-- Run `make health-check` to verify status
-
-**❌ ARCHIVED:** `~/Desktop/BDS_SYSTEM/01_DATABASES/bensley_master.db`
-- **DO NOT USE** - Historical data only (2013-2020)
-- Keep for reference but all new work uses OneDrive
-
-**All scripts MUST:** Use `os.getenv('DATABASE_PATH', 'database/bensley_master.db')`
-
-See `DATABASE_MIGRATION_SUMMARY.md` for full migration details.
-
+**Git:**
+- See `docs/processes/runbooks.md` for commit format, branch naming, PR checklist
+- Always push changes to GitHub after completing work
 
 ---
 
-## Week 1 Goals (THIS WEEK)
+## When You Start a Session
 
-1. [ ] Create rfi@bensley.com email (going forward only, not historical)
-2. [ ] Create finance@bensley.com email (going forward only)
-3. [ ] Get accounting Excel from finance team
-4. [ ] Build accounting import script (WITH VALIDATION!)
-5. [ ] Import historical emails from main account
-6. [ ] Update contract templates
+1. Read `docs/roadmap.md` - Current sprint priorities
+2. Check for assigned task pack in `docs/tasks/`
+3. Read relevant context bundle from `docs/context/`
+4. Check blockers in roadmap
+5. **Ask questions if anything is unclear**
 
-**Remember:** Build for future, not perfect reconstruction of past
+## When You End a Session
 
----
-
-## Every Import Script Must Have:
-
-- [ ] Data validation (nulls, duplicates, malformed)
-- [ ] Provenance tracking (source_type, source_reference, created_by)
-- [ ] Dry run mode
-- [ ] Error handling & logging
-- [ ] Cleanup (no temp files left behind)
-- [ ] Testing on sample data
-
-**Example scripts:** `scripts/core/import_step1_proposals.py`, `scripts/core/smart_email_brain.py`
+1. Write handoff note in task pack
+2. Update relevant context files if you changed code
+3. Update `docs/roadmap.md` if completing sprint item
+4. Update `docs/context/index.md` if integration status changed
+5. Commit and push to GitHub with structured message:
+   ```
+   [type](agent): Brief description
+   Affects: [context bundles]
+   ```
 
 ---
 
-## When User Requests Something:
+## Agent Communication Protocol
 
-1. **Question it:** Does this align with the plan?
-2. **Check architecture:** Reference COMPLETE_ARCHITECTURE_ASSESSMENT.md
-3. **Propose alternatives:** If you see a better way
-4. **If implementing:** Follow clean data principles, test thoroughly
+From `docs/agents/registry.md`:
+- **Before work:** Read roadmap, get task pack, read context, check blockers
+- **After work:** Write handoff, notify Organizer of changes, update roadmap
+- **Always:** Ask questions if unsure, update docs when code changes
 
----
-
-## Success Metrics (End of Week 8)
-
--  Proposal Dashboard + Projects Dashboard live
--  Bill uses daily (replaces Excel + email)
--  <5% data quality issues
--  Saves 5-10 hours/week
--  Zero critical bugs
+**Live State:**
+- `.claude/STATUS.md` - Current system state and active work
 
 ---
 
-**Philosophy:** "Measure twice, cut once" - Think before coding, validate before committing, test before deploying.
+## Philosophy
 
-**Role:** Be a thinking partner, not a code monkey. Challenge bad ideas, suggest better alternatives, explain tradeoffs.
+> "Ask questions, don't assume" - Build context through dialogue
+
+> "Clean data > fancy features" - Get linking right before adding AI
+
+> "Update docs when you change code" - Next agent needs to know
+
+> "Proposals are priority #1" - Everything supports Bill's weekly reports

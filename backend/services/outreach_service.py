@@ -27,10 +27,10 @@ class OutreachService:
             SELECT
                 o.*,
                 e.subject as email_subject,
-                m.meeting_title
+                m.title as meeting_title
             FROM project_outreach o
             LEFT JOIN emails e ON o.related_email_id = e.email_id
-            LEFT JOIN project_meetings m ON o.related_meeting_id = m.meeting_id
+            LEFT JOIN meetings m ON o.related_meeting_id = m.meeting_id
             WHERE o.proposal_id = ?
             ORDER BY o.contact_date DESC
         """, (proposal_id,))
@@ -295,11 +295,11 @@ class OutreachService:
                 o.*,
                 e.subject as email_subject,
                 e.sender_email,
-                m.meeting_title,
-                m.scheduled_date as meeting_date
+                m.title as meeting_title,
+                m.meeting_date
             FROM project_outreach o
             LEFT JOIN emails e ON o.related_email_id = e.email_id
-            LEFT JOIN project_meetings m ON o.related_meeting_id = m.meeting_id
+            LEFT JOIN meetings m ON o.related_meeting_id = m.meeting_id
             WHERE o.proposal_id = ?
             ORDER BY o.contact_date ASC
         """, (proposal_id,))
