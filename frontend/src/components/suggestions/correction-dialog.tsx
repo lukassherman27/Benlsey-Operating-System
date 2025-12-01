@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -28,6 +28,7 @@ import { SuggestionItem } from "@/lib/api";
 interface ProjectOption {
   code: string;
   name: string;
+  type?: 'project' | 'proposal';
 }
 
 interface CorrectionDialogProps {
@@ -35,6 +36,7 @@ interface CorrectionDialogProps {
   onOpenChange: (open: boolean) => void;
   suggestion: SuggestionItem | null;
   projectOptions: ProjectOption[];
+  proposalOptions?: ProjectOption[];
   onSubmit: (data: {
     rejection_reason: string;
     correct_project_code?: string;
@@ -58,6 +60,7 @@ export function CorrectionDialog({
   onOpenChange,
   suggestion,
   projectOptions,
+  proposalOptions = [],
   onSubmit,
   isSubmitting,
 }: CorrectionDialogProps) {
@@ -66,6 +69,17 @@ export function CorrectionDialog({
   const [createPattern, setCreatePattern] = useState(false);
   const [patternNotes, setPatternNotes] = useState("");
   const [projectSearch, setProjectSearch] = useState("");
+
+  // Reset form when suggestion changes or dialog opens
+  useEffect(() => {
+    if (open && suggestion) {
+      setRejectionReason("wrong_project");
+      setCorrectProjectCode("");
+      setCreatePattern(false);
+      setPatternNotes("");
+      setProjectSearch("");
+    }
+  }, [open, suggestion?.suggestion_id]);
 
   const handleSubmit = () => {
     onSubmit({
@@ -86,7 +100,15 @@ export function CorrectionDialog({
     setProjectSearch("");
   };
 
-  const filteredProjects = projectOptions.filter(
+  // Combine projects and proposals, marking the type
+  console.log('[CorrectionDialog] projectOptions:', projectOptions.length, 'proposalOptions:', proposalOptions.length);
+  const allOptions: ProjectOption[] = [
+    ...projectOptions.map(p => ({ ...p, type: 'project' as const })),
+    ...proposalOptions.map(p => ({ ...p, type: 'proposal' as const })),
+  ];
+  console.log('[CorrectionDialog] allOptions:', allOptions.length);
+
+  const filteredOptions = allOptions.filter(
     p => p.code.toLowerCase().includes(projectSearch.toLowerCase()) ||
          p.name.toLowerCase().includes(projectSearch.toLowerCase())
   ).slice(0, 50);
@@ -150,7 +172,12 @@ export function CorrectionDialog({
             {/* Correct Project Selection */}
             {showProjectCorrection && (
               <div className="space-y-2">
-                <Label className="text-sm">Which project should this be linked to?</Label>
+                <Label className="text-sm">
+                  Which project/proposal should this be linked to?
+                  <span className="ml-2 text-xs text-slate-400">
+                    ({projectOptions.length} projects, {proposalOptions.length} proposals)
+                  </span>
+                </Label>
                 <Input
                   placeholder="Search projects..."
                   value={projectSearch}
@@ -159,13 +186,21 @@ export function CorrectionDialog({
                 />
                 <Select value={correctProjectCode || "none"} onValueChange={(v) => setCorrectProjectCode(v === "none" ? "" : v)}>
                   <SelectTrigger>
-                    <SelectValue placeholder="Select correct project" />
+                    <SelectValue placeholder="Select correct project or proposal" />
                   </SelectTrigger>
                   <SelectContent className="max-h-[300px]">
                     <SelectItem value="none">-- None / Don&apos;t link --</SelectItem>
-                    {filteredProjects.map((p) => (
+                    {filteredOptions.map((p) => (
                       <SelectItem key={p.code} value={p.code}>
-                        {p.code} - {p.name}
+                        <span className="flex items-center gap-2">
+                          {p.type === 'proposal' && (
+                            <span className="text-[10px] bg-amber-100 text-amber-700 px-1 rounded">PROPOSAL</span>
+                          )}
+                          {p.type === 'project' && (
+                            <span className="text-[10px] bg-emerald-100 text-emerald-700 px-1 rounded">PROJECT</span>
+                          )}
+                          {p.code} - {p.name}
+                        </span>
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -187,9 +222,9 @@ export function CorrectionDialog({
                       <Badge variant="outline" className="text-emerald-600 bg-emerald-50">
                         {correctProjectCode}
                       </Badge>
-                      {projectOptions.find(p => p.code === correctProjectCode)?.name && (
+                      {allOptions.find(p => p.code === correctProjectCode)?.name && (
                         <span className="text-xs text-emerald-600 mt-0.5">
-                          {projectOptions.find(p => p.code === correctProjectCode)?.name}
+                          {allOptions.find(p => p.code === correctProjectCode)?.name}
                         </span>
                       )}
                     </div>
