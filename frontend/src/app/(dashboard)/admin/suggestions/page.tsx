@@ -1103,7 +1103,13 @@ export default function SuggestionsPage() {
                   </Card>
                 ) : enhancedSuggestion ? (
                   <EnhancedReviewCard
-                    suggestion={enhancedSuggestion}
+                    suggestion={{
+                      ...enhancedSuggestion,
+                      // Merge project_name from full-context API
+                      ...(enhancedContextData?.suggestion ? {
+                        project_name: enhancedContextData.suggestion.project_name
+                      } : {})
+                    }}
                     sourceData={enhancedContextData?.source_content ? {
                       success: true,
                       source_type: enhancedContextData.source_content.type as 'email' | 'transcript',
