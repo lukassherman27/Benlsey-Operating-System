@@ -1743,6 +1743,19 @@ async def get_suggestion_full_context(suggestion_id: int):
 
         suggestion = dict(row)
 
+        # Get project name if project_code exists
+        if suggestion.get('project_code'):
+            cursor.execute("""
+                SELECT project_title FROM projects WHERE project_code = ?
+            """, (suggestion['project_code'],))
+            project_row = cursor.fetchone()
+            if project_row:
+                suggestion['project_name'] = project_row['project_title']
+            else:
+                suggestion['project_name'] = None
+        else:
+            suggestion['project_name'] = None
+
         # Parse suggested_data
         suggested_data = {}
         if suggestion.get('suggested_data'):
