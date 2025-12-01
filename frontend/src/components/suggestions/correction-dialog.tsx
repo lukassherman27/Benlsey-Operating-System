@@ -157,12 +157,12 @@ export function CorrectionDialog({
                   onChange={(e) => setProjectSearch(e.target.value)}
                   className="mb-2"
                 />
-                <Select value={correctProjectCode} onValueChange={setCorrectProjectCode}>
+                <Select value={correctProjectCode || "none"} onValueChange={(v) => setCorrectProjectCode(v === "none" ? "" : v)}>
                   <SelectTrigger>
                     <SelectValue placeholder="Select correct project" />
                   </SelectTrigger>
                   <SelectContent className="max-h-[300px]">
-                    <SelectItem value="">-- None / Don&apos;t link --</SelectItem>
+                    <SelectItem value="none">-- None / Don&apos;t link --</SelectItem>
                     {filteredProjects.map((p) => (
                       <SelectItem key={p.code} value={p.code}>
                         {p.code} - {p.name}
