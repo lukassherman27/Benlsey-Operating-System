@@ -154,10 +154,11 @@ export function EnhancedReviewCard({
   const isEmailLink = suggestion.suggestion_type === 'email_link';
   const isNewContact = suggestion.suggestion_type === 'new_contact';
 
-  // Look up project name from options
-  const projectName = suggestion.project_code
-    ? projectOptions.find(p => p.code === suggestion.project_code)?.name
-    : null;
+  // Get project name - first try from suggestion directly, then from options
+  const projectName = (suggestion as { project_name?: string }).project_name
+    || (suggestion.project_code
+      ? projectOptions.find(p => p.code === suggestion.project_code)?.name
+      : null);
 
   // Get selected action details for preview
   const selectedActionDetails = aiAnalysis?.suggested_actions?.filter(
@@ -203,16 +204,20 @@ export function EnhancedReviewCard({
                 {confidencePercent}% confidence
               </Badge>
 
-              {/* Project Code + Name */}
+              {/* Project Code + Name - PROMINENT */}
               {suggestion.project_code && (
-                <div className="flex items-center gap-1.5">
-                  <code className="bg-purple-100 px-2 py-0.5 rounded text-purple-700 text-xs font-semibold">
+                <div className="flex items-center gap-2 bg-purple-50 px-3 py-1 rounded-lg border border-purple-200">
+                  <Building2 className="h-4 w-4 text-purple-600" />
+                  <code className="text-purple-700 text-sm font-bold">
                     {suggestion.project_code}
                   </code>
                   {projectName && (
-                    <span className="text-xs text-slate-600 truncate max-w-[200px]">
-                      {projectName}
-                    </span>
+                    <>
+                      <span className="text-purple-400">|</span>
+                      <span className="text-sm font-medium text-purple-900 truncate max-w-[250px]">
+                        {projectName}
+                      </span>
+                    </>
                   )}
                 </div>
               )}
@@ -430,6 +435,7 @@ function SourcePanel({ sourceData }: { sourceData: SuggestionSourceResponse | nu
 
   const isEmail = sourceData.source_type === 'email';
   const isTranscript = sourceData.source_type === 'transcript';
+  const isContactSummary = sourceData.source_type === 'contact_summary';
 
   return (
     <div className="space-y-4">
@@ -445,6 +451,12 @@ function SourcePanel({ sourceData }: { sourceData: SuggestionSourceResponse | nu
           <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200">
             <FileText className="h-3 w-3 mr-1" />
             Transcript
+          </Badge>
+        )}
+        {isContactSummary && (
+          <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200">
+            <User className="h-3 w-3 mr-1" />
+            Contact Analysis
           </Badge>
         )}
       </div>
