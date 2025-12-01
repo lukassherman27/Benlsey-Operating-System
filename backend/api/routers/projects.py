@@ -103,7 +103,11 @@ async def get_projects_for_linking():
         cursor = conn.cursor()
 
         cursor.execute("""
-            SELECT project_code, project_title, client_name, status
+            SELECT
+                project_code as code,
+                project_title as name,
+                status,
+                COALESCE(is_active_project, 0) as is_active_project
             FROM projects
             WHERE project_code IS NOT NULL
             ORDER BY project_code DESC
