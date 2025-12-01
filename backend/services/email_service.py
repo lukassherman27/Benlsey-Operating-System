@@ -15,6 +15,28 @@ from .base_service import BaseService
 class EmailService(BaseService):
     """Service for email operations"""
 
+    def get_emails(
+        self,
+        page: int = 1,
+        per_page: int = 50,
+        category: Optional[str] = None,
+        project_code: Optional[str] = None,
+        search: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """Wrapper for get_all_emails with router-compatible parameters"""
+        result = self.get_all_emails(
+            search_query=search,
+            category=category,
+            page=page,
+            per_page=per_page
+        )
+        return {
+            'emails': result.get('items', []),
+            'total': result.get('total', 0),
+            'page': page,
+            'per_page': per_page
+        }
+
     def get_all_emails(
         self,
         search_query: Optional[str] = None,
@@ -311,6 +333,21 @@ class EmailService(BaseService):
 
         return stats
 
+    def get_categories(self) -> List[Dict[str, Any]]:
+        """Get all email categories with counts"""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT
+                    category,
+                    COUNT(*) as count
+                FROM email_content
+                WHERE category IS NOT NULL
+                GROUP BY category
+                ORDER BY count DESC
+            """)
+            return [dict(row) for row in cursor.fetchall()]
+
     def update_email_category(
         self,
         email_id: int,
@@ -509,6 +546,7 @@ class EmailService(BaseService):
         Returns:
             List of recent emails with project info from last N days
         """
+        # Use subquery to get one email_content row per email (latest by rowid)
         sql = """
             SELECT
                 e.email_id,
@@ -540,7 +578,11 @@ class EmailService(BaseService):
                     LIMIT 1
                 ) AS project_title
             FROM emails e
-            LEFT JOIN email_content ec ON e.email_id = ec.email_id
+            LEFT JOIN (
+                SELECT email_id, category, importance_score, ai_summary,
+                       ROW_NUMBER() OVER (PARTITION BY email_id ORDER BY rowid DESC) as rn
+                FROM email_content
+            ) ec ON e.email_id = ec.email_id AND ec.rn = 1
             WHERE e.date IS NOT NULL
                 AND e.date_normalized >= date('now', '-' || ? || ' days')
             ORDER BY e.date DESC

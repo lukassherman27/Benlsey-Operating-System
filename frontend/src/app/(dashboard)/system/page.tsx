@@ -4,6 +4,8 @@ import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
+
 interface SystemStats {
   database: {
     size_mb: number;
@@ -64,7 +66,7 @@ export default function SystemStatusPage() {
       setLoading(true);
       setError(null);
 
-      const response = await fetch("http://localhost:8000/api/admin/system-stats");
+      const response = await fetch(`${API_BASE_URL}/api/admin/system-stats`);
 
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
@@ -286,10 +288,10 @@ export default function SystemStatusPage() {
       <Card className="p-6">
         <h2 className="text-xl font-bold mb-4">Quick Actions</h2>
         <div className="flex gap-3 flex-wrap">
-          <Button onClick={() => window.location.href = '/emails/links'}>
+          <Button onClick={() => window.location.href = '/admin/email-links'}>
             📧 Email Links Manager
           </Button>
-          <Button onClick={() => window.location.href = '/dashboard'} variant="outline">
+          <Button onClick={() => window.location.href = '/'} variant="outline">
             📊 Dashboard
           </Button>
           <Button onClick={() => window.location.href = '/proposals'} variant="outline">

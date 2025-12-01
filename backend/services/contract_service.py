@@ -51,11 +51,11 @@ class ContractService(BaseService):
                 e.subject,
                 e.sender_email,
                 e.date AS email_date,
-                p.project_title
+                p.project_name
             FROM email_attachments a
             JOIN emails e ON a.email_id = e.email_id
             LEFT JOIN email_proposal_links epl ON e.email_id = epl.email_id
-            LEFT JOIN proposals p ON epl.proposal_id = p.project_id
+            LEFT JOIN proposals p ON epl.proposal_id = p.proposal_id
             WHERE p.project_code = ?
             AND a.document_type IN ('bensley_contract', 'external_contract')
         """
@@ -98,7 +98,7 @@ class ContractService(BaseService):
             FROM email_attachments a
             JOIN emails e ON a.email_id = e.email_id
             LEFT JOIN email_proposal_links epl ON e.email_id = epl.email_id
-            LEFT JOIN proposals p ON epl.proposal_id = p.project_id
+            LEFT JOIN proposals p ON epl.proposal_id = p.proposal_id
             WHERE p.project_code = ?
             AND a.document_type IN ('bensley_contract', 'external_contract')
             ORDER BY a.created_at DESC
@@ -139,11 +139,11 @@ class ContractService(BaseService):
                 e.subject,
                 e.sender_email,
                 p.project_code,
-                p.project_title
+                p.project_name
             FROM email_attachments a
             JOIN emails e ON a.email_id = e.email_id
             LEFT JOIN email_proposal_links epl ON e.email_id = epl.email_id
-            LEFT JOIN proposals p ON epl.proposal_id = p.project_id
+            LEFT JOIN proposals p ON epl.proposal_id = p.proposal_id
             WHERE a.document_type IN ('bensley_contract', 'external_contract')
             AND (a.filename LIKE ? OR e.subject LIKE ?)
             ORDER BY a.created_at DESC
@@ -342,11 +342,11 @@ class ContractService(BaseService):
                 e.sender_email,
                 e.date AS email_date,
                 p.project_code,
-                p.project_title
+                p.project_name
             FROM email_attachments a
             JOIN emails e ON a.email_id = e.email_id
             LEFT JOIN email_proposal_links epl ON e.email_id = epl.email_id
-            LEFT JOIN proposals p ON epl.proposal_id = p.project_id
+            LEFT JOIN proposals p ON epl.proposal_id = p.proposal_id
             WHERE a.document_type IN ('bensley_contract', 'external_contract')
         """
         params = []
@@ -613,44 +613,45 @@ class ContractService(BaseService):
 
     def get_fee_breakdown(self, project_code: str) -> List[Dict]:
         """Get phase-based fee breakdown for a project"""
-        cursor = self.conn.cursor()
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
 
-        cursor.execute("""
-            SELECT breakdown_id, project_code, phase, phase_fee_usd,
-                   percentage_of_total, payment_status, invoice_id,
-                   expected_payment_date, actual_payment_date,
-                   confirmed_by_user, confidence
-            FROM project_fee_breakdown
-            WHERE project_code = ?
-            ORDER BY
-                CASE phase
-                    WHEN 'mobilization' THEN 1
-                    WHEN 'concept' THEN 2
-                    WHEN 'schematic' THEN 3
-                    WHEN 'dd' THEN 4
-                    WHEN 'cd' THEN 5
-                    WHEN 'ca' THEN 6
-                    ELSE 7
-                END
-        """, (project_code,))
+            cursor.execute("""
+                SELECT breakdown_id, project_code, phase, phase_fee_usd,
+                       percentage_of_total, payment_status, invoice_id,
+                       expected_payment_date, actual_payment_date,
+                       confirmed_by_user, confidence
+                FROM project_fee_breakdown
+                WHERE project_code = ?
+                ORDER BY
+                    CASE phase
+                        WHEN 'mobilization' THEN 1
+                        WHEN 'concept' THEN 2
+                        WHEN 'schematic' THEN 3
+                        WHEN 'dd' THEN 4
+                        WHEN 'cd' THEN 5
+                        WHEN 'ca' THEN 6
+                        ELSE 7
+                    END
+            """, (project_code,))
 
-        breakdown = []
-        for row in cursor.fetchall():
-            breakdown.append({
-                "breakdown_id": row[0],
-                "project_code": row[1],
-                "phase": row[2],
-                "phase_fee_usd": row[3],
-                "percentage_of_total": row[4],
-                "payment_status": row[5],
-                "invoice_id": row[6],
-                "expected_payment_date": row[7],
-                "actual_payment_date": row[8],
-                "confirmed_by_user": bool(row[9]),
-                "confidence": row[10]
-            })
+            breakdown = []
+            for row in cursor.fetchall():
+                breakdown.append({
+                    "breakdown_id": row[0],
+                    "project_code": row[1],
+                    "phase": row[2],
+                    "phase_fee_usd": row[3],
+                    "percentage_of_total": row[4],
+                    "payment_status": row[5],
+                    "invoice_id": row[6],
+                    "expected_payment_date": row[7],
+                    "actual_payment_date": row[8],
+                    "confirmed_by_user": bool(row[9]),
+                    "confidence": row[10]
+                })
 
-        return breakdown
+            return breakdown
 
     def create_standard_fee_breakdown(self, project_code: str, total_fee: float,
                                      breakdown_percentages: Optional[Dict[str, float]] = None) -> Dict:

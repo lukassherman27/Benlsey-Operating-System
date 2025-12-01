@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bensley Weekly Schedule (Dec 1–12)</title>
+  <style>
+    :root {
+      --bg: #0b1720;
+      --text: #ecf4fb;
+      --muted: #a7bed0;
+      --border: #1f3043;
+      --weekend: #1a232f;
+      --unassigned-bg: #111821;
+      --unassigned-text: #f87171;
+    }
+    body {
+      margin: 0;
+      padding: 16px;
+      font-family: "Inter", system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+    }
+    h1 { margin: 0 0 10px; font-size: 20px; }
+    p { margin: 0 0 12px; color: var(--muted); font-size: 13px; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 11px;
+      table-layout: fixed;
+    }
+    th, td {
+      border: 1px solid var(--border);
+      padding: 6px 6px;
+      vertical-align: top;
+      word-wrap: break-word;
+    }
+    th {
+      background: #122234;
+      font-weight: 700;
+      color: var(--text);
+      text-align: center;
+    }
+    .name-col { width: 120px; }
+    .office-col { width: 80px; text-align: center; }
+    .weekend { background: var(--weekend); color: var(--muted); }
+    .unassigned { background: var(--unassigned-bg); color: var(--unassigned-text); text-align: center; }
+  </style>
+</head>
+<body>
+  <h1>Bensley Weekly Schedule (Dec 1–12)</h1>
+  <p>Columns: Name, Office, then daily assignments (Project – Discipline – Task). Weekends are shaded.</p>
+  <table id="schedule"></table>
+
+  <script>
+    const dates = [
+      { key: "d1", label: "Mon<br>Dec 1", weekend: false },
+      { key: "d2", label: "Tue<br>Dec 2", weekend: false },
+      { key: "d3", label: "Wed<br>Dec 3", weekend: false },
+      { key: "d4", label: "Thu<br>Dec 4", weekend: false },
+      { key: "d5", label: "Fri<br>Dec 5", weekend: false },
+      { key: "d6", label: "Sat<br>Dec 6", weekend: true },
+      { key: "d7", label: "Sun<br>Dec 7", weekend: true },
+      { key: "d8", label: "Mon<br>Dec 8", weekend: false },
+      { key: "d9", label: "Tue<br>Dec 9", weekend: false },
+      { key: "d10", label: "Wed<br>Dec 10", weekend: false },
+      { key: "d11", label: "Thu<br>Dec 11", weekend: false },
+      { key: "d12", label: "Fri<br>Dec 12", weekend: false }
+    ];
+
+    const projectColors = {
+      "DTM": "#0fb5a7",
+      "St Regis / Marriott Pools": "#0f4fa7",
+      "Presidential Villas": "#10b981",
+      "Public Built-ins": "#22c55e",
+      "St Regis FF&E": "#c084fc",
+      "Marriott LF": "#1fb6ff",
+      "Fenfushi": "#f59e0b",
+      "Landscape Jyoti": "#3ba55d",
+      "Landscape DTM": "#2f8f4a",
+      "Jyoti ID": "#6b8e23",
+      "TARC": "#8b5cf6",
+      "Bodrum/Raffles": "#ef4444",
+      "Shinta Mani": "#d4a017",
+      "Wynn": "#4b5563",
+      "Four Seasons": "#b45309",
+      "Graphics": "#9ca3af",
+      "Private Residence": "#ec4899",
+      "Vacation": "#999"
+    };
+
+    const people = [
+      { name: "Suwit", office: "Thailand", assign: { all: "DTM|Architecture/Public – Glass House + cost-cut" } },
+      { name: "Ple", office: "Thailand", assign: { all: "DTM|Architecture support" } },
+      { name: "Arm", office: "Thailand", assign: { all: "DTM|Architecture support (plans/sections)" } },
+      { name: "Tom", office: "Thailand", assign: { w1: "DTM|Arch revisions + Pools", d8_10: "DTM|Arch/Pools", d11_12: "Marriott LF|Loose furniture" } },
+      { name: "Tone", office: "Thailand", assign: { w1: "DTM|Arch revisions", d8_10: "DTM|Arch revisions", d11_12: "Marriott LF|Loose furniture" } },
+      { name: "Fy / Fyi", office: "Thailand", assign: { w1: "DTM|Arch revisions", w2: "Marriott LF|Loose furniture" } },
+      { name: "Poa / Paopao", office: "Thailand", assign: { w1: "DTM|Arch revisions", w2: "Marriott LF|Loose furniture" } },
+      { name: "Por", office: "Thailand", assign: { all: "St Regis / Marriott Pools|Public + suite pools details" } },
+      { name: "Gio", office: "Thailand", assign: { all: "Presidential Villas|ID DD→CD (plans/sections/built-ins/loose)" } },
+      { name: "Kae", office: "Thailand", assign: { all: "Presidential Villas|ID DD→CD (plans/sections/built-ins/loose)" } },
+      { name: "May", office: "Thailand", assign: { all: "Public Built-ins|ID DD→CD" } },
+      { name: "Nile", office: "Thailand", assign: { all: "Public Built-ins|ID DD→CD" } },
+      { name: "Ohm", office: "Thailand", assign: { all: "Public Built-ins|ID DD→CD" } },
+      { name: "Pui", office: "Thailand", assign: { all: "Public Built-ins|ID DD→CD" } },
+      { name: "Mum", office: "Thailand", assign: { all: "St Regis FF&E|DD→CD" } },
+      { name: "Fah", office: "Thailand", assign: { all: "St Regis FF&E|DD→CD" } },
+      { name: "Aey", office: "Thailand", assign: { all: "St Regis FF&E|DD→CD" } },
+      { name: "Earn 1", office: "Thailand", assign: { all: "St Regis FF&E|DD→CD" } },
+      { name: "Earn 2", office: "Thailand", assign: { all: "St Regis FF&E|DD→CD" } },
+      { name: "Woey", office: "Thailand", assign: { all: "Marriott LF|Loose furniture (lead)" } },
+      { name: "Sprite", office: "Thailand", assign: { all: "Marriott LF|Loose furniture" } },
+      { name: "Eclair", office: "Thailand", assign: { all: "Marriott LF|Loose furniture" } },
+      { name: "Noon", office: "Thailand", assign: { all: "Marriott LF|Loose furniture" } },
+      { name: "Phong", office: "Thailand", assign: { w1: "Fenfushi|Walls/adjustments", d8_10: "Fenfushi|Walls/adjustments", d11_12: "Marriott LF|Loose furniture" } },
+      { name: "Davin", office: "Thailand", assign: { w1: "Fenfushi|Walls/adjustments", d8_10: "Fenfushi|Walls/adjustments", d11_12: "Marriott LF|Loose furniture" } },
+      { name: "Spot", office: "Thailand", assign: { all: "Fenfushi|Architecture CDs" } },
+      { name: "Bang", office: "Thailand", assign: { all: "Fenfushi|Architecture CDs" } },
+      { name: "Jack-BD", office: "Thailand", assign: { all: "Fenfushi|Architecture CDs" } },
+      { name: "Leng", office: "Thailand", assign: { all: "Fenfushi|Architecture CDs" } },
+      { name: "Chai", office: "Thailand", assign: { all: "Fenfushi|Architecture CDs" } },
+      { name: "Thong", office: "Thailand", assign: { all: "Fenfushi|Architecture CDs" } },
+      { name: "Tu", office: "Thailand", assign: { all: "Fenfushi|Architecture CDs" } },
+      { name: "Wut", office: "Thailand", assign: { all: "Fenfushi|Architecture CDs" } },
+      { name: "Nut", office: "Thailand", assign: { all: "Fenfushi|Murals + presentation" } },
+      { name: "Moo", office: "Thailand", assign: { w1: "Landscape Jyoti|Lead", w2: "Landscape DTM|Lead" } },
+      { name: "Charn", office: "Thailand", assign: { w1: "Landscape Jyoti|CDs", w2: "Landscape DTM|CDs" } },
+      { name: "Kaow", office: "Thailand", assign: { w1: "Landscape Jyoti|CDs", w2: "Landscape DTM|CDs" } },
+      { name: "Kuad", office: "Thailand", assign: { w1: "Landscape Jyoti|CDs", w2: "Landscape DTM|CDs" } },
+      { name: "Man", office: "Thailand", assign: { w1: "Landscape Jyoti|Planting plans", w2: "Landscape DTM|Planting plans" } },
+      { name: "Teay", office: "Thailand", assign: { w1: "Landscape Jyoti|Planting plans", w2: "Landscape DTM|Planting plans" } },
+      { name: "Oat", office: "Thailand", assign: { all: "Jyoti ID|Update/revise ID drawings" } },
+      { name: "Cin / Racin", office: "Thailand", assign: { w1: "TARC|Architecture", d8_10: "TARC|Architecture", d11_12: "Bodrum/Raffles|Interiors support" } },
+      { name: "Mick / Micky", office: "Thailand", assign: { w1: "TARC|Architecture", d8_10: "TARC|Architecture", d11_12: "Bodrum/Raffles|Interiors support" } },
+      { name: "Eax / Eak", office: "Thailand", assign: { w1: "TARC|Architecture", d8_10: "TARC|Architecture", d11_12: "Bodrum/Raffles|Interiors support" } },
+      { name: "Ai", office: "Thailand", assign: { w1: "TARC|Interior/Bodrum support", d8_10: "TARC + Bodrum/Raffles", d11_12: "Bodrum/Raffles|Interiors" } },
+      { name: "Am", office: "Thailand", assign: { w1: "TARC|Interior/Bodrum support", d8_10: "TARC + Bodrum/Raffles", d11_12: "Bodrum/Raffles|Interiors" } },
+      { name: "Jal", office: "Thailand", assign: { w1: "TARC|Interior/Bodrum support (incl. Fenfushi mural mid-week)", d8_10: "TARC + Bodrum/Raffles", d11_12: "Bodrum/Raffles|Interiors" } },
+      { name: "Aood", office: "Thailand", assign: { w1: "TARC lead + Bodrum + Raffles restaurant", d8_10: "TARC + Bodrum/Raffles", d11_12: "Bodrum/Raffles|Lead interiors" } },
+      { name: "Praew", office: "Thailand", assign: { w1: "TARC|Interior support (ID concept/mural)", d8_10: "TARC", d11_12: "Bodrum/Raffles|Support" } },
+      { name: "Gawow", office: "Thailand", assign: { all: "Shinta Mani|Advanced concept validation" } },
+      { name: "Wyn", office: "Thailand", assign: { all: "Wynn|RFIs/admin + London FF&E update" } },
+      { name: "Ord", office: "Thailand", assign: { all: "Four Seasons|Renovation CDs" } },
+      { name: "Aubrey", office: "Thailand", assign: { all: "Graphics|Signage/graphics/social" } },
+      { name: "Ouant", office: "Thailand", assign: { all: "Private Residence|Khun Nathawan" } }
+    ];
+
+    const getColor = (project) => projectColors[project] || "#2d3a4a";
+
+    const resolveAssignment = (assign, dayKey, idx) => {
+      // priority: specific day range, week buckets, all
+      if (["d1","d2","d3","d4","d5"].includes(dayKey) && assign.w1) return assign.w1;
+      if (["d8","d9","d10"].includes(dayKey) && assign.d8_10) return assign.d8_10;
+      if (["d11","d12"].includes(dayKey) && assign.d11_12) return assign.d11_12;
+      if (["d8","d9","d10","d11","d12"].includes(dayKey) && assign.w2) return assign.w2;
+      if (assign.all) return assign.all;
+      return "";
+    };
+
+    const table = document.getElementById("schedule");
+
+    // header
+    const thead = document.createElement("thead");
+    const headerRow = document.createElement("tr");
+    const nameTh = document.createElement("th"); nameTh.className = "name-col"; nameTh.innerHTML = "Name";
+    const officeTh = document.createElement("th"); officeTh.className = "office-col"; officeTh.innerHTML = "Office";
+    headerRow.appendChild(nameTh); headerRow.appendChild(officeTh);
+    dates.forEach(d => {
+      const th = document.createElement("th");
+      if (d.weekend) th.classList.add("weekend");
+      th.innerHTML = d.label;
+      headerRow.appendChild(th);
+    });
+    thead.appendChild(headerRow);
+    table.appendChild(thead);
+
+    // body
+    const tbody = document.createElement("tbody");
+    people.forEach(p => {
+      const tr = document.createElement("tr");
+      const nameTd = document.createElement("td"); nameTd.className = "name-col"; nameTd.textContent = p.name;
+      const officeTd = document.createElement("td"); officeTd.className = "office-col"; officeTd.textContent = p.office;
+      tr.appendChild(nameTd); tr.appendChild(officeTd);
+
+      dates.forEach((d) => {
+        const td = document.createElement("td");
+        if (d.weekend) td.classList.add("weekend");
+        const val = resolveAssignment(p.assign, d.key);
+        if (!val) {
+          td.classList.add("unassigned");
+          td.textContent = "Unassigned";
+        } else {
+          const [project, rest] = val.split("|");
+          td.style.background = getColor(project.trim());
+          td.textContent = project.trim() + " – " + rest.trim();
+        }
+        tr.appendChild(td);
+      });
+
+      tbody.appendChild(tr);
+    });
+    table.appendChild(tbody);
+  </script>
+</body>
+</html>

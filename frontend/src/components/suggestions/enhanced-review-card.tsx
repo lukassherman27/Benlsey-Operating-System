@@ -154,6 +154,11 @@ export function EnhancedReviewCard({
   const isEmailLink = suggestion.suggestion_type === 'email_link';
   const isNewContact = suggestion.suggestion_type === 'new_contact';
 
+  // Look up project name from options
+  const projectName = suggestion.project_code
+    ? projectOptions.find(p => p.code === suggestion.project_code)?.name
+    : null;
+
   // Get selected action details for preview
   const selectedActionDetails = aiAnalysis?.suggested_actions?.filter(
     a => selectedActions.has(a.id)
@@ -198,11 +203,18 @@ export function EnhancedReviewCard({
                 {confidencePercent}% confidence
               </Badge>
 
-              {/* Project Code */}
+              {/* Project Code + Name */}
               {suggestion.project_code && (
-                <code className="bg-purple-100 px-2 py-0.5 rounded text-purple-700 text-xs">
-                  {suggestion.project_code}
-                </code>
+                <div className="flex items-center gap-1.5">
+                  <code className="bg-purple-100 px-2 py-0.5 rounded text-purple-700 text-xs font-semibold">
+                    {suggestion.project_code}
+                  </code>
+                  {projectName && (
+                    <span className="text-xs text-slate-600 truncate max-w-[200px]">
+                      {projectName}
+                    </span>
+                  )}
+                </div>
               )}
             </div>
 

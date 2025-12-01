@@ -9,10 +9,11 @@ import pandas as pd
 from pathlib import Path
 from datetime import datetime
 
-# Paths
-WORKING_DIR = Path("/Users/lukassherman/Library/CloudStorage/OneDrive-Personal/Bensley/Benlsey-Operating-System")
-DB_PATH = WORKING_DIR / "database" / "bensley_master.db"
-PROPOSAL_EXCEL = Path("/Users/lukassherman/Desktop/bensley proposal overview November 25th.xlsx")
+# Paths - use environment variable or default
+import os
+DB_PATH = Path(os.getenv('DATABASE_PATH', 'database/bensley_master.db'))
+# One-time import file - update path as needed for your import file
+PROPOSAL_EXCEL = Path(os.getenv('PROPOSAL_EXCEL', 'imports/bensley_proposal_overview.xlsx'))
 
 
 def import_proposal_overview():

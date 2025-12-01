@@ -1120,7 +1120,12 @@ export default function SuggestionsPage() {
                       action: enhancedContextData.preview.action as 'insert' | 'update' | 'delete' | 'none',
                       table: enhancedContextData.preview.table,
                       summary: enhancedContextData.preview.summary,
-                      changes: enhancedContextData.preview.changes,
+                      // Transform API's {new, old} to component's {new_value, old_value}
+                      changes: (enhancedContextData.preview.changes || []).map((c: { field: string; new?: unknown; old?: unknown; new_value?: unknown; old_value?: unknown }) => ({
+                        field: c.field,
+                        old_value: c.old_value ?? c.old ?? null,
+                        new_value: c.new_value ?? c.new ?? null,
+                      })),
                     } : null}
                     aiAnalysis={enhancedContextData?.ai_analysis || null}
                     isLoading={loadingEnhancedContext}

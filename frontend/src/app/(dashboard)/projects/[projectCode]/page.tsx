@@ -22,6 +22,8 @@ import {
 import Link from "next/link";
 import { useState, use } from "react";
 import { UnifiedTimeline } from "@/components/project/unified-timeline";
+import { ds, bensleyVoice } from "@/lib/design-system";
+import { cn } from "@/lib/utils";
 
 const formatCurrency = (value?: number | null) => {
   if (value == null) return "$0";
@@ -80,18 +82,18 @@ export default function ProjectDetailPage({
 
   if (projectDetailQuery.error) {
     return (
-      <div className="flex min-h-screen items-center justify-center">
-        <Card className="rounded-3xl border-rose-200 bg-rose-50">
+      <div className="flex min-h-screen items-center justify-center bg-slate-50">
+        <Card className={cn(ds.cards.default, "border-red-200 bg-red-50")}>
           <CardContent className="p-8 text-center">
-            <AlertTriangle className="mx-auto h-12 w-12 text-rose-600" />
-            <h2 className="mt-4 text-xl font-semibold text-slate-900">
+            <AlertTriangle className="mx-auto h-12 w-12 text-red-600" />
+            <h2 className={cn(ds.typography.cardHeader, "mt-4")}>
               Project Not Found
             </h2>
-            <p className="mt-2 text-slate-600">
+            <p className={cn(ds.typography.bodySmall, "mt-2")}>
               Could not load project {projectCode}
             </p>
             <Link href="/projects">
-              <Button className="mt-6" variant="outline">
+              <Button className={cn(ds.buttons.secondary, "mt-6")}>
                 <ArrowLeft className="mr-2 h-4 w-4" />
                 Back to Projects
               </Button>
@@ -111,12 +113,12 @@ export default function ProjectDetailPage({
   const paymentProgress = totalInvoiced > 0 ? (paidToDate / totalInvoiced) * 100 : 0;
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white">
+    <div className="min-h-screen bg-slate-50">
       <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="mb-8">
           <Link href="/projects">
-            <Button variant="ghost" className="mb-4 gap-2">
+            <Button variant="ghost" className={cn(ds.buttons.ghost, "mb-4 gap-2")}>
               <ArrowLeft className="h-4 w-4" />
               Back to Projects
             </Button>
@@ -124,17 +126,17 @@ export default function ProjectDetailPage({
           <div className="flex items-start justify-between">
             <div>
               <div className="flex items-center gap-3">
-                <h1 className="text-3xl font-bold text-slate-900 lg:text-4xl">
-                  {projectCode}
+                <h1 className={ds.typography.pageTitle}>
+                  {(projectDetail?.project_name as string) ?? (projectDetail?.client_name as string) ?? projectCode}
                 </h1>
-                <Badge variant="outline" className="rounded-full">
+                <span className={ds.badges.default}>
                   {(projectDetail?.current_phase as string) ?? (projectDetail?.phase as string) ?? "Unknown Phase"}
-                </Badge>
+                </span>
               </div>
-              <p className="mt-2 text-lg text-slate-600">
-                {(projectDetail?.project_name as string) ?? (projectDetail?.client_name as string) ?? "Project Details"}
+              <p className={cn(ds.typography.bodySmall, "mt-2")}>
+                <span className="text-slate-500">{projectCode}</span>
               </p>
-              {(projectDetail?.client_name as string) && (
+              {(projectDetail?.client_name as string) && (projectDetail?.project_name as string) && (
                 <p className="mt-1 text-sm text-slate-500">
                   Client: {projectDetail?.client_name as string}
                 </p>
@@ -150,8 +152,27 @@ export default function ProjectDetailPage({
         </div>
 
         {isLoading ? (
-          <div className="flex h-64 items-center justify-center">
-            <p className="text-slate-500">Loading project details...</p>
+          <div className="space-y-6">
+            {/* Skeleton for financial summary */}
+            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+              {[1, 2, 3, 4].map((i) => (
+                <Card key={i} className={cn(ds.cards.default, "animate-pulse")}>
+                  <CardContent className="p-6">
+                    <div className="h-10 w-10 bg-slate-200 rounded-xl mb-4" />
+                    <div className="h-4 w-20 bg-slate-200 rounded mb-2" />
+                    <div className="h-8 w-32 bg-slate-200 rounded" />
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+            {/* Skeleton for invoices section */}
+            <Card className={cn(ds.cards.default, "animate-pulse")}>
+              <CardContent className="p-6 space-y-4">
+                <div className="h-6 w-48 bg-slate-200 rounded" />
+                <div className="h-4 w-full bg-slate-200 rounded" />
+                <div className="h-4 w-3/4 bg-slate-200 rounded" />
+              </CardContent>
+            </Card>
           </div>
         ) : (
           <>
@@ -195,7 +216,7 @@ export default function ProjectDetailPage({
               </div>
 
               {/* Progress Bars - Invoicing and Payment */}
-              <Card className="mt-6 rounded-3xl border-slate-200">
+              <Card className={cn(ds.cards.default, "mt-6")}>
                 <CardContent className="p-6 space-y-6">
                   {/* Invoicing Progress (% of contract invoiced) */}
                   <div>
@@ -238,13 +259,13 @@ export default function ProjectDetailPage({
 
             {/* Invoices by Discipline & Phase */}
             <section className="mb-8">
-              <h2 className="mb-4 text-xl font-semibold text-slate-900">Invoices by Scope</h2>
+              <h2 className={cn(ds.typography.sectionHeader, "mb-4")}>Invoices by Scope</h2>
               {invoices.length === 0 ? (
-                <Card className="rounded-3xl border-slate-200">
-                  <CardContent className="p-6">
-                    <p className="text-center text-sm text-slate-500 py-8">
-                      No invoices found for this project
-                    </p>
+                <Card className={ds.cards.default}>
+                  <CardContent className="p-6 py-12 text-center">
+                    <FileText className="mx-auto h-12 w-12 text-slate-300 mb-4" />
+                    <p className={ds.typography.cardHeader}>{bensleyVoice.emptyStates.invoices}</p>
+                    <p className={cn(ds.typography.caption, "mt-2")}>No invoices found for this project</p>
                   </CardContent>
                 </Card>
               ) : (
@@ -255,10 +276,10 @@ export default function ProjectDetailPage({
             {/* Schedule & Milestones */}
             {timeline?.milestones && Array.isArray(timeline.milestones) && timeline.milestones.length > 0 && (
               <section className="mb-8">
-                <h2 className="mb-4 text-xl font-semibold text-slate-900">
+                <h2 className={cn(ds.typography.sectionHeader, "mb-4")}>
                   Schedule & Milestones
                 </h2>
-                <Card className="rounded-3xl border-slate-200">
+                <Card className={ds.cards.default}>
                   <CardContent className="p-6">
                     <div className="space-y-4">
                       {timeline.milestones.map((milestone: Record<string, unknown>) => {
@@ -319,12 +340,12 @@ export default function ProjectDetailPage({
 
             {/* Communication & Documents */}
             <section className="mb-8">
-              <h2 className="mb-4 text-xl font-semibold text-slate-900">
+              <h2 className={cn(ds.typography.sectionHeader, "mb-4")}>
                 Communication & Documents
               </h2>
               <div className="grid gap-6 lg:grid-cols-2">
                 {/* Recent Emails */}
-                <Card className="rounded-3xl border-slate-200">
+                <Card className={ds.cards.default}>
                   <CardContent className="p-6">
                     <div className="flex items-center gap-2 mb-4">
                       <Mail className="h-5 w-5 text-blue-600" />
@@ -349,7 +370,7 @@ export default function ProjectDetailPage({
                         <p className="text-sm text-slate-500">No recent emails</p>
                       )}
                     </div>
-                    <Link href={`/emails?project=${projectCode}`}>
+                    <Link href={`/projects/${projectCode}/emails`}>
                       <Button variant="outline" className="mt-4 w-full">
                         View All Emails
                       </Button>
@@ -358,7 +379,7 @@ export default function ProjectDetailPage({
                 </Card>
 
                 {/* Documents */}
-                <Card className="rounded-3xl border-slate-200">
+                <Card className={ds.cards.default}>
                   <CardContent className="p-6">
                     <div className="flex items-center gap-2 mb-4">
                       <FileText className="h-5 w-5 text-purple-600" />
@@ -386,7 +407,7 @@ export default function ProjectDetailPage({
 
             {/* Unified Project Timeline */}
             <section className="mb-8">
-              <h2 className="mb-4 text-xl font-semibold text-slate-900">
+              <h2 className={cn(ds.typography.sectionHeader, "mb-4")}>
                 Project Activity Timeline
               </h2>
               <UnifiedTimeline projectCode={projectCode} limit={30} />
@@ -414,16 +435,16 @@ function FinancialCard({
   bgColor: string;
 }) {
   return (
-    <Card className="rounded-2xl border-slate-200 shadow-sm">
+    <Card className={ds.cards.default}>
       <CardContent className="p-6">
         <div className="flex items-center justify-between">
-          <div className={`rounded-xl ${bgColor} p-3 ${iconColor}`}>{icon}</div>
+          <div className={cn("rounded-xl p-3", bgColor, iconColor)}>{icon}</div>
         </div>
         <div className="mt-4">
-          <p className="text-sm font-medium text-slate-600">{label}</p>
-          <p className="mt-2 text-3xl font-bold text-slate-900">{value}</p>
+          <p className={ds.typography.metricLabel}>{label}</p>
+          <p className={cn(ds.typography.metricLarge, "mt-2")}>{value}</p>
           {subtitle && (
-            <p className="mt-1 text-xs text-slate-500">{subtitle}</p>
+            <p className={cn(ds.typography.caption, "mt-1")}>{subtitle}</p>
           )}
         </div>
       </CardContent>
@@ -431,25 +452,26 @@ function FinancialCard({
   );
 }
 
-// Phase ordering - Mobilization first, then design phases in order
+// Phase ordering per user requirements:
+// 1. Mobilization, 2. Concept Design, 3. Design Development, 4. Construction Documents, 5. Construction Observation
 const PHASE_ORDER: Record<string, number> = {
   'mobilization': 1,
-  'master plan': 2,
-  'master plan and preconcept': 2,
-  'preconcept': 3,
-  'concept': 4,
-  'concept design': 4,
-  'schematic': 5,
-  'schematic design': 5,
-  'sd': 5,
-  'design development': 6,
-  'dd': 6,
-  'construction documents': 7,
-  'cd': 7,
-  'construction observation': 8,
-  'co': 8,
-  'construction administration': 9,
-  'ca': 9,
+  'concept': 2,
+  'concept design': 2,
+  'design development': 3,
+  'dd': 3,
+  'construction documents': 4,
+  'construction drawings': 4,
+  'cd': 4,
+  'construction observation': 5,
+  'co': 5,
+  'construction administration': 5,
+  'ca': 5,
+  'schematic': 6,
+  'schematic design': 6,
+  'sd': 6,
+  'master plan': 7,
+  'preconcept': 8,
   'general': 99,
   'other': 100,
 };
@@ -570,12 +592,12 @@ function InvoicesByDiscipline({ invoices }: { invoices: Record<string, unknown>[
         const totalOutstanding = totalAmount - totalPaid;
 
         return (
-          <Card key={discipline} className={`rounded-3xl border-2 ${colors.border}`}>
+          <Card key={discipline} className={cn(ds.cards.default, "border-2", colors.border)}>
             <CardContent className="p-0">
               {/* Discipline Header */}
               <button
                 onClick={() => toggleDiscipline(discipline)}
-                className={`w-full flex items-center justify-between p-6 ${colors.bg} rounded-t-3xl hover:opacity-80 transition-opacity`}
+                className={cn("w-full flex items-center justify-between p-6 rounded-t-xl hover:opacity-80 transition-opacity", colors.bg)}
               >
                 <div className="flex items-center gap-3">
                   {isExpanded ? (

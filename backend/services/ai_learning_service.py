@@ -11,11 +11,16 @@ This service:
 import os
 import json
 import re
+import logging
 from datetime import datetime, timedelta
 from typing import List, Dict, Any, Optional
 from openai import OpenAI
 
 from .base_service import BaseService
+from .suggestion_handlers import HandlerRegistry
+from .learning_service import LearningService
+
+logger = logging.getLogger(__name__)
 
 
 class AILearningService(BaseService):
@@ -27,6 +32,8 @@ class AILearningService(BaseService):
         self.ai_enabled = bool(api_key)
         if self.ai_enabled:
             self.client = OpenAI(api_key=api_key)
+        # Initialize learning service for email pattern learning
+        self.pattern_learner = LearningService(str(self.db_path))
 
     # =========================================================================
     # SUGGESTION GENERATION
@@ -74,6 +81,10 @@ class AILearningService(BaseService):
         # 4. Check for deadlines
         deadline_suggestions = self._detect_deadlines(email, entities)
         suggestions.extend(deadline_suggestions)
+
+        # 5. Check for email links (project/proposal associations)
+        email_link_suggestions = self._detect_email_links(email, entities)
+        suggestions.extend(email_link_suggestions)
 
         # Save suggestions to database
         for suggestion in suggestions:
@@ -261,6 +272,259 @@ class AILearningService(BaseService):
 
         return suggestions
 
+    def _detect_email_links(self, email: Dict, entities: Dict) -> List[Dict]:
+        """Detect potential project/proposal links for email"""
+        suggestions = []
+
+        # Skip if already linked
+        if email.get('linked_project_code'):
+            return []
+
+        # NEW: Check learned patterns first (highest confidence)
+        try:
+            pattern_suggestion = self.pattern_learner.suggest_link_from_patterns(email)
+            if pattern_suggestion:
+                logger.info(
+                    f"Pattern match found for email {email['email_id']}: "
+                    f"{pattern_suggestion.get('project_code')}"
+                )
+                suggestions.append(pattern_suggestion)
+                # If we have a high-confidence pattern match, we can return early
+                if pattern_suggestion.get('confidence_score', 0) >= 0.8:
+                    return suggestions
+        except Exception as e:
+            logger.warning(f"Pattern matching failed for email {email['email_id']}: {e}")
+
+        subject = email.get('subject', '') or ''
+        body = email.get('body_full', '') or ''
+        text = f"{subject} {body}".lower()
+
+        # Pattern 1: Look for project codes (BK-XXX pattern)
+        project_code_pattern = r'\b(\d{2}\s*BK[-\s]?\d{3})\b'
+        matches = re.findall(project_code_pattern, text, re.IGNORECASE)
+
+        for match in matches:
+            # Normalize the project code
+            normalized = re.sub(r'[\s-]+', ' ', match.upper()).strip()
+            normalized = re.sub(r'(\d{2})\s*BK\s*(\d{3})', r'\1 BK-\2', normalized)
+
+            # Check if project exists
+            existing = self.execute_query("""
+                SELECT proposal_id, project_code, project_name
+                FROM proposals WHERE project_code = ?
+            """, [normalized])
+
+            if existing:
+                proposal = dict(existing[0])
+                suggestions.append({
+                    'suggestion_type': 'email_link',
+                    'priority': 'medium',
+                    'confidence_score': 0.85,
+                    'source_type': 'email',
+                    'source_id': email['email_id'],
+                    'source_reference': f"Email: {subject[:50]}",
+                    'title': f"Link email to {normalized}",
+                    'description': f"Project code {normalized} found in email",
+                    'suggested_action': 'Create email_proposal_link',
+                    'suggested_data': json.dumps({
+                        'email_id': email['email_id'],
+                        'proposal_id': proposal['proposal_id'],
+                        'project_code': normalized,
+                        'project_name': proposal['project_name'],
+                        'match_type': 'project_code'
+                    }),
+                    'target_table': 'email_proposal_links',
+                    'project_code': normalized
+                })
+
+        # Pattern 2: Look for client/project name mentions if no code found
+        if not suggestions:
+            # Get active proposals to match against
+            proposals = self.execute_query("""
+                SELECT proposal_id, project_code, project_name, client_company
+                FROM proposals
+                WHERE status NOT IN ('lost', 'cancelled', 'completed')
+                ORDER BY created_at DESC
+                LIMIT 50
+            """, [])
+
+            for proposal in proposals:
+                proposal = dict(proposal)
+                # Check if project title or client name is mentioned
+                title = (proposal.get('project_name') or '').lower()
+                client = (proposal.get('client_company') or '').lower()
+
+                if (title and len(title) > 4 and title in text) or \
+                   (client and len(client) > 4 and client in text):
+                    suggestions.append({
+                        'suggestion_type': 'email_link',
+                        'priority': 'low',
+                        'confidence_score': 0.6,
+                        'source_type': 'email',
+                        'source_id': email['email_id'],
+                        'source_reference': f"Email: {subject[:50]}",
+                        'title': f"Link email to {proposal['project_code']}",
+                        'description': f"Project/client name mentioned: {proposal['project_name']}",
+                        'suggested_action': 'Create email_proposal_link',
+                        'suggested_data': json.dumps({
+                            'email_id': email['email_id'],
+                            'proposal_id': proposal['proposal_id'],
+                            'project_code': proposal['project_code'],
+                            'project_name': proposal['project_name'],
+                            'match_type': 'name_mention'
+                        }),
+                        'target_table': 'email_proposal_links',
+                        'project_code': proposal['project_code']
+                    })
+                    break  # Only one suggestion per email
+
+        return suggestions
+
+    def _detect_transcript_links(self, transcript: Dict) -> List[Dict]:
+        """Detect potential proposal links for meeting transcripts"""
+        suggestions = []
+
+        # Skip if already linked
+        if transcript.get('proposal_id'):
+            return []
+
+        title = transcript.get('title', '') or ''
+        summary = transcript.get('summary', '') or ''
+        text = f"{title} {summary}".lower()
+
+        # Pattern 1: Look for project codes
+        project_code_pattern = r'\b(\d{2}\s*BK[-\s]?\d{3})\b'
+        matches = re.findall(project_code_pattern, text, re.IGNORECASE)
+
+        for match in matches:
+            normalized = re.sub(r'[\s-]+', ' ', match.upper()).strip()
+            normalized = re.sub(r'(\d{2})\s*BK\s*(\d{3})', r'\1 BK-\2', normalized)
+
+            existing = self.execute_query("""
+                SELECT proposal_id, project_code, project_name
+                FROM proposals WHERE project_code = ?
+            """, [normalized])
+
+            if existing:
+                proposal = dict(existing[0])
+                suggestions.append({
+                    'suggestion_type': 'transcript_link',
+                    'priority': 'medium',
+                    'confidence_score': 0.85,
+                    'source_type': 'transcript',
+                    'source_id': transcript['id'],
+                    'source_reference': f"Transcript: {title[:50]}",
+                    'title': f"Link transcript to {normalized}",
+                    'description': f"Project code {normalized} mentioned in transcript",
+                    'suggested_action': 'Update meeting_transcripts.proposal_id',
+                    'suggested_data': json.dumps({
+                        'transcript_id': transcript['id'],
+                        'proposal_id': proposal['proposal_id'],
+                        'project_code': normalized,
+                        'project_name': proposal['project_name'],
+                        'match_type': 'project_code'
+                    }),
+                    'target_table': 'meeting_transcripts',
+                    'project_code': normalized
+                })
+
+        # Pattern 2: Match by project/client name
+        if not suggestions:
+            proposals = self.execute_query("""
+                SELECT proposal_id, project_code, project_name, client_company
+                FROM proposals
+                WHERE status NOT IN ('lost', 'cancelled', 'completed')
+                ORDER BY created_at DESC
+                LIMIT 50
+            """, [])
+
+            for proposal in proposals:
+                proposal = dict(proposal)
+                proj_title = (proposal.get('project_name') or '').lower()
+                client = (proposal.get('client_company') or '').lower()
+
+                if (proj_title and len(proj_title) > 4 and proj_title in text) or \
+                   (client and len(client) > 4 and client in text):
+                    suggestions.append({
+                        'suggestion_type': 'transcript_link',
+                        'priority': 'low',
+                        'confidence_score': 0.6,
+                        'source_type': 'transcript',
+                        'source_id': transcript['id'],
+                        'source_reference': f"Transcript: {title[:50]}",
+                        'title': f"Link transcript to {proposal['project_code']}",
+                        'description': f"Project/client name mentioned: {proposal['project_name']}",
+                        'suggested_action': 'Update meeting_transcripts.proposal_id',
+                        'suggested_data': json.dumps({
+                            'transcript_id': transcript['id'],
+                            'proposal_id': proposal['proposal_id'],
+                            'project_code': proposal['project_code'],
+                            'project_name': proposal['project_name'],
+                            'match_type': 'name_mention'
+                        }),
+                        'target_table': 'meeting_transcripts',
+                        'project_code': proposal['project_code']
+                    })
+                    break
+
+        return suggestions
+
+    def _create_info_suggestion(
+        self,
+        email: Dict,
+        info_type: str,
+        title: str,
+        content: str,
+        priority: str = 'low'
+    ) -> Dict:
+        """Create informational suggestion (no DB change, just visibility)"""
+        return {
+            'suggestion_type': 'info',
+            'priority': priority,
+            'confidence_score': 1.0,
+            'source_type': 'email',
+            'source_id': email['email_id'],
+            'source_reference': f"Email: {email.get('subject', '')[:50]}",
+            'title': title,
+            'description': content,
+            'suggested_action': 'Review information',
+            'suggested_data': json.dumps({
+                'info_type': info_type,
+                'content': content
+            }),
+            'target_table': None,
+            'project_code': email.get('linked_project_code')
+        }
+
+    def generate_suggestions_from_transcript(self, transcript_id: int) -> List[Dict]:
+        """
+        Analyze a meeting transcript and generate suggestions for linking.
+        Called after transcript is imported.
+        """
+        suggestions = []
+
+        # Get transcript data
+        transcript_data = self.execute_query("""
+            SELECT id, title, summary, proposal_id, detected_project_code
+            FROM meeting_transcripts
+            WHERE id = ?
+        """, [transcript_id])
+
+        if not transcript_data:
+            return []
+
+        transcript = dict(transcript_data[0])
+
+        # Check for transcript link suggestions
+        link_suggestions = self._detect_transcript_links(transcript)
+        suggestions.extend(link_suggestions)
+
+        # Save suggestions to database
+        for suggestion in suggestions:
+            self._save_suggestion(suggestion)
+
+        return suggestions
+
     def _save_suggestion(self, suggestion: Dict) -> int:
         """Save a suggestion to the database"""
         with self.get_connection() as conn:
@@ -352,8 +616,10 @@ class AILearningService(BaseService):
             conn.commit()
 
         # Apply changes if requested
+        # Note: Use suggestion_type to find handler, not target_table
+        # (handlers know their own target tables)
         applied = False
-        if apply_changes and suggestion['target_table']:
+        if apply_changes:
             applied = self._apply_suggestion(suggestion)
 
         # Record positive feedback for learning
@@ -364,6 +630,20 @@ class AILearningService(BaseService):
             corrected_value='approved',
             taught_by=reviewed_by
         )
+
+        # NEW: Learn patterns from approved email_link suggestions
+        if suggestion.get('suggestion_type') == 'email_link' and applied:
+            try:
+                pattern_ids = self.pattern_learner.on_email_link_approved(
+                    suggestion, suggestion_id
+                )
+                if pattern_ids:
+                    logger.info(
+                        f"Learned {len(pattern_ids)} patterns from suggestion {suggestion_id}"
+                    )
+            except Exception as e:
+                # Don't fail the approval if pattern learning fails
+                logger.warning(f"Pattern learning failed for suggestion {suggestion_id}: {e}")
 
         return {
             'success': True,
@@ -378,6 +658,13 @@ class AILearningService(BaseService):
         reason: Optional[str] = None
     ) -> Dict[str, Any]:
         """Reject a suggestion"""
+
+        # Get the suggestion first (needed for pattern learning)
+        suggestion = self.execute_query("""
+            SELECT * FROM ai_suggestions WHERE suggestion_id = ?
+        """, [suggestion_id])
+
+        suggestion_data = dict(suggestion[0]) if suggestion else {}
 
         with self.get_connection() as conn:
             cursor = conn.cursor()
@@ -400,6 +687,17 @@ class AILearningService(BaseService):
             lesson=reason,
             taught_by=reviewed_by
         )
+
+        # NEW: Penalize patterns when email_link suggestions are rejected
+        if suggestion_data.get('suggestion_type') == 'email_link':
+            try:
+                self.pattern_learner.on_email_link_rejected(
+                    suggestion_data, suggestion_id
+                )
+                logger.info(f"Penalized patterns for rejected suggestion {suggestion_id}")
+            except Exception as e:
+                # Don't fail the rejection if pattern learning fails
+                logger.warning(f"Pattern penalization failed for suggestion {suggestion_id}: {e}")
 
         return {'success': True, 'suggestion_id': suggestion_id}
 
@@ -464,16 +762,49 @@ class AILearningService(BaseService):
         }
 
     def _apply_suggestion(self, suggestion: Dict) -> bool:
-        """Apply a suggestion to the database"""
+        """
+        Apply a suggestion to the database using the handler registry.
+
+        Uses handler-based architecture for supported types, with fallback
+        to legacy logic for types without handlers yet.
+        """
         try:
-            target_table = suggestion['target_table']
-            data = json.loads(suggestion['suggested_data'])
+            suggestion_type = suggestion.get('suggestion_type')
+            suggestion_id = suggestion.get('suggestion_id')
+            data = json.loads(suggestion['suggested_data']) if suggestion.get('suggested_data') else {}
 
             with self.get_connection() as conn:
+                # Try to get a handler for this suggestion type
+                handler = HandlerRegistry.get_handler(suggestion_type, conn)
+
+                if handler:
+                    # Validate first
+                    errors = handler.validate(data)
+                    if errors:
+                        print(f"Validation errors for suggestion {suggestion_id}: {errors}")
+                        return False
+
+                    # Apply using handler
+                    result = handler.apply(suggestion, data)
+
+                    if result.success and result.rollback_data:
+                        # Store rollback data in the suggestion for undo capability
+                        cursor = conn.cursor()
+                        cursor.execute("""
+                            UPDATE ai_suggestions
+                            SET rollback_data = ?
+                            WHERE suggestion_id = ?
+                        """, (json.dumps(result.rollback_data), suggestion_id))
+                        conn.commit()
+
+                    return result.success
+
+                # Fallback to legacy handling for types without handlers
+                target_table = suggestion.get('target_table')
                 cursor = conn.cursor()
 
                 if target_table == 'contacts':
-                    # Add new contact
+                    # Legacy: Add new contact
                     cursor.execute("""
                         INSERT OR IGNORE INTO contacts (name, email, first_seen, source)
                         VALUES (?, ?, ?, ?)
@@ -487,7 +818,7 @@ class AILearningService(BaseService):
                     return True
 
                 elif target_table == 'proposals':
-                    # Update proposal
+                    # Legacy: Update proposal
                     if 'new_value' in data:
                         cursor.execute("""
                             UPDATE proposals
@@ -499,7 +830,19 @@ class AILearningService(BaseService):
                         conn.commit()
                         return True
 
-            # Add more target table handlers as needed
+                elif target_table == 'meeting_transcripts':
+                    # Legacy: Link transcript to proposal
+                    transcript_id = data.get('transcript_id')
+                    proposal_id = data.get('proposal_id')
+                    if transcript_id and proposal_id:
+                        cursor.execute("""
+                            UPDATE meeting_transcripts
+                            SET proposal_id = ?,
+                                detected_project_code = ?
+                            WHERE id = ?
+                        """, (proposal_id, suggestion.get('project_code'), transcript_id))
+                        conn.commit()
+                        return True
 
             return False
         except Exception as e:
@@ -669,6 +1012,36 @@ class AILearningService(BaseService):
             patterns.append(pattern)
 
         return patterns
+
+    def get_recent_decisions(self, limit: int = 50) -> List[Dict[str, Any]]:
+        """Get recent AI suggestion decisions (approvals/rejections)"""
+        results = self.execute_query("""
+            SELECT
+                tf.feedback_id,
+                tf.suggestion_id,
+                tf.feedback_type,
+                tf.original_value,
+                tf.corrected_value,
+                tf.context_type,
+                tf.context_id,
+                tf.lesson,
+                tf.project_code,
+                tf.client_company,
+                tf.taught_by,
+                tf.taught_at,
+                tf.incorporated,
+                tf.times_applied
+            FROM training_feedback tf
+            ORDER BY tf.taught_at DESC
+            LIMIT ?
+        """, [limit])
+
+        decisions = []
+        for row in results:
+            decision = dict(row)
+            decisions.append(decision)
+
+        return decisions
 
     # =========================================================================
     # BATCH PROCESSING

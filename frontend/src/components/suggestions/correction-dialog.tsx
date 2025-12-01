@@ -91,8 +91,16 @@ export function CorrectionDialog({
          p.name.toLowerCase().includes(projectSearch.toLowerCase())
   ).slice(0, 50);
 
-  const isEmailLink = suggestion?.suggestion_type === 'email_link';
-  const showProjectCorrection = isEmailLink && rejectionReason === 'wrong_project';
+  // Show project correction for any link-type suggestion
+  const isLinkSuggestion = suggestion?.suggestion_type === 'email_link' ||
+                            suggestion?.suggestion_type === 'contact_link' ||
+                            suggestion?.suggestion_type === 'transcript_link';
+  const showProjectCorrection = isLinkSuggestion && rejectionReason === 'wrong_project';
+
+  // Look up current project name
+  const currentProjectName = suggestion?.project_code
+    ? projectOptions.find(p => p.code === suggestion.project_code)?.name
+    : null;
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
@@ -117,6 +125,7 @@ export function CorrectionDialog({
               {suggestion.project_code && (
                 <Badge variant="outline" className="mt-2 text-xs">
                   Current: {suggestion.project_code}
+                  {currentProjectName && ` - ${currentProjectName}`}
                 </Badge>
               )}
             </div>
@@ -165,13 +174,25 @@ export function CorrectionDialog({
                 {/* Show correction preview */}
                 {correctProjectCode && (
                   <div className="flex items-center gap-2 p-2 bg-emerald-50 rounded text-sm">
-                    <Badge variant="outline" className="text-red-600 line-through">
-                      {suggestion.project_code || 'None'}
-                    </Badge>
+                    <div className="flex flex-col">
+                      <Badge variant="outline" className="text-red-600 line-through">
+                        {suggestion.project_code || 'None'}
+                      </Badge>
+                      {currentProjectName && (
+                        <span className="text-xs text-red-500 line-through mt-0.5">{currentProjectName}</span>
+                      )}
+                    </div>
                     <ArrowRight className="h-4 w-4 text-slate-400" />
-                    <Badge variant="outline" className="text-emerald-600 bg-emerald-50">
-                      {correctProjectCode}
-                    </Badge>
+                    <div className="flex flex-col">
+                      <Badge variant="outline" className="text-emerald-600 bg-emerald-50">
+                        {correctProjectCode}
+                      </Badge>
+                      {projectOptions.find(p => p.code === correctProjectCode)?.name && (
+                        <span className="text-xs text-emerald-600 mt-0.5">
+                          {projectOptions.find(p => p.code === correctProjectCode)?.name}
+                        </span>
+                      )}
+                    </div>
                   </div>
                 )}
               </div>

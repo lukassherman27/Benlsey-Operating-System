@@ -44,7 +44,7 @@ import {
 import { useMutation } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { formatCurrency, getStatusColor, cn } from "@/lib/utils";
-import { ds } from "@/lib/design-system";
+import { ds, bensleyVoice } from "@/lib/design-system";
 import { type ProposalStatus } from "@/lib/constants";
 import { Skeleton } from "@/components/ui/skeleton";
 import { exportToCSV, prepareDataForExport } from "@/lib/export-utils";
@@ -70,7 +70,6 @@ export default function ProposalTrackerPage() {
   const router = useRouter();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<ProposalStatus | "all">("all");
-  const [countryFilter, setCountryFilter] = useState<string>("all");
   const [disciplineFilter, setDisciplineFilter] = useState<DisciplineFilter>("all");
   const [yearFilter, setYearFilter] = useState<string>("all");
   const [page, setPage] = useState(1);
@@ -84,12 +83,6 @@ export default function ProposalTrackerPage() {
     queryFn: () => api.getProposalTrackerStats(),
   });
 
-  // Fetch countries for filter
-  const { data: countriesData } = useQuery({
-    queryKey: ["proposalTrackerCountries"],
-    queryFn: () => api.getProposalTrackerCountries(),
-  });
-
   // Fetch discipline stats for filter dropdown
   const { data: disciplineData } = useQuery({
     queryKey: ["proposalTrackerDisciplines"],
@@ -98,11 +91,10 @@ export default function ProposalTrackerPage() {
 
   // Fetch proposals list
   const { data: proposalsData, isLoading } = useQuery({
-    queryKey: ["proposalTrackerList", statusFilter, countryFilter, disciplineFilter, yearFilter, search, page],
+    queryKey: ["proposalTrackerList", statusFilter, disciplineFilter, yearFilter, search, page],
     queryFn: () =>
       api.getProposalTrackerList({
         status: statusFilter !== "all" ? statusFilter : undefined,
-        country: countryFilter !== "all" ? countryFilter : undefined,
         discipline: disciplineFilter !== "all" ? disciplineFilter : undefined,
         search: search || undefined,
         page,
@@ -113,7 +105,6 @@ export default function ProposalTrackerPage() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const stats = statsData?.stats as any;
   const proposals = proposalsData?.proposals || [];
-  const countries = countriesData?.countries || [];
 
   // Calculate totals for status breakdown visualization
   const statusTotals = useMemo(() => {
@@ -130,7 +121,7 @@ export default function ProposalTrackerPage() {
     mutationFn: () => api.generateProposalPdf(),
     onSuccess: (data) => {
       if (data.success) {
-        toast.success(`PDF generated successfully at ${data.pdf_path}`);
+        toast.success("PDF generated successfully");
       } else {
         toast.error(data.message || "Failed to generate PDF");
       }
@@ -215,7 +206,7 @@ export default function ProposalTrackerPage() {
   }, [proposals, activeMetric]);
 
   return (
-    <div className={cn(ds.gap.loose, "space-y-6")}>
+    <div className={cn(ds.gap.loose, "space-y-6 w-full max-w-full overflow-x-hidden")}>
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -259,25 +250,25 @@ export default function ProposalTrackerPage() {
           <Card
             className={cn(
               "md:col-span-2 lg:col-span-1",
-              "bg-gradient-to-br from-indigo-600 to-purple-700 text-white border-0",
-              "cursor-pointer transition-all duration-200 hover:shadow-lg hover:scale-[1.01]",
-              activeMetric === "pipeline" && "ring-2 ring-white/50"
+              ds.cards.interactive,
+              "border-teal-200",
+              activeMetric === "pipeline" && "ring-2 ring-teal-400"
             )}
             onClick={() => handleMetricClick("pipeline")}
           >
             <CardHeader className="pb-2">
-              <CardTitle className="text-indigo-100 text-sm font-medium flex items-center gap-2">
+              <CardTitle className={cn(ds.typography.label, "text-teal-600 flex items-center gap-2")}>
                 <DollarSign className="h-4 w-4" />
                 Total Pipeline Value
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold">
+              <div className={cn(ds.typography.metricLarge, ds.textColors.primary)}>
                 {formatCurrency(stats.total_pipeline_value)}
               </div>
-              <div className="flex items-center gap-4 mt-3 text-indigo-200 text-sm">
+              <div className={cn("flex items-center gap-4 mt-3", ds.typography.caption)}>
                 <span>{stats.total_proposals} proposals tracked</span>
-                <span className="flex items-center gap-1">
+                <span className="flex items-center gap-1 text-teal-600">
                   <TrendingUp className="h-3 w-3" />
                   {stats.active_proposals_count} active
                 </span>
@@ -288,26 +279,26 @@ export default function ProposalTrackerPage() {
           {/* 2. Close to Signing */}
           <Card
             className={cn(
-              "border-emerald-200 bg-gradient-to-br from-emerald-50 to-green-50",
-              "cursor-pointer transition-all duration-200 hover:shadow-md hover:scale-[1.01]",
+              ds.cards.interactive,
+              "border-emerald-200",
               activeMetric === "close" && "ring-2 ring-emerald-400"
             )}
             onClick={() => handleMetricClick("close", "Proposal Sent")}
           >
             <CardHeader className="pb-2">
-              <CardTitle className="text-emerald-700 text-sm font-medium flex items-center gap-2">
+              <CardTitle className={cn(ds.typography.label, ds.status.success.text, "flex items-center gap-2")}>
                 <CheckCircle2 className="h-4 w-4" />
                 Close to Signing
               </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="flex items-baseline gap-2">
-                <span className="text-3xl font-bold text-emerald-800">
+                <span className={cn(ds.typography.metricLarge, ds.textColors.primary)}>
                   {stats.status_breakdown?.find((s: { current_status: string }) => s.current_status === "Proposal Sent")?.count || 0}
                 </span>
-                <span className="text-sm text-emerald-600">proposals sent</span>
+                <span className={cn(ds.typography.caption, ds.status.success.text)}>proposals sent</span>
               </div>
-              <p className="text-emerald-700 font-medium mt-1">
+              <p className={cn(ds.typography.bodyBold, ds.status.success.text, "mt-1")}>
                 {formatCurrency(stats.status_breakdown?.find((s: { current_status: string }) => s.current_status === "Proposal Sent")?.total_value || 0)}
               </p>
             </CardContent>
@@ -316,26 +307,26 @@ export default function ProposalTrackerPage() {
           {/* 3. Needs Follow-up - WARNING */}
           <Card
             className={cn(
-              "border-amber-300 bg-gradient-to-br from-amber-50 to-orange-50",
-              "cursor-pointer transition-all duration-200 hover:shadow-md hover:scale-[1.01]",
+              ds.cards.interactive,
+              "border-amber-200",
               activeMetric === "followup" && "ring-2 ring-amber-400"
             )}
             onClick={() => handleMetricClick("followup")}
           >
             <CardHeader className="pb-2">
-              <CardTitle className="text-amber-700 text-sm font-medium flex items-center gap-2">
+              <CardTitle className={cn(ds.typography.label, ds.status.warning.text, "flex items-center gap-2")}>
                 <AlertTriangle className="h-4 w-4" />
                 Needs Follow-up
               </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="flex items-baseline gap-2">
-                <span className="text-3xl font-bold text-amber-800">
+                <span className={cn(ds.typography.metricLarge, ds.textColors.primary)}>
                   {stats.needs_followup}
                 </span>
-                <span className="text-sm text-amber-600">stalled &gt;14 days</span>
+                <span className={cn(ds.typography.caption, ds.status.warning.text)}>stalled &gt;14 days</span>
               </div>
-              <p className="text-amber-600 text-sm mt-1">
+              <p className={cn(ds.typography.caption, ds.status.warning.text, "mt-1")}>
                 Requires immediate attention
               </p>
             </CardContent>
@@ -344,26 +335,26 @@ export default function ProposalTrackerPage() {
           {/* 4. Contracts Signed YTD - SUCCESS */}
           <Card
             className={cn(
-              "border-blue-200 bg-gradient-to-br from-blue-50 to-indigo-50",
-              "cursor-pointer transition-all duration-200 hover:shadow-md hover:scale-[1.01]",
+              ds.cards.interactive,
+              "border-blue-200",
               activeMetric === "signed" && "ring-2 ring-blue-400"
             )}
             onClick={() => handleMetricClick("signed", "Contract Signed")}
           >
             <CardHeader className="pb-2">
-              <CardTitle className="text-blue-700 text-sm font-medium flex items-center gap-2">
+              <CardTitle className={cn(ds.typography.label, ds.status.info.text, "flex items-center gap-2")}>
                 <Calendar className="h-4 w-4" />
                 Contracts Signed 2025
               </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="flex items-baseline gap-2">
-                <span className="text-3xl font-bold text-blue-800">
+                <span className={cn(ds.typography.metricLarge, ds.textColors.primary)}>
                   {stats.signed_2025_count || 0}
                 </span>
-                <span className="text-sm text-blue-600">this year</span>
+                <span className={cn(ds.typography.caption, ds.status.info.text)}>this year</span>
               </div>
-              <p className="text-blue-700 font-medium mt-1">
+              <p className={cn(ds.typography.bodyBold, ds.status.info.text, "mt-1")}>
                 {formatCurrency(stats.signed_2025_value || 0)}
               </p>
             </CardContent>
@@ -372,31 +363,30 @@ export default function ProposalTrackerPage() {
           {/* 5. Archived/Lost Projects - with placeholder loss reason tracking */}
           <Card
             className={cn(
-              "border-slate-200 bg-gradient-to-br from-slate-50 to-gray-50",
-              "cursor-pointer transition-all duration-200 hover:shadow-md hover:scale-[1.01]",
+              ds.cards.interactive,
               activeMetric === "lost" && "ring-2 ring-slate-400"
             )}
             onClick={() => handleMetricClick("lost", "Archived")}
           >
             <CardHeader className="pb-2">
-              <CardTitle className="text-slate-600 text-sm font-medium flex items-center gap-2">
+              <CardTitle className={cn(ds.typography.label, ds.textColors.tertiary, "flex items-center gap-2")}>
                 <XCircle className="h-4 w-4" />
                 Archived / Lost
               </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="flex items-baseline gap-2">
-                <span className="text-3xl font-bold text-slate-700">
+                <span className={cn(ds.typography.metricLarge, ds.textColors.primary)}>
                   {stats.status_breakdown?.find((s: { current_status: string }) => s.current_status === "Archived")?.count || 0}
                 </span>
-                <span className="text-sm text-slate-500">proposals</span>
+                <span className={cn(ds.typography.caption)}>proposals</span>
               </div>
-              <p className="text-slate-500 text-sm mt-1">
+              <p className={cn(ds.typography.caption, "mt-1")}>
                 {formatCurrency(stats.status_breakdown?.find((s: { current_status: string }) => s.current_status === "Archived")?.total_value || 0)}
               </p>
               {/* Loss reason breakdown placeholder - will show when data is entered */}
               <div className="mt-2 pt-2 border-t border-slate-200">
-                <p className="text-xs text-slate-400">
+                <p className={cn(ds.typography.tiny, ds.textColors.muted)}>
                   Track: Competitor won • Fee too high • We declined • No follow-up
                 </p>
               </div>
@@ -406,35 +396,34 @@ export default function ProposalTrackerPage() {
           {/* 6. Avg Days to Progress */}
           <Card
             className={cn(
-              "border-slate-200",
-              "cursor-pointer transition-all duration-200 hover:shadow-md hover:scale-[1.01]",
+              ds.cards.interactive,
               activeMetric === "avgdays" && "ring-2 ring-slate-400"
             )}
             onClick={() => handleMetricClick("avgdays")}
           >
             <CardHeader className="pb-2">
-              <CardTitle className="text-slate-600 text-sm font-medium flex items-center gap-2">
+              <CardTitle className={cn(ds.typography.label, ds.textColors.tertiary, "flex items-center gap-2")}>
                 <Clock className="h-4 w-4" />
                 Avg Days in Status
               </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="flex items-baseline gap-2">
-                <span className="text-3xl font-bold text-slate-700">
+                <span className={cn(ds.typography.metricLarge, ds.textColors.primary)}>
                   {Math.round(stats.avg_days_in_status)}
                 </span>
-                <span className="text-sm text-slate-500">days</span>
+                <span className={cn(ds.typography.caption)}>days</span>
               </div>
-              <p className="text-slate-500 text-sm mt-1 flex items-center gap-1">
+              <p className={cn(ds.typography.caption, "mt-1 flex items-center gap-1")}>
                 {stats.avg_days_in_status < 20 ? (
                   <>
-                    <TrendingDown className="h-3 w-3 text-emerald-500" />
-                    <span className="text-emerald-600">Good velocity</span>
+                    <TrendingDown className={cn("h-3 w-3", ds.status.success.icon)} />
+                    <span className={ds.status.success.text}>Good velocity</span>
                   </>
                 ) : (
                   <>
-                    <TrendingUp className="h-3 w-3 text-amber-500" />
-                    <span className="text-amber-600">Could improve</span>
+                    <TrendingUp className={cn("h-3 w-3", ds.status.warning.icon)} />
+                    <span className={ds.status.warning.text}>Could improve</span>
                   </>
                 )}
               </p>
@@ -588,26 +577,6 @@ export default function ProposalTrackerPage() {
               </SelectContent>
             </Select>
             <Select
-              value={countryFilter}
-              onValueChange={(value) => {
-                setCountryFilter(value);
-                setPage(1);
-              }}
-            >
-              <SelectTrigger className={cn("w-[180px]", ds.borderRadius.input)} aria-label="Filter by country">
-                <Filter className={cn("h-4 w-4 mr-2", ds.textColors.tertiary)} aria-hidden="true" />
-                <SelectValue placeholder="Country" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Countries</SelectItem>
-                {countries.map((country) => (
-                  <SelectItem key={country} value={country}>
-                    {country}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Select
               value={yearFilter}
               onValueChange={(value) => {
                 setYearFilter(value);
@@ -647,12 +616,12 @@ export default function ProposalTrackerPage() {
           ) : filteredProposals.length === 0 ? (
             <div className="py-16 text-center">
               <FileText className="mx-auto h-16 w-16 text-slate-300 mb-4" aria-hidden="true" />
-              <p className={cn(ds.typography.heading3, ds.textColors.primary, "mb-2")}>
-                No proposals found
+              <p className={cn(ds.typography.cardHeader, ds.textColors.primary, "mb-2")}>
+                {bensleyVoice.emptyStates.proposals}
               </p>
-              <p className={cn(ds.typography.body, ds.textColors.tertiary)}>
-                {search || statusFilter !== "all" || countryFilter !== "all" || yearFilter !== "all" || activeMetric
-                  ? "Try adjusting your filters"
+              <p className={cn(ds.typography.body, ds.textColors.tertiary, "mt-2")}>
+                {search || statusFilter !== "all" || yearFilter !== "all" || activeMetric
+                  ? bensleyVoice.emptyStates.search
                   : "Proposals will appear here once created"}
               </p>
               {activeMetric && (
@@ -669,33 +638,33 @@ export default function ProposalTrackerPage() {
               )}
             </div>
           ) : (
-            <div className={cn("rounded-md border border-slate-200", ds.borderRadius.card)}>
-              <Table>
+            <div className={cn("rounded-md border border-slate-200 overflow-x-auto", ds.borderRadius.card)}>
+              <Table className="min-w-[900px]">
                 <TableHeader>
                   <TableRow>
-                    <TableHead className={cn("w-[120px]", ds.typography.captionBold)}>
+                    <TableHead className={cn("w-[100px] min-w-[100px]", ds.typography.captionBold)}>
                       Project #
                     </TableHead>
-                    <TableHead className={ds.typography.captionBold}>
+                    <TableHead className={cn("min-w-[180px] max-w-[280px]", ds.typography.captionBold)}>
                       Project Name
                     </TableHead>
-                    <TableHead className={cn("text-right min-w-[120px]", ds.typography.captionBold)}>
+                    <TableHead className={cn("text-right w-[90px] min-w-[90px]", ds.typography.captionBold)}>
                       Value
                     </TableHead>
-                    <TableHead className={ds.typography.captionBold}>
+                    <TableHead className={cn("w-[80px] min-w-[80px]", ds.typography.captionBold)}>
                       Country
                     </TableHead>
-                    <TableHead className={ds.typography.captionBold}>
+                    <TableHead className={cn("w-[100px] min-w-[100px]", ds.typography.captionBold)}>
                       Status
                     </TableHead>
-                    <TableHead className={cn("text-center", ds.typography.captionBold)}>
-                      Last Activity
+                    <TableHead className={cn("text-center w-[80px] min-w-[80px]", ds.typography.captionBold)}>
+                      Days
                     </TableHead>
-                    <TableHead className={ds.typography.captionBold}>
+                    <TableHead className={cn("min-w-[150px] max-w-[250px]", ds.typography.captionBold)}>
                       Remark
                     </TableHead>
-                    <TableHead className={cn("w-[80px] text-center", ds.typography.captionBold)}>
-                      Actions
+                    <TableHead className={cn("w-[50px] text-center", ds.typography.captionBold)}>
+                      Edit
                     </TableHead>
                   </TableRow>
                 </TableHeader>
@@ -718,17 +687,19 @@ export default function ProposalTrackerPage() {
                         tabIndex={0}
                         role="button"
                       >
-                        <TableCell className={cn(ds.typography.bodyBold, ds.textColors.primary)}>
+                        <TableCell className={cn("font-mono text-sm", ds.textColors.primary)}>
                           {proposal.project_code}
                         </TableCell>
-                        <TableCell className={cn(ds.typography.body, ds.textColors.primary)}>
-                          {proposal.project_name}
+                        <TableCell className={cn("max-w-[280px]", ds.typography.body, ds.textColors.primary)}>
+                          <span className="block truncate" title={proposal.project_name}>
+                            {proposal.project_name}
+                          </span>
                         </TableCell>
-                        <TableCell className={cn("text-right min-w-[120px] whitespace-nowrap", ds.typography.body, ds.textColors.primary)}>
+                        <TableCell className={cn("text-right whitespace-nowrap", ds.typography.body, ds.textColors.primary)}>
                           {formatCurrency(proposal.project_value)}
                         </TableCell>
-                        <TableCell className={cn(ds.typography.body, ds.textColors.secondary)}>
-                          {proposal.country}
+                        <TableCell className={cn("text-sm", ds.textColors.secondary)}>
+                          {proposal.country || "—"}
                         </TableCell>
                         <TableCell>
                           <Badge
@@ -736,6 +707,7 @@ export default function ProposalTrackerPage() {
                             className={cn(
                               ds.typography.tiny,
                               ds.borderRadius.badge,
+                              "whitespace-nowrap",
                               getStatusColor(proposal.current_status as ProposalStatus)
                             )}
                           >
@@ -744,7 +716,7 @@ export default function ProposalTrackerPage() {
                         </TableCell>
                         <TableCell className="text-center">
                           <div className={cn(
-                            "inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium",
+                            "inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium whitespace-nowrap",
                             activityColor.bg,
                             activityColor.text
                           )}>
@@ -752,8 +724,10 @@ export default function ProposalTrackerPage() {
                             {proposal.days_in_current_status}d
                           </div>
                         </TableCell>
-                        <TableCell className={cn("max-w-[300px] truncate", ds.typography.caption, ds.textColors.tertiary)}>
-                          {proposal.current_remark || "-"}
+                        <TableCell className={cn("max-w-[250px]", ds.typography.caption, ds.textColors.tertiary)}>
+                          <span className="block truncate" title={proposal.current_remark || undefined}>
+                            {proposal.current_remark || "—"}
+                          </span>
                         </TableCell>
                         <TableCell className="text-center">
                           <Button

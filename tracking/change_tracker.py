@@ -18,7 +18,7 @@ class ChangeTracker:
     def __init__(self):
         self.project_root = Path(__file__).parent.parent
         self.tracking_file = self.project_root / 'tracking' / 'change_history.json'
-        self.db_path = Path(os.path.expanduser('~/Desktop/BDS_SYSTEM/01_DATABASES/bensley_master.db'))
+        self.db_path = Path(os.getenv('DATABASE_PATH', 'database/bensley_master.db'))
 
         # Files to track
         self.tracked_files = [

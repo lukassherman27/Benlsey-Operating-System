@@ -14,8 +14,9 @@ from reportlab.lib.enums import TA_CENTER, TA_LEFT
 from datetime import datetime, timedelta
 from collections import defaultdict
 import sys
+import os
 
-DB_PATH = "/Users/lukassherman/Desktop/BDS_SYSTEM/01_DATABASES/bensley_master.db"
+DB_PATH = os.getenv('DATABASE_PATH', 'database/bensley_master.db')
 
 
 class SchedulePDFGenerator:

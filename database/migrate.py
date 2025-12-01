@@ -25,7 +25,7 @@ load_dotenv()
 class MigrationRunner:
     def __init__(self, db_path=None):
         if db_path is None:
-            db_path = os.getenv('DATABASE_PATH', '~/Desktop/BDS_SYSTEM/01_DATABASES/bensley_master.db')
+            db_path = os.getenv('DATABASE_PATH', 'database/bensley_master.db')
 
         self.db_path = Path(db_path).expanduser()
         self.migrations_dir = Path(__file__).parent / 'migrations'
