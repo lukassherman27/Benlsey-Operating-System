@@ -173,17 +173,46 @@ export const api = {
     ).then((raw) => normalizePaginationResponse<ProposalSummary>(raw)),
 
   getProposalDetail: (projectCode: string) =>
-    request<ProposalDetail>(`/api/proposals/by-code/${encodeURIComponent(projectCode)}`),
+    request<{ data: ProposalDetail }>(`/api/proposal-tracker/${encodeURIComponent(projectCode)}`)
+      .then((res) => res.data),
 
   getProposalHealth: (projectCode: string) =>
+    // Use intelligence context endpoint which has health/risk info
     request<ProposalHealth>(
-      `/api/proposals/by-code/${encodeURIComponent(projectCode)}/health`
+      `/api/intelligence/proposals/${encodeURIComponent(projectCode)}/context`
+    ).catch(() => ({
+      health_score: null,
+      health_status: 'unknown',
+      factors: {},
+      risks: [],
+      recommendation: null,
+    })),
+
+  getProposalHistory: (projectCode: string) =>
+    request<{
+      data: Record<string, unknown>[];
+      history: Record<string, unknown>[];
+      current_status?: string;
+    }>(
+      `/api/proposal-tracker/${encodeURIComponent(projectCode)}/history`
     ),
 
   getProposalTimeline: (projectCode: string) =>
-    request<ProposalTimelineResponse>(
-      `/api/proposals/by-code/${encodeURIComponent(projectCode)}/timeline`
-    ),
+    // Combine history and emails for timeline
+    Promise.all([
+      request<{ data: unknown[] }>(`/api/proposal-tracker/${encodeURIComponent(projectCode)}/history`).catch(() => ({ data: [] })),
+      request<{ data: unknown[] }>(`/api/proposal-tracker/${encodeURIComponent(projectCode)}/emails`).catch(() => ({ data: [] })),
+    ]).then(([historyRes, emailsRes]) => ({
+      proposal: { project_code: projectCode, project_name: '', status: '' },
+      emails: emailsRes.data || [],
+      documents: [],
+      timeline: historyRes.data || [],
+      stats: {
+        total_emails: (emailsRes.data || []).length,
+        total_documents: 0,
+        timeline_events: (historyRes.data || []).length,
+      },
+    } as unknown as ProposalTimelineResponse)),
 
   getDashboardAnalytics: () =>
     request<AnalyticsDashboard>("/api/analytics/dashboard"),
@@ -191,8 +220,8 @@ export const api = {
   getDashboardStats: () =>
     request<DashboardStats>("/api/dashboard/stats"),
 
-  getDashboardKPIs: () =>
-    request<DashboardKPIs>("/api/dashboard/kpis"),
+  getDashboardKPIs: (params?: { period?: string; start_date?: string; end_date?: string }) =>
+    request<DashboardKPIs>(`/api/dashboard/kpis${buildQuery(params || {})}`),
 
   getProposalStats: () =>
     request<ProposalStats>("/api/proposals/stats"),
@@ -263,9 +292,10 @@ export const api = {
     ),
 
   getProposalBriefing: (projectCode: string) =>
+    // Use intelligence context endpoint for briefing data
     request<ProposalBriefing>(
-      `/api/proposals/by-code/${encodeURIComponent(projectCode)}/briefing`
-    ),
+      `/api/intelligence/proposals/${encodeURIComponent(projectCode)}/context`
+    ).catch(() => (null as unknown as ProposalBriefing)),
 
   getDecisionTiles: () => request<DecisionTiles>("/api/dashboard/decision-tiles"),
 
@@ -423,6 +453,10 @@ export const api = {
       `/api/milestones${buildQuery({ upcoming: params.upcoming })}`
     ),
 
+  // Dashboard Meetings API
+  getDashboardMeetings: () =>
+    request<{ meetings: Record<string, unknown>[] }>("/api/dashboard/meetings"),
+
   // RFIs API
   getRfis: (params: { status?: string } = {}) =>
     request<{ rfis: Record<string, unknown>[] }>(
@@ -526,9 +560,9 @@ export const api = {
       `/api/admin/email-links${projectCode ? `?project_code=${projectCode}` : ""}`
     ),
 
-  unlinkEmail: (linkId: number, user: string = "admin") =>
+  unlinkEmail: (linkId: string, user: string = "admin") =>
     request<{ success: boolean; message: string }>(
-      `/api/admin/email-links/${linkId}?user=${encodeURIComponent(user)}`,
+      `/api/admin/email-links/${encodeURIComponent(linkId)}?user=${encodeURIComponent(user)}`,
       {
         method: "DELETE",
       }
@@ -1014,10 +1048,10 @@ export const api = {
     ),
 
   getPMWorkload: (pm_name?: string) =>
-    request<PMWorkloadResponse>(`/api/pm-workload${pm_name ? `?pm_name=${encodeURIComponent(pm_name)}` : ''}`),
+    request<PMWorkloadResponse>(`/api/deliverables/pm-workload${pm_name ? `?pm_name=${encodeURIComponent(pm_name)}` : ''}`),
 
   getPMList: () =>
-    request<PMListResponse>("/api/pm-list"),
+    request<PMListResponse>("/api/deliverables/pm-list"),
 
   getProjectPhaseStatus: (project_code: string) =>
     request<ProjectPhaseStatusResponse>(`/api/projects/${encodeURIComponent(project_code)}/phase-status`),
@@ -1210,6 +1244,675 @@ export const api = {
         body: JSON.stringify({ min_confidence: minConfidence }),
       }
     ),
+
+  bulkApproveByIds: (suggestionIds: number[]) =>
+    request<{ success: boolean; approved: number; total: number; errors: Array<{ id: number; error: string }> }>(
+      `/api/suggestions/bulk-approve-by-ids`,
+      {
+        method: "POST",
+        body: JSON.stringify({ suggestion_ids: suggestionIds }),
+      }
+    ),
+
+  bulkRejectByIds: (suggestionIds: number[], reason?: string) =>
+    request<{ success: boolean; rejected: number; total: number; errors: Array<{ id: number; error: string }> }>(
+      `/api/suggestions/bulk-reject`,
+      {
+        method: "POST",
+        body: JSON.stringify({ suggestion_ids: suggestionIds, reason: reason || "batch_rejected" }),
+      }
+    ),
+
+  // Suggestion Preview, Source, and Rollback
+  getSuggestionPreview: (suggestionId: number) =>
+    request<SuggestionPreviewResponse>(`/api/suggestions/${suggestionId}/preview`),
+
+  getSuggestionSource: (suggestionId: number) =>
+    request<SuggestionSourceResponse>(`/api/suggestions/${suggestionId}/source`),
+
+  rollbackSuggestion: (suggestionId: number) =>
+    request<{ success: boolean; message: string }>(
+      `/api/suggestions/${suggestionId}/rollback`,
+      { method: "POST" }
+    ),
+
+  getGroupedSuggestions: (params: {
+    status?: string;
+    min_confidence?: number;
+  } = {}) =>
+    request<GroupedSuggestionsResponse>(
+      `/api/suggestions/grouped${buildQuery({
+        status: params.status ?? "pending",
+        min_confidence: params.min_confidence,
+      })}`
+    ),
+
+  // Enhanced Feedback - Reject with Correction
+  rejectWithCorrection: (suggestionId: number, data: {
+    rejection_reason: string;
+    correct_project_code?: string;
+    correct_proposal_id?: number;
+    correct_contact_id?: number;
+    create_pattern?: boolean;
+    pattern_notes?: string;
+  }) =>
+    request<{
+      success: boolean;
+      message: string;
+      data?: {
+        suggestion_id: number;
+        rejection_reason: string;
+        corrected: boolean;
+        pattern_created: boolean;
+        correct_link?: {
+          email_id?: number;
+          project_id?: number;
+          project_code?: string;
+        };
+        pattern_key?: string;
+      };
+    }>(`/api/suggestions/${suggestionId}/reject-with-correction`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+
+  // Enhanced Feedback - Approve with Context
+  approveWithContext: (suggestionId: number, data: {
+    create_sender_pattern?: boolean;
+    create_domain_pattern?: boolean;
+    contact_role?: string;
+    pattern_notes?: string;
+    contact_edits?: Record<string, unknown>;
+  }) =>
+    request<{
+      success: boolean;
+      message: string;
+      data?: {
+        suggestion_id: number;
+        patterns_created: Array<{ type: string; key: string }>;
+        contact_role_updated?: boolean;
+      };
+    }>(`/api/suggestions/${suggestionId}/approve-with-context`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+
+  // Enhanced Review UI - Full Context
+  getSuggestionFullContext: (suggestionId: number) =>
+    request<{
+      success: boolean;
+      suggestion: SuggestionItem;
+      source_content: {
+        type: 'email' | 'transcript';
+        id: number;
+        subject?: string;
+        sender?: string;
+        recipient?: string;
+        date: string;
+        body: string;
+      } | null;
+      ai_analysis: {
+        detected_entities: {
+          projects: string[];
+          fees: Array<{ amount: number; currency: string }>;
+          contacts: Array<{ name: string; email: string }>;
+          dates: string[];
+          keywords: string[];
+        };
+        suggested_actions: Array<{
+          id: string;
+          type: string;
+          description: string;
+          enabled_by_default: boolean;
+          data: Record<string, unknown>;
+          database_change: string;
+        }>;
+        pattern_to_learn: {
+          type: string;
+          pattern_key: string;
+          target: string;
+          confidence_boost: number;
+        } | null;
+        overall_confidence: number;
+      };
+      preview: {
+        is_actionable: boolean;
+        action: string;
+        table: string;
+        summary: string;
+        changes: Array<{
+          field: string;
+          old_value: string | null;
+          new_value: string | null;
+        }>;
+      } | null;
+      existing_feedback: {
+        notes: string;
+        tags: string[];
+        contact_role?: string;
+        priority?: string;
+      } | null;
+    }>(`/api/suggestions/${suggestionId}/full-context`),
+
+  getSuggestionTags: () =>
+    request<{
+      success: boolean;
+      tags: Array<{
+        tag_id: number;
+        tag_name: string;
+        tag_category: string;
+        usage_count: number;
+      }>;
+    }>("/api/suggestion-tags"),
+
+  saveSuggestionFeedback: (suggestionId: number, data: {
+    context_notes?: string;
+    tags?: string[];
+    contact_role?: string;
+    priority?: string;
+  }) =>
+    request<{ success: boolean; message: string }>(
+      `/api/suggestions/${suggestionId}/save-feedback`,
+      {
+        method: "POST",
+        body: JSON.stringify({
+          context_notes: data.context_notes,
+          tags: JSON.stringify(data.tags || []),
+          contact_role: data.contact_role,
+          priority: data.priority,
+        }),
+      }
+    ),
+
+  // Pattern Management
+  getPatterns: (params: {
+    pattern_type?: string;
+    target_code?: string;
+    is_active?: boolean;
+    limit?: number;
+    offset?: number;
+  } = {}) =>
+    request<{
+      success: boolean;
+      patterns: Array<{
+        pattern_id: number;
+        pattern_type: string;
+        pattern_key: string;
+        target_type: string;
+        target_id: number;
+        target_code: string;
+        target_name: string | null;
+        confidence: number;
+        times_used: number;
+        times_correct: number;
+        times_rejected: number;
+        is_active: number;
+        notes: string | null;
+        created_at: string;
+        updated_at: string;
+        last_used_at: string | null;
+      }>;
+      total: number;
+    }>(`/api/patterns${buildQuery(params)}`),
+
+  getPatternStats: () =>
+    request<{
+      success: boolean;
+      stats: {
+        total_patterns: number;
+        active_patterns: number;
+        total_uses: number;
+        total_correct: number;
+        total_rejected: number;
+        avg_confidence: number;
+      };
+      by_type: Record<string, { count: number; uses: number }>;
+      top_patterns: Array<{
+        pattern_id: number;
+        pattern_type: string;
+        pattern_key: string;
+        target_code: string;
+        times_used: number;
+        times_correct: number;
+        success_rate: number;
+      }>;
+    }>("/api/patterns/stats"),
+
+  getPattern: (patternId: number) =>
+    request<{
+      success: boolean;
+      pattern: {
+        pattern_id: number;
+        pattern_type: string;
+        pattern_key: string;
+        target_type: string;
+        target_id: number;
+        target_code: string;
+        target_name: string | null;
+        confidence: number;
+        times_used: number;
+        times_correct: number;
+        times_rejected: number;
+        is_active: number;
+        notes: string | null;
+        created_at: string;
+        updated_at: string;
+        last_used_at: string | null;
+      };
+      usage_history: Array<{
+        log_id: number;
+        suggestion_id: number | null;
+        email_id: number | null;
+        action: string;
+        match_score: number | null;
+        created_at: string;
+      }>;
+    }>(`/api/patterns/${patternId}`),
+
+  createPattern: (data: {
+    pattern_type: string;
+    pattern_key: string;
+    target_type: string;
+    target_code: string;
+    notes?: string;
+  }) =>
+    request<{ success: boolean; message: string; data?: { pattern_id: number } }>(
+      "/api/patterns",
+      {
+        method: "POST",
+        body: JSON.stringify(data),
+      }
+    ),
+
+  updatePattern: (patternId: number, data: {
+    is_active?: boolean;
+    notes?: string;
+    confidence?: number;
+  }) =>
+    request<{ success: boolean; message: string }>(
+      `/api/patterns/${patternId}`,
+      {
+        method: "PUT",
+        body: JSON.stringify(data),
+      }
+    ),
+
+  deletePattern: (patternId: number) =>
+    request<{ success: boolean; message: string }>(
+      `/api/patterns/${patternId}`,
+      { method: "DELETE" }
+    ),
+
+  // Contacts API
+  getContacts: (params: {
+    search?: string;
+    company?: string;
+    role?: string;
+    project_id?: number;
+    limit?: number;
+    offset?: number;
+  } = {}) =>
+    request<{
+      success: boolean;
+      contacts: Array<{
+        contact_id: number;
+        name: string | null;
+        email: string | null;
+        role: string | null;
+        phone: string | null;
+        company: string | null;
+        position: string | null;
+        context_notes: string | null;
+        source: string | null;
+        first_seen_date: string | null;
+        notes: string | null;
+        client_id: number | null;
+      }>;
+      total?: number;
+    }>(`/api/contacts${buildQuery({
+      search: params.search,
+      company: params.company,
+      role: params.role,
+      project_id: params.project_id,
+      limit: params.limit ?? 50,
+      offset: params.offset ?? 0,
+    })}`),
+
+  getContactStats: () =>
+    request<{
+      success: boolean;
+      stats: {
+        total: number;
+        by_company: Record<string, number>;
+        with_email: number;
+        with_phone: number;
+      };
+    }>("/api/contacts/stats"),
+
+  getContact: (contactId: number) =>
+    request<{
+      success: boolean;
+      contact: {
+        contact_id: number;
+        name: string | null;
+        email: string | null;
+        role: string | null;
+        phone: string | null;
+        company: string | null;
+        position: string | null;
+        context_notes: string | null;
+        source: string | null;
+        first_seen_date: string | null;
+        notes: string | null;
+        linked_projects: Array<{ project_code: string; project_title: string }>;
+        recent_emails: Array<{ email_id: number; subject: string; date: string }>;
+      };
+    }>(`/api/contacts/${contactId}`),
+
+  createContact: (contact: {
+    name?: string;
+    email: string;
+    phone?: string;
+    company?: string;
+    position?: string;
+    role?: string;
+    context_notes?: string;
+  }) =>
+    request<{ success: boolean; contact_id: number }>("/api/contacts", {
+      method: "POST",
+      body: JSON.stringify(contact),
+    }),
+
+  updateContact: (contactId: number, updates: {
+    name?: string;
+    email?: string;
+    phone?: string;
+    company?: string;
+    position?: string;
+    role?: string;
+    context_notes?: string;
+  }) =>
+    request<{ success: boolean; message: string }>(`/api/contacts/${contactId}`, {
+      method: "PUT",
+      body: JSON.stringify(updates),
+    }),
+
+  deleteContact: (contactId: number) =>
+    request<{ success: boolean; message: string }>(`/api/contacts/${contactId}`, {
+      method: "DELETE",
+    }),
+
+  // Meeting Transcripts API
+  getMeetingTranscripts: (params: {
+    project_id?: number;
+    limit?: number;
+    offset?: number;
+  } = {}) =>
+    request<{
+      success: boolean;
+      total: number;
+      limit: number;
+      offset: number;
+      transcripts: Array<{
+        id: number;
+        audio_filename: string;
+        audio_path: string;
+        transcript: string;
+        created_at: string;
+        updated_at: string | null;
+        ai_summary: string | null;
+        project_id: number | null;
+        proposal_id: number | null;
+        meeting_title: string | null;
+        meeting_date: string | null;
+      }>;
+    }>(`/api/meeting-transcripts${buildQuery({
+      project_id: params.project_id,
+      limit: params.limit ?? 50,
+      offset: params.offset ?? 0,
+    })}`),
+
+  getTranscript: (transcriptId: number) =>
+    request<{
+      success: boolean;
+      transcript: {
+        id: number;
+        audio_filename: string;
+        audio_path: string;
+        transcript: string;
+        created_at: string;
+        updated_at: string | null;
+        ai_summary: string | null;
+        project_id: number | null;
+        proposal_id: number | null;
+        meeting_title: string | null;
+        meeting_date: string | null;
+      };
+    }>(`/api/meeting-transcripts/${transcriptId}`),
+
+  updateTranscript: (transcriptId: number, updates: {
+    project_id?: number;
+    proposal_id?: number;
+    meeting_title?: string;
+    meeting_date?: string;
+    ai_summary?: string;
+  }) =>
+    request<{ success: boolean; message: string }>(`/api/meeting-transcripts/${transcriptId}`, {
+      method: "PUT",
+      body: JSON.stringify(updates),
+    }),
+
+  getProjectTranscripts: (projectCode: string) =>
+    request<{
+      success: boolean;
+      transcripts: Array<{
+        id: number;
+        audio_filename: string;
+        transcript: string;
+        meeting_title: string | null;
+        meeting_date: string | null;
+        ai_summary: string | null;
+      }>;
+    }>(`/api/projects/${encodeURIComponent(projectCode)}/transcripts`),
+
+  // Unified Timeline API
+  getUnifiedTimeline: (projectCode: string) =>
+    request<{
+      success: boolean;
+      project_code: string;
+      items: Array<{
+        type: 'email' | 'transcript' | 'invoice' | 'rfi';
+        date: string;
+        title: string;
+        description: string | null;
+        data: Record<string, unknown>;
+      }>;
+    }>(`/api/projects/${encodeURIComponent(projectCode)}/unified-timeline`),
+
+  // Email Link Suggestion API
+  approveEmailLink: (suggestionId: number, projectCode?: string) =>
+    request<{ success: boolean; message: string; link_id?: number }>(
+      `/api/suggestions/${suggestionId}/approve-email-link`,
+      {
+        method: "POST",
+        body: JSON.stringify({ project_code: projectCode }),
+      }
+    ),
+
+  // ============ CONTRACTS API ============
+  getContracts: (params: { project_code?: string; status?: string; limit?: number } = {}) =>
+    request<{
+      success: boolean;
+      contracts: Array<{
+        contract_id: number;
+        project_code: string;
+        contract_type: string;
+        contract_value: number;
+        signed_date: string | null;
+        expiry_date: string | null;
+        status: string;
+      }>;
+      total: number;
+    }>(`/api/contracts${buildQuery(params)}`),
+
+  getContractStats: () =>
+    request<{
+      success: boolean;
+      stats: {
+        total_contracts: number;
+        total_value: number;
+        active_contracts: number;
+        expiring_soon: number;
+      };
+    }>("/api/contracts/stats"),
+
+  getContractsByProject: (projectCode: string) =>
+    request<{
+      success: boolean;
+      contracts: Array<Record<string, unknown>>;
+    }>(`/api/contracts/by-project/${encodeURIComponent(projectCode)}`),
+
+  getContractFeeBreakdown: (projectCode: string) =>
+    request<{
+      success: boolean;
+      breakdowns: Array<Record<string, unknown>>;
+    }>(`/api/contracts/by-project/${encodeURIComponent(projectCode)}/fee-breakdown`),
+
+  // ============ DOCUMENTS API ============
+  getDocuments: (params: { project_code?: string; document_type?: string; limit?: number } = {}) =>
+    request<{
+      success: boolean;
+      documents: Array<{
+        document_id: number;
+        file_name: string;
+        file_path: string;
+        document_type: string;
+        project_code: string | null;
+        created_at: string;
+        file_size: number | null;
+      }>;
+      total: number;
+    }>(`/api/documents${buildQuery(params)}`),
+
+  getDocumentsByProject: (projectCode: string) =>
+    request<{
+      success: boolean;
+      documents: Array<Record<string, unknown>>;
+    }>(`/api/documents/by-project/${encodeURIComponent(projectCode)}`),
+
+  getDocumentStats: () =>
+    request<{
+      success: boolean;
+      stats: {
+        total_documents: number;
+        by_type: Record<string, number>;
+      };
+    }>("/api/documents/stats"),
+
+  getRecentDocuments: (limit: number = 10) =>
+    request<{
+      success: boolean;
+      documents: Array<Record<string, unknown>>;
+    }>(`/api/documents/recent?limit=${limit}`),
+
+  // ============ MILESTONES API ============
+  getMilestonesByProject: (projectCode: string) =>
+    request<{
+      success: boolean;
+      milestones: Array<{
+        milestone_id: number;
+        milestone_name: string;
+        expected_date: string | null;
+        actual_date: string | null;
+        status: string;
+        responsible_party: string | null;
+      }>;
+    }>(`/api/milestones/by-project/${encodeURIComponent(projectCode)}`),
+
+  getUpcomingMilestones: (days: number = 30) =>
+    request<{
+      success: boolean;
+      milestones: Array<Record<string, unknown>>;
+    }>(`/api/milestones/upcoming?days=${days}`),
+
+  getOverdueMilestones: () =>
+    request<{
+      success: boolean;
+      milestones: Array<Record<string, unknown>>;
+    }>("/api/milestones/overdue"),
+
+  // ============ RFIs API (extended) ============
+  getRfisByProject: (projectCode: string) =>
+    request<{
+      success: boolean;
+      rfis: Array<Record<string, unknown>>;
+    }>(`/api/rfis/by-project/${encodeURIComponent(projectCode)}`),
+
+  getRfiStats: () =>
+    request<{
+      success: boolean;
+      stats: {
+        total: number;
+        open: number;
+        closed: number;
+        overdue: number;
+      };
+    }>("/api/rfis/stats"),
+
+  getOverdueRfis: () =>
+    request<{
+      success: boolean;
+      rfis: Array<Record<string, unknown>>;
+    }>("/api/rfis/overdue"),
+
+  createRfi: (data: {
+    project_code: string;
+    question: string;
+    asked_by?: string;
+    priority?: string;
+    due_date?: string;
+  }) =>
+    request<{ success: boolean; rfi_id: number }>("/api/rfis", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+
+  respondToRfi: (rfiId: number, response: string) =>
+    request<{ success: boolean }>(`/api/rfis/${rfiId}/respond`, {
+      method: "POST",
+      body: JSON.stringify({ response }),
+    }),
+
+  closeRfi: (rfiId: number) =>
+    request<{ success: boolean }>(`/api/rfis/${rfiId}/close`, {
+      method: "POST",
+    }),
+
+  // ============ CONTEXT API ============
+  getProjectContext: (projectCode: string) =>
+    request<{
+      success: boolean;
+      context: Record<string, unknown>;
+    }>(`/api/context/project/${encodeURIComponent(projectCode)}`),
+
+  // ============ INTELLIGENCE API ============
+  getProjectHealth: (projectCode: string) =>
+    request<{
+      success: boolean;
+      health_score: number;
+      health_status: string;
+      factors: Record<string, unknown>;
+    }>(`/api/intelligence/health/${encodeURIComponent(projectCode)}`),
+
+  getProjectRisks: (projectCode: string) =>
+    request<{
+      success: boolean;
+      risks: Array<{
+        risk_type: string;
+        severity: string;
+        description: string;
+      }>;
+    }>(`/api/intelligence/risks/${encodeURIComponent(projectCode)}`),
 };
 
 // Email Intelligence Types
@@ -1660,18 +2363,27 @@ export interface QueryLearningStats {
 
 export interface SuggestionItem {
   suggestion_id: number;
-  data_table: string;
-  record_id: number;
-  field_name: string;
-  current_value: string | null;
-  suggested_value: string | Record<string, unknown>; // JSON string or parsed object
-  confidence: number;
-  reasoning: string | null;
-  evidence: string | null;
+  suggestion_type: string;
+  priority: string;
+  confidence_score: number;
+  source_type: string;
+  source_id: number | null;
+  source_reference: string | null;
+  title: string;
+  description: string;
+  suggested_action: string;
+  suggested_data: string | Record<string, unknown>; // JSON string or parsed object
+  target_table: string | null;
+  target_id: number | null;
+  project_code: string | null;
+  proposal_id: number | null;
   status: "pending" | "approved" | "rejected" | "applied";
-  created_at: string;
+  reviewed_by: string | null;
   reviewed_at: string | null;
-  applied_at: string | null;
+  review_notes: string | null;
+  correction_data: string | null;
+  created_at: string;
+  expires_at: string | null;
 }
 
 export interface NewContactSuggestion {
@@ -1699,4 +2411,53 @@ export interface SuggestionsStatsResponse {
   pending_by_field: Record<string, number>;
   high_confidence_pending: number;
   avg_pending_confidence: number;
+}
+
+export interface GroupedSuggestion {
+  project_code: string | null;
+  project_name: string | null;
+  suggestion_count: number;
+  suggestions: SuggestionItem[];
+}
+
+export interface GroupedSuggestionsResponse {
+  success: boolean;
+  groups: GroupedSuggestion[];
+  total: number;
+  ungrouped_count: number;
+}
+
+export interface SuggestionPreviewResponse {
+  success: boolean;
+  is_actionable: boolean;
+  action: 'insert' | 'update' | 'delete' | 'none';
+  table: string | null;
+  summary: string;
+  changes: Array<{
+    field: string;
+    old_value: unknown;
+    new_value: unknown;
+  }>;
+}
+
+export interface SuggestionSourceResponse {
+  success: boolean;
+  source_type: 'email' | 'transcript' | 'pattern' | null;
+  content: string | null;
+  metadata: {
+    email_id?: number;
+    subject?: string;
+    sender?: string;
+    recipients?: string;
+    date?: string;
+    folder?: string;
+    transcript_id?: number;
+    title?: string;
+    filename?: string;
+    summary?: string;
+    duration_seconds?: number;
+    source_id?: number;
+    source_reference?: string;
+    note?: string;
+  };
 }
