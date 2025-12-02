@@ -23,6 +23,7 @@ celery==5.3.4
 pandas==2.1.4
 numpy==1.26.2
 python-dateutil==2.8.2
+openpyxl==3.1.2
 
 # Email & Communication
 aiosmtplib==3.0.1

@@ -43,7 +43,7 @@ class ExcelTimelineImporter:
         
         project_data = {
             'project_code': str(project_code).strip(),
-            'project_name': self.ws.cell(project_row, 3).value,
+            'project_title': self.ws.cell(project_row, 3).value,
             'contact_company': self.ws.cell(project_row, 4).value,
             'contact_person': self.ws.cell(project_row, 5).value,
             'contact_email': self.ws.cell(project_row, 7).value,

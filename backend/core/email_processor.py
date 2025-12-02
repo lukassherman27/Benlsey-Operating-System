@@ -15,8 +15,12 @@ import re
 from datetime import datetime
 
 class EmailProcessor:
-    def __init__(self):
-        self.master_db = os.path.expanduser('~/Desktop/BDS_SYSTEM/01_DATABASES/bensley_master.db')
+    def __init__(self, db_path=None):
+        if db_path is None:
+            # Default to the database in the current project
+            project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+            db_path = os.path.join(project_root, 'database', 'bensley_master.db')
+        self.master_db = db_path
         self.conn = sqlite3.connect(self.master_db)
         self.cursor = self.conn.cursor()
         
@@ -36,28 +40,64 @@ class EmailProcessor:
         """Auto-tag an email based on content"""
         text = f"{subject or ''} {snippet or ''}".lower()
         tags_to_add = []
-        
+
         # Category detection
         if any(word in text for word in ['invoice', 'billing', 'payment', 'paid', 'outstanding']):
             tags_to_add.append(('invoicing', 'category', 0.95))
-        
+
         if any(word in text for word in ['urgent', 'asap', 'immediately', 'time-sensitive']):
             tags_to_add.append(('high-priority', 'priority', 0.90))
-        
+
         if any(word in text for word in ['meeting', 'schedule', 'calendar', 'appointment']):
             tags_to_add.append(('scheduling', 'category', 0.90))
-        
+
         if any(word in text for word in ['question', 'clarification', 'wondering', 'asking']):
             tags_to_add.append(('inquiry', 'category', 0.85))
-        
+
         if any(word in text for word in ['contract', 'agreement', 'legal', 'terms']):
             tags_to_add.append(('legal', 'category', 0.90))
-        
+
         if any(word in text for word in ['proposal', 'quote', 'scope', 'sow']):
             tags_to_add.append(('business-development', 'category', 0.88))
-        
+
         if any(word in text for word in ['progress', 'update', 'status', 'report']):
             tags_to_add.append(('project-update', 'category', 0.85))
+
+        # NEW CRITICAL CATEGORIES for Intelligence Layer
+
+        # Contract Changes - detect modifications to existing contracts
+        if any(phrase in text for phrase in ['revise contract', 'amend contract', 'change order',
+                                                'amendment', 'modify agreement', 'contract revision']):
+            tags_to_add.append(('contract-changes', 'category', 0.92))
+
+        # Fee Adjustments - detect pricing/budget changes
+        if any(phrase in text for phrase in ['reduce fee', 'increase fee', 'fee adjustment',
+                                                'budget change', 'price change', 'discount',
+                                                'fee reduction', 'additional cost']):
+            tags_to_add.append(('fee-adjustments', 'category', 0.90))
+
+        # Scope Changes - detect scope additions/removals
+        if any(phrase in text for phrase in ['remove landscape', 'add interiors', 'expand scope',
+                                                'scope change', 'additional work', 'remove from scope',
+                                                'scope reduction', 'scope increase']):
+            tags_to_add.append(('scope-changes', 'category', 0.88))
+
+        # Payment Terms - detect payment schedule discussions
+        if any(phrase in text for phrase in ['monthly installment', 'payment plan', 'milestone payment',
+                                                'payment schedule', 'payment terms', 'installment plan',
+                                                'staged payment', 'payment structure']):
+            tags_to_add.append(('payment-terms', 'category', 0.87))
+
+        # RFIs - Request for Information
+        if any(word in text for word in ['rfi', 'request for information', 'clarification needed',
+                                           'need clarification', 'question about', 'please clarify']):
+            tags_to_add.append(('rfis', 'category', 0.93))
+
+        # Meeting Notes - capture decisions from meetings
+        if any(phrase in text for phrase in ['meeting summary', 'meeting notes', 'action items',
+                                                'we agreed', 'meeting minutes', 'decisions made',
+                                                'discussed in meeting', 'as discussed']):
+            tags_to_add.append(('meeting-notes', 'category', 0.89))
         
         # Add tags to database
         for tag, tag_type, confidence in tags_to_add:
@@ -153,7 +193,7 @@ class EmailProcessor:
     def process_unprocessed_emails(self):
         """Process all emails that haven't been processed yet"""
         print("\n🔄 Processing unprocessed emails...")
-        
+
         # Get unprocessed emails
         self.cursor.execute("""
             SELECT email_id, sender_email, subject, snippet
@@ -161,39 +201,72 @@ class EmailProcessor:
             WHERE processed = 0
             ORDER BY date DESC
         """)
-        
+
         emails = self.cursor.fetchall()
         total_emails = len(emails)
-        
+
         if total_emails == 0:
             print("   ✅ All emails already processed!")
             return
-        
+
         print(f"   Found {total_emails} unprocessed emails")
-        
+
         tags_added = 0
         links_created = 0
-        
+
         for i, (email_id, sender_email, subject, snippet) in enumerate(emails, 1):
             if i % 100 == 0:
                 print(f"   Processing... {i}/{total_emails}")
-            
+
             # Auto-tag
             tags_added += self.auto_tag_email(email_id, subject, snippet)
-            
+
             # Auto-link
             links_created += self.auto_link_email_deterministic(email_id, sender_email, subject, snippet)
-            
+
             # Mark as processed
             self.cursor.execute("UPDATE emails SET processed = 1 WHERE email_id = ?", (email_id,))
-        
+
         self.conn.commit()
-        
+
         print(f"   ✅ Processed {total_emails} emails")
         print(f"   ✅ Added {tags_added} tags")
         print(f"   ✅ Created {links_created} project links")
-        
+
         return total_emails, tags_added, links_created
+
+    def retag_all_emails_with_new_categories(self):
+        """Re-tag ALL emails with new category patterns (for adding new categories)"""
+        print("\n🔄 Re-tagging ALL emails with new category patterns...")
+        print("   Note: Only new tags will be added, existing tags are preserved\n")
+
+        # Get ALL emails
+        self.cursor.execute("""
+            SELECT email_id, subject, snippet
+            FROM emails
+            ORDER BY date DESC
+        """)
+
+        emails = self.cursor.fetchall()
+        total_emails = len(emails)
+
+        print(f"   Found {total_emails} total emails to re-process")
+
+        tags_added = 0
+
+        for i, (email_id, subject, snippet) in enumerate(emails, 1):
+            if i % 100 == 0:
+                print(f"   Re-tagging... {i}/{total_emails}")
+
+            # Re-tag with potentially new categories
+            tags_added += self.auto_tag_email(email_id, subject, snippet)
+
+        self.conn.commit()
+
+        print(f"\n   ✅ Re-processed {total_emails} emails")
+        print(f"   ✅ Added {tags_added} new tags")
+
+        return total_emails, tags_added
     
     def show_processing_summary(self):
         """Show summary of processing results"""

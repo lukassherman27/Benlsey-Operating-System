@@ -2,476 +2,261 @@
 """
 Bensley Intelligence Platform - FastAPI Backend
 
-This API exposes the intelligence layer built from your existing scripts.
-Start with: uvicorn backend.api.main:app --reload
+A clean, modular API with domain-specific routers.
+Start with: uvicorn api.main:app --reload --port 8000
 Access docs at: http://localhost:8000/docs
 """
 
-from fastapi import FastAPI, HTTPException, Depends, Header
-from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
-from typing import List, Optional, Dict, Any
-import sqlite3
 import os
-from datetime import datetime
+import time
 from pathlib import Path
+from contextlib import asynccontextmanager
 
-# Initialize FastAPI app
+from fastapi import FastAPI, Request
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+
+# Add paths for imports
+import sys
+backend_path = Path(__file__).parent.parent
+project_root = backend_path.parent
+sys.path.insert(0, str(backend_path))
+sys.path.insert(0, str(project_root))
+
+from utils.logger import get_logger
+
+# Import DB_PATH from dependencies for consistency
+from api.dependencies import DB_PATH
+
+# Import all routers
+from api.routers import (
+    health,
+    proposals,
+    projects,
+    emails,
+    invoices,
+    suggestions,
+    dashboard,
+    query,
+    rfis,
+    meetings,
+    training,
+    admin,
+    deliverables,
+    documents,
+    contracts,
+    milestones,
+    outreach,
+    intelligence,
+    context,
+    files,
+    transcripts,
+    finance,
+    analytics,
+    learning,
+    agent,
+    contacts,
+    tasks,
+    email_categories,
+)
+
+# Initialize logger
+logger = get_logger(__name__)
+
+# ============================================================================
+# APP CONFIGURATION
+# ============================================================================
+
+ALLOWED_ORIGINS = os.getenv(
+    'CORS_ORIGINS',
+    'http://localhost:3000,http://localhost:3001,http://localhost:3002'
+).split(',')
+
+# ============================================================================
+# APP LIFECYCLE
+# ============================================================================
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Startup and shutdown events"""
+    logger.info("🚀 Bensley Intelligence API starting up")
+    logger.info(f"📂 Database: {DB_PATH}")
+    logger.info("📚 API documentation available at /docs")
+    yield
+    logger.info("🛑 Bensley Intelligence API shutting down")
+
+
+# ============================================================================
+# APP INITIALIZATION
+# ============================================================================
+
 app = FastAPI(
     title="Bensley Intelligence API",
     description="AI-powered operations platform for Bensley Design Studios",
-    version="1.0.0"
+    version="2.0.0",
+    lifespan=lifespan
 )
 
-# Add CORS middleware for dashboard access
+# ============================================================================
+# MIDDLEWARE
+# ============================================================================
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://localhost:3001"],
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Database connection helper
-def get_db_connection():
-    """Get database connection"""
-    db_path = os.getenv('DATABASE_PATH', os.path.expanduser('~/Desktop/BDS_SYSTEM/01_DATABASES/bensley_master.db'))
-    if not os.path.exists(db_path):
-        raise HTTPException(status_code=500, detail=f"Database not found at {db_path}")
-    return sqlite3.connect(db_path)
 
-# Pydantic models for request/response
-class EmailInput(BaseModel):
-    sender_email: str
-    subject: str
-    snippet: str
-    body: Optional[str] = None
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    """Log all incoming requests with timing"""
+    start_time = time.perf_counter()
 
-class ProjectResponse(BaseModel):
-    project_id: int
-    project_code: str
-    project_name: str
-    client_name: Optional[str] = None
-    status: Optional[str] = None
-    value: Optional[float] = None
+    # Skip logging for health checks
+    if request.url.path in ["/", "/health", "/api/health"]:
+        return await call_next(request)
 
-class MetricsResponse(BaseModel):
-    active_projects: int
-    pending_rfis: int
-    proposals_in_progress: int
-    unprocessed_emails: int
-    emails_processed_today: int
-    last_updated: str
+    logger.info(f"{request.method} {request.url.path}")
+
+    try:
+        response = await call_next(request)
+        duration = time.perf_counter() - start_time
+        logger.info(f"{request.method} {request.url.path} - {response.status_code} ({duration:.3f}s)")
+        return response
+    except Exception as e:
+        duration = time.perf_counter() - start_time
+        logger.error(f"{request.method} {request.url.path} - ERROR ({duration:.3f}s): {e}", exc_info=True)
+        raise
+
 
 # ============================================================================
-# HEALTH & STATUS ENDPOINTS
+# INCLUDE ROUTERS
+# ============================================================================
+
+# Health & Status
+app.include_router(health.router)
+
+# Core Business
+app.include_router(proposals.router)
+app.include_router(projects.router)
+app.include_router(emails.router)
+app.include_router(invoices.router)
+app.include_router(contracts.router)
+
+# Operations
+app.include_router(rfis.router)
+app.include_router(meetings.router)
+app.include_router(milestones.router)
+app.include_router(deliverables.router)
+app.include_router(outreach.router)
+app.include_router(transcripts.router)
+
+# Documents & Files
+app.include_router(documents.router)
+app.include_router(files.router)
+
+# Intelligence & AI
+app.include_router(suggestions.router)
+app.include_router(dashboard.router)
+app.include_router(query.router)
+app.include_router(intelligence.router)
+app.include_router(email_categories.router)
+
+# Context & Admin
+app.include_router(context.router)
+app.include_router(training.router)
+app.include_router(admin.router)
+
+# Finance & Analytics
+app.include_router(finance.router)
+app.include_router(analytics.router)
+
+# Learning & Agents
+app.include_router(learning.router)
+app.include_router(agent.router)
+
+# Contacts
+app.include_router(contacts.router)
+
+# Tasks
+app.include_router(tasks.router)
+
+# ============================================================================
+# GLOBAL EXCEPTION HANDLERS
+# ============================================================================
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    """Handle uncaught exceptions gracefully"""
+    logger.error(f"Unhandled exception on {request.method} {request.url.path}: {exc}", exc_info=True)
+    return JSONResponse(
+        status_code=500,
+        content={
+            "error": True,
+            "code": "INTERNAL_ERROR",
+            "message": "Something went wrong. Our fault. Try again - we're not done yet.",
+            "path": str(request.url.path)
+        }
+    )
+
+
+# ============================================================================
+# ROOT ENDPOINT
 # ============================================================================
 
 @app.get("/")
 async def root():
-    """API root endpoint"""
+    """API root - shows available documentation"""
     return {
-        "message": "Bensley Intelligence Platform API",
-        "version": "1.0.0",
-        "status": "operational",
+        "name": "Bensley Intelligence API",
+        "version": "2.0.0",
+        "status": "BONG BANG! 🎉",
         "docs": "/docs",
-        "endpoints": {
-            "health": "/health",
-            "metrics": "/metrics",
-            "projects": "/projects",
-            "emails": "/emails",
-            "intelligence": "/intelligence"
-        }
+        "redoc": "/redoc",
+        "health": "/api/health"
     }
 
-@app.get("/health")
-async def health_check():
-    """Health check endpoint"""
-    try:
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        cursor.execute("SELECT COUNT(*) FROM projects")
-        project_count = cursor.fetchone()[0]
-        conn.close()
-
-        return {
-            "status": "healthy",
-            "database": "connected",
-            "projects_in_db": project_count,
-            "timestamp": datetime.now().isoformat()
-        }
-    except Exception as e:
-        raise HTTPException(status_code=503, detail=f"Service unhealthy: {str(e)}")
 
 # ============================================================================
-# DASHBOARD METRICS
+# API INFO
 # ============================================================================
 
-@app.get("/metrics", response_model=MetricsResponse)
-async def get_metrics():
-    """Get real-time business metrics for dashboard"""
-    conn = get_db_connection()
-    cursor = conn.cursor()
-
-    try:
-        # Active projects
-        cursor.execute("""
-            SELECT COUNT(*) FROM projects
-            WHERE status IN ('active', 'in-progress', 'ongoing')
-        """)
-        active_projects = cursor.fetchone()[0]
-
-        # Pending RFIs (if table exists)
-        try:
-            cursor.execute("SELECT COUNT(*) FROM rfis WHERE status = 'pending'")
-            pending_rfis = cursor.fetchone()[0]
-        except:
-            pending_rfis = 0
-
-        # Proposals in progress
-        try:
-            cursor.execute("SELECT COUNT(*) FROM proposals WHERE status IN ('draft', 'in-progress')")
-            proposals = cursor.fetchone()[0]
-        except:
-            proposals = 0
-
-        # Unprocessed emails
-        cursor.execute("SELECT COUNT(*) FROM emails WHERE processed = 0")
-        unprocessed = cursor.fetchone()[0]
-
-        # Emails processed today
-        cursor.execute("""
-            SELECT COUNT(*) FROM emails
-            WHERE processed = 1
-            AND date(date) = date('now')
-        """)
-        processed_today = cursor.fetchone()[0]
-
-        return MetricsResponse(
-            active_projects=active_projects,
-            pending_rfis=pending_rfis,
-            proposals_in_progress=proposals,
-            unprocessed_emails=unprocessed,
-            emails_processed_today=processed_today,
-            last_updated=datetime.now().isoformat()
-        )
-
-    finally:
-        conn.close()
-
-# ============================================================================
-# PROJECTS ENDPOINTS
-# ============================================================================
-
-@app.get("/projects", response_model=List[ProjectResponse])
-async def list_projects(
-    status: Optional[str] = None,
-    limit: int = 50,
-    offset: int = 0
-):
-    """List all projects with optional filtering"""
-    conn = get_db_connection()
-    cursor = conn.cursor()
-
-    try:
-        query = """
-            SELECT project_id, project_code, project_name, client_name, status, value
-            FROM projects
-        """
-
-        params = []
-        if status:
-            query += " WHERE status = ?"
-            params.append(status)
-
-        query += " ORDER BY project_id DESC LIMIT ? OFFSET ?"
-        params.extend([limit, offset])
-
-        cursor.execute(query, params)
-
-        projects = []
-        for row in cursor.fetchall():
-            projects.append(ProjectResponse(
-                project_id=row[0],
-                project_code=row[1],
-                project_name=row[2],
-                client_name=row[3],
-                status=row[4],
-                value=row[5]
-            ))
-
-        return projects
-
-    finally:
-        conn.close()
-
-@app.get("/projects/{project_code}")
-async def get_project(project_code: str):
-    """Get detailed information about a specific project"""
-    conn = get_db_connection()
-    cursor = conn.cursor()
-
-    try:
-        # Get project details
-        cursor.execute("""
-            SELECT project_id, project_code, project_name, client_name, status, value
-            FROM projects
-            WHERE project_code = ?
-        """, (project_code,))
-
-        row = cursor.fetchone()
-        if not row:
-            raise HTTPException(status_code=404, detail="Project not found")
-
-        project = {
-            "project_id": row[0],
-            "project_code": row[1],
-            "project_name": row[2],
-            "client_name": row[3],
-            "status": row[4],
-            "value": row[5]
-        }
-
-        # Get linked emails count
-        cursor.execute("""
-            SELECT COUNT(*) FROM email_project_links
-            WHERE project_id = ?
-        """, (row[0],))
-        project["email_count"] = cursor.fetchone()[0]
-
-        # Get recent activity
-        cursor.execute("""
-            SELECT e.date, e.subject, e.sender_email
-            FROM emails e
-            JOIN email_project_links epl ON e.email_id = epl.email_id
-            WHERE epl.project_id = ?
-            ORDER BY e.date DESC
-            LIMIT 5
-        """, (row[0],))
-
-        project["recent_activity"] = [
-            {"date": r[0], "subject": r[1], "sender": r[2]}
-            for r in cursor.fetchall()
-        ]
-
-        return project
-
-    finally:
-        conn.close()
-
-@app.get("/projects/{project_code}/emails")
-async def get_project_emails(
-    project_code: str,
-    limit: int = 50,
-    offset: int = 0
-):
-    """Get all emails linked to a project"""
-    conn = get_db_connection()
-    cursor = conn.cursor()
-
-    try:
-        cursor.execute("""
-            SELECT e.email_id, e.date, e.sender_email, e.subject, e.snippet,
-                   epl.confidence, epl.link_method
-            FROM emails e
-            JOIN email_project_links epl ON e.email_id = epl.email_id
-            JOIN projects p ON epl.project_id = p.project_id
-            WHERE p.project_code = ?
-            ORDER BY e.date DESC
-            LIMIT ? OFFSET ?
-        """, (project_code, limit, offset))
-
-        emails = []
-        for row in cursor.fetchall():
-            emails.append({
-                "email_id": row[0],
-                "date": row[1],
-                "sender": row[2],
-                "subject": row[3],
-                "snippet": row[4],
-                "confidence": row[5],
-                "link_method": row[6]
-            })
-
-        return emails
-
-    finally:
-        conn.close()
-
-# ============================================================================
-# EMAIL PROCESSING ENDPOINTS
-# ============================================================================
-
-@app.post("/emails/process")
-async def process_email(email: EmailInput):
-    """Process a new email through the intelligence pipeline"""
-    # Import your existing email processor
-    from backend.core.email_processor import EmailProcessor
-
-    processor = EmailProcessor()
-
-    # Note: You'll need to adapt your EmailProcessor to work with
-    # individual emails rather than batch processing
-
-    result = {
-        "success": True,
-        "email": email.dict(),
-        "processing": {
-            "tags_added": [],
-            "projects_linked": [],
-            "confidence": 0.0
-        }
-    }
-
-    return result
-
-@app.get("/emails/unprocessed")
-async def get_unprocessed_emails(limit: int = 100):
-    """Get list of unprocessed emails"""
-    conn = get_db_connection()
-    cursor = conn.cursor()
-
-    try:
-        cursor.execute("""
-            SELECT email_id, date, sender_email, subject, snippet
-            FROM emails
-            WHERE processed = 0
-            ORDER BY date DESC
-            LIMIT ?
-        """, (limit,))
-
-        emails = []
-        for row in cursor.fetchall():
-            emails.append({
-                "email_id": row[0],
-                "date": row[1],
-                "sender": row[2],
-                "subject": row[3],
-                "snippet": row[4]
-            })
-
-        return emails
-
-    finally:
-        conn.close()
-
-# ============================================================================
-# INTELLIGENCE & PATTERNS
-# ============================================================================
-
-@app.get("/intelligence/patterns")
-async def get_learned_patterns(pattern_type: Optional[str] = None):
-    """Get learned patterns from the intelligence system"""
-    conn = get_db_connection()
-    cursor = conn.cursor()
-
-    try:
-        query = """
-            SELECT pattern_type, pattern_key, pattern_value,
-                   confidence, occurrences, last_seen
-            FROM learned_patterns
-        """
-
-        params = []
-        if pattern_type:
-            query += " WHERE pattern_type = ?"
-            params.append(pattern_type)
-
-        query += " ORDER BY confidence DESC, occurrences DESC LIMIT 100"
-
-        cursor.execute(query, params)
-
-        patterns = []
-        for row in cursor.fetchall():
-            patterns.append({
-                "type": row[0],
-                "key": row[1],
-                "value": row[2],
-                "confidence": row[3],
-                "occurrences": row[4],
-                "last_seen": row[5]
-            })
-
-        return patterns
-
-    finally:
-        conn.close()
-
-@app.get("/intelligence/stats")
-async def get_intelligence_stats():
-    """Get statistics about the intelligence system"""
-    conn = get_db_connection()
-    cursor = conn.cursor()
-
-    try:
-        stats = {}
-
-        # Pattern counts
-        cursor.execute("SELECT pattern_type, COUNT(*) FROM learned_patterns GROUP BY pattern_type")
-        stats["patterns_by_type"] = {row[0]: row[1] for row in cursor.fetchall()}
-
-        # Email processing stats
-        cursor.execute("SELECT COUNT(*) FROM emails WHERE processed = 1")
-        stats["emails_processed"] = cursor.fetchone()[0]
-
-        cursor.execute("SELECT COUNT(DISTINCT email_id) FROM email_project_links")
-        stats["emails_linked"] = cursor.fetchone()[0]
-
-        # Tag stats
-        cursor.execute("SELECT tag, COUNT(*) FROM email_tags GROUP BY tag ORDER BY COUNT(*) DESC LIMIT 10")
-        stats["top_tags"] = {row[0]: row[1] for row in cursor.fetchall()}
-
-        return stats
-
-    finally:
-        conn.close()
-
-# ============================================================================
-# QUERY INTERFACE (Natural Language)
-# ============================================================================
-
-@app.post("/query")
-async def natural_language_query(query: Dict[str, str]):
-    """
-    Natural language query interface
-    Future: This will use OpenAI to interpret queries
-    """
-    user_query = query.get("query", "")
-
-    # For now, return a placeholder
-    # You'll integrate OpenAI here to interpret queries and generate SQL
-
+@app.get("/api")
+async def api_info():
+    """API information endpoint"""
     return {
-        "query": user_query,
-        "answer": "Natural language queries coming soon. Use specific endpoints for now.",
-        "suggested_endpoint": "/projects or /metrics"
+        "name": "Bensley Intelligence API",
+        "version": "2.0.0",
+        "description": "AI-powered operations platform for Bensley Design Studios",
+        "routers": [
+            {"name": "health", "prefix": "/api", "description": "Health checks"},
+            {"name": "proposals", "prefix": "/api", "description": "Proposal management"},
+            {"name": "projects", "prefix": "/api", "description": "Project management"},
+            {"name": "emails", "prefix": "/api", "description": "Email processing"},
+            {"name": "invoices", "prefix": "/api", "description": "Invoice management"},
+            {"name": "contracts", "prefix": "/api", "description": "Contract management"},
+            {"name": "rfis", "prefix": "/api", "description": "RFI management"},
+            {"name": "meetings", "prefix": "/api", "description": "Meetings & calendar"},
+            {"name": "milestones", "prefix": "/api", "description": "Milestone tracking"},
+            {"name": "deliverables", "prefix": "/api", "description": "Deliverables management"},
+            {"name": "outreach", "prefix": "/api", "description": "Client outreach"},
+            {"name": "documents", "prefix": "/api", "description": "Document management"},
+            {"name": "files", "prefix": "/api", "description": "File management"},
+            {"name": "suggestions", "prefix": "/api", "description": "AI suggestions"},
+            {"name": "dashboard", "prefix": "/api", "description": "Dashboard & KPIs"},
+            {"name": "query", "prefix": "/api", "description": "Natural language queries"},
+            {"name": "intelligence", "prefix": "/api", "description": "AI intelligence"},
+            {"name": "context", "prefix": "/api", "description": "Context & notes"},
+            {"name": "training", "prefix": "/api", "description": "AI training data"},
+            {"name": "admin", "prefix": "/api", "description": "Admin & validation"},
+            {"name": "tasks", "prefix": "/api", "description": "Task management"},
+        ]
     }
 
-# ============================================================================
-# RUN SERVER
-# ============================================================================
 
 if __name__ == "__main__":
     import uvicorn
-
-    port = int(os.getenv("API_PORT", 8000))
-
-    print(f"""
-    ╔══════════════════════════════════════════════════════════╗
-    ║   Bensley Intelligence Platform API                      ║
-    ╚══════════════════════════════════════════════════════════╝
-
-    🚀 Starting server...
-    📡 API:  http://localhost:{port}
-    📚 Docs: http://localhost:{port}/docs
-    🔍 Health: http://localhost:{port}/health
-
-    Press Ctrl+C to stop
-    """)
-
-    uvicorn.run(
-        "backend.api.main:app",
-        host="0.0.0.0",
-        port=port,
-        reload=True
-    )
+    uvicorn.run(app, host="0.0.0.0", port=8000)

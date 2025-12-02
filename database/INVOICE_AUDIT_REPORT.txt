@@ -1,0 +1,2392 @@
+====================================================================================================
+COMPREHENSIVE BENSLEY INVOICE & PROJECT LINK AUDIT
+====================================================================================================
+
+====================================================================================================
+PART 1: ALL INVOICES ANALYSIS (253 invoices)
+====================================================================================================
+
+✅ CORRECT LINKS: 0/253
+❌ WRONG LINKS: 253/253
+⚠️  UNLINKED: 0/253
+❓ UNCERTAIN: 0/253
+
+====================================================================================================
+DETAILED BREAKDOWN: 253 WRONG LINKS
+====================================================================================================
+
+[1/253] Invoice: 25-050
+  💰 Amount: $31,172.50 | Paid: $31,172.50
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3609
+      Project Code: 22 BK-095
+      Project Name: Wynn Al Marjan Island Project
+  ✅ SHOULD BE LINKED TO:
+      Project ID: 3622
+      Project Code: 23 BK-050
+      Project Name: Ultra Luxury Beach Resort Hotel
+
+[2/253] Invoice: 25-113
+  💰 Amount: $37,500.00 | Paid: $0.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 115074
+      Project Code: 25 BK-015
+      Project Name: Shinta Mani Mustang, Nepal
+  ⚠️  PROBLEM: No project found with code ending in 113
+
+[3/253] Invoice: I20-096
+  💰 Amount: $71,250.00 | Paid: $71,250.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3601
+      Project Code: 19 BK-018
+      Project Name: Villa Project in Ahmedabad, India
+  ✅ SHOULD BE LINKED TO:
+      Project ID: 3616
+      Project Code: 23 BK-096
+      Project Name: St. Regis Hotel in Thousand Island
+
+[4/253] Invoice: I20-096
+  💰 Amount: $99,750.00 | Paid: $99,750.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3601
+      Project Code: 19 BK-018
+      Project Name: Villa Project in Ahmedabad, India
+  ✅ SHOULD BE LINKED TO:
+      Project ID: 3616
+      Project Code: 23 BK-096
+      Project Name: St. Regis Hotel in Thousand Island
+
+[5/253] Invoice: I20-096
+  💰 Amount: $76,000.00 | Paid: $76,000.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3601
+      Project Code: 19 BK-018
+      Project Name: Villa Project in Ahmedabad, India
+  ✅ SHOULD BE LINKED TO:
+      Project ID: 3616
+      Project Code: 23 BK-096
+      Project Name: St. Regis Hotel in Thousand Island
+
+[6/253] Invoice: I21-020
+  💰 Amount: $118,750.00 | Paid: $118,750.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3601
+      Project Code: 19 BK-018
+      Project Name: Villa Project in Ahmedabad, India
+  ⚠️  PROBLEM: No project found with code ending in 020
+
+[7/253] Invoice: I21-020
+  💰 Amount: $124,687.50 | Paid: $124,687.50
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3601
+      Project Code: 19 BK-018
+      Project Name: Villa Project in Ahmedabad, India
+  ⚠️  PROBLEM: No project found with code ending in 020
+
+[8/253] Invoice: I21-020
+  💰 Amount: $47,500.00 | Paid: $47,500.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3601
+      Project Code: 19 BK-018
+      Project Name: Villa Project in Ahmedabad, India
+  ⚠️  PROBLEM: No project found with code ending in 020
+
+[9/253] Invoice: I21-048
+  💰 Amount: $41,562.50 | Paid: $41,562.50
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3601
+      Project Code: 19 BK-018
+      Project Name: Villa Project in Ahmedabad, India
+  ⚠️  PROBLEM: No project found with code ending in 048
+
+[10/253] Invoice: I21-048
+  💰 Amount: $95,000.00 | Paid: $95,000.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3601
+      Project Code: 19 BK-018
+      Project Name: Villa Project in Ahmedabad, India
+  ⚠️  PROBLEM: No project found with code ending in 048
+
+[11/253] Invoice: I21-049
+  💰 Amount: $49,875.00 | Paid: $49,875.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3601
+      Project Code: 19 BK-018
+      Project Name: Villa Project in Ahmedabad, India
+  ⚠️  PROBLEM: No project found with code ending in 049
+
+[12/253] Invoice: I21-067
+  💰 Amount: $71,250.00 | Paid: $71,250.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3601
+      Project Code: 19 BK-018
+      Project Name: Villa Project in Ahmedabad, India
+  ✅ SHOULD BE LINKED TO:
+      Project ID: 3617
+      Project Code: 23 BK-067
+      Project Name: Treasure Island Resort, Intercontinental
+
+[13/253] Invoice: I21-068
+  💰 Amount: $149,625.00 | Paid: $149,625.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3601
+      Project Code: 19 BK-018
+      Project Name: Villa Project in Ahmedabad, India
+  ✅ SHOULD BE LINKED TO:
+      Project ID: 3618
+      Project Code: 23 BK-068
+      Project Name: Treasure Island Resort, Caribbean Castle
+
+[14/253] Invoice: I22-006
+  💰 Amount: $71,250.00 | Paid: $71,250.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3601
+      Project Code: 19 BK-018
+      Project Name: Villa Project in Ahmedabad, India
+  ⚠️  PROBLEM: No project found with code ending in 006
+
+[15/253] Invoice: I22-007
+  💰 Amount: $49,875.00 | Paid: $49,875.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3601
+      Project Code: 19 BK-018
+      Project Name: Villa Project in Ahmedabad, India
+  ⚠️  PROBLEM: No project found with code ending in 007
+
+[16/253] Invoice: I22-020
+  💰 Amount: $60,000.00 | Paid: $60,000.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3607
+      Project Code: 22 BK-013
+      Project Name: Tel Aviv High Rise Project in Israel
+  ⚠️  PROBLEM: No project found with code ending in 020
+
+[17/253] Invoice: I22-020
+  💰 Amount: $390,000.00 | Paid: $390,000.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3607
+      Project Code: 22 BK-013
+      Project Name: Tel Aviv High Rise Project in Israel
+  ⚠️  PROBLEM: No project found with code ending in 020
+
+[18/253] Invoice: I22-042
+  💰 Amount: $71,250.00 | Paid: $71,250.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3601
+      Project Code: 19 BK-018
+      Project Name: Villa Project in Ahmedabad, India
+  ⚠️  PROBLEM: No project found with code ending in 042
+
+[19/253] Invoice: I22-043
+  💰 Amount: $49,875.00 | Paid: $49,875.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3601
+      Project Code: 19 BK-018
+      Project Name: Villa Project in Ahmedabad, India
+  ✅ SHOULD BE LINKED TO:
+      Project ID: 3629
+      Project Code: 24 BK-043
+      Project Name: Hotel (Trident and Oberoi) Project,  India
+
+[20/253] Invoice: I22-044
+  💰 Amount: $47,500.00 | Paid: $47,500.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3601
+      Project Code: 19 BK-018
+      Project Name: Villa Project in Ahmedabad, India
+  ⚠️  PROBLEM: No project found with code ending in 044
+
+[21/253] Invoice: I22-049 A&B
+  💰 Amount: $67,500.00 | Paid: $67,500.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3608
+      Project Code: 22 BK-046
+      Project Name: Resort and Hotel Project at Nusa Penida Island, Indonesia
+  ⚠️  PROBLEM: No project found with code ending in 049
+
+[22/253] Invoice: I22-049 A&B
+  💰 Amount: $90,000.00 | Paid: $90,000.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3608
+      Project Code: 22 BK-046
+      Project Name: Resort and Hotel Project at Nusa Penida Island, Indonesia
+  ⚠️  PROBLEM: No project found with code ending in 049
+
+[23/253] Invoice: I22-049 A&B
+  💰 Amount: $97,500.00 | Paid: $97,500.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3608
+      Project Code: 22 BK-046
+      Project Name: Resort and Hotel Project at Nusa Penida Island, Indonesia
+  ⚠️  PROBLEM: No project found with code ending in 049
+
+[24/253] Invoice: I22-062
+  💰 Amount: $228,000.00 | Paid: $228,000.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3601
+      Project Code: 19 BK-018
+      Project Name: Villa Project in Ahmedabad, India
+  ⚠️  PROBLEM: No project found with code ending in 062
+
+[25/253] Invoice: I22-063
+  💰 Amount: $66,500.00 | Paid: $66,500.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3601
+      Project Code: 19 BK-018
+      Project Name: Villa Project in Ahmedabad, India
+  ⚠️  PROBLEM: No project found with code ending in 063
+
+[26/253] Invoice: I22-066
+  💰 Amount: $90,000.00 | Paid: $90,000.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3607
+      Project Code: 22 BK-013
+      Project Name: Tel Aviv High Rise Project in Israel
+  ⚠️  PROBLEM: No project found with code ending in 066
+
+[27/253] Invoice: I22-066
+  💰 Amount: $585,000.00 | Paid: $585,000.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3607
+      Project Code: 22 BK-013
+      Project Name: Tel Aviv High Rise Project in Israel
+  ⚠️  PROBLEM: No project found with code ending in 066
+
+[28/253] Invoice: I23-001
+  💰 Amount: $17,812.50 | Paid: $17,812.50
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3601
+      Project Code: 19 BK-018
+      Project Name: Villa Project in Ahmedabad, India
+  ✅ SHOULD BE LINKED TO:
+      Project ID: 3634
+      Project Code: 25 BK-001
+      Project Name: Ramhan Marina Hotel Project in Abu Dhabi, UAE
+
+[29/253] Invoice: I23-002
+  💰 Amount: $24,937.50 | Paid: $24,937.50
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3601
+      Project Code: 19 BK-018
+      Project Name: Villa Project in Ahmedabad, India
+  ✅ SHOULD BE LINKED TO:
+      Project ID: 3633
+      Project Code: 25 BK-002
+      Project Name: Tonkin Palace Hanoi Project, Vietnam
+
+[30/253] Invoice: I23-003
+  💰 Amount: $33,250.00 | Paid: $33,250.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3601
+      Project Code: 19 BK-018
+      Project Name: Villa Project in Ahmedabad, India
+  ⚠️  PROBLEM: No project found with code ending in 003
+
+[31/253] Invoice: I23-008
+  💰 Amount: $66,500.00 | Paid: $66,500.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3601
+      Project Code: 19 BK-018
+      Project Name: Villa Project in Ahmedabad, India
+  ⚠️  PROBLEM: No project found with code ending in 008
+
+[32/253] Invoice: I23-013
+  💰 Amount: $101,250.00 | Paid: $101,250.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3608
+      Project Code: 22 BK-046
+      Project Name: Resort and Hotel Project at Nusa Penida Island, Indonesia
+  ⚠️  PROBLEM: No project found with code ending in 013
+
+[33/253] Invoice: I23-013
+  💰 Amount: $135,000.00 | Paid: $135,000.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3608
+      Project Code: 22 BK-046
+      Project Name: Resort and Hotel Project at Nusa Penida Island, Indonesia
+  ⚠️  PROBLEM: No project found with code ending in 013
+
+[34/253] Invoice: I23-013
+  💰 Amount: $146,250.00 | Paid: $146,250.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3608
+      Project Code: 22 BK-046
+      Project Name: Resort and Hotel Project at Nusa Penida Island, Indonesia
+  ⚠️  PROBLEM: No project found with code ending in 013
+
+[35/253] Invoice: I23-014
+  💰 Amount: $109,500.00 | Paid: $109,500.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3610
+      Project Code: 23 BK-009
+      Project Name: Villa Project in Ahmedabad, India
+  ⚠️  PROBLEM: No project found with code ending in 014
+
+[36/253] Invoice: I23-018
+  💰 Amount: $124,690.00 | Paid: $124,690.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3609
+      Project Code: 22 BK-095
+      Project Name: Wynn Al Marjan Island Project
+  ✅ SHOULD BE LINKED TO:
+      Project ID: 3614
+      Project Code: 25 BK-018
+      Project Name: The Ritz Carlton Hotel Nanyan Bay, China
+
+[37/253] Invoice: I23-018
+  💰 Amount: $124,690.00 | Paid: $124,690.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3609
+      Project Code: 22 BK-095
+      Project Name: Wynn Al Marjan Island Project
+  ✅ SHOULD BE LINKED TO:
+      Project ID: 3614
+      Project Code: 25 BK-018
+      Project Name: The Ritz Carlton Hotel Nanyan Bay, China
+
+[38/253] Invoice: I23-018
+  💰 Amount: $249,375.00 | Paid: $249,375.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3609
+      Project Code: 22 BK-095
+      Project Name: Wynn Al Marjan Island Project
+  ✅ SHOULD BE LINKED TO:
+      Project ID: 3614
+      Project Code: 25 BK-018
+      Project Name: The Ritz Carlton Hotel Nanyan Bay, China
+
+[39/253] Invoice: I23-021
+  💰 Amount: $10,000.00 | Paid: $10,000.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3607
+      Project Code: 22 BK-013
+      Project Name: Tel Aviv High Rise Project in Israel
+  ✅ SHOULD BE LINKED TO:
+      Project ID: 3624
+      Project Code: 24 BK-021
+      Project Name: Capella Hotel and Resort, Ubud Bali
+
+[40/253] Invoice: I23-021
+  💰 Amount: $65,000.00 | Paid: $65,000.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3607
+      Project Code: 22 BK-013
+      Project Name: Tel Aviv High Rise Project in Israel
+  ✅ SHOULD BE LINKED TO:
+      Project ID: 3624
+      Project Code: 24 BK-021
+      Project Name: Capella Hotel and Resort, Ubud Bali
+
+[41/253] Invoice: I23-036
+  💰 Amount: $51,950.00 | Paid: $51,950.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3609
+      Project Code: 22 BK-095
+      Project Name: Wynn Al Marjan Island Project
+  ⚠️  PROBLEM: No project found with code ending in 036
+
+[42/253] Invoice: I23-036
+  💰 Amount: $51,950.00 | Paid: $51,950.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3609
+      Project Code: 22 BK-095
+      Project Name: Wynn Al Marjan Island Project
+  ⚠️  PROBLEM: No project found with code ending in 036
+
+[43/253] Invoice: I23-036
+  💰 Amount: $103,906.25 | Paid: $103,906.25
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3609
+      Project Code: 22 BK-095
+      Project Name: Wynn Al Marjan Island Project
+  ⚠️  PROBLEM: No project found with code ending in 036
+
+[44/253] Invoice: I23-038
+  💰 Amount: $210,000.00 | Paid: $210,000.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3611
+      Project Code: 23 BK-028
+      Project Name: Proscenium Penthouse in Manila, Philippines
+  ⚠️  PROBLEM: No project found with code ending in 038
+
+[45/253] Invoice: I23-039
+  💰 Amount: $11,250.00 | Paid: $11,250.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3608
+      Project Code: 22 BK-046
+      Project Name: Resort and Hotel Project at Nusa Penida Island, Indonesia
+  ⚠️  PROBLEM: No project found with code ending in 039
+
+[46/253] Invoice: I23-039
+  💰 Amount: $15,000.00 | Paid: $15,000.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3608
+      Project Code: 22 BK-046
+      Project Name: Resort and Hotel Project at Nusa Penida Island, Indonesia
+  ⚠️  PROBLEM: No project found with code ending in 039
+
+[47/253] Invoice: I23-039
+  💰 Amount: $16,250.00 | Paid: $16,250.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3608
+      Project Code: 22 BK-046
+      Project Name: Resort and Hotel Project at Nusa Penida Island, Indonesia
+  ⚠️  PROBLEM: No project found with code ending in 039
+
+[48/253] Invoice: I23-040
+  💰 Amount: $67,500.00 | Paid: $0.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3608
+      Project Code: 22 BK-046
+      Project Name: Resort and Hotel Project at Nusa Penida Island, Indonesia
+  ⚠️  PROBLEM: No project found with code ending in 040
+
+[49/253] Invoice: I23-040
+  💰 Amount: $90,000.00 | Paid: $0.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3608
+      Project Code: 22 BK-046
+      Project Name: Resort and Hotel Project at Nusa Penida Island, Indonesia
+  ⚠️  PROBLEM: No project found with code ending in 040
+
+[50/253] Invoice: I23-040
+  💰 Amount: $97,500.00 | Paid: $0.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3608
+      Project Code: 22 BK-046
+      Project Name: Resort and Hotel Project at Nusa Penida Island, Indonesia
+  ⚠️  PROBLEM: No project found with code ending in 040
+
+[51/253] Invoice: I23-048
+  💰 Amount: $195,000.00 | Paid: $195,000.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3607
+      Project Code: 22 BK-013
+      Project Name: Tel Aviv High Rise Project in Israel
+  ⚠️  PROBLEM: No project found with code ending in 048
+
+[52/253] Invoice: I23-049
+  💰 Amount: $350,000.00 | Paid: $350,000.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3611
+      Project Code: 23 BK-028
+      Project Name: Proscenium Penthouse in Manila, Philippines
+  ⚠️  PROBLEM: No project found with code ending in 049
+
+[53/253] Invoice: I23-053
+  💰 Amount: $91,250.00 | Paid: $91,250.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3610
+      Project Code: 23 BK-009
+      Project Name: Villa Project in Ahmedabad, India
+  ⚠️  PROBLEM: No project found with code ending in 053
+
+[54/253] Invoice: I23-066
+  💰 Amount: $202,500.00 | Paid: $202,500.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3615
+      Project Code: 23 BK-071
+      Project Name: St. Regis Hotel in Thousand Island
+  ⚠️  PROBLEM: No project found with code ending in 066
+
+[55/253] Invoice: I23-071
+  💰 Amount: $71,175.00 | Paid: $71,175.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3610
+      Project Code: 23 BK-009
+      Project Name: Villa Project in Ahmedabad, India
+  ✅ SHOULD BE LINKED TO:
+      Project ID: 3615
+      Project Code: 23 BK-071
+      Project Name: St. Regis Hotel in Thousand Island
+
+[56/253] Invoice: I23-072
+  💰 Amount: $38,325.00 | Paid: $38,325.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3610
+      Project Code: 23 BK-009
+      Project Name: Villa Project in Ahmedabad, India
+  ⚠️  PROBLEM: No project found with code ending in 072
+
+[57/253] Invoice: I23-093
+  💰 Amount: $180,000.00 | Paid: $180,000.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3617
+      Project Code: 23 BK-067
+      Project Name: Treasure Island Resort, Intercontinental
+  ✅ SHOULD BE LINKED TO:
+      Project ID: 3620
+      Project Code: 23 BK-093
+      Project Name: Art Deco Residential Project in
+
+[58/253] Invoice: I23-095
+  💰 Amount: $60,000.00 | Paid: $60,000.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3619
+      Project Code: 23 BK-080
+      Project Name: Treasure Island Resort, Intercontinental
+  ⚠️  PROBLEM: No project found with code ending in 095
+
+[59/253] Invoice: I23-096
+  💰 Amount: $150,000.00 | Paid: $150,000.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3620
+      Project Code: 23 BK-093
+      Project Name: Art Deco Residential Project in
+  ✅ SHOULD BE LINKED TO:
+      Project ID: 3616
+      Project Code: 23 BK-096
+      Project Name: St. Regis Hotel in Thousand Island
+
+[60/253] Invoice: I23-096
+  💰 Amount: $225,000.00 | Paid: $225,000.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3620
+      Project Code: 23 BK-093
+      Project Name: Art Deco Residential Project in
+  ✅ SHOULD BE LINKED TO:
+      Project ID: 3616
+      Project Code: 23 BK-096
+      Project Name: St. Regis Hotel in Thousand Island
+
+[61/253] Invoice: I23-101
+  💰 Amount: $91,250.00 | Paid: $91,250.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3610
+      Project Code: 23 BK-009
+      Project Name: Villa Project in Ahmedabad, India
+  ⚠️  PROBLEM: No project found with code ending in 101
+
+[62/253] Invoice: I23-102
+  💰 Amount: $420,000.00 | Paid: $420,000.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3611
+      Project Code: 23 BK-028
+      Project Name: Proscenium Penthouse in Manila, Philippines
+  ⚠️  PROBLEM: No project found with code ending in 102
+
+[63/253] Invoice: I23-108
+  💰 Amount: $75,000.00 | Paid: $75,000.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3616
+      Project Code: 23 BK-096
+      Project Name: St. Regis Hotel in Thousand Island
+  ⚠️  PROBLEM: No project found with code ending in 108
+
+[64/253] Invoice: I23-110
+  💰 Amount: $155,850.00 | Paid: $155,850.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3609
+      Project Code: 22 BK-095
+      Project Name: Wynn Al Marjan Island Project
+  ⚠️  PROBLEM: No project found with code ending in 110
+
+[65/253] Invoice: I23-110
+  💰 Amount: $155,850.00 | Paid: $155,850.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3609
+      Project Code: 22 BK-095
+      Project Name: Wynn Al Marjan Island Project
+  ⚠️  PROBLEM: No project found with code ending in 110
+
+[66/253] Invoice: I23-110
+  💰 Amount: $311,718.75 | Paid: $311,718.75
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3609
+      Project Code: 22 BK-095
+      Project Name: Wynn Al Marjan Island Project
+  ⚠️  PROBLEM: No project found with code ending in 110
+
+[67/253] Invoice: I23-112
+  💰 Amount: $105,000.00 | Paid: $105,000.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3611
+      Project Code: 23 BK-028
+      Project Name: Proscenium Penthouse in Manila, Philippines
+  ⚠️  PROBLEM: No project found with code ending in 112
+
+[68/253] Invoice: I23-113
+  💰 Amount: $150,000.00 | Paid: $150,000.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3621
+      Project Code: 23 BK-089
+      Project Name: Jyoti's farm house in Delhi, India
+  ⚠️  PROBLEM: No project found with code ending in 113
+
+[69/253] Invoice: I24-009
+  💰 Amount: $75,000.00 | Paid: $75,000.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3620
+      Project Code: 23 BK-093
+      Project Name: Art Deco Residential Project in
+  ✅ SHOULD BE LINKED TO:
+      Project ID: 3610
+      Project Code: 23 BK-009
+      Project Name: Villa Project in Ahmedabad, India
+
+[70/253] Invoice: I24-009
+  💰 Amount: $112,500.00 | Paid: $112,500.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3620
+      Project Code: 23 BK-093
+      Project Name: Art Deco Residential Project in
+  ✅ SHOULD BE LINKED TO:
+      Project ID: 3610
+      Project Code: 23 BK-009
+      Project Name: Villa Project in Ahmedabad, India
+
+[71/253] Invoice: I24-010
+  💰 Amount: $45,000.00 | Paid: $45,000.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3620
+      Project Code: 23 BK-093
+      Project Name: Art Deco Residential Project in
+  ⚠️  PROBLEM: No project found with code ending in 010
+
+[72/253] Invoice: I24-010
+  💰 Amount: $67,500.00 | Paid: $67,500.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3620
+      Project Code: 23 BK-093
+      Project Name: Art Deco Residential Project in
+  ⚠️  PROBLEM: No project found with code ending in 010
+
+[73/253] Invoice: I24-011
+  💰 Amount: $11,250.00 | Paid: $11,250.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3620
+      Project Code: 23 BK-093
+      Project Name: Art Deco Residential Project in
+  ⚠️  PROBLEM: No project found with code ending in 011
+
+[74/253] Invoice: I24-011
+  💰 Amount: $16,875.00 | Paid: $16,875.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3620
+      Project Code: 23 BK-093
+      Project Name: Art Deco Residential Project in
+  ⚠️  PROBLEM: No project found with code ending in 011
+
+[75/253] Invoice: I24-013
+  💰 Amount: $54,000.00 | Paid: $54,000.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3625
+      Project Code: 24 BK-018
+      Project Name: Luang Prabang Heritage Arcade and
+  ⚠️  PROBLEM: No project found with code ending in 013
+
+[76/253] Invoice: I24-013
+  💰 Amount: $76,500.00 | Paid: $76,500.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3625
+      Project Code: 24 BK-018
+      Project Name: Luang Prabang Heritage Arcade and
+  ⚠️  PROBLEM: No project found with code ending in 013
+
+[77/253] Invoice: I24-013
+  💰 Amount: $87,000.00 | Paid: $87,000.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3625
+      Project Code: 24 BK-018
+      Project Name: Luang Prabang Heritage Arcade and
+  ⚠️  PROBLEM: No project found with code ending in 013
+
+[78/253] Invoice: I24-014
+  💰 Amount: $67,500.00 | Paid: $67,500.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3609
+      Project Code: 22 BK-095
+      Project Name: Wynn Al Marjan Island Project
+  ⚠️  PROBLEM: No project found with code ending in 014
+
+[79/253] Invoice: I24-017
+  💰 Amount: $150,937.50 | Paid: $150,937.50
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3613
+      Project Code: 23 BK-088
+      Project Name: Mandarin Oriental Bali Hotel and
+  ✅ SHOULD BE LINKED TO:
+      Project ID: 115075
+      Project Code: 25 BK-017
+      Project Name: TARC's Luxury Branded Residence Project in New Delhi
+
+[80/253] Invoice: I24-018
+  💰 Amount: $337,500.00 | Paid: $337,500.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3615
+      Project Code: 23 BK-071
+      Project Name: St. Regis Hotel in Thousand Island
+  ✅ SHOULD BE LINKED TO:
+      Project ID: 3614
+      Project Code: 25 BK-018
+      Project Name: The Ritz Carlton Hotel Nanyan Bay, China
+
+[81/253] Invoice: I24-019
+  💰 Amount: $125,000.00 | Paid: $125,000.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3616
+      Project Code: 23 BK-096
+      Project Name: St. Regis Hotel in Thousand Island
+  ⚠️  PROBLEM: No project found with code ending in 019
+
+[82/253] Invoice: I24-020
+  💰 Amount: $249,380.00 | Paid: $249,380.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3609
+      Project Code: 22 BK-095
+      Project Name: Wynn Al Marjan Island Project
+  ⚠️  PROBLEM: No project found with code ending in 020
+
+[83/253] Invoice: I24-023
+  💰 Amount: $105,000.00 | Paid: $105,000.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3611
+      Project Code: 23 BK-028
+      Project Name: Proscenium Penthouse in Manila, Philippines
+  ✅ SHOULD BE LINKED TO:
+      Project ID: 3635
+      Project Code: 25 BK-023
+      Project Name: Sun Phu Quoc Airways Project, Vietnam (Branding Service)
+
+[84/253] Invoice: I24-024
+  💰 Amount: $51,750.00 | Paid: $51,750.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3624
+      Project Code: 24 BK-021
+      Project Name: Capella Hotel and Resort, Ubud Bali
+  ⚠️  PROBLEM: No project found with code ending in 024
+
+[85/253] Invoice: I24-026
+  💰 Amount: $120,000.00 | Paid: $60,000.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3627
+      Project Code: 24 BK-029
+      Project Name: Qinhu Resort Project, China
+  ⚠️  PROBLEM: No project found with code ending in 026
+
+[86/253] Invoice: I24-026
+  💰 Amount: $172,500.00 | Paid: $86,250.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3627
+      Project Code: 24 BK-029
+      Project Name: Qinhu Resort Project, China
+  ⚠️  PROBLEM: No project found with code ending in 026
+
+[87/253] Invoice: I24-026
+  💰 Amount: $195,000.00 | Paid: $97,500.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3627
+      Project Code: 24 BK-029
+      Project Name: Qinhu Resort Project, China
+  ⚠️  PROBLEM: No project found with code ending in 026
+
+[88/253] Invoice: I24-031
+  💰 Amount: $400,000.00 | Paid: $400,000.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3622
+      Project Code: 23 BK-050
+      Project Name: Ultra Luxury Beach Resort Hotel
+  ⚠️  PROBLEM: No project found with code ending in 031
+
+[89/253] Invoice: I24-033
+  💰 Amount: $50,312.50 | Paid: $50,312.50
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3613
+      Project Code: 23 BK-088
+      Project Name: Mandarin Oriental Bali Hotel and
+  ✅ SHOULD BE LINKED TO:
+      Project ID: 115072
+      Project Code: 24 BK-033
+      Project Name: Rennovation Work for Thee of Four Seasons Properties
+
+[90/253] Invoice: I24-034
+  💰 Amount: $112,500.00 | Paid: $112,500.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3616
+      Project Code: 23 BK-096
+      Project Name: St. Regis Hotel in Thousand Island
+  ⚠️  PROBLEM: No project found with code ending in 034
+
+[91/253] Invoice: I24-035
+  💰 Amount: $300,000.00 | Paid: $300,000.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3617
+      Project Code: 23 BK-067
+      Project Name: Treasure Island Resort, Intercontinental
+  ⚠️  PROBLEM: No project found with code ending in 035
+
+[92/253] Invoice: I24-038
+  💰 Amount: $71,175.00 | Paid: $71,175.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3610
+      Project Code: 23 BK-009
+      Project Name: Villa Project in Ahmedabad, India
+  ⚠️  PROBLEM: No project found with code ending in 038
+
+[93/253] Invoice: I24-039
+  💰 Amount: $38,325.00 | Paid: $38,325.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3610
+      Project Code: 23 BK-009
+      Project Name: Villa Project in Ahmedabad, India
+  ⚠️  PROBLEM: No project found with code ending in 039
+
+[94/253] Invoice: I24-040
+  💰 Amount: $100,000.00 | Paid: $100,000.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3619
+      Project Code: 23 BK-080
+      Project Name: Treasure Island Resort, Intercontinental
+  ⚠️  PROBLEM: No project found with code ending in 040
+
+[95/253] Invoice: I24-041
+  💰 Amount: $250,000.00 | Paid: $250,000.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3621
+      Project Code: 23 BK-089
+      Project Name: Jyoti's farm house in Delhi, India
+  ⚠️  PROBLEM: No project found with code ending in 041
+
+[96/253] Invoice: I24-042
+  💰 Amount: $100,000.00 | Paid: $0.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3627
+      Project Code: 24 BK-029
+      Project Name: Qinhu Resort Project, China
+  ⚠️  PROBLEM: No project found with code ending in 042
+
+[97/253] Invoice: I24-042
+  💰 Amount: $143,750.00 | Paid: $0.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3627
+      Project Code: 24 BK-029
+      Project Name: Qinhu Resort Project, China
+  ⚠️  PROBLEM: No project found with code ending in 042
+
+[98/253] Invoice: I24-042
+  💰 Amount: $162,500.00 | Paid: $0.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3627
+      Project Code: 24 BK-029
+      Project Name: Qinhu Resort Project, China
+  ⚠️  PROBLEM: No project found with code ending in 042
+
+[99/253] Invoice: I24-044
+  💰 Amount: $175,000.00 | Paid: $175,000.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3620
+      Project Code: 23 BK-093
+      Project Name: Art Deco Residential Project in
+  ⚠️  PROBLEM: No project found with code ending in 044
+
+[100/253] Invoice: I24-044
+  💰 Amount: $262,500.00 | Paid: $262,500.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3620
+      Project Code: 23 BK-093
+      Project Name: Art Deco Residential Project in
+  ⚠️  PROBLEM: No project found with code ending in 044
+
+[101/253] Invoice: I24-045
+  💰 Amount: $45,000.00 | Paid: $45,000.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3620
+      Project Code: 23 BK-093
+      Project Name: Art Deco Residential Project in
+  ⚠️  PROBLEM: No project found with code ending in 045
+
+[102/253] Invoice: I24-045
+  💰 Amount: $67,500.00 | Paid: $67,500.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3620
+      Project Code: 23 BK-093
+      Project Name: Art Deco Residential Project in
+  ⚠️  PROBLEM: No project found with code ending in 045
+
+[103/253] Invoice: I24-046
+  💰 Amount: $210,000.00 | Paid: $210,000.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3620
+      Project Code: 23 BK-093
+      Project Name: Art Deco Residential Project in
+  ⚠️  PROBLEM: No project found with code ending in 046
+
+[104/253] Invoice: I24-046
+  💰 Amount: $315,000.00 | Paid: $315,000.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3620
+      Project Code: 23 BK-093
+      Project Name: Art Deco Residential Project in
+  ⚠️  PROBLEM: No project found with code ending in 046
+
+[105/253] Invoice: I24-051
+  💰 Amount: $72,000.00 | Paid: $72,000.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3617
+      Project Code: 23 BK-067
+      Project Name: Treasure Island Resort, Intercontinental
+  ⚠️  PROBLEM: No project found with code ending in 051
+
+[106/253] Invoice: I24-052
+  💰 Amount: $24,000.00 | Paid: $24,000.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3619
+      Project Code: 23 BK-080
+      Project Name: Treasure Island Resort, Intercontinental
+  ⚠️  PROBLEM: No project found with code ending in 052
+
+[107/253] Invoice: I24-058
+  💰 Amount: $90,000.00 | Paid: $90,000.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3625
+      Project Code: 24 BK-018
+      Project Name: Luang Prabang Heritage Arcade and
+  ✅ SHOULD BE LINKED TO:
+      Project ID: 115073
+      Project Code: 24 BK-058
+      Project Name: Luxury Resort Development at Fenfushi Island, Raa Atoll, Maldives
+
+[108/253] Invoice: I24-058
+  💰 Amount: $127,500.00 | Paid: $127,500.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3625
+      Project Code: 24 BK-018
+      Project Name: Luang Prabang Heritage Arcade and
+  ✅ SHOULD BE LINKED TO:
+      Project ID: 115073
+      Project Code: 24 BK-058
+      Project Name: Luxury Resort Development at Fenfushi Island, Raa Atoll, Maldives
+
+[109/253] Invoice: I24-058
+  💰 Amount: $145,000.00 | Paid: $145,000.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3625
+      Project Code: 24 BK-018
+      Project Name: Luang Prabang Heritage Arcade and
+  ✅ SHOULD BE LINKED TO:
+      Project ID: 115073
+      Project Code: 24 BK-058
+      Project Name: Luxury Resort Development at Fenfushi Island, Raa Atoll, Maldives
+
+[110/253] Invoice: I24-059
+  💰 Amount: $385,000.00 | Paid: $385,000.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3622
+      Project Code: 23 BK-050
+      Project Name: Ultra Luxury Beach Resort Hotel
+  ⚠️  PROBLEM: No project found with code ending in 059
+
+[111/253] Invoice: I24-062
+  💰 Amount: $100,625.00 | Paid: $100,625.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3613
+      Project Code: 23 BK-088
+      Project Name: Mandarin Oriental Bali Hotel and
+  ⚠️  PROBLEM: No project found with code ending in 062
+
+[112/253] Invoice: I24-064
+  💰 Amount: $17,812.50 | Paid: $17,812.50
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3601
+      Project Code: 19 BK-018
+      Project Name: Villa Project in Ahmedabad, India
+  ⚠️  PROBLEM: No project found with code ending in 064
+
+[113/253] Invoice: I24-065
+  💰 Amount: $24,937.50 | Paid: $24,937.50
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3601
+      Project Code: 19 BK-018
+      Project Name: Villa Project in Ahmedabad, India
+  ⚠️  PROBLEM: No project found with code ending in 065
+
+[114/253] Invoice: I24-066
+  💰 Amount: $33,250.00 | Paid: $33,250.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3601
+      Project Code: 19 BK-018
+      Project Name: Villa Project in Ahmedabad, India
+  ⚠️  PROBLEM: No project found with code ending in 066
+
+[115/253] Invoice: I24-067
+  💰 Amount: $43,125.00 | Paid: $43,125.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3624
+      Project Code: 24 BK-021
+      Project Name: Capella Hotel and Resort, Ubud Bali
+  ✅ SHOULD BE LINKED TO:
+      Project ID: 3617
+      Project Code: 23 BK-067
+      Project Name: Treasure Island Resort, Intercontinental
+
+[116/253] Invoice: I24-073
+  💰 Amount: $35,625.00 | Paid: $0.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3601
+      Project Code: 19 BK-018
+      Project Name: Villa Project in Ahmedabad, India
+  ⚠️  PROBLEM: No project found with code ending in 073
+
+[117/253] Invoice: I24-074
+  💰 Amount: $49,875.00 | Paid: $0.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3601
+      Project Code: 19 BK-018
+      Project Name: Villa Project in Ahmedabad, India
+  ✅ SHOULD BE LINKED TO:
+      Project ID: 3632
+      Project Code: 24 BK-074
+      Project Name: 43 Dang Thai Mai Project, Hanoi, Vietnam
+
+[118/253] Invoice: I24-075
+  💰 Amount: $33,250.00 | Paid: $0.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3601
+      Project Code: 19 BK-018
+      Project Name: Villa Project in Ahmedabad, India
+  ⚠️  PROBLEM: No project found with code ending in 075
+
+[119/253] Invoice: I24-076
+  💰 Amount: $56,250.00 | Paid: $56,250.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3609
+      Project Code: 22 BK-095
+      Project Name: Wynn Al Marjan Island Project
+  ⚠️  PROBLEM: No project found with code ending in 076
+
+[120/253] Invoice: I24-078
+  💰 Amount: $183,750.00 | Paid: $183,750.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3632
+      Project Code: 24 BK-074
+      Project Name: 43 Dang Thai Mai Project, Hanoi, Vietnam
+  ⚠️  PROBLEM: No project found with code ending in 078
+
+[121/253] Invoice: I24-078
+  💰 Amount: $257,250.00 | Paid: $257,250.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3632
+      Project Code: 24 BK-074
+      Project Name: 43 Dang Thai Mai Project, Hanoi, Vietnam
+  ⚠️  PROBLEM: No project found with code ending in 078
+
+[122/253] Invoice: I24-079
+  💰 Amount: $124,690.00 | Paid: $124,690.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3609
+      Project Code: 22 BK-095
+      Project Name: Wynn Al Marjan Island Project
+  ⚠️  PROBLEM: No project found with code ending in 079
+
+[123/253] Invoice: I24-080
+  💰 Amount: $49,397.00 | Paid: $49,397.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 115073
+      Project Code: 24 BK-058
+      Project Name: Luxury Resort Development at Fenfushi Island, Raa Atoll, Maldives
+  ✅ SHOULD BE LINKED TO:
+      Project ID: 3619
+      Project Code: 23 BK-080
+      Project Name: Treasure Island Resort, Intercontinental
+
+[124/253] Invoice: I24-080
+  💰 Amount: $103,939.00 | Paid: $103,939.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 115073
+      Project Code: 24 BK-058
+      Project Name: Luxury Resort Development at Fenfushi Island, Raa Atoll, Maldives
+  ✅ SHOULD BE LINKED TO:
+      Project ID: 3619
+      Project Code: 23 BK-080
+      Project Name: Treasure Island Resort, Intercontinental
+
+[125/253] Invoice: I24-080
+  💰 Amount: $154,364.00 | Paid: $154,364.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 115073
+      Project Code: 24 BK-058
+      Project Name: Luxury Resort Development at Fenfushi Island, Raa Atoll, Maldives
+  ✅ SHOULD BE LINKED TO:
+      Project ID: 3619
+      Project Code: 23 BK-080
+      Project Name: Treasure Island Resort, Intercontinental
+
+[126/253] Invoice: I24-081
+  💰 Amount: $294,000.00 | Paid: $294,000.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3632
+      Project Code: 24 BK-074
+      Project Name: 43 Dang Thai Mai Project, Hanoi, Vietnam
+  ⚠️  PROBLEM: No project found with code ending in 081
+
+[127/253] Invoice: I24-086
+  💰 Amount: $150,000.00 | Paid: $150,000.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3621
+      Project Code: 23 BK-089
+      Project Name: Jyoti's farm house in Delhi, India
+  ⚠️  PROBLEM: No project found with code ending in 086
+
+[128/253] Invoice: I24-087
+  💰 Amount: $153,125.00 | Paid: $153,125.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3632
+      Project Code: 24 BK-074
+      Project Name: 43 Dang Thai Mai Project, Hanoi, Vietnam
+  ⚠️  PROBLEM: No project found with code ending in 087
+
+[129/253] Invoice: I24-088
+  💰 Amount: $428,750.00 | Paid: $428,750.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3632
+      Project Code: 24 BK-074
+      Project Name: 43 Dang Thai Mai Project, Hanoi, Vietnam
+  ✅ SHOULD BE LINKED TO:
+      Project ID: 3613
+      Project Code: 23 BK-088
+      Project Name: Mandarin Oriental Bali Hotel and
+
+[130/253] Invoice: I25-001R
+  💰 Amount: $198,760.00 | Paid: $198,760.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3611
+      Project Code: 23 BK-028
+      Project Name: Proscenium Penthouse in Manila, Philippines
+  ✅ SHOULD BE LINKED TO:
+      Project ID: 3634
+      Project Code: 25 BK-001
+      Project Name: Ramhan Marina Hotel Project in Abu Dhabi, UAE
+
+[131/253] Invoice: I25-004
+  💰 Amount: $29,250.00 | Paid: $29,250.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3630
+      Project Code: 24 BK-077
+      Project Name: Restaurant at the Raffles Hotel, Singapore
+  ⚠️  PROBLEM: No project found with code ending in 004
+
+[132/253] Invoice: I25-006
+  💰 Amount: $153,125.00 | Paid: $153,125.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3632
+      Project Code: 24 BK-074
+      Project Name: 43 Dang Thai Mai Project, Hanoi, Vietnam
+  ⚠️  PROBLEM: No project found with code ending in 006
+
+[133/253] Invoice: I25-007
+  💰 Amount: $245,000.00 | Paid: $245,000.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3632
+      Project Code: 24 BK-074
+      Project Name: 43 Dang Thai Mai Project, Hanoi, Vietnam
+  ⚠️  PROBLEM: No project found with code ending in 007
+
+[134/253] Invoice: I25-008
+  💰 Amount: $249,380.00 | Paid: $249,380.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3609
+      Project Code: 22 BK-095
+      Project Name: Wynn Al Marjan Island Project
+  ⚠️  PROBLEM: No project found with code ending in 008
+
+[135/253] Invoice: I25-008
+  💰 Amount: $249,375.00 | Paid: $249,375.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3609
+      Project Code: 22 BK-095
+      Project Name: Wynn Al Marjan Island Project
+  ⚠️  PROBLEM: No project found with code ending in 008
+
+[136/253] Invoice: I25-009
+  💰 Amount: $56,250.00 | Paid: $56,250.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3609
+      Project Code: 22 BK-095
+      Project Name: Wynn Al Marjan Island Project
+  ✅ SHOULD BE LINKED TO:
+      Project ID: 3610
+      Project Code: 23 BK-009
+      Project Name: Villa Project in Ahmedabad, India
+
+[137/253] Invoice: I25-009
+  💰 Amount: $67,500.00 | Paid: $67,500.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3609
+      Project Code: 22 BK-095
+      Project Name: Wynn Al Marjan Island Project
+  ✅ SHOULD BE LINKED TO:
+      Project ID: 3610
+      Project Code: 23 BK-009
+      Project Name: Villa Project in Ahmedabad, India
+
+[138/253] Invoice: I25-010
+  💰 Amount: $37,873.60 | Paid: $37,873.60
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 115073
+      Project Code: 24 BK-058
+      Project Name: Luxury Resort Development at Fenfushi Island, Raa Atoll, Maldives
+  ⚠️  PROBLEM: No project found with code ending in 010
+
+[139/253] Invoice: I25-014
+  💰 Amount: $257,250.00 | Paid: $257,250.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3632
+      Project Code: 24 BK-074
+      Project Name: 43 Dang Thai Mai Project, Hanoi, Vietnam
+  ⚠️  PROBLEM: No project found with code ending in 014
+
+[140/253] Invoice: I25-016
+  💰 Amount: $48,750.00 | Paid: $48,750.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3630
+      Project Code: 24 BK-077
+      Project Name: Restaurant at the Raffles Hotel, Singapore
+  ⚠️  PROBLEM: No project found with code ending in 016
+
+[141/253] Invoice: I25-017
+  💰 Amount: $150,000.00 | Paid: $150,000.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3621
+      Project Code: 23 BK-089
+      Project Name: Jyoti's farm house in Delhi, India
+  ✅ SHOULD BE LINKED TO:
+      Project ID: 115075
+      Project Code: 25 BK-017
+      Project Name: TARC's Luxury Branded Residence Project in New Delhi
+
+[142/253] Invoice: I25-018
+  💰 Amount: $75,000.00 | Paid: $75,000.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3621
+      Project Code: 23 BK-089
+      Project Name: Jyoti's farm house in Delhi, India
+  ✅ SHOULD BE LINKED TO:
+      Project ID: 3614
+      Project Code: 25 BK-018
+      Project Name: The Ritz Carlton Hotel Nanyan Bay, China
+
+[143/253] Invoice: I25-019
+  💰 Amount: $42,000.00 | Paid: $42,000.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3611
+      Project Code: 23 BK-028
+      Project Name: Proscenium Penthouse in Manila, Philippines
+  ⚠️  PROBLEM: No project found with code ending in 019
+
+[144/253] Invoice: I25-023
+  💰 Amount: $56,250.00 | Paid: $56,250.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3614
+      Project Code: 25 BK-018
+      Project Name: The Ritz Carlton Hotel Nanyan Bay, China
+  ✅ SHOULD BE LINKED TO:
+      Project ID: 3635
+      Project Code: 25 BK-023
+      Project Name: Sun Phu Quoc Airways Project, Vietnam (Branding Service)
+
+[145/253] Invoice: I25-026
+  💰 Amount: $100,625.00 | Paid: $100,625.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3613
+      Project Code: 23 BK-088
+      Project Name: Mandarin Oriental Bali Hotel and
+  ⚠️  PROBLEM: No project found with code ending in 026
+
+[146/253] Invoice: I25-027
+  💰 Amount: $165,000.00 | Paid: $165,000.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3622
+      Project Code: 23 BK-050
+      Project Name: Ultra Luxury Beach Resort Hotel
+  ⚠️  PROBLEM: No project found with code ending in 027
+
+[147/253] Invoice: I25-028
+  💰 Amount: $204,375.00 | Paid: $204,375.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3622
+      Project Code: 23 BK-050
+      Project Name: Ultra Luxury Beach Resort Hotel
+  ✅ SHOULD BE LINKED TO:
+      Project ID: 3611
+      Project Code: 23 BK-028
+      Project Name: Proscenium Penthouse in Manila, Philippines
+
+[148/253] Invoice: I25-030
+  💰 Amount: $149,422.50 | Paid: $149,422.50
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 115073
+      Project Code: 24 BK-058
+      Project Name: Luxury Resort Development at Fenfushi Island, Raa Atoll, Maldives
+  ✅ SHOULD BE LINKED TO:
+      Project ID: 3626
+      Project Code: 24 BK-030
+      Project Name: Sofitel Luang Prabang, Laos
+
+[149/253] Invoice: I25-031
+  💰 Amount: $147,943.00 | Paid: $147,943.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 115073
+      Project Code: 24 BK-058
+      Project Name: Luxury Resort Development at Fenfushi Island, Raa Atoll, Maldives
+  ⚠️  PROBLEM: No project found with code ending in 031
+
+[150/253] Invoice: I25-033
+  💰 Amount: $257,250.00 | Paid: $257,250.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3632
+      Project Code: 24 BK-074
+      Project Name: 43 Dang Thai Mai Project, Hanoi, Vietnam
+  ✅ SHOULD BE LINKED TO:
+      Project ID: 115072
+      Project Code: 24 BK-033
+      Project Name: Rennovation Work for Thee of Four Seasons Properties
+
+[151/253] Invoice: I25-037
+  💰 Amount: $183,750.00 | Paid: $183,750.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3632
+      Project Code: 24 BK-074
+      Project Name: 43 Dang Thai Mai Project, Hanoi, Vietnam
+  ⚠️  PROBLEM: No project found with code ending in 037
+
+[152/253] Invoice: I25-039
+  💰 Amount: $37,500.00 | Paid: $0.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3616
+      Project Code: 23 BK-096
+      Project Name: St. Regis Hotel in Thousand Island
+  ⚠️  PROBLEM: No project found with code ending in 039
+
+[153/253] Invoice: I25-040
+  💰 Amount: $37,500.00 | Paid: $0.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3616
+      Project Code: 23 BK-096
+      Project Name: St. Regis Hotel in Thousand Island
+  ⚠️  PROBLEM: No project found with code ending in 040
+
+[154/253] Invoice: I25-041
+  💰 Amount: $56,810.40 | Paid: $56,810.40
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 115073
+      Project Code: 24 BK-058
+      Project Name: Luxury Resort Development at Fenfushi Island, Raa Atoll, Maldives
+  ⚠️  PROBLEM: No project found with code ending in 041
+
+[155/253] Invoice: I25-042
+  💰 Amount: $49,807.50 | Paid: $49,807.50
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 115073
+      Project Code: 24 BK-058
+      Project Name: Luxury Resort Development at Fenfushi Island, Raa Atoll, Maldives
+  ⚠️  PROBLEM: No project found with code ending in 042
+
+[156/253] Invoice: I25-043
+  💰 Amount: $133,259.25 | Paid: $133,259.25
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 115073
+      Project Code: 24 BK-058
+      Project Name: Luxury Resort Development at Fenfushi Island, Raa Atoll, Maldives
+  ✅ SHOULD BE LINKED TO:
+      Project ID: 3629
+      Project Code: 24 BK-043
+      Project Name: Hotel (Trident and Oberoi) Project,  India
+
+[157/253] Invoice: I25-044
+  💰 Amount: $147,943.00 | Paid: $147,943.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 115073
+      Project Code: 24 BK-058
+      Project Name: Luxury Resort Development at Fenfushi Island, Raa Atoll, Maldives
+  ⚠️  PROBLEM: No project found with code ending in 044
+
+[158/253] Invoice: I25-046
+  💰 Amount: $245,000.00 | Paid: $245,000.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3632
+      Project Code: 24 BK-074
+      Project Name: 43 Dang Thai Mai Project, Hanoi, Vietnam
+  ⚠️  PROBLEM: No project found with code ending in 046
+
+[159/253] Invoice: I25-048
+  💰 Amount: $58,500.00 | Paid: $58,500.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3630
+      Project Code: 24 BK-077
+      Project Name: Restaurant at the Raffles Hotel, Singapore
+  ⚠️  PROBLEM: No project found with code ending in 048
+
+[160/253] Invoice: I25-051
+  💰 Amount: $41,171.88 | Paid: $41,171.88
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3622
+      Project Code: 23 BK-050
+      Project Name: Ultra Luxury Beach Resort Hotel
+  ⚠️  PROBLEM: No project found with code ending in 051
+
+[161/253] Invoice: I25-051
+  💰 Amount: $115,281.25 | Paid: $115,281.25
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3622
+      Project Code: 23 BK-050
+      Project Name: Ultra Luxury Beach Resort Hotel
+  ⚠️  PROBLEM: No project found with code ending in 051
+
+[162/253] Invoice: I25-051
+  💰 Amount: $65,875.00 | Paid: $65,875.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3622
+      Project Code: 23 BK-050
+      Project Name: Ultra Luxury Beach Resort Hotel
+  ⚠️  PROBLEM: No project found with code ending in 051
+
+[163/253] Invoice: I25-052
+  💰 Amount: $115,500.00 | Paid: $115,500.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3607
+      Project Code: 22 BK-013
+      Project Name: Tel Aviv High Rise Project in Israel
+  ⚠️  PROBLEM: No project found with code ending in 052
+
+[164/253] Invoice: I25-060
+  💰 Amount: $22,500.00 | Paid: $22,500.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 115074
+      Project Code: 25 BK-015
+      Project Name: Shinta Mani Mustang, Nepal
+  ⚠️  PROBLEM: No project found with code ending in 060
+
+[165/253] Invoice: I25-061
+  💰 Amount: $22,500.00 | Paid: $22,500.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 115074
+      Project Code: 25 BK-015
+      Project Name: Shinta Mani Mustang, Nepal
+  ⚠️  PROBLEM: No project found with code ending in 061
+
+[166/253] Invoice: I25-063
+  💰 Amount: $124,690.00 | Paid: $124,690.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3609
+      Project Code: 22 BK-095
+      Project Name: Wynn Al Marjan Island Project
+  ⚠️  PROBLEM: No project found with code ending in 063
+
+[167/253] Invoice: I25-063
+  💰 Amount: $249,375.00 | Paid: $249,375.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3609
+      Project Code: 22 BK-095
+      Project Name: Wynn Al Marjan Island Project
+  ⚠️  PROBLEM: No project found with code ending in 063
+
+[168/253] Invoice: I25-063
+  💰 Amount: $174,562.50 | Paid: $174,562.50
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3609
+      Project Code: 22 BK-095
+      Project Name: Wynn Al Marjan Island Project
+  ⚠️  PROBLEM: No project found with code ending in 063
+
+[169/253] Invoice: I25-064
+  💰 Amount: $29,250.00 | Paid: $29,250.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3630
+      Project Code: 24 BK-077
+      Project Name: Restaurant at the Raffles Hotel, Singapore
+  ⚠️  PROBLEM: No project found with code ending in 064
+
+[170/253] Invoice: I25-065
+  💰 Amount: $613,125.00 | Paid: $613,125.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3622
+      Project Code: 23 BK-050
+      Project Name: Ultra Luxury Beach Resort Hotel
+  ⚠️  PROBLEM: No project found with code ending in 065
+
+[171/253] Invoice: I25-066
+  💰 Amount: $41,171.88 | Paid: $41,171.88
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3622
+      Project Code: 23 BK-050
+      Project Name: Ultra Luxury Beach Resort Hotel
+  ⚠️  PROBLEM: No project found with code ending in 066
+
+[172/253] Invoice: I25-066
+  💰 Amount: $57,640.63 | Paid: $57,640.63
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3622
+      Project Code: 23 BK-050
+      Project Name: Ultra Luxury Beach Resort Hotel
+  ⚠️  PROBLEM: No project found with code ending in 066
+
+[173/253] Invoice: I25-067
+  💰 Amount: $115,500.00 | Paid: $115,500.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3607
+      Project Code: 22 BK-013
+      Project Name: Tel Aviv High Rise Project in Israel
+  ✅ SHOULD BE LINKED TO:
+      Project ID: 3617
+      Project Code: 23 BK-067
+      Project Name: Treasure Island Resort, Intercontinental
+
+[174/253] Invoice: I25-069
+  💰 Amount: $33,000.00 | Paid: $33,000.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3551
+      Project Code: None
+      Project Name: None
+  ⚠️  PROBLEM: No project found with code ending in 069
+
+[175/253] Invoice: I25-069
+  💰 Amount: $49,500.00 | Paid: $49,500.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3551
+      Project Code: None
+      Project Name: None
+  ⚠️  PROBLEM: No project found with code ending in 069
+
+[176/253] Invoice: I25-070
+  💰 Amount: $162,000.00 | Paid: $162,000.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3554
+      Project Code: None
+      Project Name: None
+  ✅ SHOULD BE LINKED TO:
+      Project ID: 3631
+      Project Code: 24 BK-070
+      Project Name: Intercontinental Resort and Spa, Danang, Vietnam
+
+[177/253] Invoice: I25-070
+  💰 Amount: $216,000.00 | Paid: $216,000.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3554
+      Project Code: None
+      Project Name: None
+  ✅ SHOULD BE LINKED TO:
+      Project ID: 3631
+      Project Code: 24 BK-070
+      Project Name: Intercontinental Resort and Spa, Danang, Vietnam
+
+[178/253] Invoice: I25-070
+  💰 Amount: $252,000.00 | Paid: $252,000.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3554
+      Project Code: None
+      Project Name: None
+  ✅ SHOULD BE LINKED TO:
+      Project ID: 3631
+      Project Code: 24 BK-070
+      Project Name: Intercontinental Resort and Spa, Danang, Vietnam
+
+[179/253] Invoice: I25-071
+  💰 Amount: $67,500.00 | Paid: $67,500.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3609
+      Project Code: 22 BK-095
+      Project Name: Wynn Al Marjan Island Project
+  ✅ SHOULD BE LINKED TO:
+      Project ID: 3615
+      Project Code: 23 BK-071
+      Project Name: St. Regis Hotel in Thousand Island
+
+[180/253] Invoice: I25-072
+  💰 Amount: $84,441.00 | Paid: $84,441.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 115073
+      Project Code: 24 BK-058
+      Project Name: Luxury Resort Development at Fenfushi Island, Raa Atoll, Maldives
+  ⚠️  PROBLEM: No project found with code ending in 072
+
+[181/253] Invoice: I25-073
+  💰 Amount: $56,250.00 | Paid: $56,250.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3614
+      Project Code: 25 BK-018
+      Project Name: The Ritz Carlton Hotel Nanyan Bay, China
+  ⚠️  PROBLEM: No project found with code ending in 073
+
+[182/253] Invoice: I25-074
+  💰 Amount: $115,500.00 | Paid: $115,500.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3607
+      Project Code: 22 BK-013
+      Project Name: Tel Aviv High Rise Project in Israel
+  ✅ SHOULD BE LINKED TO:
+      Project ID: 3632
+      Project Code: 24 BK-074
+      Project Name: 43 Dang Thai Mai Project, Hanoi, Vietnam
+
+[183/253] Invoice: I25-075
+  💰 Amount: $33,750.00 | Paid: $33,750.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3620
+      Project Code: 23 BK-093
+      Project Name: Art Deco Residential Project in
+  ⚠️  PROBLEM: No project found with code ending in 075
+
+[184/253] Invoice: I25-075
+  💰 Amount: $50,625.00 | Paid: $50,625.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3620
+      Project Code: 23 BK-093
+      Project Name: Art Deco Residential Project in
+  ⚠️  PROBLEM: No project found with code ending in 075
+
+[185/253] Invoice: I25-076
+  💰 Amount: $105,000.00 | Paid: $0.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3620
+      Project Code: 23 BK-093
+      Project Name: Art Deco Residential Project in
+  ⚠️  PROBLEM: No project found with code ending in 076
+
+[186/253] Invoice: I25-076
+  💰 Amount: $157,500.00 | Paid: $0.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3620
+      Project Code: 23 BK-093
+      Project Name: Art Deco Residential Project in
+  ⚠️  PROBLEM: No project found with code ending in 076
+
+[187/253] Invoice: I25-077
+  💰 Amount: $300,000.00 | Paid: $300,000.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3620
+      Project Code: 23 BK-093
+      Project Name: Art Deco Residential Project in
+  ✅ SHOULD BE LINKED TO:
+      Project ID: 3630
+      Project Code: 24 BK-077
+      Project Name: Restaurant at the Raffles Hotel, Singapore
+
+[188/253] Invoice: I25-078
+  💰 Amount: $225,000.00 | Paid: $225,000.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3620
+      Project Code: 23 BK-093
+      Project Name: Art Deco Residential Project in
+  ⚠️  PROBLEM: No project found with code ending in 078
+
+[189/253] Invoice: I25-079
+  💰 Amount: $44,419.75 | Paid: $44,419.75
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 115073
+      Project Code: 24 BK-058
+      Project Name: Luxury Resort Development at Fenfushi Island, Raa Atoll, Maldives
+  ⚠️  PROBLEM: No project found with code ending in 079
+
+[190/253] Invoice: I25-080
+  💰 Amount: $263,880.00 | Paid: $263,880.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 115073
+      Project Code: 24 BK-058
+      Project Name: Luxury Resort Development at Fenfushi Island, Raa Atoll, Maldives
+  ✅ SHOULD BE LINKED TO:
+      Project ID: 3619
+      Project Code: 23 BK-080
+      Project Name: Treasure Island Resort, Intercontinental
+
+[191/253] Invoice: I25-081
+  💰 Amount: $183,750.00 | Paid: $0.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3632
+      Project Code: 24 BK-074
+      Project Name: 43 Dang Thai Mai Project, Hanoi, Vietnam
+  ⚠️  PROBLEM: No project found with code ending in 081
+
+[192/253] Invoice: I25-082
+  💰 Amount: $294,000.00 | Paid: $200,000.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3632
+      Project Code: 24 BK-074
+      Project Name: 43 Dang Thai Mai Project, Hanoi, Vietnam
+  ⚠️  PROBLEM: No project found with code ending in 082
+
+[193/253] Invoice: I25-083
+  💰 Amount: $95,037.00 | Paid: $95,037.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 115073
+      Project Code: 24 BK-058
+      Project Name: Luxury Resort Development at Fenfushi Island, Raa Atoll, Maldives
+  ⚠️  PROBLEM: No project found with code ending in 083
+
+[194/253] Invoice: I25-084
+  💰 Amount: $199,973.00 | Paid: $199,973.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 115073
+      Project Code: 24 BK-058
+      Project Name: Luxury Resort Development at Fenfushi Island, Raa Atoll, Maldives
+  ⚠️  PROBLEM: No project found with code ending in 084
+
+[195/253] Invoice: I25-085
+  💰 Amount: $296,990.00 | Paid: $296,990.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 115073
+      Project Code: 24 BK-058
+      Project Name: Luxury Resort Development at Fenfushi Island, Raa Atoll, Maldives
+  ⚠️  PROBLEM: No project found with code ending in 085
+
+[196/253] Invoice: I25-086
+  💰 Amount: $157,500.00 | Paid: $157,500.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 115075
+      Project Code: 25 BK-017
+      Project Name: TARC's Luxury Branded Residence Project in New Delhi
+  ⚠️  PROBLEM: No project found with code ending in 086
+
+[197/253] Invoice: I25-086
+  💰 Amount: $292,500.00 | Paid: $292,500.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 115075
+      Project Code: 25 BK-017
+      Project Name: TARC's Luxury Branded Residence Project in New Delhi
+  ⚠️  PROBLEM: No project found with code ending in 086
+
+[198/253] Invoice: I25-087
+  💰 Amount: $8,000.00 | Paid: $8,000.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3600
+      Project Code: 20 BK-047
+      Project Name: Audley Square House-Communal Spa
+  ⚠️  PROBLEM: No project found with code ending in 087
+
+[199/253] Invoice: I25-088
+  💰 Amount: $84,441.00 | Paid: $0.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 115073
+      Project Code: 24 BK-058
+      Project Name: Luxury Resort Development at Fenfushi Island, Raa Atoll, Maldives
+  ✅ SHOULD BE LINKED TO:
+      Project ID: 3613
+      Project Code: 23 BK-088
+      Project Name: Mandarin Oriental Bali Hotel and
+
+[200/253] Invoice: I25-089
+  💰 Amount: $177,679.00 | Paid: $0.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 115073
+      Project Code: 24 BK-058
+      Project Name: Luxury Resort Development at Fenfushi Island, Raa Atoll, Maldives
+  ✅ SHOULD BE LINKED TO:
+      Project ID: 3621
+      Project Code: 23 BK-089
+      Project Name: Jyoti's farm house in Delhi, India
+
+[201/253] Invoice: I25-090
+  💰 Amount: $0.00 | Paid: $0.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 115073
+      Project Code: 24 BK-058
+      Project Name: Luxury Resort Development at Fenfushi Island, Raa Atoll, Maldives
+  ⚠️  PROBLEM: No project found with code ending in 090
+
+[202/253] Invoice: I25-090
+  💰 Amount: $231,525.00 | Paid: $0.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3632
+      Project Code: 24 BK-074
+      Project Name: 43 Dang Thai Mai Project, Hanoi, Vietnam
+  ⚠️  PROBLEM: No project found with code ending in 090
+
+[203/253] Invoice: I25-090R
+  💰 Amount: $198,760.00 | Paid: $198,760.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3611
+      Project Code: 23 BK-028
+      Project Name: Proscenium Penthouse in Manila, Philippines
+  ⚠️  PROBLEM: No project found with code ending in 090
+
+[204/253] Invoice: I25-091
+  💰 Amount: $115,500.00 | Paid: $115,500.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3607
+      Project Code: 22 BK-013
+      Project Name: Tel Aviv High Rise Project in Israel
+  ⚠️  PROBLEM: No project found with code ending in 091
+
+[205/253] Invoice: I25-092
+  💰 Amount: $71,175.00 | Paid: $0.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3610
+      Project Code: 23 BK-009
+      Project Name: Villa Project in Ahmedabad, India
+  ⚠️  PROBLEM: No project found with code ending in 092
+
+[206/253] Invoice: I25-092
+  💰 Amount: $38,325.00 | Paid: $0.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3610
+      Project Code: 23 BK-009
+      Project Name: Villa Project in Ahmedabad, India
+  ⚠️  PROBLEM: No project found with code ending in 092
+
+[207/253] Invoice: I25-093
+  💰 Amount: $71,175.00 | Paid: $0.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3610
+      Project Code: 23 BK-009
+      Project Name: Villa Project in Ahmedabad, India
+  ✅ SHOULD BE LINKED TO:
+      Project ID: 3620
+      Project Code: 23 BK-093
+      Project Name: Art Deco Residential Project in
+
+[208/253] Invoice: I25-093
+  💰 Amount: $38,325.00 | Paid: $0.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3610
+      Project Code: 23 BK-009
+      Project Name: Villa Project in Ahmedabad, India
+  ✅ SHOULD BE LINKED TO:
+      Project ID: 3620
+      Project Code: 23 BK-093
+      Project Name: Art Deco Residential Project in
+
+[209/253] Invoice: I25-094
+  💰 Amount: $31,250.00 | Paid: $0.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3554
+      Project Code: None
+      Project Name: None
+  ⚠️  PROBLEM: No project found with code ending in 094
+
+[210/253] Invoice: I25-095
+  💰 Amount: $115,500.00 | Paid: $0.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3607
+      Project Code: 22 BK-013
+      Project Name: Tel Aviv High Rise Project in Israel
+  ⚠️  PROBLEM: No project found with code ending in 095
+
+[211/253] Invoice: I25-097
+  💰 Amount: $165,375.00 | Paid: $0.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3632
+      Project Code: 24 BK-074
+      Project Name: 43 Dang Thai Mai Project, Hanoi, Vietnam
+  ⚠️  PROBLEM: No project found with code ending in 097
+
+[212/253] Invoice: I25-099
+  💰 Amount: $264,600.00 | Paid: $0.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3632
+      Project Code: 24 BK-074
+      Project Name: 43 Dang Thai Mai Project, Hanoi, Vietnam
+  ⚠️  PROBLEM: No project found with code ending in 099
+
+[213/253] Invoice: I25-102
+  💰 Amount: $8,000.00 | Paid: $8,000.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3600
+      Project Code: 20 BK-047
+      Project Name: Audley Square House-Communal Spa
+  ⚠️  PROBLEM: No project found with code ending in 102
+
+[214/253] Invoice: I25-103
+  💰 Amount: $8,000.00 | Paid: $8,000.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3600
+      Project Code: 20 BK-047
+      Project Name: Audley Square House-Communal Spa
+  ⚠️  PROBLEM: No project found with code ending in 103
+
+[215/253] Invoice: I25-104
+  💰 Amount: $101,250.00 | Paid: $101,250.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3554
+      Project Code: None
+      Project Name: None
+  ⚠️  PROBLEM: No project found with code ending in 104
+
+[216/253] Invoice: I25-104
+  💰 Amount: $135,000.00 | Paid: $135,000.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3554
+      Project Code: None
+      Project Name: None
+  ⚠️  PROBLEM: No project found with code ending in 104
+
+[217/253] Invoice: I25-104
+  💰 Amount: $157,500.00 | Paid: $157,500.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3554
+      Project Code: None
+      Project Name: None
+  ⚠️  PROBLEM: No project found with code ending in 104
+
+[218/253] Invoice: I25-105
+  💰 Amount: $55,000.00 | Paid: $0.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3551
+      Project Code: None
+      Project Name: None
+  ⚠️  PROBLEM: No project found with code ending in 105
+
+[219/253] Invoice: I25-105
+  💰 Amount: $82,500.00 | Paid: $0.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3551
+      Project Code: None
+      Project Name: None
+  ⚠️  PROBLEM: No project found with code ending in 105
+
+[220/253] Invoice: I25-106
+  💰 Amount: $43,125.00 | Paid: $0.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3624
+      Project Code: 24 BK-021
+      Project Name: Capella Hotel and Resort, Ubud Bali
+  ⚠️  PROBLEM: No project found with code ending in 106
+
+[221/253] Invoice: I25-107
+  💰 Amount: $14,962.50 | Paid: $0.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3609
+      Project Code: 22 BK-095
+      Project Name: Wynn Al Marjan Island Project
+  ⚠️  PROBLEM: No project found with code ending in 107
+
+[222/253] Invoice: I25-108
+  💰 Amount: $47,250.00 | Paid: $0.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3609
+      Project Code: 22 BK-095
+      Project Name: Wynn Al Marjan Island Project
+  ⚠️  PROBLEM: No project found with code ending in 108
+
+[223/253] Invoice: I25-109
+  💰 Amount: $31,172.50 | Paid: $0.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3609
+      Project Code: 22 BK-095
+      Project Name: Wynn Al Marjan Island Project
+  ⚠️  PROBLEM: No project found with code ending in 109
+
+[224/253] Invoice: I25-109
+  💰 Amount: $62,343.75 | Paid: $0.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3609
+      Project Code: 22 BK-095
+      Project Name: Wynn Al Marjan Island Project
+  ⚠️  PROBLEM: No project found with code ending in 109
+
+[225/253] Invoice: I25-111
+  💰 Amount: $56,250.00 | Paid: $0.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3614
+      Project Code: 25 BK-018
+      Project Name: The Ritz Carlton Hotel Nanyan Bay, China
+  ⚠️  PROBLEM: No project found with code ending in 111
+
+[226/253] Invoice: I25-112
+  💰 Amount: $115,500.00 | Paid: $0.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3607
+      Project Code: 22 BK-013
+      Project Name: Tel Aviv High Rise Project in Israel
+  ⚠️  PROBLEM: No project found with code ending in 112
+
+[227/253] Invoice: I25-113
+  💰 Amount: $101,250.00 | Paid: $0.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3615
+      Project Code: 23 BK-071
+      Project Name: St. Regis Hotel in Thousand Island
+  ⚠️  PROBLEM: No project found with code ending in 113
+
+[228/253] Invoice: I25-114
+  💰 Amount: $37,500.00 | Paid: $0.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 115074
+      Project Code: 25 BK-015
+      Project Name: Shinta Mani Mustang, Nepal
+  ⚠️  PROBLEM: No project found with code ending in 114
+
+[229/253] Invoice: I25-115
+  💰 Amount: $101,250.00 | Paid: $0.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3554
+      Project Code: None
+      Project Name: None
+  ⚠️  PROBLEM: No project found with code ending in 115
+
+[230/253] Invoice: I25-115
+  💰 Amount: $135,000.00 | Paid: $0.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3554
+      Project Code: None
+      Project Name: None
+  ⚠️  PROBLEM: No project found with code ending in 115
+
+[231/253] Invoice: I25-115
+  💰 Amount: $157,500.00 | Paid: $0.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3554
+      Project Code: None
+      Project Name: None
+  ⚠️  PROBLEM: No project found with code ending in 115
+
+[232/253] Invoice: I25-116
+  💰 Amount: $8,000.00 | Paid: $0.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3600
+      Project Code: 20 BK-047
+      Project Name: Audley Square House-Communal Spa
+  ⚠️  PROBLEM: No project found with code ending in 116
+
+[233/253] Invoice: I25-117
+  💰 Amount: $43,125.00 | Paid: $0.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3613
+      Project Code: 23 BK-088
+      Project Name: Mandarin Oriental Bali Hotel and
+  ⚠️  PROBLEM: No project found with code ending in 117
+
+[234/253] Invoice: I25-118
+  💰 Amount: $22,500.00 | Paid: $0.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 115074
+      Project Code: 25 BK-015
+      Project Name: Shinta Mani Mustang, Nepal
+  ⚠️  PROBLEM: No project found with code ending in 118
+
+[235/253] Invoice: I25-119
+  💰 Amount: $22,500.00 | Paid: $0.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 115074
+      Project Code: 25 BK-015
+      Project Name: Shinta Mani Mustang, Nepal
+  ⚠️  PROBLEM: No project found with code ending in 119
+
+[236/253] Invoice: I25-121
+  💰 Amount: $294,000.00 | Paid: $0.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3632
+      Project Code: 24 BK-074
+      Project Name: 43 Dang Thai Mai Project, Hanoi, Vietnam
+  ⚠️  PROBLEM: No project found with code ending in 121
+
+[237/253] Invoice: T24-001
+  💰 Amount: $30,000.00 | Paid: $30,000.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3628
+      Project Code: 19 BK-052
+      Project Name: The Siam Hotel  Chiangmai
+  ✅ SHOULD BE LINKED TO:
+      Project ID: 3634
+      Project Code: 25 BK-001
+      Project Name: Ramhan Marina Hotel Project in Abu Dhabi, UAE
+
+[238/253] Invoice: T24-001
+  💰 Amount: $42,900.00 | Paid: $42,900.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3628
+      Project Code: 19 BK-052
+      Project Name: The Siam Hotel  Chiangmai
+  ✅ SHOULD BE LINKED TO:
+      Project ID: 3634
+      Project Code: 25 BK-001
+      Project Name: Ramhan Marina Hotel Project in Abu Dhabi, UAE
+
+[239/253] Invoice: T24-001
+  💰 Amount: $49,275.00 | Paid: $49,275.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3628
+      Project Code: 19 BK-052
+      Project Name: The Siam Hotel  Chiangmai
+  ✅ SHOULD BE LINKED TO:
+      Project ID: 3634
+      Project Code: 25 BK-001
+      Project Name: Ramhan Marina Hotel Project in Abu Dhabi, UAE
+
+[240/253] Invoice: T24-003
+  💰 Amount: $25,000.00 | Paid: $25,000.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3628
+      Project Code: 19 BK-052
+      Project Name: The Siam Hotel  Chiangmai
+  ⚠️  PROBLEM: No project found with code ending in 003
+
+[241/253] Invoice: T24-003
+  💰 Amount: $35,750.00 | Paid: $35,750.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3628
+      Project Code: 19 BK-052
+      Project Name: The Siam Hotel  Chiangmai
+  ⚠️  PROBLEM: No project found with code ending in 003
+
+[242/253] Invoice: T24-003
+  💰 Amount: $41,062.50 | Paid: $41,062.50
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3628
+      Project Code: 19 BK-052
+      Project Name: The Siam Hotel  Chiangmai
+  ⚠️  PROBLEM: No project found with code ending in 003
+
+[243/253] Invoice: T25-001
+  💰 Amount: $25,000.00 | Paid: $25,000.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3628
+      Project Code: 19 BK-052
+      Project Name: The Siam Hotel  Chiangmai
+  ✅ SHOULD BE LINKED TO:
+      Project ID: 3634
+      Project Code: 25 BK-001
+      Project Name: Ramhan Marina Hotel Project in Abu Dhabi, UAE
+
+[244/253] Invoice: T25-001
+  💰 Amount: $35,750.00 | Paid: $35,750.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3628
+      Project Code: 19 BK-052
+      Project Name: The Siam Hotel  Chiangmai
+  ✅ SHOULD BE LINKED TO:
+      Project ID: 3634
+      Project Code: 25 BK-001
+      Project Name: Ramhan Marina Hotel Project in Abu Dhabi, UAE
+
+[245/253] Invoice: T25-001
+  💰 Amount: $41,062.50 | Paid: $41,062.50
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3628
+      Project Code: 19 BK-052
+      Project Name: The Siam Hotel  Chiangmai
+  ✅ SHOULD BE LINKED TO:
+      Project ID: 3634
+      Project Code: 25 BK-001
+      Project Name: Ramhan Marina Hotel Project in Abu Dhabi, UAE
+
+[246/253] Invoice: T25-002
+  💰 Amount: $262,500.00 | Paid: $262,500.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 115072
+      Project Code: 24 BK-033
+      Project Name: Rennovation Work for Thee of Four Seasons Properties
+  ✅ SHOULD BE LINKED TO:
+      Project ID: 3633
+      Project Code: 25 BK-002
+      Project Name: Tonkin Palace Hanoi Project, Vietnam
+
+[247/253] Invoice: T25-003
+  💰 Amount: $42,900.00 | Paid: $42,900.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 3628
+      Project Code: 19 BK-052
+      Project Name: The Siam Hotel  Chiangmai
+  ⚠️  PROBLEM: No project found with code ending in 003
+
+[248/253] Invoice: T25-004
+  💰 Amount: $34,375.00 | Paid: $34,375.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 115072
+      Project Code: 24 BK-033
+      Project Name: Rennovation Work for Thee of Four Seasons Properties
+  ⚠️  PROBLEM: No project found with code ending in 004
+
+[249/253] Invoice: T25-005
+  💰 Amount: $34,375.00 | Paid: $34,375.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 115072
+      Project Code: 24 BK-033
+      Project Name: Rennovation Work for Thee of Four Seasons Properties
+  ⚠️  PROBLEM: No project found with code ending in 005
+
+[250/253] Invoice: T25-006
+  💰 Amount: $34,375.00 | Paid: $34,375.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 115072
+      Project Code: 24 BK-033
+      Project Name: Rennovation Work for Thee of Four Seasons Properties
+  ⚠️  PROBLEM: No project found with code ending in 006
+
+[251/253] Invoice: T25-007
+  💰 Amount: $34,375.00 | Paid: $34,375.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 115072
+      Project Code: 24 BK-033
+      Project Name: Rennovation Work for Thee of Four Seasons Properties
+  ⚠️  PROBLEM: No project found with code ending in 007
+
+[252/253] Invoice: T25-008
+  💰 Amount: $34,375.00 | Paid: $34,375.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 115072
+      Project Code: 24 BK-033
+      Project Name: Rennovation Work for Thee of Four Seasons Properties
+  ⚠️  PROBLEM: No project found with code ending in 008
+
+[253/253] Invoice: T25-010
+  💰 Amount: $34,375.00 | Paid: $0.00
+  ❌ CURRENTLY LINKED TO:
+      Project ID: 115072
+      Project Code: 24 BK-033
+      Project Name: Rennovation Work for Thee of Four Seasons Properties
+  ⚠️  PROBLEM: No project found with code ending in 010
+
+💸 Total revenue tracked incorrectly: $25,264,215.64
+
+
+====================================================================================================
+PART 2: PROPOSAL → PROJECT LINKING LOGIC
+====================================================================================================
+
+📊 Database Overview:
+  • Total Proposals: 87
+  • Won Proposals: 8
+  • Active Proposals: 1
+  • Total Projects: 46
+
+====================================================================================================
+WON/ACTIVE PROPOSALS → PROJECT MATCHING
+====================================================================================================
+
+✅ CAN AUTO-MATCH: 5/9
+❌ CANNOT MATCH: 4/9
+
+----------------------------------------------------------------------------------------------------
+MATCHED PROPOSALS (will be linked)
+----------------------------------------------------------------------------------------------------
+
+  Proposal: BK-001 (ID: 1)
+    Name: Ramhan Marina Hotel Project in Abu Dhabi, UAE
+    Status: won
+    Value: $1,850,000.00
+  ↓
+  Project: 25 BK-001 (ID: 3634)
+    Name: Ramhan Marina Hotel Project in Abu Dhabi, UAE
+
+  Proposal: BK-002 (ID: 2)
+    Name: Tonkin Palace Hanoi Project, Vietnam
+    Status: won
+    Value: $1,000,000.00
+  ↓
+  Project: 25 BK-002 (ID: 3633)
+    Name: Tonkin Palace Hanoi Project, Vietnam
+
+  Proposal: BK-015 (ID: 15)
+    Name: Shinta Mani Mustang, Nepal (Extension Work
+    Status: won
+    Value: $300,000.00
+  ↓
+  Project: 25 BK-015 (ID: 115074)
+    Name: Shinta Mani Mustang, Nepal
+
+  Proposal: BK-030 (ID: 30)
+    Name: Beach Club at Mandarin Oriental Bali
+    Status: won
+    Value: $550,000.00
+  ↓
+  Project: 24 BK-030 (ID: 3626)
+    Name: Sofitel Luang Prabang, Laos
+
+  Proposal: BK-033 (ID: 33)
+    Name: The Ritz Carlton Reserve, Nusa Dua, Bali, Indonesia
+    Status: active
+    Value: $3,150,000.00
+  ↓
+  Project: 24 BK-033 (ID: 115072)
+    Name: Rennovation Work for Thee of Four Seasons Properties
+
+----------------------------------------------------------------------------------------------------
+UNMATCHED PROPOSALS (need manual review)
+----------------------------------------------------------------------------------------------------
+
+  Proposal: BK-004 (ID: 4)
+    Name: The Ritz-Carlton Hotel Nanyan Bay, China (One year Extension)-New Company
+    Status: won
+    Reason: No project found with code *-004
+
+  Proposal: BK-005 (ID: 5)
+    Name: Tel Aviv High Rise Project in Israel-Conceptual Redesign
+    Status: won
+    Reason: No project found with code *-005
+
+  Proposal: BK-006 (ID: 6)
+    Name: Fenfushi Island, Raa Atoll, Republic of Maldives-Branding
+    Status: won
+    Reason: No project found with code *-006
+
+  Proposal: BK-013 (ID: 13)
+    Name: Tel Aviv High Rise Project in Israel
+    Status: won
+    Reason: No project found with code *-013
+
+
+====================================================================================================
+PART 3: HOW THE MATCHING LOGIC WORKS
+====================================================================================================
+
+INVOICE MATCHING LOGIC:
+━━━━━━━━━━━━━━━━━━━━━
+
+Step 1: Extract project code number from invoice number
+  Example: I24-017 → Extract "017"
+  Example: I25-088 → Extract "088"
+
+Step 2: Try to find project with matching code in this order:
+  1. BK-017
+  2. 25 BK-017
+  3. 25BK-017
+  4. 23 BK-017
+  5. 24 BK-017
+
+Step 3: Compare to current link
+  • If invoice.project_id matches found project → CORRECT ✅
+  • If invoice.project_id doesn't match → WRONG ❌
+  • If no project found → MISSING PROJECT ⚠️
+
+Example:
+  Invoice: I24-017
+  Extract: "017"
+  Search: BK-017, 25 BK-017, 25BK-017, 23 BK-017, 24 BK-017
+  Found: 25 BK-017 (project_id: 115075) - TARC
+  Current Link: project_id 3613 (23 BK-088 - Mandarin Oriental Bali)
+  Result: WRONG ❌ - Should be 115075, not 3613
+
+
+PROPOSAL → PROJECT MATCHING LOGIC:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Step 1: Get all proposals with status 'won' or 'active'
+  These are proposals that should have become projects
+
+Step 2: Extract BK code number from proposal code
+  Example: BK-017 → Extract "017"
+  Example: 25BK-088 → Extract "088"
+
+Step 3: Use same search logic as invoices to find matching project
+
+Step 4: Create bidirectional link
+  proposals.active_project_id → projects.project_id
+  projects.proposal_id → proposals.proposal_id
+
+
+WHY SOME DON'T MATCH:
+━━━━━━━━━━━━━━━━━━━━
+
+• Proposal code format doesn't contain BK-XXX pattern
+• Project exists but uses completely different code
+• Proposal won but project not yet created in database
+• Project was renamed/recoded after proposal (like BK-008 → BK-017)
+    
+
+====================================================================================================
+SUMMARY & RECOMMENDATIONS
+====================================================================================================
+
+📊 Invoice Status:
+  ✅ Correctly linked: 0 invoices
+  ❌ Wrongly linked: 253 invoices
+  ❓ Need manual review: 0 invoices
+
+📊 Proposal→Project Status:
+  ✅ Can auto-link: 5 proposals
+  ❌ Need manual linking: 4 proposals
+
+💡 Next Steps:
+  1. Review the 253 wrong invoice links above
+  2. Confirm the auto-matching logic makes sense
+  3. Manually resolve the 4 unmatched proposals
+  4. Run fix_project_lifecycle_links.py --live to apply fixes
