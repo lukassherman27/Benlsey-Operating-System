@@ -594,7 +594,7 @@ export function CorrectionDialog({
                             key={item.code}
                             variant="outline"
                             className={cn(
-                              "pl-2 pr-1 py-1",
+                              "pl-2 pr-1 py-1 max-w-[200px]",
                               item.type === 'proposal'
                                 ? "bg-amber-50 border-amber-200"
                                 : "bg-emerald-50 border-emerald-200"
@@ -603,10 +603,10 @@ export function CorrectionDialog({
                             <span className="text-xs font-medium mr-1">
                               {item.type === 'proposal' ? 'P' : 'J'}
                             </span>
-                            {item.code}
+                            <span className="truncate">{item.code} - {item.name}</span>
                             <button
                               onClick={() => removeLinkedItem(item.code)}
-                              className="ml-1 p-0.5 hover:bg-slate-200 rounded"
+                              className="ml-1 p-0.5 hover:bg-slate-200 rounded shrink-0"
                             >
                               <X className="h-3 w-3" />
                             </button>
@@ -672,13 +672,13 @@ export function CorrectionDialog({
 
                   {/* Correction Preview */}
                   {linkedItems.length > 0 && (
-                    <div className="flex items-center gap-2 p-2 bg-slate-50 rounded text-sm shrink-0">
+                    <div className="flex items-center gap-2 p-2 bg-slate-50 rounded text-sm shrink-0 flex-wrap">
                       {suggestion?.project_code ? (
                         <>
-                          <Badge variant="outline" className="text-red-600 line-through">
-                            {suggestion.project_code}
+                          <Badge variant="outline" className="text-red-600 line-through max-w-[180px]">
+                            <span className="truncate">{suggestion.project_code}{currentProjectName && ` - ${currentProjectName}`}</span>
                           </Badge>
-                          <ArrowRight className="h-4 w-4 text-slate-400" />
+                          <ArrowRight className="h-4 w-4 text-slate-400 shrink-0" />
                         </>
                       ) : (
                         <span className="text-slate-500 text-xs">Will link to:</span>
@@ -689,12 +689,13 @@ export function CorrectionDialog({
                             key={item.code}
                             variant="outline"
                             className={cn(
+                              "max-w-[180px]",
                               item.type === 'proposal'
                                 ? "text-amber-600 bg-amber-50 border-amber-200"
                                 : "text-emerald-600 bg-emerald-50 border-emerald-200"
                             )}
                           >
-                            {item.type === 'proposal' ? 'P: ' : ''}{item.code}
+                            <span className="truncate">{item.type === 'proposal' ? 'P: ' : ''}{item.code} - {item.name}</span>
                           </Badge>
                         ))}
                       </div>

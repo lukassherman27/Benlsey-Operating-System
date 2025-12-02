@@ -1381,10 +1381,16 @@ export default function SuggestionsPage() {
                             </p>
 
                             {suggestion.project_code && (
-                              <div className="mt-1">
+                              <div className="mt-1 flex items-center gap-2">
                                 <code className="bg-blue-100 px-2 py-0.5 rounded text-blue-700 text-xs">
                                   {suggestion.project_code}
                                 </code>
+                                {(() => {
+                                  const projName = projectOptions.find(p => p.code === suggestion.project_code)?.name;
+                                  return projName ? (
+                                    <span className="text-xs text-slate-500 truncate max-w-[200px]">{projName}</span>
+                                  ) : null;
+                                })()}
                               </div>
                             )}
 
