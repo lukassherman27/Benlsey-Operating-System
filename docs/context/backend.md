@@ -114,7 +114,7 @@ backend/
 | Outreach | outreach.py | ✅ | Client outreach |
 | Contacts | contacts.py | ✅ NEW | Contact CRUD |
 | Tasks | tasks.py | ✅ NEW | Task management |
-| Suggestions | suggestions.py | ✅ | AI suggestions, handlers, patterns, **full-context API, multi-link corrections, category updates** |
+| Suggestions | suggestions.py | ✅ | AI suggestions, handlers, patterns, **full-context API, multi-link corrections, category updates, contact context learning** |
 | Analytics | analytics.py | ✅ | Analytics |
 | Finance | finance.py | ✅ | Financial reports |
 | Learning | learning.py | ✅ | AI learning |
@@ -247,6 +247,57 @@ POST /api/suggestions/{id}/approve-with-context
 - `domain_to_proposal` - Links domain emails to proposals
 - `keyword_to_project` - Links by keyword matching
 - `contact_to_project` - Links contacts to projects
+
+---
+
+## Contact Context Learning System (NEW Dec 2025)
+
+The system now learns rich context about contacts from user feedback. When a user rejects a suggestion with notes like "Suresh is a kitchen consultant who works on many projects", the system:
+
+1. **Extracts structured context** using OpenAI (role, relationship, is_client, is_multi_project)
+2. **Stores in contact_context table** for future use
+3. **Uses context in email suggestions** - skips project linking for multi-project contacts
+
+### Contact Context Endpoints
+```
+GET  /api/contact-context/{email}    # Get context for a contact
+GET  /api/contact-context            # List all contexts (with filters)
+GET  /api/contact-context-stats      # Statistics
+GET  /api/multi-project-contacts     # Contacts who work across projects
+POST /api/contact-context/{email}/update  # Manually update context
+```
+
+### Contact Context Fields
+- `role` - Job role (e.g., "kitchen consultant", "project manager")
+- `relationship_type` - One of: client, client_team, vendor, contractor, internal, external
+- `is_client` - Boolean: is this a client contact?
+- `is_multi_project` - Boolean: works across multiple projects?
+- `email_handling_preference` - How to handle their emails:
+  - `link_to_project` - Always suggest project links
+  - `categorize_only` - Just categorize, don't suggest links
+  - `suggest_multiple` - May relate to multiple projects
+  - `default` - Normal handling
+- `default_category` / `default_subcategory` - Auto-categorization
+
+### Service: contact_context_service.py
+```python
+from backend.services.contact_context_service import get_contact_context_service
+
+service = get_contact_context_service()
+
+# Extract context from user notes
+context = service.extract_context_from_notes("John is our internal IT guy")
+# Returns: {"role": "IT support", "relationship_type": "internal", "is_client": false}
+
+# Check if we should skip project linking
+if service.should_skip_project_linking(sender_email):
+    # Don't suggest project links for this contact
+    pass
+
+# Get display info for UI
+display = service.get_display_info_for_contact(email)
+# Returns: {"role": "Kitchen Consultant", "badge": "Multi-Project"}
+```
 
 ---
 

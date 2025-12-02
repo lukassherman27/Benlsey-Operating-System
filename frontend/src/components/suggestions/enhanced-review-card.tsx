@@ -511,6 +511,59 @@ function SourcePanel({ sourceData }: { sourceData: SuggestionSourceResponse | nu
         </div>
       )}
 
+      {/* Contact Summary Metadata */}
+      {isContactSummary && sourceData.metadata && (
+        <div className="space-y-3">
+          {/* Contact Info */}
+          <div className="grid grid-cols-2 gap-2">
+            {sourceData.metadata.contact_name && (
+              <div>
+                <Label className="text-xs text-slate-400">Contact Name</Label>
+                <p className="font-medium text-sm text-slate-900">{sourceData.metadata.contact_name}</p>
+              </div>
+            )}
+            {sourceData.metadata.contact_email && (
+              <div>
+                <Label className="text-xs text-slate-400">Email</Label>
+                <p className="text-sm text-slate-700 truncate">{sourceData.metadata.contact_email}</p>
+              </div>
+            )}
+            {sourceData.metadata.contact_company && (
+              <div>
+                <Label className="text-xs text-slate-400">Company</Label>
+                <p className="text-sm text-slate-700">{sourceData.metadata.contact_company}</p>
+              </div>
+            )}
+            {sourceData.metadata.email_count && (
+              <div>
+                <Label className="text-xs text-slate-400">Email Count</Label>
+                <p className="text-sm text-slate-700">{sourceData.metadata.email_count} emails</p>
+              </div>
+            )}
+          </div>
+
+          {/* Sample Emails */}
+          {sourceData.metadata.sample_emails && sourceData.metadata.sample_emails.length > 0 && (
+            <div>
+              <Label className="text-xs text-slate-400 mb-2 block">Recent Emails ({sourceData.metadata.sample_emails.length})</Label>
+              <div className="space-y-2 max-h-[250px] overflow-y-auto">
+                {sourceData.metadata.sample_emails.map((email: { email_id: number; subject: string; date: string; body_full?: string }, idx: number) => (
+                  <div key={email.email_id || idx} className="p-2 bg-slate-50 rounded border text-sm">
+                    <div className="flex justify-between items-start gap-2">
+                      <p className="font-medium text-slate-900 line-clamp-1">{email.subject || 'No subject'}</p>
+                      <span className="text-xs text-slate-400 whitespace-nowrap">{email.date?.slice(0, 10)}</span>
+                    </div>
+                    {email.body_full && (
+                      <p className="text-xs text-slate-600 mt-1 line-clamp-2">{email.body_full.slice(0, 200)}...</p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Content */}
       {sourceData.content ? (
         <div>

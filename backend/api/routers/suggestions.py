@@ -2259,3 +2259,179 @@ async def save_suggestion_feedback(
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+# ============================================================================
+# CONTACT CONTEXT ENDPOINTS
+# ============================================================================
+
+@router.get("/contact-context/{email}")
+async def get_contact_context(email: str):
+    """
+    Get stored context for a contact.
+
+    Returns:
+        - role, relationship_type, is_client, is_multi_project, etc.
+        - display_info for UI enhancement
+    """
+    try:
+        context_service = get_contact_context_service()
+        context = context_service.get_contact_context(email)
+
+        if not context:
+            return {
+                "success": True,
+                "found": False,
+                "email": email,
+                "context": None
+            }
+
+        display_info = context_service.get_display_info_for_contact(email)
+
+        return {
+            "success": True,
+            "found": True,
+            "email": email,
+            "context": context,
+            "display_info": display_info
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/contact-context")
+async def list_contact_contexts(
+    relationship_type: Optional[str] = Query(None, description="Filter by relationship type"),
+    is_multi_project: Optional[bool] = Query(None, description="Filter by multi-project flag"),
+    limit: int = Query(50, ge=1, le=200),
+    offset: int = Query(0, ge=0)
+):
+    """List all stored contact contexts"""
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+
+        where_clauses = []
+        params = []
+
+        if relationship_type:
+            where_clauses.append("relationship_type = ?")
+            params.append(relationship_type)
+
+        if is_multi_project is not None:
+            where_clauses.append("is_multi_project = ?")
+            params.append(1 if is_multi_project else 0)
+
+        where_sql = " AND ".join(where_clauses) if where_clauses else "1=1"
+
+        cursor.execute(f"""
+            SELECT
+                cc.*,
+                c.name as contact_name
+            FROM contact_context cc
+            LEFT JOIN contacts c ON cc.contact_id = c.contact_id
+            WHERE {where_sql}
+            ORDER BY cc.updated_at DESC
+            LIMIT ? OFFSET ?
+        """, params + [limit, offset])
+
+        contexts = [dict(row) for row in cursor.fetchall()]
+
+        cursor.execute(f"SELECT COUNT(*) FROM contact_context WHERE {where_sql}", params)
+        total = cursor.fetchone()[0]
+
+        conn.close()
+
+        return {
+            "success": True,
+            "contexts": contexts,
+            "total": total,
+            "limit": limit,
+            "offset": offset
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/contact-context-stats")
+async def get_contact_context_stats():
+    """Get statistics about stored contact context"""
+    try:
+        context_service = get_contact_context_service()
+        stats = context_service.get_context_stats()
+        return {
+            "success": True,
+            **stats
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/contact-context/{email}/update")
+async def update_contact_context(
+    email: str,
+    role: Optional[str] = None,
+    relationship_type: Optional[str] = None,
+    is_client: Optional[bool] = None,
+    is_multi_project: Optional[bool] = None,
+    email_handling_preference: Optional[str] = None,
+    default_category: Optional[str] = None,
+    default_subcategory: Optional[str] = None,
+    notes: Optional[str] = None
+):
+    """
+    Manually update contact context.
+
+    This is for explicit user updates, not learned from suggestions.
+    """
+    try:
+        context = {}
+        if role is not None:
+            context['role'] = role
+        if relationship_type is not None:
+            context['relationship_type'] = relationship_type
+        if is_client is not None:
+            context['is_client'] = is_client
+        if is_multi_project is not None:
+            context['is_multi_project'] = is_multi_project
+        if email_handling_preference is not None:
+            context['email_handling_preference'] = email_handling_preference
+        if default_category is not None:
+            context['default_category'] = default_category
+        if default_subcategory is not None:
+            context['default_subcategory'] = default_subcategory
+
+        if not context:
+            return action_response(False, message="No fields to update")
+
+        context_service = get_contact_context_service()
+        context_id = context_service.store_contact_context(
+            email=email,
+            context=context,
+            learned_from='manual_entry',
+            original_notes=notes
+        )
+
+        return action_response(
+            True,
+            data={"context_id": context_id, "email": email, "updated_fields": list(context.keys())},
+            message="Contact context updated"
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/multi-project-contacts")
+async def get_multi_project_contacts():
+    """Get all contacts marked as working on multiple projects"""
+    try:
+        context_service = get_contact_context_service()
+        contacts = context_service.get_multi_project_contacts()
+        return {
+            "success": True,
+            "contacts": contacts,
+            "count": len(contacts)
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

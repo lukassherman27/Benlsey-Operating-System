@@ -19,6 +19,7 @@ from openai import OpenAI
 from .base_service import BaseService
 from .suggestion_handlers import HandlerRegistry
 from .learning_service import LearningService
+from .contact_context_service import get_contact_context_service
 
 logger = logging.getLogger(__name__)
 
@@ -280,7 +281,44 @@ class AILearningService(BaseService):
         if email.get('linked_project_code'):
             return []
 
-        # NEW: Check learned patterns first (highest confidence)
+        # NEW: Check contact context - skip project linking for multi-project contacts
+        sender_email = email.get('sender_email', '')
+        try:
+            context_service = get_contact_context_service()
+            if context_service.should_skip_project_linking(sender_email):
+                logger.info(
+                    f"Skipping project link suggestions for {sender_email} "
+                    f"(multi-project or categorize-only contact)"
+                )
+                # Still return category suggestion if available
+                category_info = context_service.get_email_category_for_contact(sender_email)
+                if category_info:
+                    display_info = context_service.get_display_info_for_contact(sender_email)
+                    role_label = display_info.get('display_label', '') if display_info else ''
+                    suggestions.append({
+                        'suggestion_type': 'email_category',
+                        'priority': 'low',
+                        'confidence_score': 0.8,
+                        'source_type': 'contact_context',
+                        'source_id': email['email_id'],
+                        'source_reference': f"Contact: {role_label}" if role_label else "Known contact",
+                        'title': f"Categorize as {category_info.get('category', 'External')}",
+                        'description': f"Sender is a known {role_label or 'multi-project contact'}",
+                        'suggested_action': 'Update email category',
+                        'suggested_data': json.dumps({
+                            'email_id': email['email_id'],
+                            'category': category_info.get('category'),
+                            'subcategory': category_info.get('subcategory'),
+                            'from_contact_context': True
+                        }),
+                        'target_table': 'emails',
+                        'project_code': None
+                    })
+                return suggestions
+        except Exception as e:
+            logger.warning(f"Contact context check failed for {sender_email}: {e}")
+
+        # Check learned patterns first (highest confidence)
         try:
             pattern_suggestion = self.pattern_learner.suggest_link_from_patterns(email)
             if pattern_suggestion:
