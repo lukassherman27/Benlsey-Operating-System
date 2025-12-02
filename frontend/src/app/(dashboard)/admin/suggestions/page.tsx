@@ -318,10 +318,10 @@ export default function SuggestionsPage() {
   });
   const projectOptions = projectsQuery.data?.projects || [];
 
-  // Fetch proposals for correction dialog
+  // Fetch proposals for correction dialog (backend limits per_page to 100)
   const proposalsQuery = useQuery({
     queryKey: ["proposals-for-linking"],
-    queryFn: () => api.getProposals({ per_page: 200 }),
+    queryFn: () => api.getProposals({ per_page: 100 }),
     staleTime: 60 * 1000,
   });
   // api.getProposals uses normalizePaginationResponse which returns {data: [...], pagination: {...}}
@@ -329,7 +329,6 @@ export default function SuggestionsPage() {
     code: p.project_code,
     name: p.project_name || p.project_code,
   }));
-  console.log('[SuggestionsPage] proposalsQuery:', proposalsQuery.status, 'count:', proposalOptions.length);
 
   // Enhanced reject with correction mutation
   const rejectWithCorrectionMutation = useMutation({
@@ -1185,14 +1184,28 @@ export default function SuggestionsPage() {
                     }}
                     onReject={async (data) => {
                       try {
-                        await api.rejectWithCorrection(enhancedSuggestion.suggestion_id, {
+                        const result = await api.rejectWithCorrection(enhancedSuggestion.suggestion_id, {
                           rejection_reason: data.rejection_reason,
                           correct_project_code: data.correct_project_code,
+                          linked_items: data.linked_items,
+                          category: data.category,
+                          subcategory: data.subcategory,
                           create_pattern: data.create_pattern,
                           pattern_notes: data.pattern_notes,
                         });
-                        const msg = data.correct_project_code
-                          ? `Rejected with correction${data.create_pattern ? " and pattern learned" : ""}`
+                        // Build message based on what was done
+                        const parts: string[] = [];
+                        if (result.data?.links_created && result.data.links_created.length > 0) {
+                          parts.push(`linked to ${result.data.links_created.length} item(s)`);
+                        }
+                        if (result.data?.category_updated) {
+                          parts.push(`categorized as ${result.data.category}`);
+                        }
+                        if (result.data?.pattern_created) {
+                          parts.push("pattern learned");
+                        }
+                        const msg = parts.length > 0
+                          ? `Rejected with correction: ${parts.join(", ")}`
                           : "Suggestion rejected";
                         toast.success(msg);
                         queryClient.invalidateQueries({ queryKey: ["suggestions"] });

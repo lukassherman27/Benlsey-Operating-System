@@ -25,7 +25,7 @@ import { cn } from "@/lib/utils";
 import { AIAnalysisPanel } from "./ai-analysis-panel";
 import { UserInputPanel } from "./user-input-panel";
 import { DatabasePreview } from "./database-preview";
-import { CorrectionDialog } from "./correction-dialog";
+import { CorrectionDialog, CorrectionSubmitData } from "./correction-dialog";
 import {
   SuggestionItem,
   SuggestionPreviewResponse,
@@ -58,12 +58,7 @@ interface EnhancedReviewCardProps {
     createSenderPattern: boolean;
     createDomainPattern: boolean;
   }) => void;
-  onReject: (data: {
-    rejection_reason: string;
-    correct_project_code?: string;
-    create_pattern: boolean;
-    pattern_notes?: string;
-  }) => void;
+  onReject: (data: CorrectionSubmitData) => void;
   onSkip: () => void;
   isApproving: boolean;
   isRejecting: boolean;
@@ -141,12 +136,7 @@ export function EnhancedReviewCard({
     });
   };
 
-  const handleReject = (data: {
-    rejection_reason: string;
-    correct_project_code?: string;
-    create_pattern: boolean;
-    pattern_notes?: string;
-  }) => {
+  const handleReject = (data: CorrectionSubmitData) => {
     onReject(data);
     setCorrectionDialogOpen(false);
   };

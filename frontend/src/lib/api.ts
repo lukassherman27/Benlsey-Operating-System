@@ -1293,6 +1293,17 @@ export const api = {
     correct_project_code?: string;
     correct_proposal_id?: number;
     correct_contact_id?: number;
+    // Multi-linking support
+    linked_items?: Array<{
+      type: 'project' | 'proposal' | 'category';
+      code: string;
+      name?: string;
+      subcategory?: string;
+    }>;
+    // Email categorization
+    category?: string;
+    subcategory?: string;
+    // Pattern learning
     create_pattern?: boolean;
     pattern_notes?: string;
   }) =>
@@ -1304,6 +1315,17 @@ export const api = {
         rejection_reason: string;
         corrected: boolean;
         pattern_created: boolean;
+        links_created?: Array<{
+          type: string;
+          email_id?: number;
+          project_id?: number;
+          proposal_id?: number;
+          contact_id?: number;
+          project_code?: string;
+        }>;
+        category_updated?: boolean;
+        category?: string;
+        subcategory?: string;
         correct_link?: {
           email_id?: number;
           project_id?: number;

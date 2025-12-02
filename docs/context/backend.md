@@ -114,7 +114,7 @@ backend/
 | Outreach | outreach.py | ✅ | Client outreach |
 | Contacts | contacts.py | ✅ NEW | Contact CRUD |
 | Tasks | tasks.py | ✅ NEW | Task management |
-| Suggestions | suggestions.py | ✅ | AI suggestions, handlers, patterns, **full-context API, save-feedback** |
+| Suggestions | suggestions.py | ✅ | AI suggestions, handlers, patterns, **full-context API, multi-link corrections, category updates** |
 | Analytics | analytics.py | ✅ | Analytics |
 | Finance | finance.py | ✅ | Financial reports |
 | Learning | learning.py | ✅ | AI learning |
@@ -223,7 +223,13 @@ DELETE /api/patterns/{id}   # Delete a pattern
 ```
 POST /api/suggestions/{id}/reject-with-correction
   - rejection_reason: string (required)
-  - correct_project_code: string (optional - creates correct link)
+  - correct_project_code: string (optional - backward compat, single project link)
+  - linked_items: array (optional - multi-link support)
+    - type: 'project' | 'proposal' | 'category'
+    - code: string (project/proposal code)
+    - name: string (optional display name)
+  - category: string (optional - email category: internal, external, spam, etc.)
+  - subcategory: string (optional - hr, it, admin, etc.)
   - create_pattern: bool (optional - learns from correction)
   - pattern_notes: string (optional)
 
