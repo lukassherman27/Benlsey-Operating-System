@@ -17,6 +17,7 @@ import json
 
 from api.services import admin_service, ai_learning_service, email_orchestrator
 from backend.services.suggestion_handlers import HandlerRegistry, ChangePreview
+from backend.services.contact_context_service import get_contact_context_service
 from api.dependencies import DB_PATH
 from api.models import (
     SuggestionApproveRequest, SuggestionRejectRequest, BulkApproveRequest,
@@ -1353,6 +1354,41 @@ async def reject_with_correction(
                     result_data["pattern_key"] = sender_email
                     result_data["pattern_target"] = target_code
 
+        # Learn contact context from user's notes
+        # Extract rich context like "Suresh is a kitchen consultant who works on many projects"
+        if email_id and request.rejection_reason:
+            try:
+                # Get sender email from the email
+                cursor.execute("SELECT sender_email FROM emails WHERE email_id = ?", (email_id,))
+                email_row = cursor.fetchone()
+
+                if email_row and email_row['sender_email']:
+                    context_service = get_contact_context_service()
+
+                    # Combine rejection reason and pattern notes for context extraction
+                    notes_to_learn = request.rejection_reason
+                    if request.pattern_notes:
+                        notes_to_learn += f"\n{request.pattern_notes}"
+
+                    # Learn from the user's notes
+                    context_result = context_service.learn_from_suggestion_feedback(
+                        suggestion_id=suggestion_id,
+                        user_notes=notes_to_learn,
+                        sender_email=email_row['sender_email'],
+                        source_email_id=email_id
+                    )
+
+                    if context_result.get('success'):
+                        result_data["contact_context_learned"] = True
+                        result_data["contact_context"] = context_result.get('extracted', {})
+                        result_data["contact_context_id"] = context_result.get('context_id')
+            except Exception as e:
+                # Don't fail the rejection if context learning fails
+                import logging
+                logging.getLogger(__name__).warning(
+                    f"Contact context learning failed for suggestion {suggestion_id}: {e}"
+                )
+
         # Mark suggestion as rejected
         cursor.execute("""
             UPDATE ai_suggestions
@@ -1379,6 +1415,14 @@ async def reject_with_correction(
                 message_parts.append(f"categorized as {result_data.get('category')}")
             if result_data.get("pattern_created"):
                 message_parts.append("pattern learned")
+        if result_data.get("contact_context_learned"):
+            context = result_data.get("contact_context", {})
+            if context.get("role"):
+                message_parts.append(f"contact role learned: {context['role']}")
+            elif context.get("is_multi_project"):
+                message_parts.append("contact marked as multi-project")
+            else:
+                message_parts.append("contact context learned")
 
         message = "Suggestion rejected"
         if message_parts:
