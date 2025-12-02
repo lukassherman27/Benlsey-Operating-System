@@ -257,6 +257,19 @@ export function CorrectionDialog({
     ...proposalOptions.map(p => ({ ...p, type: 'proposal' as const })),
   ], [projectOptions, proposalOptions]);
 
+  // Debug: Log what we're receiving
+  useEffect(() => {
+    if (open) {
+      console.log('[CorrectionDialog] Received options:', {
+        projectOptions: projectOptions.length,
+        proposalOptions: proposalOptions.length,
+        allOptions: allOptions.length,
+        sampleProject: projectOptions[0],
+        sampleProposal: proposalOptions[0],
+      });
+    }
+  }, [open, projectOptions, proposalOptions, allOptions]);
+
   // Filter options based on search
   const filteredOptions = useMemo(() =>
     allOptions.filter(
@@ -604,7 +617,7 @@ export function CorrectionDialog({
                   )}
 
                   {/* Project List */}
-                  <ScrollArea className="flex-1 border rounded-lg">
+                  <ScrollArea className="flex-1 min-h-[200px] max-h-[300px] border rounded-lg">
                     <div className="p-2 space-y-1">
                       {filteredOptions.length === 0 ? (
                         <p className="text-sm text-slate-500 text-center py-4">
