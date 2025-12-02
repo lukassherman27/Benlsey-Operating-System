@@ -22,7 +22,6 @@ import {
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   ArrowRight,
   Loader2,
@@ -565,14 +564,14 @@ export function CorrectionDialog({
               </TabsContent>
 
               {/* Project Linking Tab */}
-              <TabsContent value="project" className="flex-1 overflow-hidden mt-4 flex flex-col">
-                <div className="space-y-4 flex-1 overflow-hidden flex flex-col">
+              <TabsContent value="project" className="mt-4">
+                <div className="space-y-4">
                   {/* Search */}
-                  <div className="space-y-2 shrink-0">
+                  <div className="space-y-2">
                     <Label className="text-sm">
                       Search & Select Projects/Proposals
                       <span className="ml-2 text-xs text-slate-400">
-                        (Multi-select enabled)
+                        ({projectOptions.length} projects, {proposalOptions.length} proposals)
                       </span>
                     </Label>
                     <Input
@@ -617,7 +616,7 @@ export function CorrectionDialog({
                   )}
 
                   {/* Project List */}
-                  <ScrollArea className="flex-1 min-h-[200px] max-h-[300px] border rounded-lg">
+                  <div className="h-[280px] border rounded-lg overflow-auto">
                     <div className="p-2 space-y-1">
                       {filteredOptions.length === 0 ? (
                         <p className="text-sm text-slate-500 text-center py-4">
@@ -668,7 +667,7 @@ export function CorrectionDialog({
                         })
                       )}
                     </div>
-                  </ScrollArea>
+                  </div>
 
                   {/* Correction Preview */}
                   {linkedItems.length > 0 && (
