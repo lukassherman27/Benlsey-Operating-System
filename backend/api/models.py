@@ -179,6 +179,7 @@ class EmailLinkRequest(BaseModel):
 class SuggestionApproveRequest(BaseModel):
     """Request to approve a suggestion with optional edits"""
     edits: Optional[Dict[str, Any]] = Field(None, description="Optional edits to apply before approving")
+    notes: Optional[str] = Field(None, description="Optional notes about the contact for context learning")
 
 
 class SuggestionRejectRequest(BaseModel):

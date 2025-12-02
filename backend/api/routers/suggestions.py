@@ -212,6 +212,42 @@ async def approve_suggestion(suggestion_id: int, request: Optional[SuggestionApp
         )
         if not result.get('success'):
             raise HTTPException(status_code=400, detail=result.get('message', result.get('error', 'Unknown error')))
+
+        # Learn contact context from notes if provided
+        if request and request.notes:
+            try:
+                conn = sqlite3.connect(DB_PATH)
+                conn.row_factory = sqlite3.Row
+                cursor = conn.cursor()
+
+                # Get source email from suggestion
+                cursor.execute("""
+                    SELECT s.source_id, e.sender_email
+                    FROM ai_suggestions s
+                    LEFT JOIN emails e ON s.source_id = e.email_id
+                    WHERE s.suggestion_id = ? AND s.source_type = 'email'
+                """, (suggestion_id,))
+                row = cursor.fetchone()
+                conn.close()
+
+                if row and row['sender_email']:
+                    context_service = get_contact_context_service()
+                    context_result = context_service.learn_from_suggestion_feedback(
+                        suggestion_id=suggestion_id,
+                        user_notes=request.notes,
+                        sender_email=row['sender_email'],
+                        source_email_id=row['source_id']
+                    )
+                    if context_result.get('success'):
+                        return action_response(
+                            True,
+                            message="Suggestion approved",
+                            data={"contact_context_learned": True, "context": context_result.get('extracted', {})}
+                        )
+            except Exception as e:
+                import logging
+                logging.getLogger(__name__).warning(f"Contact context learning failed: {e}")
+
         return action_response(True, message="Suggestion approved")
     except HTTPException:
         raise

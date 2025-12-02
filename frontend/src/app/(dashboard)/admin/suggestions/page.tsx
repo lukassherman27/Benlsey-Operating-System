@@ -1386,7 +1386,9 @@ export default function SuggestionsPage() {
                                   {suggestion.project_code}
                                 </code>
                                 {(() => {
-                                  const projName = projectOptions.find(p => p.code === suggestion.project_code)?.name;
+                                  // Check both proposals (more common) and projects
+                                  const projName = proposalOptions.find(p => p.code === suggestion.project_code)?.name
+                                    || projectOptions.find(p => p.code === suggestion.project_code)?.name;
                                   return projName ? (
                                     <span className="text-xs text-slate-500 truncate max-w-[200px]">{projName}</span>
                                   ) : null;

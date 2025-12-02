@@ -146,10 +146,11 @@ export function EnhancedReviewCard({
   const isEmailLink = suggestion.suggestion_type === 'email_link';
   const isNewContact = suggestion.suggestion_type === 'new_contact';
 
-  // Get project name - first try from suggestion directly, then from options
+  // Get project name - check both projectOptions AND proposalOptions (proposals are more common)
   const projectName = (suggestion as { project_name?: string }).project_name
     || (suggestion.project_code
-      ? projectOptions.find(p => p.code === suggestion.project_code)?.name
+      ? (proposalOptions.find(p => p.code === suggestion.project_code)?.name
+         || projectOptions.find(p => p.code === suggestion.project_code)?.name)
       : null);
 
   // Get selected action details for preview
