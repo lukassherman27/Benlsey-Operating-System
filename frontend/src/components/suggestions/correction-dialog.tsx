@@ -251,9 +251,10 @@ export function CorrectionDialog({
   }, [open, suggestion?.suggestion_id]);
 
   // Combine projects and proposals with type markers
+  // Put PROPOSALS FIRST since they're the primary focus for email linking
   const allOptions = useMemo(() => [
-    ...projectOptions.map(p => ({ ...p, type: 'project' as const })),
     ...proposalOptions.map(p => ({ ...p, type: 'proposal' as const })),
+    ...projectOptions.map(p => ({ ...p, type: 'project' as const })),
   ], [projectOptions, proposalOptions]);
 
   // Debug: Log what we're receiving
@@ -269,12 +270,12 @@ export function CorrectionDialog({
     }
   }, [open, projectOptions, proposalOptions, allOptions]);
 
-  // Filter options based on search
+  // Filter options based on search (show all, user can scroll)
   const filteredOptions = useMemo(() =>
     allOptions.filter(
       p => p.code.toLowerCase().includes(projectSearch.toLowerCase()) ||
            p.name.toLowerCase().includes(projectSearch.toLowerCase())
-    ).slice(0, 50),
+    ),
     [allOptions, projectSearch]
   );
 
