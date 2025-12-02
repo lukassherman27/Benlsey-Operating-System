@@ -202,14 +202,27 @@ class BulkApproveByIdsRequest(BaseModel):
     suggestion_ids: List[int] = Field(..., description="List of suggestion IDs to approve")
 
 
+class LinkedItem(BaseModel):
+    """An item to link (project, proposal, or category)"""
+    type: str = Field(..., description="Type: 'project', 'proposal', or 'category'")
+    code: str = Field(..., description="Project/proposal code or category ID")
+    name: Optional[str] = Field(None, description="Display name")
+    subcategory: Optional[str] = Field(None, description="Subcategory for category type")
+
+
 class SuggestionRejectWithCorrectionRequest(BaseModel):
     """Request to reject a suggestion with correction (specifies correct data)"""
     rejection_reason: str = Field(..., description="Why this suggestion is wrong")
     # For email_link corrections
-    correct_project_code: Optional[str] = Field(None, description="Correct project code to link to")
+    correct_project_code: Optional[str] = Field(None, description="Correct project code to link to (backward compat)")
     correct_proposal_id: Optional[int] = Field(None, description="Correct proposal ID to link to")
     # For contact corrections
     correct_contact_id: Optional[int] = Field(None, description="Correct contact to link")
+    # Multi-linking support
+    linked_items: Optional[List[LinkedItem]] = Field(None, description="List of items to link (multi-link support)")
+    # Email categorization
+    category: Optional[str] = Field(None, description="Email category (internal, external, spam, etc.)")
+    subcategory: Optional[str] = Field(None, description="Email subcategory (hr, it, admin, etc.)")
     # Pattern learning
     create_pattern: bool = Field(default=False, description="Create a pattern from this correction")
     pattern_notes: Optional[str] = Field(None, description="Notes about the pattern")

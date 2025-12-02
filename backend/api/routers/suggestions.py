@@ -1085,15 +1085,15 @@ async def reject_with_correction(
     request: SuggestionRejectWithCorrectionRequest
 ):
     """
-    Reject a suggestion and optionally create the correct link + learn a pattern.
+    Reject a suggestion and optionally create correct links + learn a pattern.
 
-    This is used when the AI suggested wrong but the user knows the correct answer.
-    For example: "This email should go to project X, not project Y"
+    Supports:
+    - Single project linking (backward compat via correct_project_code)
+    - Multi-linking via linked_items array (project, proposal, or category)
+    - Email categorization (internal, external, spam, etc.)
+    - Pattern learning for future suggestions
 
-    Flow:
-    1. Mark suggestion as rejected with reason
-    2. If correct_project_code provided, create the correct email_project_link
-    3. If create_pattern is True, store a learned pattern for future suggestions
+    Works with: email_link, contact_link, transcript_link suggestion types
     """
     try:
         conn = sqlite3.connect(DB_PATH)
@@ -1123,83 +1123,112 @@ async def reject_with_correction(
             "suggestion_id": suggestion_id,
             "rejection_reason": request.rejection_reason,
             "corrected": False,
-            "pattern_created": False
+            "pattern_created": False,
+            "links_created": [],
+            "category_updated": False
         }
 
-        # Handle email_link type with correction
-        if suggestion_type == 'email_link' and request.correct_project_code:
-            email_id = suggested_data.get('email_id')
+        # Get source email_id for email-related suggestions
+        email_id = None
+        if suggestion_type in ['email_link', 'contact_link']:
+            email_id = suggested_data.get('email_id') or suggestion.get('source_id')
 
-            if email_id:
-                # Look up project_id from project_code
-                cursor.execute(
-                    "SELECT project_id FROM projects WHERE project_code = ?",
-                    (request.correct_project_code,)
-                )
-                project_row = cursor.fetchone()
+        # Handle multi-linking via linked_items
+        if request.linked_items and len(request.linked_items) > 0:
+            for item in request.linked_items:
+                item_dict = item.model_dump() if hasattr(item, 'model_dump') else item.dict()
+                item_type = item_dict.get('type')
+                item_code = item_dict.get('code')
 
-                if project_row:
-                    project_id = project_row['project_id']
+                if item_type == 'project' and email_id:
+                    # Link email to project
+                    cursor.execute(
+                        "SELECT project_id FROM projects WHERE project_code = ?",
+                        (item_code,)
+                    )
+                    project_row = cursor.fetchone()
+                    if project_row:
+                        cursor.execute("""
+                            INSERT OR REPLACE INTO email_project_links (
+                                email_id, project_id, link_method, confidence, evidence, created_at
+                            ) VALUES (?, ?, 'user_corrected', 1.0, ?, datetime('now'))
+                        """, (
+                            email_id,
+                            project_row['project_id'],
+                            f"User corrected suggestion {suggestion_id}. Reason: {request.rejection_reason}"
+                        ))
+                        result_data["links_created"].append({
+                            "type": "project",
+                            "email_id": email_id,
+                            "project_id": project_row['project_id'],
+                            "project_code": item_code
+                        })
+                        result_data["corrected"] = True
 
-                    # Create the correct link
-                    cursor.execute("""
-                        INSERT OR REPLACE INTO email_project_links (
-                            email_id, project_id, link_method, confidence, evidence, created_at
-                        ) VALUES (?, ?, 'user_corrected', 1.0, ?, datetime('now'))
-                    """, (
-                        email_id,
-                        project_id,
-                        f"User corrected suggestion {suggestion_id}. Reason: {request.rejection_reason}"
-                    ))
-                    result_data["corrected"] = True
-                    result_data["correct_link"] = {
-                        "email_id": email_id,
-                        "project_id": project_id,
-                        "project_code": request.correct_project_code
-                    }
+                elif item_type == 'proposal' and email_id:
+                    # Link email to proposal
+                    cursor.execute(
+                        "SELECT proposal_id FROM proposals WHERE project_code = ?",
+                        (item_code,)
+                    )
+                    proposal_row = cursor.fetchone()
+                    if proposal_row:
+                        # email_proposal_links uses match_method/match_reason not link_method/evidence
+                        cursor.execute("""
+                            INSERT OR REPLACE INTO email_proposal_links (
+                                email_id, proposal_id, match_method, confidence_score, match_reason, created_at
+                            ) VALUES (?, ?, 'user_corrected', 1.0, ?, datetime('now'))
+                        """, (
+                            email_id,
+                            proposal_row['proposal_id'],
+                            f"User corrected suggestion {suggestion_id}. Reason: {request.rejection_reason}"
+                        ))
+                        result_data["links_created"].append({
+                            "type": "proposal",
+                            "email_id": email_id,
+                            "proposal_id": proposal_row['proposal_id'],
+                            "project_code": item_code
+                        })
+                        result_data["corrected"] = True
 
-                    # Create pattern if requested
-                    if request.create_pattern:
-                        # Get sender email from the email
-                        cursor.execute(
-                            "SELECT sender_email FROM emails WHERE email_id = ?",
-                            (email_id,)
-                        )
-                        email_row = cursor.fetchone()
+        # Handle backward-compat single project linking
+        elif suggestion_type == 'email_link' and request.correct_project_code and email_id:
+            cursor.execute(
+                "SELECT project_id FROM projects WHERE project_code = ?",
+                (request.correct_project_code,)
+            )
+            project_row = cursor.fetchone()
 
-                        if email_row and email_row['sender_email']:
-                            sender_email = email_row['sender_email'].lower().strip()
+            if project_row:
+                project_id = project_row['project_id']
 
-                            # Insert sender_to_project pattern
-                            cursor.execute("""
-                                INSERT OR REPLACE INTO email_learned_patterns (
-                                    pattern_type, pattern_key, pattern_key_normalized,
-                                    target_type, target_id, target_code,
-                                    confidence, times_correct,
-                                    created_from_suggestion_id, created_from_email_id,
-                                    notes, created_at, updated_at
-                                ) VALUES (
-                                    'sender_to_project', ?, ?,
-                                    'project', ?, ?,
-                                    0.9, 1,
-                                    ?, ?,
-                                    ?, datetime('now'), datetime('now')
-                                )
-                            """, (
-                                sender_email, sender_email,
-                                project_id, request.correct_project_code,
-                                suggestion_id, email_id,
-                                request.pattern_notes or f"Created from user correction"
-                            ))
-                            result_data["pattern_created"] = True
-                            result_data["pattern_key"] = sender_email
+                cursor.execute("""
+                    INSERT OR REPLACE INTO email_project_links (
+                        email_id, project_id, link_method, confidence, evidence, created_at
+                    ) VALUES (?, ?, 'user_corrected', 1.0, ?, datetime('now'))
+                """, (
+                    email_id,
+                    project_id,
+                    f"User corrected suggestion {suggestion_id}. Reason: {request.rejection_reason}"
+                ))
+                result_data["corrected"] = True
+                result_data["correct_link"] = {
+                    "email_id": email_id,
+                    "project_id": project_id,
+                    "project_code": request.correct_project_code
+                }
+                result_data["links_created"].append({
+                    "type": "project",
+                    "email_id": email_id,
+                    "project_id": project_id,
+                    "project_code": request.correct_project_code
+                })
 
         # Handle transcript_link type with correction
         elif suggestion_type == 'transcript_link' and request.correct_proposal_id:
             transcript_id = suggested_data.get('transcript_id')
 
             if transcript_id:
-                # Look up proposal
                 cursor.execute(
                     "SELECT project_code FROM proposals WHERE proposal_id = ?",
                     (request.correct_proposal_id,)
@@ -1207,7 +1236,6 @@ async def reject_with_correction(
                 proposal_row = cursor.fetchone()
 
                 if proposal_row:
-                    # Update the transcript with the correct link
                     cursor.execute("""
                         UPDATE meeting_transcripts
                         SET proposal_id = ?,
@@ -1220,6 +1248,110 @@ async def reject_with_correction(
                         "transcript_id": transcript_id,
                         "proposal_id": request.correct_proposal_id
                     }
+
+        # Handle contact_link corrections
+        elif suggestion_type == 'contact_link':
+            contact_id = suggested_data.get('contact_id') or suggestion.get('source_id')
+
+            if request.linked_items:
+                for item in request.linked_items:
+                    item_dict = item.model_dump() if hasattr(item, 'model_dump') else item.dict()
+                    item_type = item_dict.get('type')
+                    item_code = item_dict.get('code')
+
+                    if item_type == 'project' and contact_id:
+                        cursor.execute(
+                            "SELECT project_id FROM projects WHERE project_code = ?",
+                            (item_code,)
+                        )
+                        project_row = cursor.fetchone()
+                        if project_row:
+                            cursor.execute("""
+                                INSERT OR REPLACE INTO contact_project_links (
+                                    contact_id, project_id, link_method, confidence,
+                                    created_at, updated_at
+                                ) VALUES (?, ?, 'user_corrected', 1.0, datetime('now'), datetime('now'))
+                            """, (contact_id, project_row['project_id']))
+                            result_data["links_created"].append({
+                                "type": "project",
+                                "contact_id": contact_id,
+                                "project_id": project_row['project_id'],
+                                "project_code": item_code
+                            })
+                            result_data["corrected"] = True
+
+        # Handle email category update
+        # Note: emails table only has category column, subcategory is stored as part of category value
+        if request.category and email_id:
+            # Store as "category:subcategory" if subcategory provided, else just category
+            category_value = request.category
+            if request.subcategory:
+                category_value = f"{request.category}:{request.subcategory}"
+
+            cursor.execute("""
+                UPDATE emails
+                SET category = ?
+                WHERE email_id = ?
+            """, (category_value, email_id))
+            result_data["category_updated"] = True
+            result_data["category"] = request.category
+            result_data["subcategory"] = request.subcategory
+            result_data["corrected"] = True
+
+        # Create pattern if requested
+        if request.create_pattern and result_data.get("corrected") and email_id:
+            cursor.execute(
+                "SELECT sender_email FROM emails WHERE email_id = ?",
+                (email_id,)
+            )
+            email_row = cursor.fetchone()
+
+            if email_row and email_row['sender_email']:
+                sender_email = email_row['sender_email'].lower().strip()
+
+                # Determine target based on what was corrected
+                target_type = None
+                target_id = None
+                target_code = None
+
+                if result_data.get("links_created"):
+                    first_link = result_data["links_created"][0]
+                    if first_link.get("type") == "project":
+                        target_type = "project"
+                        target_id = first_link.get("project_id")
+                        target_code = first_link.get("project_code")
+                    elif first_link.get("type") == "proposal":
+                        target_type = "proposal"
+                        target_id = first_link.get("proposal_id")
+                        target_code = first_link.get("project_code")
+                elif result_data.get("category"):
+                    target_type = "category"
+                    target_code = result_data.get("category")
+
+                if target_type and target_code:
+                    cursor.execute("""
+                        INSERT OR REPLACE INTO email_learned_patterns (
+                            pattern_type, pattern_key, pattern_key_normalized,
+                            target_type, target_id, target_code,
+                            confidence, times_correct,
+                            created_from_suggestion_id, created_from_email_id,
+                            notes, created_at, updated_at
+                        ) VALUES (
+                            ?, ?, ?,
+                            ?, ?, ?,
+                            0.9, 1,
+                            ?, ?,
+                            ?, datetime('now'), datetime('now')
+                        )
+                    """, (
+                        f'sender_to_{target_type}', sender_email, sender_email,
+                        target_type, target_id, target_code,
+                        suggestion_id, email_id,
+                        request.pattern_notes or "Created from user correction"
+                    ))
+                    result_data["pattern_created"] = True
+                    result_data["pattern_key"] = sender_email
+                    result_data["pattern_target"] = target_code
 
         # Mark suggestion as rejected
         cursor.execute("""
@@ -1239,10 +1371,23 @@ async def reject_with_correction(
         conn.commit()
         conn.close()
 
+        message_parts = []
+        if result_data.get("corrected"):
+            if len(result_data.get("links_created", [])) > 0:
+                message_parts.append(f"linked to {len(result_data['links_created'])} item(s)")
+            if result_data.get("category_updated"):
+                message_parts.append(f"categorized as {result_data.get('category')}")
+            if result_data.get("pattern_created"):
+                message_parts.append("pattern learned")
+
+        message = "Suggestion rejected"
+        if message_parts:
+            message += " with correction: " + ", ".join(message_parts)
+
         return action_response(
             True,
             data=result_data,
-            message="Suggestion rejected with correction" if result_data.get("corrected") else "Suggestion rejected"
+            message=message
         )
 
     except HTTPException:

@@ -61,7 +61,7 @@ frontend/
 │       ├── ai-analysis-panel.tsx      <- Detected entities & actions
 │       ├── user-input-panel.tsx       <- Notes, tags, patterns
 │       ├── database-preview.tsx       <- SQL changes preview
-│       └── correction-dialog.tsx      <- Wrong suggestion fix
+│       └── correction-dialog.tsx      <- Wrong suggestion fix (multi-link, categories, quick actions)
 └── package.json
 ```
 

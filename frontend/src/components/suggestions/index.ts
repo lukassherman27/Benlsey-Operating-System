@@ -4,3 +4,6 @@ export { AIAnalysisPanel } from './ai-analysis-panel';
 export { UserInputPanel } from './user-input-panel';
 export { DatabasePreview } from './database-preview';
 export { CorrectionDialog } from './correction-dialog';
+
+// Types
+export type { CorrectionSubmitData } from './correction-dialog';
