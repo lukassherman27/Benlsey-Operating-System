@@ -20,6 +20,7 @@ import { InvoiceAgingWidget } from "./invoice-aging-widget";
 import { RevenueTrendsWidget } from "./revenue-trends-widget";
 import { RecentActivityWidget } from "./recent-activity-widget";
 import { QuickActionsWidget } from "./quick-actions-widget";
+import { FollowUpWidget } from "./follow-up-widget";
 import { Skeleton } from "@/components/ui/skeleton";
 
 export default function FinancialDashboard() {
@@ -127,12 +128,19 @@ export default function FinancialDashboard() {
         <QuickActionsWidget />
       </div>
 
-      {/* Proposal Tracker Section */}
+      {/* Proposal Tracker + Follow-Up Section */}
       <div>
         <h2 className={cn(ds.typography.heading2, ds.textColors.primary, "mb-4")}>
           Proposal Pipeline
         </h2>
-        <ProposalTrackerWidget />
+        <div className="grid gap-6 lg:grid-cols-3">
+          <div className="lg:col-span-2">
+            <ProposalTrackerWidget />
+          </div>
+          <div>
+            <FollowUpWidget />
+          </div>
+        </div>
       </div>
 
       {/* Detailed Financial Widgets */}

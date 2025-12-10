@@ -48,6 +48,25 @@ export interface ProposalHealth {
   recommendation?: string | null;
 }
 
+export interface ProposalFollowUp {
+  proposal_id: number;
+  project_code: string;
+  project_name: string;
+  status: string;
+  client_company: string | null;
+  contact_person: string | null;
+  contact_email: string | null;
+  project_value: number | null;
+  last_email_date: string | null;
+  our_last_email: string | null;
+  client_last_email: string | null;
+  email_count: number;
+  last_sender: string | null;
+  last_subject: string | null;
+  days_since_contact: number;
+  last_sender_type: 'us' | 'client';
+}
+
 export interface TimelineEvent {
   type: string;
   date: string;
@@ -835,59 +854,6 @@ export interface ProposalTrackerUpdateRequest {
   proposal_sent?: number;
 }
 
-// Admin - Data Validation types
-export interface ValidationSuggestion {
-  suggestion_id: number;
-  entity_type: string;
-  entity_id: number;
-  project_code: string;
-  field_name: string;
-  current_value: string;
-  suggested_value: string;
-  evidence_source: string;
-  evidence_id: number;
-  evidence_snippet: string;
-  confidence_score: number;
-  reasoning: string;
-  suggested_action: string;
-  status: "pending" | "approved" | "denied" | "applied";
-  created_at: string;
-  reviewed_by: string | null;
-  reviewed_at: string | null;
-  review_notes: string | null;
-  applied_at: string | null;
-  applied_by: string | null;
-  evidence_email_subject?: string;
-  evidence_email_sender?: string;
-  evidence_email_date?: string;
-  entity_name: string | null;
-}
-
-export interface ValidationStats {
-  pending: number;
-  approved: number;
-  denied: number;
-  applied: number;
-}
-
-export interface ValidationSuggestionsResponse {
-  suggestions: ValidationSuggestion[];
-  total: number;
-  limit: number;
-  offset: number;
-  stats: ValidationStats;
-}
-
-export interface ApproveSuggestionRequest {
-  reviewed_by: string;
-  review_notes?: string;
-}
-
-export interface DenySuggestionRequest {
-  reviewed_by: string;
-  review_notes: string;
-}
-
 // Admin - Email Links types
 export interface EmailLink {
   link_id: string;  // Composite key: "email_id-project_id"
@@ -1237,4 +1203,24 @@ export interface SuggestionTag {
 export interface SuggestionTagsResponse {
   success: boolean;
   tags: SuggestionTag[];
+}
+
+/**
+ * Validation suggestion for data corrections
+ */
+export interface ValidationSuggestion {
+  suggestion_id: number;
+  project_code: string;
+  entity_name: string;
+  field_name: string;
+  current_value: string;
+  suggested_value: string;
+  evidence_source: string;
+  evidence_email_subject?: string;
+  evidence_snippet: string;
+  reasoning: string;
+  confidence_score: number;
+  status: 'pending' | 'applied' | 'approved' | 'denied';
+  reviewed_by?: string;
+  reviewed_at?: string;
 }

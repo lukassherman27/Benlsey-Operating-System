@@ -2,6 +2,7 @@ import {
   AnalyticsDashboard,
   ProposalsQueryParams,
   ProposalDetail,
+  ProposalFollowUp,
   ProposalHealth,
   ProposalSummary,
   ProposalTimelineResponse,
@@ -39,10 +40,6 @@ import {
   ProposalStatusHistoryItem,
   ProposalEmailIntelligence,
   DisciplineStatsResponse,
-  ValidationSuggestionsResponse,
-  ValidationSuggestion,
-  ApproveSuggestionRequest,
-  DenySuggestionRequest,
   EmailLinksResponse,
   CreateEmailLinkRequest,
   InvoiceAgingResponse,
@@ -52,6 +49,7 @@ import {
   ProjectEmailsResponse,
   ProjectEmailSummary,
   ProjectHierarchy,
+  ValidationSuggestion,
 } from "./types";
 
 const API_BASE_URL =
@@ -171,6 +169,25 @@ export const api = {
         is_active: params.is_active,
       })}`
     ).then((raw) => normalizePaginationResponse<ProposalSummary>(raw)),
+
+  getProposalsNeedsAttention: () =>
+    request<{
+      success: boolean;
+      summary: {
+        total: number;
+        critical: number;
+        high: number;
+        medium: number;
+        watch: number;
+      };
+      tiers: {
+        critical: ProposalFollowUp[];
+        high: ProposalFollowUp[];
+        medium: ProposalFollowUp[];
+        watch: ProposalFollowUp[];
+      };
+      generated_at: string;
+    }>('/api/proposals/needs-attention'),
 
   getProposalDetail: (projectCode: string) =>
     request<{ data: ProposalDetail }>(`/api/proposal-tracker/${encodeURIComponent(projectCode)}`)
@@ -525,35 +542,6 @@ export const api = {
       }
     ),
 
-  // Admin - Data Validation
-  getValidationSuggestions: (status?: string) =>
-    request<ValidationSuggestionsResponse>(
-      `/api/admin/validation/suggestions${status ? `?status=${status}` : ""}`
-    ),
-
-  getValidationSuggestion: (id: number) =>
-    request<ValidationSuggestion>(
-      `/api/admin/validation/suggestions/${id}`
-    ),
-
-  approveSuggestion: (id: number, data: ApproveSuggestionRequest) =>
-    request<{ success: boolean; message: string }>(
-      `/api/admin/validation/suggestions/${id}/approve`,
-      {
-        method: "POST",
-        body: JSON.stringify(data),
-      }
-    ),
-
-  denySuggestion: (id: number, data: DenySuggestionRequest) =>
-    request<{ success: boolean; message: string }>(
-      `/api/admin/validation/suggestions/${id}/deny`,
-      {
-        method: "POST",
-        body: JSON.stringify(data),
-      }
-    ),
-
   // Admin - Email Links
   getEmailLinks: (projectCode?: string) =>
     request<EmailLinksResponse>(
@@ -738,6 +726,77 @@ export const api = {
       priority: params.priority,
       limit: params.limit ?? 50,
     })}`),
+
+  // Email Review Queue - for learning loop
+  getEmailReviewQueue: (limit: number = 50) =>
+    request<{
+      success: boolean;
+      count: number;
+      total_pending: number;
+      by_type: Record<string, number>;
+      emails: Array<{
+        email_id: number;
+        subject: string;
+        sender_email: string;
+        sender_name: string;
+        date: string;
+        snippet: string;
+        has_attachments: boolean;
+        category: string;
+        ai_summary: string;
+        suggestion: {
+          suggestion_id: number;
+          type: string;
+          target_type: string;
+          target_id: number;
+          target_code: string;
+          target_name: string;
+          confidence: number;
+          match_method: string;
+          reason: string;
+          suggested_value: string;
+          context: string;
+          created_at: string;
+        };
+        sender_context: {
+          total_emails: number;
+          linked_projects: string[];
+          is_known_contact: boolean;
+        };
+      }>;
+    }>(`/api/emails/review-queue?limit=${limit}`),
+
+  quickApproveEmail: (
+    emailId: number,
+    projectCode: string,
+    learnPattern: boolean = true
+  ) =>
+    request<{
+      success: boolean;
+      link_created: boolean;
+      project_code: string;
+      project_name?: string;
+      pattern_learned: string | null;
+      message: string;
+    }>(
+      `/api/emails/${emailId}/quick-approve?project_code=${encodeURIComponent(projectCode)}&learn_pattern=${learnPattern}`,
+      { method: "POST" }
+    ),
+
+  bulkApproveEmails: (emailIds: number[], learnPatterns: boolean = true) =>
+    request<{
+      success: boolean;
+      message: string;
+      data: {
+        approved: number;
+        failed: number;
+        patterns_learned: string[];
+        errors: Array<{ email_id: number; error: string }>;
+      };
+    }>(
+      `/api/emails/bulk-approve?${emailIds.map(id => `email_ids=${id}`).join('&')}&learn_patterns=${learnPatterns}`,
+      { method: "POST" }
+    ),
 
   getEmailDetails: (emailId: number) =>
     request<{
@@ -1210,6 +1269,31 @@ export const api = {
 
   getSuggestionsStats: () =>
     request<SuggestionsStatsResponse>("/api/suggestions/stats"),
+
+  // Validation suggestions (for admin/validation page)
+  getValidationSuggestions: (status: string = "pending") =>
+    request<{
+      suggestions: ValidationSuggestion[];
+      stats: { pending: number; applied: number; approved: number; denied: number };
+    }>(`/api/suggestions/validation${buildQuery({ status })}`),
+
+  approveSuggestion: (id: number, data: { reviewed_by: string; review_notes: string }) =>
+    request<{ success: boolean; message: string }>(
+      `/api/suggestions/${id}/approve`,
+      {
+        method: "POST",
+        body: JSON.stringify(data),
+      }
+    ),
+
+  denySuggestion: (id: number, data: { reviewed_by: string; review_notes: string }) =>
+    request<{ success: boolean; message: string }>(
+      `/api/suggestions/${id}/reject`,
+      {
+        method: "POST",
+        body: JSON.stringify(data),
+      }
+    ),
 
   approveAISuggestion: (suggestionId: number, edits?: {
     name?: string;
@@ -1750,6 +1834,35 @@ export const api = {
         data: Record<string, unknown>;
       }>;
     }>(`/api/projects/${encodeURIComponent(projectCode)}/unified-timeline`),
+
+  // Email Scheduling Extraction API
+  extractSchedulingData: (emailId: number) =>
+    request<{
+      success: boolean;
+      email_id: number;
+      deadlines: Array<{
+        date: string;
+        context?: string;
+        project_hint?: string;
+        is_hard_deadline?: boolean;
+      }>;
+      people: Array<{
+        name: string;
+        role?: string;
+        action_item?: string;
+      }>;
+      project_references: string[];
+      potential_nicknames: Array<{
+        nickname: string;
+        context?: string;
+      }>;
+      action_items: Array<{
+        description: string;
+        assignee?: string;
+        due_date?: string;
+        priority?: string;
+      }>;
+    }>(`/api/emails/${emailId}/extract-scheduling`, { method: "POST" }),
 
   // Email Link Suggestion API
   approveEmailLink: (suggestionId: number, projectCode?: string) =>
@@ -2406,6 +2519,13 @@ export interface SuggestionItem {
   correction_data: string | null;
   created_at: string;
   expires_at: string | null;
+  // Email context (included inline for faster review)
+  email_subject?: string | null;
+  email_sender?: string | null;
+  email_sender_name?: string | null;
+  email_preview?: string | null;
+  // Project name (for display)
+  project_name?: string | null;
 }
 
 export interface NewContactSuggestion {
@@ -2481,5 +2601,16 @@ export interface SuggestionSourceResponse {
     source_id?: number;
     source_reference?: string;
     note?: string;
+    // Contact summary fields
+    contact_name?: string;
+    contact_email?: string;
+    contact_company?: string;
+    email_count?: number;
+    sample_emails?: Array<{
+      email_id: number;
+      subject: string;
+      date: string;
+      body_full?: string;
+    }>;
   };
 }

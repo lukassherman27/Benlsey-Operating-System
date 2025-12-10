@@ -197,6 +197,115 @@ async def get_weekly_changes(
         raise HTTPException(status_code=500, detail=f"Failed to get weekly changes: {str(e)}")
 
 
+@router.get("/proposals/needs-attention")
+async def get_proposals_needs_attention():
+    """
+    Get proposals needing follow-up, grouped by urgency tier.
+
+    Returns proposals where WE sent the last email and haven't heard back.
+    Tiers: critical (90+ days), high (30-90), medium (14-30), watch (7-14)
+
+    Excludes: Lost, Declined, Contract Signed, Dormant
+    """
+    try:
+        with proposal_service.get_connection() as conn:
+            cursor = conn.cursor()
+
+            # Get proposals with email activity analysis
+            cursor.execute("""
+                WITH email_activity AS (
+                    SELECT
+                        epl.proposal_id,
+                        MAX(e.date) as last_email_date,
+                        MAX(CASE WHEN e.sender_email LIKE '%@bensley.com%' THEN e.date END) as our_last_email,
+                        MAX(CASE WHEN e.sender_email NOT LIKE '%@bensley.com%' THEN e.date END) as client_last_email,
+                        COUNT(*) as email_count,
+                        (SELECT sender_email FROM emails e2
+                         JOIN email_proposal_links epl2 ON e2.email_id = epl2.email_id
+                         WHERE epl2.proposal_id = epl.proposal_id
+                         ORDER BY e2.date DESC LIMIT 1) as last_sender,
+                        (SELECT subject FROM emails e3
+                         JOIN email_proposal_links epl3 ON e3.email_id = epl3.email_id
+                         WHERE epl3.proposal_id = epl.proposal_id
+                         ORDER BY e3.date DESC LIMIT 1) as last_subject
+                    FROM email_proposal_links epl
+                    JOIN emails e ON epl.email_id = e.email_id
+                    GROUP BY epl.proposal_id
+                )
+                SELECT
+                    p.proposal_id,
+                    p.project_code,
+                    p.project_name,
+                    p.status,
+                    p.client_company,
+                    p.contact_person,
+                    p.contact_email,
+                    p.project_value,
+                    ea.last_email_date,
+                    ea.our_last_email,
+                    ea.client_last_email,
+                    ea.email_count,
+                    ea.last_sender,
+                    ea.last_subject,
+                    CAST(julianday('now') - julianday(ea.last_email_date) AS INTEGER) as days_since_contact,
+                    CASE
+                        WHEN ea.last_sender LIKE '%@bensley.com%' THEN 'us'
+                        ELSE 'client'
+                    END as last_sender_type
+                FROM proposals p
+                LEFT JOIN email_activity ea ON p.proposal_id = ea.proposal_id
+                WHERE p.status NOT IN ('Lost', 'Declined', 'Contract Signed', 'Dormant')
+                AND ea.last_email_date IS NOT NULL
+                ORDER BY days_since_contact DESC
+            """)
+
+            rows = cursor.fetchall()
+            columns = [desc[0] for desc in cursor.description]
+
+            # Group by urgency tier - only include where WE sent last
+            tiers = {
+                "critical": [],  # 90+ days
+                "high": [],      # 30-90 days
+                "medium": [],    # 14-30 days
+                "watch": []      # 7-14 days
+            }
+
+            for row in rows:
+                proposal = dict(zip(columns, row))
+                days = proposal.get('days_since_contact')
+
+                if days is None or proposal.get('last_sender_type') != 'us':
+                    continue
+
+                if days >= 90:
+                    tiers["critical"].append(proposal)
+                elif days >= 30:
+                    tiers["high"].append(proposal)
+                elif days >= 14:
+                    tiers["medium"].append(proposal)
+                elif days >= 7:
+                    tiers["watch"].append(proposal)
+
+            # Summary stats
+            total_needing_attention = sum(len(t) for t in tiers.values())
+
+            return {
+                "success": True,
+                "summary": {
+                    "total": total_needing_attention,
+                    "critical": len(tiers["critical"]),
+                    "high": len(tiers["high"]),
+                    "medium": len(tiers["medium"]),
+                    "watch": len(tiers["watch"])
+                },
+                "tiers": tiers,
+                "generated_at": datetime.now().isoformat()
+            }
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to get proposals needing attention: {str(e)}")
+
+
 @router.post("/proposals", status_code=201)
 async def create_proposal(request: CreateProposalRequest):
     """Create a new proposal. Returns standardized action response."""
