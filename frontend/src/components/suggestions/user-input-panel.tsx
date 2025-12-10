@@ -62,7 +62,36 @@ export function UserInputPanel({
   const [tagInput, setTagInput] = useState("");
   const [showTagSuggestions, setShowTagSuggestions] = useState(false);
 
-  const domain = senderEmail?.split('@')[1];
+  // Internal Bensley domains - should never create patterns for internal staff emails
+  const INTERNAL_DOMAINS = ['bensley.com', 'bensleydesign.com', 'bensley.co.th', 'bensley.id'];
+
+  // Check if email is from an internal Bensley domain
+  const isInternalEmail = (email: string | undefined): boolean => {
+    if (!email || !email.includes('@')) return false;
+    // Extract email from angle brackets if present (e.g., "Bill Bensley" <bill@bensley.com>)
+    const match = email.match(/<([^>]+@[^>]+)>/);
+    const cleanEmail = match ? match[1] : email;
+    if (!cleanEmail.includes('@')) return false;
+    const domain = cleanEmail.split('@')[1]?.toLowerCase();
+    return domain ? INTERNAL_DOMAINS.includes(domain) : false;
+  };
+
+  // Extract domain from sender email, handling RFC 5322 format like "Name" <email@domain.com>
+  // Returns undefined for internal Bensley domains (shouldn't create patterns for internal emails)
+  const extractDomain = (email: string | undefined): string | undefined => {
+    if (!email || !email.includes('@')) return undefined;
+    // First extract email from angle brackets if present
+    const match = email.match(/<([^>]+@[^>]+)>/);
+    const cleanEmail = match ? match[1] : email;
+    if (!cleanEmail.includes('@')) return undefined;
+    const domain = cleanEmail.split('@')[1]?.toLowerCase();
+    // Don't return internal Bensley domains - shouldn't create domain patterns for internal emails
+    if (domain && INTERNAL_DOMAINS.includes(domain)) return undefined;
+    return domain;
+  };
+
+  const domain = extractDomain(senderEmail);
+  const isBensleyInternal = isInternalEmail(senderEmail);
 
   const handleAddTag = (tag: string) => {
     const normalizedTag = tag.toLowerCase().trim();
@@ -210,7 +239,8 @@ export function UserInputPanel({
             Learn from this approval
           </Label>
 
-          {senderEmail && (
+          {/* Don't show sender pattern option for internal Bensley employees */}
+          {senderEmail && !isBensleyInternal && (
             <div className="flex items-center gap-2">
               <Checkbox
                 id="sender-pattern"
@@ -221,6 +251,13 @@ export function UserInputPanel({
                 Always link emails from <code className="bg-emerald-100 px-1 rounded text-xs">{senderEmail}</code> to this project
               </Label>
             </div>
+          )}
+
+          {/* Show a note if this is an internal Bensley email */}
+          {senderEmail && isBensleyInternal && (
+            <p className="text-xs text-slate-500 italic">
+              Pattern learning disabled for Bensley staff emails
+            </p>
           )}
 
           {domain && (

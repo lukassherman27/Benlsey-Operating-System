@@ -271,7 +271,7 @@ class TrainingService:
             if record.get('feedback'):
                 try:
                     record['feedback'] = json.loads(record['feedback'])
-                except:
+                except (json.JSONDecodeError, TypeError):
                     pass
             records.append(record)
 

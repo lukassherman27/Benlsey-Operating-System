@@ -2,12 +2,26 @@
 """
 email_processor.py
 
-Intelligent email processor that:
+DISABLED: 2025-12-02 - This script auto-links emails without human review.
+Use the GPT-based suggestion pipeline instead:
+  POST /api/admin/process-email/{email_id}
+
+Original purpose:
 - Auto-tags emails (invoicing, urgent, scheduling, etc.)
 - Auto-links emails to projects using learned patterns
 - Extracts action items
 - Gets smarter over time
 """
+
+import sys
+print("=" * 70)
+print("ERROR: This script has been DISABLED.")
+print("")
+print("This script auto-links emails without human review.")
+print("Use the GPT-based suggestion pipeline instead:")
+print("  POST /api/admin/process-email/{email_id}")
+print("=" * 70)
+sys.exit(1)
 
 import sqlite3
 import os

@@ -101,8 +101,8 @@ class SentEmailDetector:
             try:
                 self.imap.close()
                 self.imap.logout()
-            except:
-                pass
+            except Exception:
+                pass  # Connection may already be closed
 
     def get_sent_folder_name(self) -> Optional[str]:
         """
@@ -242,7 +242,7 @@ class SentEmailDetector:
                 # Parse date
                 try:
                     email_date = parsedate_to_datetime(date_str)
-                except:
+                except (ValueError, TypeError):
                     email_date = datetime.now()
 
                 # Get body text
@@ -611,12 +611,12 @@ class SentEmailDetector:
                     try:
                         body = part.get_payload(decode=True).decode('utf-8', errors='ignore')
                         break
-                    except:
+                    except (AttributeError, UnicodeDecodeError):
                         pass
         else:
             try:
                 body = msg.get_payload(decode=True).decode('utf-8', errors='ignore')
-            except:
+            except (AttributeError, UnicodeDecodeError):
                 pass
         return body[:5000]  # Limit for processing
 
@@ -648,7 +648,7 @@ class SentEmailDetector:
             try:
                 payload = part.get_payload(decode=True)
                 size = len(payload) if payload else 0
-            except:
+            except (AttributeError, TypeError):
                 size = 0
 
             attachments.append({

@@ -6,6 +6,8 @@ This service:
 2. Allows human review (approve/reject/modify)
 3. Stores feedback for training
 4. Applies learned patterns to future processing
+
+Updated Phase 2.0: Added context-aware suggestion generation toggle
 """
 
 import os
@@ -27,7 +29,7 @@ logger = logging.getLogger(__name__)
 class AILearningService(BaseService):
     """Service for AI learning with human feedback loop"""
 
-    def __init__(self, db_path: str = None):
+    def __init__(self, db_path: str = None, use_context_aware: bool = None):
         super().__init__(db_path)
         api_key = os.environ.get('OPENAI_API_KEY')
         self.ai_enabled = bool(api_key)
@@ -35,6 +37,30 @@ class AILearningService(BaseService):
             self.client = OpenAI(api_key=api_key)
         # Initialize learning service for email pattern learning
         self.pattern_learner = LearningService(str(self.db_path))
+
+        # Context-aware suggestion generation (Phase 2.0)
+        # Can be overridden by constructor arg, env var, or db config
+        if use_context_aware is not None:
+            self.use_context_aware = use_context_aware
+        else:
+            self.use_context_aware = os.environ.get(
+                'USE_CONTEXT_AWARE_SUGGESTIONS', ''
+            ).lower() == 'true'
+
+        # Lazy-loaded context-aware service
+        self._context_aware_service = None
+
+    @property
+    def context_aware_service(self):
+        """Lazy load context-aware service to avoid circular imports"""
+        if self._context_aware_service is None and self.use_context_aware:
+            try:
+                from .context_aware_suggestion_service import get_context_aware_service
+                self._context_aware_service = get_context_aware_service(str(self.db_path))
+            except Exception as e:
+                logger.warning(f"Failed to load context-aware service: {e}")
+                self.use_context_aware = False
+        return self._context_aware_service
 
     # =========================================================================
     # SUGGESTION GENERATION
@@ -44,7 +70,30 @@ class AILearningService(BaseService):
         """
         Analyze a processed email and generate suggestions.
         Called after email is processed by smart_email_brain.
+
+        If context-aware mode is enabled, delegates to ContextAwareSuggestionService
+        which uses GPT with full business context.
         """
+        # Phase 2.0: Use context-aware generation if enabled
+        if self.use_context_aware and self.context_aware_service:
+            try:
+                result = self.context_aware_service.generate_suggestions_for_email(email_id)
+                if result.get('success'):
+                    logger.info(
+                        f"Context-aware: Generated {result.get('suggestions_created', 0)} "
+                        f"suggestions for email {email_id}"
+                    )
+                    # Return empty list since suggestions are already saved
+                    return []
+                else:
+                    logger.warning(
+                        f"Context-aware failed for email {email_id}: {result.get('error')}, "
+                        f"falling back to rule-based"
+                    )
+            except Exception as e:
+                logger.warning(f"Context-aware exception for email {email_id}: {e}, falling back to rule-based")
+
+        # Original rule-based suggestion generation
         suggestions = []
 
         # Get email and its content
@@ -211,10 +260,10 @@ class AILearningService(BaseService):
             from email.utils import parsedate_to_datetime
             try:
                 last_date = parsedate_to_datetime(last_sent[0]['last_sent'])
-            except:
+            except (ValueError, TypeError):
                 try:
                     last_date = datetime.fromisoformat(last_sent[0]['last_sent'].replace('Z', '+00:00'))
-                except:
+                except (ValueError, TypeError):
                     return []  # Can't parse date
             days_since = (datetime.now(last_date.tzinfo) - last_date).days
 
@@ -281,8 +330,14 @@ class AILearningService(BaseService):
         if email.get('linked_project_code'):
             return []
 
-        # NEW: Check contact context - skip project linking for multi-project contacts
+        # Skip internal @bensley.com emails - they don't need project linking
         sender_email = email.get('sender_email', '')
+        sender_lower = sender_email.lower() if sender_email else ''
+        if 'bensley.com' in sender_lower or 'bensley.co.id' in sender_lower:
+            logger.debug(f"Skipping email_link suggestion for internal sender: {sender_email}")
+            return []
+
+        # NEW: Check contact context - skip project linking for multi-project contacts
         try:
             context_service = get_contact_context_service()
             if context_service.should_skip_project_linking(sender_email):
@@ -564,9 +619,30 @@ class AILearningService(BaseService):
         return suggestions
 
     def _save_suggestion(self, suggestion: Dict) -> int:
-        """Save a suggestion to the database"""
+        """Save a suggestion to the database with deduplication check"""
         with self.get_connection() as conn:
             cursor = conn.cursor()
+
+            # Check for existing pending duplicate
+            project_code = suggestion.get('project_code')
+            cursor.execute("""
+                SELECT suggestion_id FROM ai_suggestions
+                WHERE source_id = ?
+                AND suggestion_type = ?
+                AND status = 'pending'
+                AND (project_code = ? OR (project_code IS NULL AND ? IS NULL))
+            """, (
+                suggestion['source_id'],
+                suggestion['suggestion_type'],
+                project_code,
+                project_code
+            ))
+            existing = cursor.fetchone()
+
+            if existing:
+                # Return existing suggestion ID instead of creating duplicate
+                return existing[0]
+
             cursor.execute("""
                 INSERT INTO ai_suggestions (
                     suggestion_type, priority, confidence_score,
@@ -587,7 +663,7 @@ class AILearningService(BaseService):
                 suggestion['suggested_action'],
                 suggestion['suggested_data'],
                 suggestion['target_table'],
-                suggestion.get('project_code')
+                project_code
             ))
             conn.commit()
             return cursor.lastrowid
@@ -641,24 +717,26 @@ class AILearningService(BaseService):
 
         suggestion = dict(suggestion[0])
 
-        # Update status
-        with self.get_connection() as conn:
-            cursor = conn.cursor()
-            cursor.execute("""
-                UPDATE ai_suggestions
-                SET status = 'approved',
-                    reviewed_by = ?,
-                    reviewed_at = datetime('now')
-                WHERE suggestion_id = ?
-            """, (reviewed_by, suggestion_id))
-            conn.commit()
-
         # Apply changes if requested
         # Note: Use suggestion_type to find handler, not target_table
         # (handlers know their own target tables)
         applied = False
         if apply_changes:
             applied = self._apply_suggestion(suggestion)
+
+        # Update status based on whether changes were applied
+        # If apply_changes=True and succeeded, set 'applied'; otherwise 'approved'
+        final_status = 'applied' if applied else 'approved'
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                UPDATE ai_suggestions
+                SET status = ?,
+                    reviewed_by = ?,
+                    reviewed_at = datetime('now')
+                WHERE suggestion_id = ?
+            """, (final_status, reviewed_by, suggestion_id))
+            conn.commit()
 
         # Record positive feedback for learning
         self._record_feedback(
@@ -1040,12 +1118,12 @@ class AILearningService(BaseService):
             if pattern.get('condition'):
                 try:
                     pattern['condition'] = json.loads(pattern['condition'])
-                except:
+                except (json.JSONDecodeError, TypeError):
                     pass
             if pattern.get('action'):
                 try:
                     pattern['action'] = json.loads(pattern['action'])
-                except:
+                except (json.JSONDecodeError, TypeError):
                     pass
             patterns.append(pattern)
 

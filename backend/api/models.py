@@ -211,6 +211,28 @@ class LinkedItem(BaseModel):
     subcategory: Optional[str] = Field(None, description="Subcategory for category type")
 
 
+class SchedulingDeadline(BaseModel):
+    """A deadline extracted from scheduling email"""
+    date: str = Field(..., description="Date in YYYY-MM-DD or descriptive format")
+    context: Optional[str] = Field(None, description="What the deadline is for")
+    project_code: Optional[str] = Field(None, description="Project code if confirmed")
+    is_hard_deadline: bool = Field(default=False, description="Whether deadline is firm")
+
+
+class SchedulingPerson(BaseModel):
+    """A person mentioned in scheduling email"""
+    name: str = Field(..., description="Person's name")
+    role: Optional[str] = Field(None, description="Role in the scheduling context")
+    action_item: Optional[str] = Field(None, description="Task assigned to them")
+
+
+class SchedulingNickname(BaseModel):
+    """A project nickname to confirm"""
+    nickname: str = Field(..., description="The informal project name")
+    project_code: str = Field(..., description="The actual project code this maps to")
+    confirm: bool = Field(default=True, description="Whether to confirm this mapping")
+
+
 class SuggestionRejectWithCorrectionRequest(BaseModel):
     """Request to reject a suggestion with correction (specifies correct data)"""
     rejection_reason: str = Field(..., description="Why this suggestion is wrong")
@@ -227,6 +249,10 @@ class SuggestionRejectWithCorrectionRequest(BaseModel):
     # Pattern learning
     create_pattern: bool = Field(default=False, description="Create a pattern from this correction")
     pattern_notes: Optional[str] = Field(None, description="Notes about the pattern")
+    # Scheduling data (used when category='internal' and subcategory='scheduling')
+    deadlines: Optional[List[SchedulingDeadline]] = Field(None, description="Confirmed deadlines from email")
+    people: Optional[List[SchedulingPerson]] = Field(None, description="People mentioned with roles")
+    nicknames: Optional[List[SchedulingNickname]] = Field(None, description="Project nicknames to confirm as patterns")
 
 
 class SuggestionApproveWithContextRequest(BaseModel):

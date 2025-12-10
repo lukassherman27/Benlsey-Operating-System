@@ -61,14 +61,30 @@ async def ask_enhanced_query(request: QueryRequest):
 
 
 @router.post("/query/chat")
-async def chat_query(request: QueryRequest):
-    """Process a chat-style conversation query"""
+async def chat_query(request: dict):
+    """Process a chat-style conversation query with conversation history"""
     try:
-        result = query_service.process_chat(
-            message=request.query,
-            context=request.context
+        question = request.get("question", "")
+        conversation_history = request.get("conversation_history", [])
+        use_ai = request.get("use_ai", True)
+
+        # Format conversation history as string for the service
+        conversation_context = None
+        if conversation_history:
+            context_parts = []
+            for msg in conversation_history[-5:]:  # Use last 5 messages
+                role = msg.get("role", "user")
+                content = msg.get("content", "")
+                context_parts.append(f"{role}: {content}")
+            conversation_context = "\n".join(context_parts)
+
+        result = query_service.query_with_context(
+            question=question,
+            conversation_context=conversation_context,
+            use_ai=use_ai
         )
-        return item_response(result)
+        # Return raw result - frontend expects {success, results, ...} not wrapped in {data, meta}
+        return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

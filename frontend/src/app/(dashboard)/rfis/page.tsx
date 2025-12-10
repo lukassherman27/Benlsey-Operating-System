@@ -217,6 +217,7 @@ function RFIRow({
   return (
     <>
       <TableRow
+        key={`${rfi.id}-main`}
         className={cn(
           "cursor-pointer hover:bg-slate-50 transition-colors",
           rfi.is_overdue && "bg-red-50/50"
@@ -255,7 +256,7 @@ function RFIRow({
         </TableCell>
       </TableRow>
       {isExpanded && (
-        <TableRow>
+        <TableRow key={`${rfi.id}-expanded`}>
           <TableCell colSpan={8} className="bg-slate-50 p-0">
             <div className="p-6 space-y-4">
               {/* Description */}

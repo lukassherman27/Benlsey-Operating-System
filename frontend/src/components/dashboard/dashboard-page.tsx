@@ -11,7 +11,7 @@ import { format } from "date-fns";
 import { toast } from "sonner";
 import QueryPanel from "./query-panel";
 import RevenueBar from "../charts/revenue-bar";
-// import { QueryWidget } from "./query-widget"; // Temporarily commented out for debugging
+import { QueryWidget } from "./query-widget";
 import { MeetingsWidget } from "./meetings-widget";
 import { api } from "@/lib/api";
 import {
@@ -779,7 +779,7 @@ export default function DashboardPage() {
             isLoading={recentPaymentsQuery.isLoading}
             isError={recentPaymentsQuery.isError}
           />
-          {/* <QueryWidget compact={true} /> */}
+          <QueryWidget compact={true} />
         </section>
 
         <section className="grid gap-6 lg:grid-cols-2">

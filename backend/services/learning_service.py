@@ -513,37 +513,43 @@ class LearningService:
         # Get target name
         target_name = self._get_target_name(target_type, target_id)
 
-        # Pattern 1: Sender email -> project
-        sender_email = email.get('sender_email')
+        # Pattern 1: Sender email -> project (skip internal Bensley staff)
+        raw_sender = email.get('sender_email')
+        sender_email = self._extract_email_address(raw_sender) if raw_sender else None
         if sender_email:
-            patterns.append({
-                'pattern_type': f'sender_to_{target_type}',
-                'pattern_key': sender_email,
-                'pattern_key_normalized': sender_email.lower().strip(),
-                'target_type': target_type,
-                'target_id': target_id,
-                'target_code': project_code,
-                'target_name': target_name,
-                'confidence': 0.75,  # Good starting confidence for sender match
-            })
-
-            # Pattern 2: Domain -> project (if corporate email)
             domain = self._extract_domain(sender_email)
-            if domain and not self._is_generic_domain(domain):
+
+            # NEVER create patterns for internal Bensley staff - they work on many projects
+            if domain and not self._is_internal_domain(domain):
                 patterns.append({
-                    'pattern_type': f'domain_to_{target_type}',
-                    'pattern_key': domain,
-                    'pattern_key_normalized': domain.lower().strip(),
+                    'pattern_type': f'sender_to_{target_type}',
+                    'pattern_key': sender_email,  # Store clean email, not RFC 5322 format
+                    'pattern_key_normalized': sender_email.lower().strip(),
                     'target_type': target_type,
                     'target_id': target_id,
                     'target_code': project_code,
                     'target_name': target_name,
-                    'confidence': 0.65,  # Lower for domain (could have multiple projects)
+                    'confidence': 0.75,  # Good starting confidence for sender match
                 })
 
-        # Pattern 3: Sender name -> project (if available)
+                # Pattern 2: Domain -> project (if corporate email, not generic)
+                if not self._is_generic_domain(domain):
+                    patterns.append({
+                        'pattern_type': f'domain_to_{target_type}',
+                        'pattern_key': domain,
+                        'pattern_key_normalized': domain.lower().strip(),
+                        'target_type': target_type,
+                        'target_id': target_id,
+                        'target_code': project_code,
+                        'target_name': target_name,
+                        'confidence': 0.65,  # Lower for domain (could have multiple projects)
+                    })
+
+        # Pattern 3: Sender name -> project (if available and NOT internal staff)
+        # Skip name patterns for internal staff - they work on many projects
         sender_name = email.get('sender_name')
-        if sender_name and len(sender_name) > 3:
+        is_internal = domain and self._is_internal_domain(domain) if sender_email else False
+        if sender_name and len(sender_name) > 3 and not is_internal:
             patterns.append({
                 'pattern_type': f'sender_name_to_{target_type}',
                 'pattern_key': sender_name,
@@ -659,15 +665,18 @@ class LearningService:
     def on_email_link_approved(
         self,
         suggestion: Dict[str, Any],
-        suggestion_id: int
+        suggestion_id: int,
+        user_notes: str = None
     ) -> List[int]:
         """
         Called when an email_link suggestion is approved.
         Extracts and stores patterns for future learning.
+        Logs learning event for analytics.
 
         Args:
             suggestion: The approved suggestion record
             suggestion_id: ID of the suggestion
+            user_notes: Optional notes from the user
 
         Returns:
             List of created/updated pattern IDs
@@ -696,9 +705,9 @@ class LearningService:
             WHERE email_id = ?
         """, (email_id,))
         row = cursor.fetchone()
-        conn.close()
 
         if not row:
+            conn.close()
             return []
 
         email = dict(row)
@@ -706,47 +715,159 @@ class LearningService:
         # Extract patterns
         patterns = self.extract_patterns_from_email_suggestion(suggestion, email)
 
-        # Store each pattern
+        # Store each pattern and log events
         pattern_ids = []
+        project_code = suggested_data.get('project_code')
+        sender_email = self._extract_email_address(email.get('sender_email', ''))
+        sender_domain = self._extract_domain(sender_email) if sender_email else None
+
         for pattern in patterns:
             pattern_id = self.store_email_pattern(pattern, suggestion_id, email_id)
             if pattern_id:
                 pattern_ids.append(pattern_id)
 
+                # Log learning event
+                self._log_learning_event(
+                    cursor,
+                    event_type='email_link_approved',
+                    email_id=email_id,
+                    sender_email=sender_email,
+                    sender_domain=sender_domain,
+                    project_code=project_code,
+                    proposal_id=suggested_data.get('proposal_id'),
+                    project_id=suggested_data.get('project_id'),
+                    pattern_type=pattern['pattern_type'],
+                    pattern_key=pattern['pattern_key'],
+                    confidence_before=suggested_data.get('gpt_confidence'),
+                    confidence_after=pattern['confidence'],
+                    user_notes=user_notes,
+                    gpt_reasoning=suggested_data.get('gpt_reasoning'),
+                )
+
+        # Also link the contact to this project if not already
+        contact_id = self._get_or_create_contact(cursor, sender_email, email.get('sender_name'))
+        if contact_id and suggested_data.get('proposal_id'):
+            self._link_contact_to_proposal(cursor, contact_id, suggested_data.get('proposal_id'))
+
+        conn.commit()
+        conn.close()
+
         return pattern_ids
+
+    def _log_learning_event(
+        self,
+        cursor,
+        event_type: str,
+        email_id: int = None,
+        sender_email: str = None,
+        sender_domain: str = None,
+        project_code: str = None,
+        proposal_id: int = None,
+        project_id: int = None,
+        pattern_type: str = None,
+        pattern_key: str = None,
+        confidence_before: float = None,
+        confidence_after: float = None,
+        user_notes: str = None,
+        gpt_reasoning: str = None,
+        correct_project_code: str = None,
+    ):
+        """Log a learning event for analytics and debugging."""
+        confidence_delta = None
+        if confidence_before is not None and confidence_after is not None:
+            confidence_delta = confidence_after - confidence_before
+
+        cursor.execute("""
+            INSERT INTO learning_events (
+                event_type, email_id, sender_email, sender_domain,
+                project_code, proposal_id, project_id,
+                pattern_type, pattern_key,
+                confidence_before, confidence_after, confidence_delta,
+                user_notes, gpt_reasoning, correct_project_code
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (
+            event_type, email_id, sender_email, sender_domain,
+            project_code, proposal_id, project_id,
+            pattern_type, pattern_key,
+            confidence_before, confidence_after, confidence_delta,
+            user_notes, gpt_reasoning, correct_project_code
+        ))
+
+    def _get_or_create_contact(self, cursor, email: str, name: str = None) -> Optional[int]:
+        """Get or create a contact record."""
+        if not email:
+            return None
+
+        cursor.execute("""
+            SELECT contact_id FROM contacts WHERE email = ?
+        """, (email.lower(),))
+        row = cursor.fetchone()
+
+        if row:
+            return row['contact_id']
+
+        # Only create for non-internal domains
+        domain = self._extract_domain(email)
+        if domain and self._is_internal_domain(domain):
+            return None
+
+        # Create new contact
+        cursor.execute("""
+            INSERT INTO contacts (email, name, created_at)
+            VALUES (?, ?, datetime('now'))
+        """, (email.lower(), name))
+
+        return cursor.lastrowid
+
+    def _link_contact_to_proposal(self, cursor, contact_id: int, proposal_id: int):
+        """Link a contact to a proposal if not already linked."""
+        cursor.execute("""
+            INSERT OR IGNORE INTO project_contacts (contact_id, proposal_id, created_at)
+            VALUES (?, ?, datetime('now'))
+        """, (contact_id, proposal_id))
 
     def on_email_link_rejected(
         self,
         suggestion: Dict[str, Any],
-        suggestion_id: int
-    ) -> None:
+        suggestion_id: int,
+        user_notes: str = None,
+        correct_project_code: str = None
+    ) -> Dict[str, Any]:
         """
         Called when an email_link suggestion is rejected.
         Decreases confidence of matching patterns.
+        If user provides correct_project_code, learns that instead.
+        If user notes contain "spam" or "admin", creates skip pattern.
+        Logs learning event for analytics.
 
         Args:
             suggestion: The rejected suggestion record
             suggestion_id: ID of the suggestion
+            user_notes: Optional user explanation (e.g., "this is spam", "administrative email")
+            correct_project_code: Optional correct project code if user is correcting
+
+        Returns:
+            Dict with learning results
         """
         suggestion_type = suggestion.get('suggestion_type')
         if suggestion_type != 'email_link':
-            return
+            return {'learned': False, 'reason': 'not email_link'}
 
         suggested_data = suggestion.get('suggested_data', {})
         if isinstance(suggested_data, str):
             try:
                 suggested_data = json.loads(suggested_data)
             except json.JSONDecodeError:
-                return
+                return {'learned': False, 'reason': 'invalid suggested_data'}
 
         email_id = suggested_data.get('email_id')
         if not email_id:
-            return
+            return {'learned': False, 'reason': 'no email_id'}
 
         conn = self._get_connection()
         cursor = conn.cursor()
         cursor.execute("""
-            SELECT sender_email
+            SELECT email_id, sender_email, sender_name, subject
             FROM emails
             WHERE email_id = ?
         """, (email_id,))
@@ -754,23 +875,128 @@ class LearningService:
 
         if not row or not row['sender_email']:
             conn.close()
-            return
+            return {'learned': False, 'reason': 'email not found'}
 
-        sender_normalized = row['sender_email'].lower().strip()
+        email = dict(row)
+        sender_email = self._extract_email_address(email.get('sender_email', ''))
+        sender_domain = self._extract_domain(sender_email) if sender_email else None
 
-        # Find and penalize matching patterns
+        result = {'learned': False, 'patterns_affected': 0}
+
+        # Penalize the wrong pattern (reduce confidence)
         cursor.execute("""
             UPDATE email_learned_patterns
             SET times_rejected = times_rejected + 1,
-                confidence = MAX(confidence - 0.1, ?)
+                confidence = MAX(confidence - 0.15, ?)
             WHERE pattern_key_normalized = ?
               AND is_active = 1
-        """, (MIN_PATTERN_CONFIDENCE, sender_normalized))
+        """, (MIN_PATTERN_CONFIDENCE, sender_email))
+        result['patterns_affected'] = cursor.rowcount
+
+        # Log rejection event
+        self._log_learning_event(
+            cursor,
+            event_type='email_link_rejected',
+            email_id=email_id,
+            sender_email=sender_email,
+            sender_domain=sender_domain,
+            project_code=suggested_data.get('project_code'),
+            proposal_id=suggested_data.get('proposal_id'),
+            confidence_before=suggested_data.get('gpt_confidence'),
+            confidence_after=suggested_data.get('gpt_confidence', 0.5) - 0.15,
+            user_notes=user_notes,
+            gpt_reasoning=suggested_data.get('gpt_reasoning'),
+            correct_project_code=correct_project_code,
+        )
+
+        # If user provided correct project, learn it
+        if correct_project_code:
+            cursor.execute("""
+                SELECT proposal_id, project_name FROM proposals WHERE project_code = ?
+            """, (correct_project_code,))
+            correct_proposal = cursor.fetchone()
+
+            if correct_proposal:
+                # Create/boost pattern for the correct project
+                cursor.execute("""
+                    INSERT INTO email_learned_patterns (
+                        pattern_type, pattern_key, pattern_key_normalized,
+                        target_type, target_id, target_code, target_name,
+                        confidence, times_correct, created_from_email_id
+                    ) VALUES ('sender_to_proposal', ?, ?, 'proposal', ?, ?, ?, 0.85, 1, ?)
+                    ON CONFLICT(pattern_type, pattern_key) DO UPDATE SET
+                        target_id = excluded.target_id,
+                        target_code = excluded.target_code,
+                        target_name = excluded.target_name,
+                        confidence = MIN(confidence + 0.15, ?),
+                        times_correct = times_correct + 1,
+                        updated_at = datetime('now')
+                """, (
+                    sender_email, sender_email,
+                    correct_proposal['proposal_id'], correct_project_code,
+                    correct_proposal['project_name'], email_id,
+                    MAX_PATTERN_CONFIDENCE
+                ))
+
+                self._log_learning_event(
+                    cursor,
+                    event_type='pattern_created_from_correction',
+                    email_id=email_id,
+                    sender_email=sender_email,
+                    sender_domain=sender_domain,
+                    project_code=correct_project_code,
+                    proposal_id=correct_proposal['proposal_id'],
+                    pattern_type='sender_to_proposal',
+                    pattern_key=sender_email,
+                    confidence_after=0.85,
+                    user_notes=user_notes,
+                    correct_project_code=correct_project_code,
+                )
+
+                result['learned'] = True
+                result['learned_correct_project'] = correct_project_code
+
+        # If user notes indicate spam/admin, create skip pattern
+        if user_notes:
+            notes_lower = user_notes.lower()
+            if any(keyword in notes_lower for keyword in ['spam', 'junk', 'newsletter', 'marketing']):
+                self._create_skip_pattern(cursor, sender_domain, 'spam', email_id)
+                result['learned'] = True
+                result['skip_pattern_created'] = f"domain_to_skip: {sender_domain}"
+
+            elif any(keyword in notes_lower for keyword in ['admin', 'hr', 'it', 'internal', 'ops']):
+                self._create_skip_pattern(cursor, sender_domain, 'administrative', email_id)
+                result['learned'] = True
+                result['skip_pattern_created'] = f"domain_to_skip: {sender_domain}"
 
         conn.commit()
         conn.close()
 
-        logger.info(f"Penalized patterns for sender: {sender_normalized}")
+        logger.info(f"Rejected link for {sender_email}, learned: {result.get('learned')}")
+        return result
+
+    def _create_skip_pattern(
+        self,
+        cursor,
+        domain: str,
+        skip_type: str,
+        email_id: int
+    ):
+        """Create a pattern to skip emails from a domain."""
+        if not domain:
+            return
+
+        cursor.execute("""
+            INSERT INTO email_learned_patterns (
+                pattern_type, pattern_key, pattern_key_normalized,
+                target_type, target_id, target_code, target_name,
+                confidence, created_from_email_id
+            ) VALUES ('domain_to_skip', ?, ?, 'skip', 0, 'SKIP', ?, 0.9, ?)
+            ON CONFLICT(pattern_type, pattern_key) DO UPDATE SET
+                confidence = MIN(confidence + 0.1, 0.95),
+                times_correct = times_correct + 1,
+                updated_at = datetime('now')
+        """, (domain, domain, skip_type, email_id))
 
     def match_patterns_for_email(
         self,
@@ -786,7 +1012,9 @@ class LearningService:
             List of matching patterns with match scores
         """
         matches = []
-        sender_email = (email.get('sender_email') or '').lower().strip()
+        raw_sender = email.get('sender_email') or ''
+        # Extract clean email from RFC 5322 format (e.g., "Name <email@domain.com>")
+        sender_email = self._extract_email_address(raw_sender) or ''
         sender_name = (email.get('sender_name') or '').lower().strip()
 
         if not sender_email:
@@ -893,6 +1121,12 @@ class LearningService:
         Returns:
             Suggestion dict or None if no good pattern match
         """
+        # Skip internal @bensley.com emails - they don't need project linking
+        sender_email = email.get('sender_email', '')
+        sender_lower = sender_email.lower() if sender_email else ''
+        if 'bensley.com' in sender_lower or 'bensley.co.id' in sender_lower:
+            return None
+
         best_match = self.get_best_pattern_match_for_email(email)
 
         if not best_match:
@@ -935,6 +1169,9 @@ class LearningService:
         else:
             suggestion_data['project_id'] = target_id
 
+        # Get email subject for source reference
+        subject = email.get('subject', '')[:50] if email.get('subject') else 'Email'
+
         return {
             'suggestion_type': 'email_link',
             'title': f"Link to {target_code} (learned)",
@@ -943,9 +1180,11 @@ class LearningService:
             'priority': 'high' if boosted_confidence > 0.8 else 'medium',
             'source_type': 'pattern',
             'source_id': email_id,
+            'source_reference': f"Email: {subject}",
+            'suggested_action': 'Create email_proposal_link',
             'project_code': target_code,
             'proposal_id': target_id if target_type == 'proposal' else None,
-            'suggested_data': suggestion_data,
+            'suggested_data': json.dumps(suggestion_data),
             'target_table': (
                 'email_proposal_links' if target_type == 'proposal'
                 else 'email_project_links'
@@ -1109,14 +1348,61 @@ class LearningService:
 
     # Helper methods for email pattern learning
 
-    def _extract_domain(self, email: str) -> Optional[str]:
-        """Extract domain from email address"""
-        if not email or '@' not in email:
+    def _extract_email_address(self, email_str: str) -> Optional[str]:
+        """Extract clean email address from RFC 5322 format.
+
+        Handles formats like:
+        - simple@domain.com -> simple@domain.com
+        - "Name" <simple@domain.com> -> simple@domain.com
+        - Name <simple@domain.com> -> simple@domain.com
+
+        Returns:
+            Clean email address (lowercase) or None if not parseable
+        """
+        if not email_str or '@' not in email_str:
             return None
-        return email.split('@')[1].lower()
+
+        # Extract email from RFC 5322 format if present
+        match = re.search(r'<([^>]+@[^>]+)>', email_str)
+        if match:
+            return match.group(1).lower().strip()
+
+        # No angle brackets, assume plain email format
+        return email_str.lower().strip()
+
+    def _extract_domain(self, email: str) -> Optional[str]:
+        """Extract domain from email address, handling RFC 5322 format.
+
+        Handles formats like:
+        - simple@domain.com
+        - "Name" <simple@domain.com>
+        - Name <simple@domain.com>
+        """
+        # First extract the clean email address
+        clean_email = self._extract_email_address(email)
+        if not clean_email or '@' not in clean_email:
+            return None
+
+        return clean_email.split('@')[1].lower()
+
+    def _is_internal_domain(self, domain: str) -> bool:
+        """Check if domain is internal Bensley staff.
+
+        Internal staff work across many projects, so we should NEVER
+        create sender patterns for them.
+        """
+        internal_domains = {
+            'bensley.com', 'bensleydesign.com', 'bensley.co.th',
+            'bensley.id', 'bensley.co.id'
+        }
+        return domain.lower() in internal_domains
 
     def _is_generic_domain(self, domain: str) -> bool:
-        """Check if domain is a generic email provider"""
+        """Check if domain is a generic email provider (gmail, yahoo, etc).
+
+        Generic domains shouldn't create domain patterns because many
+        unrelated people use them.
+        """
         generic_domains = {
             'gmail.com', 'yahoo.com', 'hotmail.com', 'outlook.com',
             'aol.com', 'icloud.com', 'mail.com', 'protonmail.com',

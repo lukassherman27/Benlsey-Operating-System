@@ -1,141 +1,300 @@
-# Roadmap - Single Source of Truth
+# Roadmap
 
-**Owner:** Brain/Planner Agent
-**Last Updated:** 2025-12-01 18:00
-**Update Frequency:** Twice weekly minimum
-
----
-
-## Vision (3-Month)
-
-Build an AI-powered operations platform for Bensley Design Studios that:
-- Tracks proposals (sales) and projects (delivery) in unified dashboards
-- Enables natural language queries ("What's happening with BK-070?")
-- Automates data entry via email/meeting intelligence
-- Reduces Bill's manual tracking by 10+ hours/week
+**Updated:** 2025-12-11
+**Vision:** Bensley Brain - Everyone at Bensley has AI power
 
 ---
 
-## Current Phase
+## 1. The Vision
 
-**Phase 1.5:** Integration & Data Quality (Nov 27 - Dec 15)
-**Status:** 95% backend working, 90% frontend connected
+```
+TODAY: Lukas + Claude CLI → Only Lukas can use this
 
----
+GOAL:  Everyone at Bensley has this power
+       - Bill: "what's happening with Nusa Dua?" → gets answer
+       - PM: "what RFIs are overdue?" → gets list
+       - Model LEARNS from every interaction
+```
 
-## This Sprint: Dec 1-15 - "Proposal Intelligence for Bill"
-
-### Sprint Goal
-Generate weekly proposal status reports for Bill using linked data
-
-**Focus:** Data linking (transcripts→proposals, emails→proposals) + report generation - NOT fancy AI
-
-### Agents
-
-| Agent | Responsibility | Pages |
-|-------|----------------|-------|
-| UX Architect | Design system, tokens, standards | All |
-| Frontend Builder 1 | Proposals polish | /tracker, / |
-| Frontend Builder 2 | Projects polish | /projects |
-| Frontend Builder 3 | Suggestions polish | /suggestions, /admin/* |
-| Backend Integrator | API contracts, consistency | All APIs |
-| Organizer | Context updates | docs/ |
-
-### Priorities (in order)
-
-| # | Task | Owner | Status | Target |
-|---|------|-------|--------|--------|
-| 1 | Rebuild email→proposal links | Data Pipeline | ✅ DONE | Dec 1 |
-| 2 | Rebuild email→project links | Data Pipeline | ✅ DONE | Dec 1 |
-| 3 | Generate weekly proposal status report | Intelligence | ✅ DONE | Dec 1 |
-| 4 | AI Suggestions handler framework | Backend | ✅ Week 1 DONE | Dec 1 |
-| 5 | AI Suggestions handler integration + learning loop | Backend | ✅ Week 2 DONE | Dec 1 |
-| 6 | Link transcripts → proposals (via suggestions) | Data Pipeline | Not Started | Day 5 |
-| 7 | Extract contacts from emails/transcripts | Data Pipeline | 🔄 89 suggestions | Day 7 |
-| 8 | Draft follow-up email with context | Intelligence | Not Started | Day 12 |
-
-### Acceptance Criteria
-- [ ] Transcripts linked to proposals via suggestions (never auto-link)
-- [ ] 90%+ emails linked to proposals
-- [ ] Contacts extracted and enriched from email/transcript data
-- [ ] Weekly proposal report generates with full context
-- [ ] Can draft follow-up email for any proposal with context
-- [ ] Can draft contract based on existing templates + proposal data
-- [ ] Bill gets useful weekly report that saves him time
-
-**Detailed Plan:** `docs/planning/2_WEEK_SPRINT_DEC_2025.md`
+**Core principle:** AI suggests → You approve → System learns
 
 ---
 
-## Current Blockers
+## 2. The Build Layers
 
-| Blocker | Impact | Owner | Action | ETA |
-|---------|--------|-------|--------|-----|
-| Finance team Excel | Can't reconcile invoices | Lukas | Send reminder | Unknown |
-| IMAP LOGIN error | No new email import | Data | Debug tmail connection | Dec 1 |
+```
+LAYER 1: DATA INTAKE (Building Now)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Email channels: lukas@, projects@, invoices@, dailywork@, scheduling@
+Voice: Meeting recorder → OneDrive → transcribe → summarize
+Each source categorized and stored
 
----
+LAYER 2: LINKING & CONTEXT (Next)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Contact → Project mappings
+Meeting transcripts → Projects
+Invoices → Projects
+Everything connected to the right project
 
-## Backlog (Next Sprint)
+LAYER 3: INTELLIGENCE (Future)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Task extraction from emails
+Deliverable tracking
+Timeline/deadline monitoring
+Action items
+Project health scores
 
-1. Natural language query improvements
-2. Meeting transcript → action item extraction
-3. Proposal follow-up automation
-4. Financial dashboard polish
-
----
-
-## Done (Last 2 Weeks)
-
-- [x] Database consolidated to OneDrive (Nov 24)
-- [x] Bensley Brain context system (Nov 26)
-- [x] Multi-agent sprint structure (Nov 26)
-- [x] Alignment audit completed (Nov 27)
-- [x] Agent coordination system designed (Nov 27)
-- [x] Backend router refactor (main.py 11,719 → 237 lines) (Nov 28)
-- [x] 3 critical bugs fixed: contracts, invoices stats, Switch component (Nov 29)
-- [x] All frontend pages functional (Nov 30)
-- [x] **Phase A: Infrastructure verified** (Dec 1) - 9 paths fixed, 27 routers tested
-- [x] **Phase B: Data audit** (Dec 1) - Found 100% orphaned links
-- [x] **Phase D: Link tables rebuilt** (Dec 1) - 660 proposal + 200 project links, 100% FK integrity
-- [x] **E3 Week 1: Handler framework** (Dec 1) - Base class, registry, 3 handlers
-- [x] **E5: Weekly report** (Dec 1) - Generates with email counts (18 proposals, 418 emails)
-- [x] **Contact→Project linking pipeline** (Dec 1) - 89 contact_link suggestions created
-- [x] **TARC data merge** (Dec 1) - 25 BK-008 → 25 BK-017, fixed proposal/project status consistency
-- [x] **Email learning loop** (Dec 1) - System learns from approved email_link suggestions, boosts future confidence
+LAYER 4: BENSLEY BRAIN (End Goal)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Full picture per project:
+- All correspondence history
+- All meetings + summaries
+- All invoices + payment status
+- All deliverables + deadlines
+- Who's working on what
+- Where are we in the timeline
+```
 
 ---
 
-## Phase Milestones
+## 3. December 2025 - COMPLETED
 
-| Phase | Target | Key Deliverable | Status |
-|-------|--------|-----------------|--------|
-| 1.0 | Nov 24 | Data foundation + API | Done |
-| 1.5 | Dec 15 | Integration + Data Quality | In Progress |
-| 2.0 | Jan 15 | Intelligence Layer | Not Started |
-| 3.0 | Feb 15 | Multi-user + Production | Not Started |
+### ✅ Email Sync Automation
+- Cron runs hourly
+- Multi-account ready (just add creds to .env)
+
+### ✅ Data Quality Cleanup (Dec 8-10)
+- Date formats normalized (all ISO now)
+- Attachment→Proposal linking (40% linked)
+- Contact names fixed (0 missing)
+- last_contact_date accuracy (100%)
+- Duplicate email links removed (266)
+
+### ✅ Batch Suggestion System
+- Working: 48 batches approved
+- 341 learned patterns
+- Confidence tiers implemented
+
+### ✅ Fixed by Builder Agent (Dec 10)
+- Frontend build now works
+- /api/proposals/stats returns real numbers (57 proposals, 16 active projects)
 
 ---
 
-## Metrics to Track
+## 4. January 2026 Plan
 
-| Metric | Current | Target |
+### Week 1 (Jan 6-10): Fix & Stabilize
+```
+[✅] Builder Agent: Fix frontend build (DONE Dec 10)
+[✅] Builder Agent: Fix /api/proposals/stats (DONE Dec 10)
+[✅] Process 12 pending suggestions (DONE Dec 10)
+[✅] Email Review Queue: /api/emails/review-queue (DONE Dec 11)
+[✅] Sent Email Linking + Proposal Version Tracking (DONE Dec 11)
+[ ] Verify dashboard displays real data
+```
+
+### Week 2 (Jan 13-17): Connect projects@bensley.com
+```
+[ ] Get credentials from IT
+[ ] Add to EMAIL_ACCOUNTS in .env
+[ ] Run initial sync (expect 2,000+ emails)
+[ ] Review batch suggestions, approve links
+[ ] Create patterns for new senders
+```
+
+### Week 3 (Jan 20-24): Meeting Recorder MVP
+```
+[ ] Simple web form: title, project, attendees
+[ ] Audio upload to OneDrive shared folder
+[ ] Whisper transcription (manual trigger)
+[ ] GPT summary generation
+[ ] Link transcript → project
+```
+
+### Week 4 (Jan 27-31): Bill's First Query
+```
+[ ] Slack bot OR simple web page
+[ ] Bill asks: "What's the status of [project]?"
+[ ] System returns: last emails, contacts, status
+[ ] Start with READ-ONLY access
+```
+
+### January Success Metrics
+| Metric | Target |
+|--------|--------|
+| Email inboxes synced | 2 (lukas + projects) |
+| Dashboard working | Yes |
+| Meeting transcripts | 10+ |
+| Bill can query | Yes (read-only) |
+
+---
+
+## 5. Q1 2026 Goals
+
+| Goal | Target | Status |
+|------|--------|--------|
+| Email inboxes | 4+ (lukas, projects, bill, invoices) | - |
+| Meeting transcripts linked | 50+ | - |
+| Bill queries per week | 5+ | - |
+| Weekly reports automated | Yes | - |
+| All proposals enriched | 100% | - |
+
+---
+
+## 6. What's Connected vs NOT
+
+### Connected ✅
+| Source | Records | Status |
 |--------|---------|--------|
-| Backend-to-API coverage | 95% | 95% |
-| API-to-Frontend coverage | 90% | 80% |
-| email_proposal_links | 660 valid (100% FK) | ✅ |
-| email_project_links | 200 valid (100% FK) | ✅ |
-| Pending suggestions | 566 | <50 |
-| Handlers registered | 9 | 10 |
-| Page load time | ~2s | <2s |
+| lukas@bensley.com | 3,727 emails | Automated (cron hourly) |
+| Voice Memos (your Mac) | 39 transcripts | Manual |
+
+### NOT Connected ❌
+| Source | Priority | When |
+|--------|----------|------|
+| projects@bensley.com | High | Jan Week 2 |
+| bill@bensley.com | Medium | Jan Week 4 |
+| invoices@bensley.com | Medium | Feb 2026 |
+| dailywork@bensley.com | Low | Q1 2026 |
+| scheduling@bensley.com | Low | Q1 2026 |
+| Shared OneDrive (meetings) | Medium | Jan Week 3 |
 
 ---
 
-## Notes for Brain Agent
+## 7. Phase Timeline
 
-When updating this file:
-1. Move completed items to "Done" section
-2. Update metrics weekly
-3. Reprioritize backlog based on blockers
-4. Add new blockers immediately when discovered
-5. Keep sprint scope realistic (3-5 main items)
+| Phase | When | Focus |
+|-------|------|-------|
+| **Foundation** | Dec 2025 | Email sync, meeting recorder, learning loop |
+| **2C** | Jan 2026 | ESCAPISM 3: Creative content |
+| **2.5** | Feb 2026 | Reports & polish |
+| **3.0** | Mar 2026 | RAG, Vector store, MCP |
+| **4.0** | Q2 2026 | Contract/proposal automation |
+| **5.0** | Q4 2026 | Local LLM |
+| **6.0** | 2027 | Bensley Model (fully local) |
+
+---
+
+## 6. Agent Structure
+
+```
+YOU (Lukas)
+    ↓
+COORDINATOR AGENT (only one who updates SSOT)
+├── Develops tasks and roadmap
+├── Updates STATUS.md, HANDOFF.md, roadmap.md, ARCHITECTURE.md
+├── Routes work to specialist agents
+├── Receives summaries from all agents
+└── Makes final decisions on approach
+
+SPECIALIST AGENTS (do work, report back)
+├── EMAIL AGENT - Sync, categorize, link emails
+├── SUGGESTION AGENT - Learning loop, patterns, training
+├── MEETING AGENT - Transcription, summaries
+├── ENRICHMENT AGENT - Fill in proposals/projects
+└── BUILDER AGENT - Code, UI, infrastructure
+```
+
+### Agent Rules
+1. **ONLY Coordinator updates SSOT files** (STATUS, HANDOFF, roadmap, ARCHITECTURE)
+2. Specialist agents do their work and produce summaries
+3. You relay summaries to Coordinator
+4. Coordinator synthesizes and updates docs
+5. This prevents conflicting edits and maintains coherence
+
+---
+
+## 7. Future Phases
+
+### Phase 2C: ESCAPISM 3 (Jan 2026)
+- Bill's interviews (PDFs, videos)
+- ESCAPISM 1 & 2 books
+- Instagram posts + analytics
+- New tables: `bill_quotes`, `interviews`, `social_media_posts`
+
+### Phase 3.0: RAG + MCP (Mar 2026)
+- Database encryption (SQLCipher)
+- Vector store (Chroma)
+- MCP Server (Claude queries DB directly)
+- Cross-linking via semantic search
+
+### Phase 5.0: Local AI (2026-2027)
+- Local embeddings (stop sending to OpenAI)
+- Local LLM (Ollama) for simple tasks
+- Distillation (train on GPT outputs)
+- Bensley Model (fully local)
+
+---
+
+## 8. Success Metrics
+
+### By End of January 2026
+| Metric | Target |
+|--------|--------|
+| Email inboxes synced | 4+ |
+| Team can record meetings | Yes |
+| Suggestion learning working | Yes |
+
+### By End of Q1 2026
+| Metric | Target |
+|--------|--------|
+| Bill quotes ingested | 500+ |
+| Weekly reports | Automated |
+| All proposals enriched | 99/99 |
+
+---
+
+## 9. Agent Rules
+
+1. **Never auto-link** - Always create suggestions
+2. **Always name projects** - "25 BK-033 (Ritz-Carlton Reserve Nusa Dua)"
+3. **Test before done** - Run code, verify it works
+4. **Update docs** - Next agent needs to know
+5. **Commit and push** - Always push to GitHub
+6. **Don't create random files** - Use existing structure
+
+---
+
+## 10. Folder Structure (ENFORCED)
+
+```
+Benlsey-Operating-System/
+├── .claude/              # STATUS.md, HANDOFF.md, commands/
+├── docs/                 # ONLY: roadmap.md, ARCHITECTURE.md
+├── backend/              # FastAPI app
+│   ├── api/routers/      # 28 API routers
+│   └── services/         # 60+ services + suggestion_handlers/
+├── frontend/             # Next.js app
+├── database/             # bensley_master.db, migrations/
+├── scripts/core/         # Active CLI scripts ONLY
+├── voice_transcriber/    # Transcription
+├── exports/              # CSV/data exports
+├── training/             # Model training data
+├── reports/              # Generated reports
+└── CLAUDE.md             # Entry point for agents
+```
+
+**RULES FOR NEW AGENTS:**
+1. **NEVER create files at root level** - Use existing folders
+2. **NEVER create new docs/** - Update existing SSOT files
+3. **Scripts go in scripts/core/** - Not scripts/ root
+4. **Services go in backend/services/** - Not backend/ root
+5. **No new TODO.md, PLAN.md, etc.** - Use roadmap.md
+
+**If you must create a file, ASK FIRST.**
+
+---
+
+## 11. Quick Commands
+
+```bash
+# Run servers
+cd backend && uvicorn api.main:app --reload --port 8000
+cd frontend && npm run dev
+
+# Sync emails
+python scripts/core/scheduled_email_sync.py
+
+# Check state
+sqlite3 database/bensley_master.db "SELECT COUNT(*) FROM emails;"
+```

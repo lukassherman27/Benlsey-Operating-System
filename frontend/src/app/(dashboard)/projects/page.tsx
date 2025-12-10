@@ -867,18 +867,19 @@ function ProjectRow({
                                 ];
 
                                 // Sort phases by defined order
-                                const sortedPhases = Array.from(allPhases).sort((a, b) => {
-                                  const indexA = phaseOrder.findIndex(p => a.toLowerCase().includes(p.toLowerCase()));
-                                  const indexB = phaseOrder.findIndex(p => b.toLowerCase().includes(p.toLowerCase()));
+                                // Check if phase name contains any of the order patterns
+                                const getPhaseIndex = (phase: string): number => {
+                                  const lowerPhase = phase.toLowerCase();
+                                  for (let i = 0; i < phaseOrder.length; i++) {
+                                    if (lowerPhase.includes(phaseOrder[i].toLowerCase())) {
+                                      return i;
+                                    }
+                                  }
+                                  return 999; // Unknown phases go last
+                                };
 
-                                  // If both found, sort by index
-                                  if (indexA !== -1 && indexB !== -1) return indexA - indexB;
-                                  // If only A found, put it first
-                                  if (indexA !== -1) return -1;
-                                  // If only B found, put it first
-                                  if (indexB !== -1) return 1;
-                                  // Neither found, alphabetical
-                                  return a.localeCompare(b);
+                                const sortedPhases = Array.from(allPhases).sort((a, b) => {
+                                  return getPhaseIndex(a) - getPhaseIndex(b);
                                 });
 
                                 return sortedPhases.map((phase: string) => {

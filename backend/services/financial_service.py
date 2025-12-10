@@ -1054,8 +1054,25 @@ class FinancialService:
             'total_unpaid_amount': total_unpaid_amount
         }
 
+    # Standard phase order for fee breakdown display
+    PHASE_ORDER = [
+        'Mobilization',
+        'Concept Design',
+        'Schematic Design',
+        'Design Development',
+        'Construction Documents',
+        'Construction Drawings',  # Alternate name
+        'Construction Observation',
+        'Construction Administration',  # Alternate name
+        'Additional Services',
+    ]
+
     def get_fee_breakdown(self, project_code: str) -> List[Dict]:
-        """Get fee breakdown for a project from project_fee_breakdown table"""
+        """Get fee breakdown for a project from project_fee_breakdown table
+
+        Returns phases in correct order:
+        Mobilization → Concept → Schematic → DD → CD → CA
+        """
         conn = self._get_connection()
         cursor = conn.cursor()
 
@@ -1069,9 +1086,23 @@ class FinancialService:
         cursor.execute("""
             SELECT * FROM project_fee_breakdown
             WHERE project_code = ? OR project_code = ?
-            ORDER BY discipline, phase
         """, (project_code, normalized_code))
         rows = cursor.fetchall()
         conn.close()
 
-        return [dict(row) for row in rows]
+        breakdowns = [dict(row) for row in rows]
+
+        # Sort by discipline, then by phase order
+        def phase_sort_key(item):
+            phase = item.get('phase', '')
+            # Find index in PHASE_ORDER, default to 999 for unknown phases
+            try:
+                phase_idx = next(
+                    i for i, p in enumerate(self.PHASE_ORDER)
+                    if p.lower() in phase.lower() or phase.lower() in p.lower()
+                )
+            except StopIteration:
+                phase_idx = 999
+            return (item.get('discipline', ''), phase_idx, phase)
+
+        return sorted(breakdowns, key=phase_sort_key)

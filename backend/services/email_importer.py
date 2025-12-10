@@ -107,7 +107,7 @@ class EmailImporter:
                             # Parse date
                             try:
                                 date = email.utils.parsedate_to_datetime(date_str)
-                            except:
+                            except (ValueError, TypeError):
                                 date = datetime.now()
 
                             # Get body
@@ -182,23 +182,39 @@ class EmailImporter:
         return ''.join(header_parts)
 
     def get_email_body(self, msg):
-        """Extract email body"""
+        """Extract email body - prefer plain text, fall back to HTML"""
+        import re
         body = ""
+        html_body = ""
 
         if msg.is_multipart():
             for part in msg.walk():
                 content_type = part.get_content_type()
-                if content_type == 'text/plain':
-                    try:
-                        body = part.get_payload(decode=True).decode('utf-8', errors='ignore')
-                        break
-                    except:
-                        pass
+                try:
+                    payload = part.get_payload(decode=True)
+                    if payload:
+                        text = payload.decode('utf-8', errors='ignore')
+                        if content_type == 'text/plain' and not body:
+                            body = text
+                        elif content_type == 'text/html' and not html_body:
+                            html_body = text
+                except Exception:
+                    pass
         else:
             try:
-                body = msg.get_payload(decode=True).decode('utf-8', errors='ignore')
-            except:
+                payload = msg.get_payload(decode=True)
+                if payload:
+                    body = payload.decode('utf-8', errors='ignore')
+            except Exception:
                 pass
+
+        # Fall back to HTML if no plain text
+        if not body and html_body:
+            body = re.sub(r'<style[^>]*>.*?</style>', '', html_body, flags=re.DOTALL)
+            body = re.sub(r'<script[^>]*>.*?</script>', '', body, flags=re.DOTALL)
+            body = re.sub(r'<[^>]+>', ' ', body)
+            body = re.sub(r'&nbsp;', ' ', body)
+            body = re.sub(r'\s+', ' ', body).strip()
 
         return body
 
@@ -259,7 +275,7 @@ class EmailImporter:
                     else:
                         decoded_filename += part_data
                 filename = decoded_filename
-            except:
+            except (UnicodeDecodeError, LookupError):
                 pass  # If decoding fails, use original filename
 
             # Clean filename (remove path separators)
@@ -397,8 +413,8 @@ class EmailImporter:
             self.imap.close()
             self.imap.logout()
             print("✅ Connection closed")
-        except:
-            pass
+        except Exception:
+            pass  # Connection may already be closed
 
 def main():
     print("="*70)

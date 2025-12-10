@@ -42,9 +42,12 @@ import {
   FolderOpen,
   Layers,
   Check,
+  Calendar,
 } from "lucide-react";
-import { SuggestionItem } from "@/lib/api";
+import { SuggestionItem, api } from "@/lib/api";
 import { cn } from "@/lib/utils";
+import { Textarea } from "@/components/ui/textarea";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 // ========================================
 // Types
@@ -71,6 +74,52 @@ interface LinkedItem {
   subcategory?: string;
 }
 
+// Scheduling-specific types
+interface SchedulingDeadline {
+  date: string;
+  context?: string;
+  project_code?: string;
+  project_hint?: string;
+  is_hard_deadline?: boolean;
+}
+
+interface SchedulingPerson {
+  name: string;
+  role?: string;
+  action_item?: string;
+}
+
+interface SchedulingNickname {
+  nickname: string;
+  project_code: string;
+  confirm: boolean;
+}
+
+interface ExtractedSchedulingData {
+  deadlines: Array<{
+    date: string;
+    context?: string;
+    project_hint?: string;
+    is_hard_deadline?: boolean;
+  }>;
+  people: Array<{
+    name: string;
+    role?: string;
+    action_item?: string;
+  }>;
+  project_references: string[];
+  potential_nicknames: Array<{
+    nickname: string;
+    context?: string;
+  }>;
+  action_items: Array<{
+    description: string;
+    assignee?: string;
+    due_date?: string;
+    priority?: string;
+  }>;
+}
+
 export interface CorrectionSubmitData {
   rejection_reason: string;
   correct_project_code?: string;
@@ -79,6 +128,10 @@ export interface CorrectionSubmitData {
   subcategory?: string;
   create_pattern: boolean;
   pattern_notes?: string;
+  // Scheduling fields
+  deadlines?: SchedulingDeadline[];
+  people?: SchedulingPerson[];
+  nicknames?: SchedulingNickname[];
 }
 
 interface CorrectionDialogProps {
@@ -125,6 +178,7 @@ const CATEGORIES: CategoryOption[] = [
     icon: <Mail className="h-4 w-4" />,
     color: 'bg-blue-100 text-blue-700 border-blue-200',
     subcategories: [
+      { id: 'scheduling', label: 'Scheduling' },
       { id: 'hr', label: 'HR' },
       { id: 'it', label: 'IT' },
       { id: 'admin', label: 'Admin' },
@@ -172,6 +226,14 @@ const QUICK_ACTIONS = [
     icon: <Link2 className="h-4 w-4" />,
     reason: 'wrong_project',
     goToTab: 'project' as const,
+  },
+  {
+    id: 'scheduling',
+    label: 'Internal scheduling email',
+    icon: <Calendar className="h-4 w-4" />,
+    reason: 'internal_email',
+    category: 'internal',
+    subcategory: 'scheduling',
   },
   {
     id: 'internal_not_project',
@@ -235,6 +297,13 @@ export function CorrectionDialog({
   const [activeTab, setActiveTab] = useState<"quick" | "category" | "project">("quick");
   const [selectedQuickAction, setSelectedQuickAction] = useState<string | null>(null);
 
+  // Scheduling state
+  const [isExtractingScheduling, setIsExtractingScheduling] = useState(false);
+  const [extractedSchedulingData, setExtractedSchedulingData] = useState<ExtractedSchedulingData | null>(null);
+  const [schedulingDeadlines, setSchedulingDeadlines] = useState<SchedulingDeadline[]>([]);
+  const [schedulingPeople, setSchedulingPeople] = useState<SchedulingPerson[]>([]);
+  const [schedulingNicknames, setSchedulingNicknames] = useState<SchedulingNickname[]>([]);
+
   // Reset form when suggestion changes or dialog opens
   useEffect(() => {
     if (open && suggestion) {
@@ -247,8 +316,76 @@ export function CorrectionDialog({
       setProjectSearch("");
       setActiveTab("quick");
       setSelectedQuickAction(null);
+      // Reset scheduling state
+      setIsExtractingScheduling(false);
+      setExtractedSchedulingData(null);
+      setSchedulingDeadlines([]);
+      setSchedulingPeople([]);
+      setSchedulingNicknames([]);
     }
   }, [open, suggestion?.suggestion_id]);
+
+  // Check if scheduling UI should be shown
+  const showSchedulingUI = selectedCategory === 'internal' && selectedSubcategory === 'scheduling';
+
+  // Extract email_id from suggestion
+  const emailId = useMemo(() => {
+    if (!suggestion) return null;
+    // Try to get from suggested_data
+    if (suggestion.suggested_data) {
+      try {
+        const data = typeof suggestion.suggested_data === 'string'
+          ? JSON.parse(suggestion.suggested_data)
+          : suggestion.suggested_data;
+        if (data.email_id) return data.email_id;
+      } catch {}
+    }
+    // Fall back to source_id for email suggestions
+    if (suggestion.source_type === 'email' && suggestion.source_id) {
+      return suggestion.source_id;
+    }
+    return null;
+  }, [suggestion]);
+
+  // Handle scheduling data extraction
+  const handleExtractScheduling = async () => {
+    if (!emailId) return;
+
+    setIsExtractingScheduling(true);
+    try {
+      const result = await api.extractSchedulingData(emailId);
+      setExtractedSchedulingData(result);
+
+      // Populate editable fields from extracted data
+      if (result.deadlines) {
+        setSchedulingDeadlines(result.deadlines.map(d => ({
+          date: d.date,
+          context: d.context,
+          project_hint: d.project_hint,
+          is_hard_deadline: d.is_hard_deadline ?? false,
+        })));
+      }
+      if (result.people) {
+        setSchedulingPeople(result.people.map(p => ({
+          name: p.name,
+          role: p.role,
+          action_item: p.action_item,
+        })));
+      }
+      // Convert potential nicknames to confirmable nicknames
+      if (result.potential_nicknames && result.potential_nicknames.length > 0) {
+        setSchedulingNicknames(result.potential_nicknames.map(n => ({
+          nickname: n.nickname,
+          project_code: '', // User needs to select project
+          confirm: false,
+        })));
+      }
+    } catch (error) {
+      console.error('Failed to extract scheduling data:', error);
+    } finally {
+      setIsExtractingScheduling(false);
+    }
+  };
 
   // Combine projects and proposals with type markers
   // Put PROPOSALS FIRST since they're the primary focus for email linking
@@ -370,6 +507,21 @@ export function CorrectionDialog({
       data.category = selectedCategory;
       if (selectedSubcategory) {
         data.subcategory = selectedSubcategory;
+      }
+    }
+
+    // Include scheduling data if category is internal:scheduling
+    if (showSchedulingUI) {
+      if (schedulingDeadlines.length > 0) {
+        data.deadlines = schedulingDeadlines;
+      }
+      if (schedulingPeople.length > 0) {
+        data.people = schedulingPeople;
+      }
+      // Only include confirmed nicknames with project codes
+      const confirmedNicknames = schedulingNicknames.filter(n => n.confirm && n.project_code);
+      if (confirmedNicknames.length > 0) {
+        data.nicknames = confirmedNicknames;
       }
     }
 
@@ -559,6 +711,147 @@ export function CorrectionDialog({
                           {selectedSubcategory && ` > ${currentCategoryDetails?.subcategories?.find(s => s.id === selectedSubcategory)?.label}`}
                         </Badge>
                       </p>
+                    </div>
+                  )}
+
+                  {/* Scheduling-specific UI */}
+                  {showSchedulingUI && (
+                    <div className="space-y-4 border-t pt-4 mt-4">
+                      <div className="flex items-center justify-between">
+                        <Label className="text-sm font-medium flex items-center gap-2">
+                          <Calendar className="h-4 w-4 text-blue-600" />
+                          Scheduling Data
+                        </Label>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={handleExtractScheduling}
+                          disabled={isExtractingScheduling || !emailId}
+                          className="text-xs"
+                        >
+                          {isExtractingScheduling ? (
+                            <>
+                              <Loader2 className="h-3 w-3 animate-spin mr-1" />
+                              Extracting...
+                            </>
+                          ) : (
+                            <>
+                              <Sparkles className="h-3 w-3 mr-1" />
+                              Auto-extract from email
+                            </>
+                          )}
+                        </Button>
+                      </div>
+
+                      {/* Deadlines */}
+                      {schedulingDeadlines.length > 0 && (
+                        <div className="space-y-2">
+                          <Label className="text-xs text-slate-600">Deadlines ({schedulingDeadlines.length})</Label>
+                          <div className="space-y-2 max-h-32 overflow-auto">
+                            {schedulingDeadlines.map((deadline, idx) => (
+                              <div key={idx} className="flex items-center gap-2 p-2 bg-slate-50 rounded border text-sm">
+                                <Badge variant="outline" className="shrink-0 bg-orange-50 text-orange-700 border-orange-200">
+                                  {deadline.date}
+                                </Badge>
+                                <span className="text-slate-600 truncate flex-1">{deadline.context || 'Deadline'}</span>
+                                {deadline.project_hint && (
+                                  <Badge variant="outline" className="text-xs shrink-0">
+                                    {deadline.project_hint}
+                                  </Badge>
+                                )}
+                                {deadline.is_hard_deadline && (
+                                  <Badge className="bg-red-100 text-red-700 text-xs shrink-0">FIRM</Badge>
+                                )}
+                                <button
+                                  onClick={() => setSchedulingDeadlines(d => d.filter((_, i) => i !== idx))}
+                                  className="p-1 hover:bg-slate-200 rounded"
+                                >
+                                  <X className="h-3 w-3 text-slate-400" />
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* People */}
+                      {schedulingPeople.length > 0 && (
+                        <div className="space-y-2">
+                          <Label className="text-xs text-slate-600">People Mentioned ({schedulingPeople.length})</Label>
+                          <div className="flex flex-wrap gap-2">
+                            {schedulingPeople.map((person, idx) => (
+                              <Badge key={idx} variant="outline" className="py-1 px-2">
+                                <User className="h-3 w-3 mr-1" />
+                                {person.name}
+                                {person.role && <span className="text-slate-400 ml-1">({person.role})</span>}
+                                <button
+                                  onClick={() => setSchedulingPeople(p => p.filter((_, i) => i !== idx))}
+                                  className="ml-1 hover:bg-slate-200 rounded p-0.5"
+                                >
+                                  <X className="h-3 w-3 text-slate-400" />
+                                </button>
+                              </Badge>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Project Nicknames to Confirm */}
+                      {schedulingNicknames.length > 0 && (
+                        <div className="space-y-2">
+                          <Label className="text-xs text-slate-600 flex items-center gap-1">
+                            <Sparkles className="h-3 w-3 text-amber-500" />
+                            Project Nicknames to Learn
+                          </Label>
+                          <div className="space-y-2">
+                            {schedulingNicknames.map((nickname, idx) => (
+                              <div key={idx} className="flex items-center gap-2 p-2 bg-amber-50 rounded border border-amber-200">
+                                <Checkbox
+                                  checked={nickname.confirm}
+                                  onCheckedChange={(checked) => {
+                                    setSchedulingNicknames(prev => prev.map((n, i) =>
+                                      i === idx ? { ...n, confirm: checked === true } : n
+                                    ));
+                                  }}
+                                />
+                                <Badge variant="outline" className="bg-white">
+                                  &quot;{nickname.nickname}&quot;
+                                </Badge>
+                                <ArrowRight className="h-4 w-4 text-slate-400" />
+                                <Select
+                                  value={nickname.project_code || ''}
+                                  onValueChange={(value) => {
+                                    setSchedulingNicknames(prev => prev.map((n, i) =>
+                                      i === idx ? { ...n, project_code: value, confirm: true } : n
+                                    ));
+                                  }}
+                                >
+                                  <SelectTrigger className="h-8 w-48 text-xs">
+                                    <SelectValue placeholder="Select project..." />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {allOptions.slice(0, 50).map((opt) => (
+                                      <SelectItem key={opt.code} value={opt.code} className="text-xs">
+                                        {opt.code} - {opt.name.slice(0, 30)}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                            ))}
+                          </div>
+                          <p className="text-xs text-amber-700">
+                            Confirmed nicknames will help identify this project in future emails.
+                          </p>
+                        </div>
+                      )}
+
+                      {/* Empty state */}
+                      {!extractedSchedulingData && schedulingDeadlines.length === 0 && (
+                        <p className="text-sm text-slate-500 text-center py-4">
+                          Click &quot;Auto-extract&quot; to find deadlines, people, and project nicknames in this email.
+                        </p>
+                      )}
                     </div>
                   )}
                 </div>

@@ -46,12 +46,15 @@ const navItems: NavItem[] = [
   { href: "/", label: "Overview", icon: Home },
   { href: "/tracker", label: "Proposals", icon: ListChecks },
   { href: "/projects", label: "Projects", icon: FileText },
+  { href: "/contracts", label: "Contracts", icon: FileText },
   { href: "/deliverables", label: "Deliverables", icon: CalendarCheck },
   { href: "/tasks", label: "Tasks", icon: CheckSquare },
   { href: "/meetings", label: "Meetings", icon: Calendar },
   { href: "/rfis", label: "RFIs", icon: HelpCircle },
   { href: "/contacts", label: "Contacts", icon: Users },
+  { href: "/finance", label: "Finance", icon: DollarSign },
   { href: "/query", label: "Query", icon: Search },
+  { href: "/admin/suggestions", label: "Review", icon: Sparkles },
   {
     href: "/admin",
     label: "Admin",
@@ -60,8 +63,10 @@ const navItems: NavItem[] = [
       { href: "/admin/suggestions", label: "AI Suggestions", icon: Sparkles },
       { href: "/admin/email-categories", label: "Email Categories", icon: Mail },
       { href: "/admin/email-links", label: "Email Links", icon: Link2 },
-      { href: "/admin/validation", label: "Data Validation", icon: CheckSquare },
       { href: "/admin/financial-entry", label: "Financial Entry", icon: DollarSign },
+      { href: "/admin/patterns", label: "Learned Patterns", icon: Sparkles },
+      { href: "/admin/project-editor", label: "Project Editor", icon: FileText },
+      { href: "/system", label: "System Status", icon: Settings },
     ]
   },
 ];

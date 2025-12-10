@@ -1,6 +1,10 @@
 """
 Email Linker - Links unlinked emails to projects/proposals
 
+DEPRECATED: This script is deprecated as of 2025-12-02.
+Use the suggestion-based workflow via API: POST /api/admin/process-unlinked-emails
+All links now require human approval through the suggestion review system.
+
 Strategies:
 1. Thread Linking: If any email in a thread is linked, link all emails in that thread
 2. Subject Code Extraction: Extract BK project codes from subject lines
@@ -8,6 +12,14 @@ Strategies:
 
 Created: 2025-11-27
 """
+
+import warnings
+warnings.warn(
+    "This script is DEPRECATED. Use API: POST /api/admin/process-unlinked-emails. "
+    "All email links now require human approval through the suggestion review system.",
+    DeprecationWarning,
+    stacklevel=2
+)
 
 import sqlite3
 import re

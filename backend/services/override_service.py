@@ -144,7 +144,7 @@ class OverrideService:
             if override_dict.get('tags'):
                 try:
                     override_dict['tags'] = json.loads(override_dict['tags'])
-                except:
+                except (json.JSONDecodeError, TypeError):
                     override_dict['tags'] = []
             else:
                 override_dict['tags'] = []
@@ -184,7 +184,7 @@ class OverrideService:
         if override_dict.get('tags'):
             try:
                 override_dict['tags'] = json.loads(override_dict['tags'])
-            except:
+            except (json.JSONDecodeError, TypeError):
                 override_dict['tags'] = []
 
         return override_dict

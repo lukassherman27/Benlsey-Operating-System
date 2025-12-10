@@ -594,6 +594,42 @@ export const api = {
       `/api/invoices/outstanding-filtered${params ? `?${buildQuery(params)}` : ''}`
     ),
 
+  // Revenue & Payment Analytics
+  getRevenueTrends: (months: number = 12) =>
+    request<{
+      success: boolean;
+      data: Array<{
+        month: string;
+        invoice_count: number;
+        total_invoiced: number;
+        total_paid: number;
+        paid_count: number;
+        collection_rate: number;
+        avg_days_to_pay: number | null;
+      }>;
+      count: number;
+    }>(`/api/invoices/revenue-trends?months=${months}`),
+
+  getClientPaymentBehavior: (limit: number = 10) =>
+    request<{
+      success: boolean;
+      data: Array<{
+        project_code: string;
+        project_name: string;
+        invoice_count: number;
+        total_invoiced: number;
+        total_paid: number;
+        outstanding: number;
+        paid_invoice_count: number;
+        collection_rate: number;
+        avg_days_to_pay: number | null;
+        payment_speed: "Fast" | "Normal" | "Slow" | "Unknown";
+        first_invoice: string | null;
+        last_invoice: string | null;
+      }>;
+      count: number;
+    }>(`/api/invoices/client-payment-behavior?limit=${limit}`),
+
   // Email API - New endpoints for Claude 1
   getRecentEmails: (limit: number = 10, days: number = 30) =>
     request<{ success: boolean; data: EmailSummary[]; count: number; days: number }>(
@@ -2048,6 +2084,50 @@ export const api = {
         description: string;
       }>;
     }>(`/api/intelligence/risks/${encodeURIComponent(projectCode)}`),
+
+  // ============ STAKEHOLDERS & TEAM API ============
+  getProposalStakeholders: (projectCode: string) =>
+    request<{
+      success: boolean;
+      project_code: string;
+      stakeholders: Array<{
+        contact_id: number;
+        name: string | null;
+        email: string | null;
+        role: string | null;
+        company: string | null;
+        phone: string | null;
+        is_primary: number;
+        last_contact_date: string | null;
+        email_count: number;
+      }>;
+      count: number;
+    }>(`/api/proposals/${encodeURIComponent(projectCode)}/stakeholders`),
+
+  getProjectTeam: (projectCode: string) =>
+    request<{
+      success: boolean;
+      project_code: string;
+      team: Array<{
+        contact_id: number;
+        name: string | null;
+        email: string | null;
+        role: string | null;
+        discipline: string | null;
+        is_primary: number;
+        email_count: number;
+        last_contact_date: string | null;
+      }>;
+      by_discipline: Record<string, Array<{
+        contact_id: number;
+        name: string | null;
+        email: string | null;
+        role: string | null;
+        email_count: number;
+        is_primary: number;
+      }>>;
+      count: number;
+    }>(`/api/projects/${encodeURIComponent(projectCode)}/team`),
 };
 
 // Email Intelligence Types

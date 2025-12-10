@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import dynamic from "next/dynamic";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -20,7 +21,8 @@ interface QueryWidgetProps {
   compact?: boolean;
 }
 
-export function QueryWidget({ compact = true }: QueryWidgetProps) {
+// Internal component that uses localStorage
+function QueryWidgetInternal({ compact = true }: QueryWidgetProps) {
   const router = useRouter();
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(false);
@@ -206,3 +208,37 @@ export function QueryWidget({ compact = true }: QueryWidgetProps) {
     </Card>
   );
 }
+
+// Loading skeleton for SSR
+function QueryWidgetSkeleton() {
+  return (
+    <Card>
+      <CardHeader className="pb-3">
+        <CardTitle className="text-lg flex items-center gap-2">
+          <Search className="h-5 w-5 text-blue-600" />
+          Quick Query
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="flex gap-2">
+          <div className="h-10 flex-1 bg-gray-100 rounded-md animate-pulse" />
+          <div className="h-10 w-10 bg-gray-100 rounded-md animate-pulse" />
+        </div>
+        <div className="space-y-2">
+          <div className="h-4 w-24 bg-gray-100 rounded animate-pulse" />
+          <div className="h-10 bg-gray-100 rounded-md animate-pulse" />
+          <div className="h-10 bg-gray-100 rounded-md animate-pulse" />
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+// Export with dynamic import to prevent SSR issues with localStorage
+export const QueryWidget = dynamic(
+  () => Promise.resolve(QueryWidgetInternal),
+  {
+    ssr: false,
+    loading: () => <QueryWidgetSkeleton />,
+  }
+);

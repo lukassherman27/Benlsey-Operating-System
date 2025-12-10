@@ -222,17 +222,6 @@ async def generate_project_milestones(project_code: str):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-# DISABLED: This created garbage data by treating sales milestones as deliverables
-# @router.post("/deliverables/seed-from-milestones")
-# async def seed_deliverables_from_milestones():
-#     """Seed deliverables from existing milestones"""
-#     try:
-#         result = deliverables_service.seed_from_milestones()
-#         return action_response(True, data=result, message="Deliverables seeded")
-#     except Exception as e:
-#         raise HTTPException(status_code=500, detail=str(e))
-
-
 @router.get("/lifecycle-phases")
 async def get_lifecycle_phases():
     """Get project lifecycle phases with typical durations"""

@@ -16,6 +16,7 @@ Endpoints:
 from fastapi import APIRouter, HTTPException, Query
 from typing import Optional
 from datetime import datetime
+import sqlite3
 
 from api.services import proposal_service, proposal_tracker_service
 from api.dependencies import DB_PATH
@@ -576,3 +577,226 @@ async def search_proposals_by_client(
         return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to search proposals: {str(e)}")
+
+
+# ============================================================================
+# PROPOSAL TIMELINE & STAKEHOLDERS
+# ============================================================================
+
+@router.get("/proposals/{project_code}/timeline")
+async def get_proposal_timeline(
+    project_code: str,
+    limit: int = Query(50, ge=1, le=500, description="Number of items to return")
+):
+    """
+    Get unified timeline for a proposal combining emails, meetings, and events.
+
+    Returns chronological list of activities sorted by date (most recent first).
+    Each item includes: type, date, title, summary, id
+
+    Example: GET /api/proposals/25%20BK-033/timeline
+    """
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+
+        # Get proposal_id from project_code
+        cursor.execute("SELECT proposal_id, project_name FROM proposals WHERE project_code = ?", (project_code,))
+        proposal_row = cursor.fetchone()
+
+        if not proposal_row:
+            conn.close()
+            raise HTTPException(status_code=404, detail=f"Proposal {project_code} not found")
+
+        proposal_id = proposal_row['proposal_id']
+        project_name = proposal_row['project_name']
+
+        timeline_items = []
+
+        # Get emails linked to this proposal
+        cursor.execute("""
+            SELECT
+                e.email_id as id,
+                'email' as type,
+                e.date,
+                e.subject as title,
+                COALESCE(e.snippet, SUBSTR(e.body_full, 1, 200)) as summary,
+                e.sender_email,
+                e.sender_name,
+                epl.confidence_score,
+                epl.match_method
+            FROM emails e
+            JOIN email_proposal_links epl ON e.email_id = epl.email_id
+            WHERE epl.proposal_id = ?
+            ORDER BY e.date DESC
+            LIMIT ?
+        """, (proposal_id, limit))
+
+        for row in cursor.fetchall():
+            timeline_items.append(dict(row))
+
+        # Get meeting transcripts linked to this proposal
+        cursor.execute("""
+            SELECT
+                id,
+                'meeting' as type,
+                COALESCE(meeting_date, recorded_date, created_at) as date,
+                COALESCE(meeting_title, audio_filename, 'Meeting Transcript') as title,
+                COALESCE(summary, 'No summary available') as summary,
+                participants,
+                duration_seconds
+            FROM meeting_transcripts
+            WHERE proposal_id = ? OR detected_project_code = ?
+            ORDER BY COALESCE(meeting_date, recorded_date, created_at) DESC
+            LIMIT ?
+        """, (proposal_id, project_code, limit))
+
+        for row in cursor.fetchall():
+            timeline_items.append(dict(row))
+
+        # Get proposal events
+        cursor.execute("""
+            SELECT
+                event_id as id,
+                'event' as type,
+                event_date as date,
+                title,
+                COALESCE(description, event_type) as summary,
+                event_type,
+                location,
+                attendees,
+                is_confirmed,
+                completed,
+                outcome
+            FROM proposal_events
+            WHERE proposal_id = ? OR project_code = ?
+            ORDER BY event_date DESC
+            LIMIT ?
+        """, (proposal_id, project_code, limit))
+
+        for row in cursor.fetchall():
+            timeline_items.append(dict(row))
+
+        conn.close()
+
+        # Sort all items by date descending
+        def get_date_key(item):
+            date_str = item.get('date', '')
+            if not date_str:
+                return ''
+            return date_str
+
+        timeline_items.sort(key=get_date_key, reverse=True)
+
+        # Limit to requested size
+        timeline_items = timeline_items[:limit]
+
+        return {
+            "success": True,
+            "project_code": project_code,
+            "project_name": project_name,
+            "timeline": timeline_items,
+            "total": len(timeline_items),
+            "item_counts": {
+                "email": sum(1 for i in timeline_items if i.get('type') == 'email'),
+                "meeting": sum(1 for i in timeline_items if i.get('type') == 'meeting'),
+                "event": sum(1 for i in timeline_items if i.get('type') == 'event'),
+            }
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to get proposal timeline: {str(e)}")
+
+
+@router.get("/proposals/{project_code}/stakeholders")
+async def get_proposal_stakeholders(project_code: str):
+    """
+    Get stakeholders/contacts for a proposal.
+
+    Returns list of contacts with their role, company, email, etc.
+    If proposal_stakeholders table is empty, derives contacts from emails.
+
+    Example: GET /api/proposals/25%20BK-033/stakeholders
+    """
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+
+        # Get proposal_id from project_code
+        cursor.execute("SELECT proposal_id, project_name FROM proposals WHERE project_code = ?", (project_code,))
+        proposal_row = cursor.fetchone()
+
+        if not proposal_row:
+            conn.close()
+            raise HTTPException(status_code=404, detail=f"Proposal {project_code} not found")
+
+        proposal_id = proposal_row['proposal_id']
+        project_name = proposal_row['project_name']
+
+        # Try to get stakeholders from proposal_stakeholders table
+        cursor.execute("""
+            SELECT
+                stakeholder_id as contact_id,
+                name,
+                email,
+                role,
+                company,
+                phone,
+                whatsapp,
+                is_primary,
+                relationship_strength,
+                communication_preference,
+                notes,
+                last_contact_date
+            FROM proposal_stakeholders
+            WHERE proposal_id = ? OR project_code = ?
+            ORDER BY is_primary DESC, name
+        """, (proposal_id, project_code))
+
+        stakeholders = [dict(row) for row in cursor.fetchall()]
+
+        # If no stakeholders found, derive from emails
+        if not stakeholders:
+            cursor.execute("""
+                SELECT DISTINCT
+                    NULL as contact_id,
+                    e.sender_name as name,
+                    e.sender_email as email,
+                    'Client' as role,
+                    NULL as company,
+                    NULL as phone,
+                    NULL as whatsapp,
+                    0 as is_primary,
+                    NULL as relationship_strength,
+                    NULL as communication_preference,
+                    'Derived from email activity' as notes,
+                    MAX(e.date) as last_contact_date
+                FROM emails e
+                JOIN email_proposal_links epl ON e.email_id = epl.email_id
+                WHERE epl.proposal_id = ?
+                AND e.sender_email NOT LIKE '%@bensley.com%'
+                GROUP BY e.sender_email, e.sender_name
+                ORDER BY MAX(e.date) DESC
+                LIMIT 20
+            """, (proposal_id,))
+
+            stakeholders = [dict(row) for row in cursor.fetchall()]
+
+        conn.close()
+
+        return {
+            "success": True,
+            "project_code": project_code,
+            "project_name": project_name,
+            "stakeholders": stakeholders,
+            "count": len(stakeholders)
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to get proposal stakeholders: {str(e)}")

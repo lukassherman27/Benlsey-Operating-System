@@ -28,6 +28,7 @@ import { format } from "date-fns";
 import { HealthBadge } from "@/components/dashboard/health-badge";
 import { ProposalTimeline } from "@/components/proposals/proposal-timeline";
 import { UnifiedTimeline } from "@/components/project/unified-timeline";
+import { StakeholdersCard } from "@/components/proposal/stakeholders-card";
 
 export default function ProjectDetailPage() {
   const params = useParams();
@@ -264,6 +265,9 @@ export default function ProjectDetailPage() {
 
         {/* Overview Tab */}
         <TabsContent value="overview" className="space-y-4">
+          {/* Stakeholders Card - Full Width */}
+          <StakeholdersCard projectCode={projectCode} />
+
           <div className="grid gap-4 md:grid-cols-2">
             {/* Health Breakdown */}
             <Card>

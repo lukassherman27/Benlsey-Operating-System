@@ -17,6 +17,15 @@ Endpoints:
     PATCH /api/manual-overrides/{id} - Update override
     POST /api/manual-overrides/{id}/apply - Apply override
     POST /api/admin/run-pipeline - Run full email processing pipeline
+    POST /api/admin/batch-process-emails - Process emails with context-aware AI
+    GET /api/admin/batch-process-status - Get processing status and stats
+    POST /api/admin/process-email/{email_id} - Process single email
+    POST /api/admin/process-unlinked-emails - Process emails without links
+    POST /api/admin/process-transcript/{transcript_id} - Process single transcript
+    POST /api/admin/process-unlinked-transcripts - Process all unlinked transcripts
+    POST /api/admin/consolidate-transcripts - Consolidate chunked transcripts
+    GET /api/admin/analyze-transcripts - Analyze transcript chunk patterns
+    POST /api/admin/generate-transcript-title/{id} - Generate smart title
 """
 
 from fastapi import APIRouter, HTTPException, Query
@@ -726,3 +735,802 @@ async def run_pipeline(request: RunPipelineRequest = None):
     results['summary'] = f"Completed {len(results['steps_completed'])} steps, skipped {len(results['steps_skipped'])}, {len(results['errors'])} errors"
 
     return results
+
+
+# ============================================================================
+# CONTEXT-AWARE BATCH PROCESSING
+# ============================================================================
+
+class BatchProcessRequest(BaseModel):
+    """Request model for batch processing emails with context-aware AI"""
+    limit: int = Field(100, ge=1, le=500, description="Max emails to process")
+    hours_back: int = Field(720, ge=1, le=8760, description="Process emails from last N hours (default 30 days)")
+    dry_run: bool = Field(False, description="If true, just return count of emails to process")
+
+
+@router.post("/admin/batch-process-emails")
+async def batch_process_emails(request: BatchProcessRequest = None):
+    """
+    Process unclassified emails with context-aware AI suggestion system.
+
+    This endpoint:
+    1. Finds emails that haven't been processed with context-aware analysis
+    2. Runs GPT-4o-mini analysis on each email
+    3. Creates suggestions with pattern-boosted confidence
+    4. Updates email classification (type, is_project_related)
+
+    Uses learned patterns to boost confidence when sender/domain matches.
+
+    Args:
+        limit: Max emails to process (1-500)
+        hours_back: Only process emails from last N hours
+        dry_run: If true, just return count without processing
+
+    Returns:
+        Processing results including emails processed, suggestions created, cost
+    """
+    if request is None:
+        request = BatchProcessRequest()
+
+    try:
+        from backend.services.context_aware_suggestion_service import get_context_aware_service
+
+        service = get_context_aware_service(DB_PATH)
+
+        if request.dry_run:
+            # Count unprocessed emails without processing
+            unprocessed = service._get_unprocessed_emails(
+                limit=10000,
+                hours_back=request.hours_back
+            )
+            return {
+                "dry_run": True,
+                "would_process": len(unprocessed),
+                "hours_back": request.hours_back,
+                "limit": request.limit
+            }
+
+        # Run batch processing
+        result = service.generate_suggestions_batch(
+            limit=request.limit,
+            hours_back=request.hours_back
+        )
+
+        return {
+            "success": True,
+            "emails_processed": result.get("emails_processed", 0),
+            "suggestions_created": result.get("total_suggestions", 0),
+            "patterns_used": result.get("patterns_used", 0),
+            "total_cost_usd": result.get("cost_usd", 0),
+            "processing_time_seconds": result.get("processing_time_seconds", 0),
+            "details": result
+        }
+
+    except Exception as e:
+        return {
+            "success": False,
+            "error": str(e),
+            "emails_processed": 0,
+            "suggestions_created": 0
+        }
+
+
+class ProcessUnlinkedRequest(BaseModel):
+    """Request model for processing unlinked emails"""
+    limit: int = Field(100, ge=1, le=500, description="Max emails to process")
+    project_code: Optional[str] = Field(None, description="Only process emails mentioning this project")
+    hours_back: int = Field(720, ge=1, le=8760, description="Process emails from last N hours (default 30 days)")
+
+
+@router.post("/admin/process-unlinked-emails")
+async def process_unlinked_emails(request: ProcessUnlinkedRequest = None):
+    """
+    Process emails that have no existing links to proposals/projects.
+
+    This endpoint finds emails that:
+    1. Have no entries in email_proposal_links or email_project_links
+    2. Were received in the last N hours
+    3. Optionally mention a specific project code
+
+    For each email, it runs context-aware analysis and creates suggestions.
+
+    Returns:
+        Batch processing results including emails processed and suggestions created
+    """
+    if request is None:
+        request = ProcessUnlinkedRequest()
+
+    try:
+        from backend.services.context_aware_suggestion_service import get_context_aware_service
+
+        service = get_context_aware_service(DB_PATH)
+
+        # Get unlinked email IDs
+        with proposal_service.get_connection() as conn:
+            cursor = conn.cursor()
+
+            query = """
+                SELECT e.email_id
+                FROM emails e
+                WHERE e.date >= datetime('now', '-' || ? || ' hours')
+                AND NOT EXISTS (
+                    SELECT 1 FROM email_proposal_links epl WHERE epl.email_id = e.email_id
+                )
+                AND NOT EXISTS (
+                    SELECT 1 FROM email_project_links eprl WHERE eprl.email_id = e.email_id
+                )
+            """
+            params = [request.hours_back]
+
+            if request.project_code:
+                query += """
+                    AND (e.subject LIKE ? OR e.body_preview LIKE ?)
+                """
+                params.extend([f"%{request.project_code}%", f"%{request.project_code}%"])
+
+            query += " ORDER BY e.date DESC LIMIT ?"
+            params.append(request.limit)
+
+            cursor.execute(query, params)
+            email_ids = [row[0] for row in cursor.fetchall()]
+
+        if not email_ids:
+            return {
+                "success": True,
+                "message": "No unlinked emails found",
+                "emails_processed": 0,
+                "suggestions_created": 0,
+            }
+
+        # Process batch
+        result = service.generate_suggestions_batch(
+            email_ids=email_ids,
+            limit=request.limit,
+        )
+
+        return {
+            "success": True,
+            "emails_found": len(email_ids),
+            "emails_processed": result.get("emails_processed", 0),
+            "suggestions_created": result.get("suggestions_created", 0),
+            "cost_usd": result.get("cost_usd", 0),
+            "processing_time_seconds": result.get("processing_time_seconds", 0),
+        }
+
+    except Exception as e:
+        return {
+            "success": False,
+            "error": str(e),
+            "emails_processed": 0,
+            "suggestions_created": 0,
+        }
+
+
+@router.post("/admin/process-email/{email_id}")
+async def process_single_email(email_id: int):
+    """
+    Process a single email and create suggestions using context-aware analysis.
+
+    This endpoint:
+    1. Loads the email by ID
+    2. Builds context from active proposals, learned patterns, contacts
+    3. Calls GPT-4o-mini for analysis
+    4. Creates suggestions (link_email, action_required, new_contact)
+    5. Logs usage for cost tracking
+
+    Returns:
+        Processing result including suggestions created and cost
+    """
+    try:
+        from backend.services.context_aware_suggestion_service import get_context_aware_service
+
+        service = get_context_aware_service(DB_PATH)
+        result = service.generate_suggestions_for_email(email_id)
+
+        return {
+            "success": result.get("success", False),
+            "email_id": email_id,
+            "skipped": result.get("skipped", False),
+            "suggestions_created": result.get("suggestions_created", 0),
+            "suggestion_ids": result.get("suggestion_ids", []),
+            "usage": result.get("usage"),
+            "error": result.get("error"),
+        }
+    except Exception as e:
+        return {
+            "success": False,
+            "email_id": email_id,
+            "error": str(e),
+        }
+
+
+@router.get("/admin/batch-process-status")
+async def get_batch_process_status():
+    """
+    Get status of email processing system.
+
+    Returns:
+        - Count of unprocessed emails
+        - Count of processed emails
+        - Pattern usage statistics
+        - GPT cost statistics
+    """
+    try:
+        with proposal_service.get_connection() as conn:
+            cursor = conn.cursor()
+
+            # Count emails by processing status
+            cursor.execute("""
+                SELECT
+                    SUM(CASE WHEN email_type IS NULL THEN 1 ELSE 0 END) as unprocessed,
+                    SUM(CASE WHEN email_type IS NOT NULL THEN 1 ELSE 0 END) as processed,
+                    COUNT(*) as total
+                FROM emails
+                WHERE date >= datetime('now', '-30 days')
+            """)
+            row = cursor.fetchone()
+
+            # Pattern usage stats
+            cursor.execute("""
+                SELECT
+                    COUNT(*) as total_patterns,
+                    SUM(times_used) as total_uses,
+                    SUM(times_correct) as total_correct,
+                    SUM(times_rejected) as total_rejected,
+                    AVG(confidence) as avg_confidence
+                FROM email_learned_patterns
+                WHERE is_active = 1
+            """)
+            pattern_row = cursor.fetchone()
+
+            # GPT cost stats (last 30 days)
+            cursor.execute("""
+                SELECT
+                    COUNT(*) as total_calls,
+                    SUM(input_tokens) as total_input_tokens,
+                    SUM(output_tokens) as total_output_tokens,
+                    SUM(estimated_cost_usd) as total_cost
+                FROM gpt_usage_log
+                WHERE created_at >= datetime('now', '-30 days')
+            """)
+            cost_row = cursor.fetchone()
+
+            return {
+                "emails": {
+                    "unprocessed_last_30_days": row[0] if row else 0,
+                    "processed_last_30_days": row[1] if row else 0,
+                    "total_last_30_days": row[2] if row else 0
+                },
+                "patterns": {
+                    "total_active": pattern_row[0] if pattern_row else 0,
+                    "times_used": pattern_row[1] if pattern_row else 0,
+                    "times_correct": pattern_row[2] if pattern_row else 0,
+                    "times_rejected": pattern_row[3] if pattern_row else 0,
+                    "avg_confidence": round(pattern_row[4], 3) if pattern_row and pattern_row[4] else 0
+                },
+                "gpt_costs_30_days": {
+                    "total_calls": cost_row[0] if cost_row else 0,
+                    "total_tokens": (cost_row[1] or 0) + (cost_row[2] or 0) if cost_row else 0,
+                    "total_cost_usd": round(cost_row[3], 4) if cost_row and cost_row[3] else 0
+                }
+            }
+
+    except Exception as e:
+        return {"error": str(e)}
+
+
+# ============================================================================
+# TRANSCRIPT PROCESSING ENDPOINTS
+# ============================================================================
+
+@router.post("/admin/process-transcript/{transcript_id}")
+async def process_single_transcript(transcript_id: int, use_ai: bool = Query(True)):
+    """
+    Process a single transcript and create suggestion if match found.
+
+    This endpoint:
+    1. Loads the transcript by ID
+    2. Tries code extraction from transcript text
+    3. Falls back to name matching against proposals
+    4. Uses AI analysis as last resort (if use_ai=True)
+    5. Creates transcript_link suggestion for human review
+
+    Args:
+        transcript_id: ID of the meeting_transcripts record
+        use_ai: Whether to use AI analysis if code/name matching fails (default: True)
+
+    Returns:
+        Processing result including match info and suggestion_id if created
+    """
+    try:
+        from backend.services.transcript_linker_service import TranscriptLinker
+
+        linker = TranscriptLinker(DB_PATH, use_ai=use_ai)
+        result = linker.process_single_transcript(transcript_id, use_ai=use_ai)
+
+        return result
+    except Exception as e:
+        return {
+            "success": False,
+            "transcript_id": transcript_id,
+            "error": str(e)
+        }
+
+
+class BatchTranscriptRequest(BaseModel):
+    """Request model for batch transcript processing"""
+    limit: int = Field(default=50, ge=1, le=500, description="Max transcripts to process")
+    use_ai: bool = Field(default=True, description="Use AI analysis for unmatched transcripts")
+    dry_run: bool = Field(default=False, description="If true, report matches without creating suggestions")
+
+
+@router.post("/admin/process-unlinked-transcripts")
+async def process_unlinked_transcripts(request: BatchTranscriptRequest = None):
+    """
+    Process all unlinked transcripts and create suggestions.
+
+    This endpoint finds all transcripts without proposal_id/project_id and:
+    1. Extracts project codes from transcript text
+    2. Matches project/client names mentioned
+    3. Uses AI analysis for difficult cases (if use_ai=True)
+    4. Creates transcript_link suggestions for human review
+
+    IMPORTANT: Does NOT auto-link anything - only creates suggestions.
+
+    Args:
+        limit: Max transcripts to process (1-500)
+        use_ai: Whether to use AI for unmatched transcripts
+        dry_run: If true, report matches without creating suggestions
+
+    Returns:
+        Processing statistics including matches and suggestions created
+    """
+    if request is None:
+        request = BatchTranscriptRequest()
+
+    try:
+        from backend.services.transcript_linker_service import TranscriptLinker
+
+        linker = TranscriptLinker(DB_PATH, use_ai=request.use_ai)
+        stats = linker.run(dry_run=request.dry_run, limit=request.limit)
+
+        return {
+            "success": True,
+            "dry_run": request.dry_run,
+            "stats": stats
+        }
+    except Exception as e:
+        return {
+            "success": False,
+            "error": str(e)
+        }
+
+
+@router.get("/admin/transcript-status")
+async def get_transcript_status():
+    """
+    Get status of transcript linking.
+
+    Returns:
+        - Count of unlinked transcripts
+        - Count of linked transcripts
+        - Pending transcript_link suggestions
+    """
+    try:
+        with sqlite3.connect(DB_PATH) as conn:
+            cursor = conn.cursor()
+
+            # Count unlinked transcripts
+            cursor.execute("""
+                SELECT COUNT(*) FROM meeting_transcripts
+                WHERE proposal_id IS NULL
+                  AND project_id IS NULL
+                  AND transcript IS NOT NULL
+                  AND transcript != ''
+            """)
+            unlinked = cursor.fetchone()[0]
+
+            # Count linked transcripts
+            cursor.execute("""
+                SELECT COUNT(*) FROM meeting_transcripts
+                WHERE (proposal_id IS NOT NULL OR project_id IS NOT NULL)
+                  AND transcript IS NOT NULL
+            """)
+            linked = cursor.fetchone()[0]
+
+            # Count pending suggestions
+            cursor.execute("""
+                SELECT COUNT(*) FROM ai_suggestions
+                WHERE suggestion_type = 'transcript_link'
+                  AND status = 'pending'
+            """)
+            pending_suggestions = cursor.fetchone()[0]
+
+            # Count approved suggestions
+            cursor.execute("""
+                SELECT COUNT(*) FROM ai_suggestions
+                WHERE suggestion_type = 'transcript_link'
+                  AND status = 'approved'
+            """)
+            approved_suggestions = cursor.fetchone()[0]
+
+            return {
+                "transcripts": {
+                    "total": unlinked + linked,
+                    "unlinked": unlinked,
+                    "linked": linked
+                },
+                "suggestions": {
+                    "pending": pending_suggestions,
+                    "approved": approved_suggestions
+                }
+            }
+    except Exception as e:
+        return {"error": str(e)}
+
+
+# ============================================================================
+# TRANSCRIPT CONSOLIDATION ENDPOINTS
+# ============================================================================
+
+class ConsolidateTranscriptsRequest(BaseModel):
+    """Request model for transcript consolidation"""
+    dry_run: bool = Field(default=False, description="If true, report changes without applying them")
+    generate_titles: bool = Field(default=True, description="Generate smart titles after consolidation")
+
+
+@router.get("/admin/analyze-transcripts")
+async def analyze_transcripts():
+    """
+    Analyze meeting_transcripts table to identify chunk patterns and duplicates.
+
+    Returns detailed analysis showing:
+    - Total rows vs unique meetings
+    - Meetings with chunks (split due to length)
+    - Meetings with duplicate rows
+    - Per-meeting breakdown with IDs
+
+    Use this to understand what consolidation will do before running it.
+    """
+    try:
+        from backend.services.transcript_consolidation_service import get_consolidation_service
+
+        service = get_consolidation_service(DB_PATH)
+        analysis = service.analyze_transcripts()
+
+        return {
+            "success": True,
+            "analysis": analysis
+        }
+    except Exception as e:
+        return {
+            "success": False,
+            "error": str(e)
+        }
+
+
+@router.post("/admin/consolidate-transcripts")
+async def consolidate_transcripts(request: ConsolidateTranscriptsRequest = None):
+    """
+    Consolidate chunked and duplicated transcripts into single records.
+
+    This endpoint:
+    1. Groups transcripts by base filename (strips _chunk1, _chunk2 suffixes)
+    2. Deduplicates rows (keeps best content from each chunk)
+    3. Merges transcripts in order (chunk1 + chunk2 + chunk3...)
+    4. Deletes redundant rows, keeping one consolidated record per meeting
+    5. Generates smart titles using GPT (optional)
+
+    IMPORTANT: This modifies the database. Use dry_run=True first to preview.
+
+    Args:
+        dry_run: If true, report what would happen without making changes
+        generate_titles: If true (default), generate smart titles after consolidation
+
+    Returns:
+        Consolidation results including:
+        - Before/after row counts
+        - Per-meeting consolidation details
+        - Generated titles
+        - Statistics
+    """
+    if request is None:
+        request = ConsolidateTranscriptsRequest()
+
+    try:
+        from backend.services.transcript_consolidation_service import get_consolidation_service
+
+        service = get_consolidation_service(DB_PATH)
+
+        # Run consolidation
+        results = service.consolidate_all(dry_run=request.dry_run)
+
+        # Format response
+        response = {
+            "success": True,
+            "dry_run": request.dry_run,
+            "before": {
+                "total_rows": results['analysis']['total_rows'],
+                "unique_meetings": results['analysis']['unique_meetings'],
+                "meetings_with_chunks": results['analysis']['meetings_with_chunks'],
+                "meetings_with_duplicates": results['analysis']['meetings_with_duplicates'],
+                "total_duplicates": results['analysis']['total_duplicates']
+            },
+            "consolidations": len(results['consolidations']),
+            "consolidation_details": results['consolidations'],
+            "titles_generated": len([t for t in results.get('titles_generated', []) if t.get('success')]),
+            "title_results": results.get('titles_generated', []),
+            "stats": results['stats']
+        }
+
+        if results.get('final_analysis'):
+            response["after"] = {
+                "total_rows": results['final_analysis']['total_rows'],
+                "unique_meetings": results['final_analysis']['unique_meetings']
+            }
+
+        return response
+
+    except Exception as e:
+        return {
+            "success": False,
+            "error": str(e)
+        }
+
+
+@router.post("/admin/generate-transcript-title/{transcript_id}")
+async def generate_transcript_title(transcript_id: int):
+    """
+    Generate a smart title for a single transcript using GPT.
+
+    Format: "{Project Name} - {Meeting Topic}" (max 60 chars)
+
+    The title generation uses:
+    1. Transcript content analysis
+    2. Summary if available
+    3. Linked proposal context
+    4. Active proposals list for matching
+
+    Args:
+        transcript_id: ID of the meeting_transcripts record
+
+    Returns:
+        Generated title and metadata
+    """
+    try:
+        from backend.services.transcript_consolidation_service import get_consolidation_service
+
+        service = get_consolidation_service(DB_PATH)
+        result = service.generate_smart_title(transcript_id)
+
+        return result
+    except Exception as e:
+        return {
+            "success": False,
+            "error": str(e),
+            "transcript_id": transcript_id
+        }
+
+
+@router.post("/admin/consolidate-meeting/{base_filename}")
+async def consolidate_single_meeting(base_filename: str, dry_run: bool = Query(False)):
+    """
+    Consolidate chunks and duplicates for a single meeting.
+
+    Args:
+        base_filename: The base meeting name (e.g., "meeting_20251127_122841")
+        dry_run: If true, report without making changes
+
+    Returns:
+        Consolidation details for this meeting
+    """
+    try:
+        from backend.services.transcript_consolidation_service import get_consolidation_service
+
+        service = get_consolidation_service(DB_PATH)
+        result = service.consolidate_meeting(base_filename, dry_run=dry_run)
+
+        return result
+    except Exception as e:
+        return {
+            "success": False,
+            "error": str(e),
+            "base_filename": base_filename
+        }
+
+
+@router.post("/admin/match-transcript-participants/{transcript_id}")
+async def match_transcript_participants(transcript_id: int):
+    """
+    Match participant names in a transcript against the contacts database.
+
+    This endpoint:
+    1. Extracts names mentioned in the transcript using GPT
+    2. Fuzzy matches names against contacts table (handles transcription errors)
+    3. Prioritizes contacts linked to the same proposal
+    4. Updates the participants field with matched contact info
+
+    Args:
+        transcript_id: ID of the meeting_transcripts record
+
+    Returns:
+        Matched participants with contact_id, email, and match confidence
+    """
+    try:
+        from backend.services.transcript_consolidation_service import get_consolidation_service
+
+        service = get_consolidation_service(DB_PATH)
+        result = service.match_participants(transcript_id)
+
+        return result
+    except Exception as e:
+        return {
+            "success": False,
+            "error": str(e),
+            "transcript_id": transcript_id
+        }
+
+
+@router.post("/admin/match-all-transcript-participants")
+async def match_all_transcript_participants():
+    """
+    Match participants for all transcripts against contacts database.
+
+    Processes all transcripts and attempts to match mentioned names
+    to known contacts using GPT extraction and fuzzy matching.
+
+    Returns:
+        Summary of all matches made
+    """
+    try:
+        from backend.services.transcript_consolidation_service import get_consolidation_service
+
+        service = get_consolidation_service(DB_PATH)
+        result = service.match_all_participants()
+
+        return result
+    except Exception as e:
+        return {
+            "success": False,
+            "error": str(e)
+        }
+
+
+# ============================================================================
+# EMAIL THREAD CONTEXT
+# ============================================================================
+
+@router.get("/admin/thread/{thread_id}")
+async def get_thread_details(thread_id: str):
+    """
+    Get detailed information about an email thread.
+
+    Returns:
+        - Thread info (total emails, date range, subject)
+        - All participants (internal/external)
+        - Existing project/proposal links
+        - Email history
+        - Conversation state (waiting for us or them)
+
+    Use this to understand a conversation and see which emails
+    are already linked to proposals.
+    """
+    try:
+        from backend.services.thread_context_service import get_thread_context_service
+
+        service = get_thread_context_service(DB_PATH)
+        result = service.get_thread_summary(thread_id)
+
+        return {
+            "success": True,
+            **result
+        }
+    except Exception as e:
+        return {
+            "success": False,
+            "error": str(e),
+            "thread_id": thread_id
+        }
+
+
+@router.get("/admin/threads")
+async def list_threads(
+    min_emails: int = Query(2, description="Minimum emails in thread"),
+    limit: int = Query(50, description="Max threads to return"),
+    has_links: Optional[bool] = Query(None, description="Filter by whether thread has project links")
+):
+    """
+    List email threads with statistics.
+
+    Returns threads sorted by email count, with info about
+    linked projects and participants.
+    """
+    try:
+        import sqlite3
+        conn = sqlite3.connect(DB_PATH)
+        conn.row_factory = sqlite3.Row
+
+        # Base query for threads with stats
+        query = """
+            SELECT
+                e.thread_id,
+                COUNT(DISTINCT e.email_id) as email_count,
+                MIN(e.date) as first_email,
+                MAX(e.date) as last_email,
+                MIN(e.subject) as subject,
+                COUNT(DISTINCT epl.email_id) as linked_emails,
+                GROUP_CONCAT(DISTINCT p.project_code) as project_codes
+            FROM emails e
+            LEFT JOIN email_proposal_links epl ON e.email_id = epl.email_id
+            LEFT JOIN proposals p ON epl.proposal_id = p.proposal_id
+            WHERE e.thread_id IS NOT NULL AND e.thread_id != ''
+            GROUP BY e.thread_id
+            HAVING email_count >= ?
+        """
+
+        params = [min_emails]
+
+        if has_links is True:
+            query += " AND linked_emails > 0"
+        elif has_links is False:
+            query += " AND linked_emails = 0"
+
+        query += " ORDER BY email_count DESC LIMIT ?"
+        params.append(limit)
+
+        cursor = conn.execute(query, params)
+        threads = [dict(row) for row in cursor.fetchall()]
+        conn.close()
+
+        return {
+            "success": True,
+            "threads": threads,
+            "count": len(threads)
+        }
+    except Exception as e:
+        return {
+            "success": False,
+            "error": str(e)
+        }
+
+
+@router.get("/admin/email/{email_id}/thread-context")
+async def get_email_thread_context(email_id: int):
+    """
+    Get thread context for a specific email.
+
+    This is what GPT sees when analyzing an email - shows the thread
+    history, existing links, and conversation state.
+
+    Useful for debugging why GPT made certain suggestions.
+    """
+    try:
+        from backend.services.thread_context_service import get_thread_context_service
+
+        service = get_thread_context_service(DB_PATH)
+        result = service.get_thread_context(email_id)
+
+        if not result:
+            return {
+                "success": True,
+                "has_thread": False,
+                "email_id": email_id,
+                "message": "Email has no thread_id or is the only email in thread"
+            }
+
+        # Also get suggested link based on thread
+        suggested_link = service.suggest_link_from_thread(email_id)
+
+        return {
+            "success": True,
+            "has_thread": True,
+            "email_id": email_id,
+            **result,
+            "suggested_link_from_thread": suggested_link
+        }
+    except Exception as e:
+        return {
+            "success": False,
+            "error": str(e),
+            "email_id": email_id
+        }

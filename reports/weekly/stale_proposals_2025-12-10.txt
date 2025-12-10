@@ -1,0 +1,224 @@
+======================================================================
+STALE PROPOSALS REPORT - 2025-12-10
+Proposals where WE sent the last email and haven't heard back
+======================================================================
+
+Total stale proposals: 57
+  Critical (90+ days):  18
+  High (30-90 days):    16
+  Medium (14-30 days):  11
+  Watch (7-14 days):    12
+
+----------------------------------------------------------------------
+CRITICAL - No response in 90+ days
+----------------------------------------------------------------------
+  25 BK-027 (30 Residence Villas at Bai Bac, Vietnam)
+    Days silent: 167
+    Last email:  2025-06-25
+    Contact:     Lan, Nguyen Thi Huyen (BQLTK) (lannth01@sungroup.com.vn)
+    Status:      Dormant
+
+  25 BK-095 (Caneel Bay Resort, St. John, USVI)
+    Days silent: 163
+    Last email:  2025-06-30
+    Contact:     Jeff Palmer (jeff@tbltourism.com)
+    Status:      Dormant
+
+  25 BK-034 (Baccarat Maldives Hotel & Residences resort development project)
+    Days silent: 158
+    Last email:  2025-07-04
+    Contact:     Mohamed Khussan (mohamed.khussan@kamcorp.ae)
+    Status:      Dormant
+
+  25 BK-003 (The George Hotel in Lagos, Nigeria)
+    Days silent: 156
+    Last email:  2025-07-06
+    Contact:     Tein George (tein.george@seametriceng.com)
+    Status:      Dormant
+
+  25 BK-103 (Sanmar Properties Interior Design - Bangladesh)
+    Days silent: 156
+    Last email:  2025-07-07
+    Contact:     N/A (N/A)
+    Status:      Dormant
+
+  25 BK-092 (Ritz Carlton Residences/Lodge - Jodhpur & Udaipur, India)
+    Days silent: 144
+    Last email:  2025-07-18
+    Contact:     Vinod Singh Rajpurohit (vinod@artncraftsinc.com)
+    Status:      Dormant
+
+  25 BK-093 (Luxury Resort in Jasana, Faridabad, India)
+    Days silent: 142
+    Last email:  2025-07-21
+    Contact:     Shobhit Goel (N/A)
+    Status:      Dormant
+
+  25 BK-091 (Three Luxury Resorts - Kaul Advisory)
+    Days silent: 141
+    Last email:  2025-07-21
+    Contact:     Rajiv Kaul (rajiv.kaul@kauladvisory.com)
+    Status:      Dormant
+
+  25 BK-046 (The Sukhothai Chinese Restaurant & Garden Pavilion Area)
+    Days silent: 137
+    Last email:  2025-07-25
+    Contact:     Keith Ying (Keith.Ying@hkri.com)
+    Status:      Dormant
+
+  25 BK-035 (Ratua Private Island Project)
+    Days silent: 132
+    Last email:  2025-07-30
+    Contact:     Jean-Yves Sireau & Pierre-Henri (jy@deriv.com)
+    Status:      Lost
+
+  25 BK-094 (Resort Development - AlMadinah AlMunawwarah)
+    Days silent: 132
+    Last email:  2025-07-30
+    Contact:     Al-Baraa Taibah (albaraa.taibah@gmail.com)
+    Status:      Dormant
+
+  25 BK-102 (Auro Realty Hi-End Residential, Hyderabad)
+    Days silent: 130
+    Last email:  2025-08-01
+    Contact:     N/A (N/A)
+    Status:      Dormant
+
+  25 BK-053 (Darwish Family House in Oman)
+    Days silent: 119
+    Last email:  2025-08-12
+    Contact:     Izdihar M. Darwish (izdihar-mhd@mhd.co.om)
+    Status:      Dormant
+
+  25 BK-051 (Pawana Lake Clubhouse and Resort, Mumbai)
+    Days silent: 118
+    Last email:  2025-08-13
+    Contact:     Siddhartha Oswal (siddhartha@tothetape.com)
+    Status:      Lost
+
+  25 BK-031 (Light Footprint Resort in Tea Gardens, Darjeeling, India)
+    Days silent: 117
+    Last email:  2025-08-14
+    Contact:     DEBASMITA KUNDU (debasmita@luxmigroup.in)
+    Status:      Dormant
+
+  25 BK-049 (Ayala Land Corporation)
+    Days silent: 113
+    Last email:  2025-08-18
+    Contact:     Athea Dayco (dayco.athea@ayalaland.com.ph)
+    Status:      Dormant
+
+  25 BK-107 (Residential Project Punjab, India)
+    Days silent: 104
+    Last email:  2025-08-27
+    Contact:     Magandip Riar (magandipriar@gmail.com)
+    Status:      Dormant
+
+  25 BK-044 (Reliance Industries Hotel & Branded residence)
+    Days silent: 96
+    Last email:  2025-09-04
+    Contact:     Monalisa R Parmar (Monalisa.R.Parmar@ril.com)
+    Status:      Dormant
+
+----------------------------------------------------------------------
+HIGH PRIORITY - No response in 30-90 days
+----------------------------------------------------------------------
+  25 BK-057 (Sol Group Korea Landscape)
+    Days silent: 78, Last: 2025-09-22
+    Contact: N/A
+
+  25 BK-061 (The Oasis Group Country Club in Lahore (Pakistan))
+    Days silent: 76, Last: 2025-09-24
+    Contact: Asif Ahmed / Kashif Ahmed
+
+  25 BK-067 (Mongolia (UB Group))
+    Days silent: 75, Last: 2025-09-25
+    Contact: N/A
+
+  25 BK-066 (Country Group (New Delhi))
+    Days silent: 72, Last: 2025-09-29
+    Contact: N/A
+
+  25 BK-105 (Ayun Resort Raja Ampat, Indonesia)
+    Days silent: 70, Last: 2025-10-01
+    Contact: David Gomez
+
+  25 BK-038 (Resort & Spa Costa rica)
+    Days silent: 58, Last: 2025-10-13
+    Contact: Brenda Russell
+
+  25 BK-056 (Grand Hyatt Rishikesh (278 Keys))
+    Days silent: 53, Last: 2025-10-17
+    Contact: N/A
+
+  25 BK-106 (Hyatt Resort Uttarakhand, India)
+    Days silent: 53, Last: 2025-10-17
+    Contact: Sumit Pratap Singh
+
+  25 BK-079 (Kasara Ghat Development, Kasuli, India)
+    Days silent: 44, Last: 2025-10-26
+    Contact: Mohnish Jain
+
+  25 BK-009 (Luxury Collection Safari Lodge Masai Mara, Kenya)
+    Days silent: 43, Last: 2025-10-27
+    Contact: Jerry shang
+
+  25 BK-052 (Santani Jebel Shams Wellness Resort - Oman)
+    Days silent: 43, Last: 2025-10-27
+    Contact: Sanitha Saju Ann (Head of Proposals)
+
+  25 BK-085 (Millennium Hotels and Resorts)
+    Days silent: 36, Last: 2025-11-03
+    Contact: N/A
+
+  25 BK-029 (Pondicherry project, India)
+    Days silent: 34, Last: 2025-11-05
+    Contact: Mr.Dilip Kapur
+
+  25 BK-045 (MDM World - Haeundae Project in Busan)
+    Days silent: 33, Last: 2025-11-07
+    Contact: Yoon Dong Joo
+
+  25 BK-077 (Chiang Mai Farmstay project)
+    Days silent: 33, Last: 2025-11-06
+    Contact: N/A
+
+  25 BK-081 (Lianhua Mountain Projet, Chang'an Township, Dongguan)
+    Days silent: 33, Last: 2025-11-06
+    Contact: Liu Shuai (Shawn)
+
+----------------------------------------------------------------------
+MEDIUM - No response in 14-30 days
+----------------------------------------------------------------------
+  24 BK-022 (43 Dang Thai Mai Project, Hanoi, Vietnam (Additional Revision for MICE Center)) - 29 days
+  25 BK-097 (CapitaLand Development Vietnam) - 27 days
+  25 BK-089 (Luxury Resort Project in Rajkot, India) - 21 days
+  25 BK-082 (Sumba Villas Development) - 21 days
+  25 BK-062 (Project Blue (Solaire Hotel) Manila) - 16 days
+  25 BK-076 (Cheval Blanc, Sazan, Albania) - 16 days
+  25 BK-037 (La Vie Wellness Resort, Hyderabad (Meil Group / Sudha Reddy)) - 14 days
+  25 BK-059 (Nungwi Project (Tanzania)) - 14 days
+  25 BK-060 (Cyprus Tented Camp) - 14 days
+  25 BK-065 (Euegene Private Library (USA)) - 14 days
+  25 BK-073 (Pachalur Estate) - 14 days
+
+----------------------------------------------------------------------
+WATCH - No response in 7-14 days
+----------------------------------------------------------------------
+  25 BK-083 (Aaravali Mountain Resort) - 12 days
+  25 BK-084 (Agarwal Private Residene Landscaping) - 12 days
+  25 BK-098 (625-Acre Mixed-Use Development India) - 12 days
+  25 BK-036 (Sunny Lagoons Maldives proiect - DAR Global) - 11 days
+  25 BK-048 (Daimon Sake Brewery) - 11 days
+  25 BK-087 (Vahine Island) - 11 days
+  25 BK-055 (Qatar Ecotourism Resort) - 8 days
+  25 BK-072 (Bodrum Additional Services) - 8 days
+  25 BK-086 (Hoxton Hotel Project) - 8 days
+  25 BK-088 (Patwari Family Residence - Rashmi Group, India) - 8 days
+  25 BK-058 (ShanXiangfeng Heritage Project) - 7 days
+  25 BK-101 (Texas Presidia County Property) - 7 days
+
+======================================================================
+Report generated: 2025-12-10 11:49:41
+Run: python scripts/core/generate_stale_proposals_report.py
+======================================================================

@@ -409,13 +409,31 @@ export default function ContactsPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [companyFilter, setCompanyFilter] = useState<string>("all");
   const [selectedContactId, setSelectedContactId] = useState<number | null>(null);
+  const [page, setPage] = useState(0);
+  const pageSize = 50;
 
-  // Fetch contacts
+  // Fetch contacts with pagination
   const { data, isLoading, error, refetch } = useQuery({
-    queryKey: ["contacts", searchQuery, companyFilter],
-    queryFn: () => fetchContacts({ search: searchQuery, company: companyFilter }),
+    queryKey: ["contacts", searchQuery, companyFilter, page],
+    queryFn: () => fetchContacts({
+      search: searchQuery,
+      company: companyFilter,
+      limit: pageSize,
+      offset: page * pageSize,
+    }),
     staleTime: 1000 * 60 * 5,
   });
+
+  // Reset page when filters change
+  const handleSearchChange = (value: string) => {
+    setSearchQuery(value);
+    setPage(0);
+  };
+
+  const handleCompanyChange = (value: string) => {
+    setCompanyFilter(value);
+    setPage(0);
+  };
 
   // Fetch stats
   const { data: statsData } = useQuery({
@@ -428,6 +446,9 @@ export default function ContactsPage() {
   const total = data?.total ?? 0;
   const stats = statsData?.data;
   const topCompanies = stats?.top_companies ?? [];
+  const totalPages = Math.ceil(total / pageSize);
+  const startIndex = page * pageSize + 1;
+  const endIndex = Math.min((page + 1) * pageSize, total);
 
   return (
     <div className="space-y-6 w-full max-w-full overflow-x-hidden">
@@ -519,11 +540,11 @@ export default function ContactsPage() {
               <Input
                 placeholder="Search by name, email, or company..."
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                onChange={(e) => handleSearchChange(e.target.value)}
                 className="pl-10"
               />
             </div>
-            <Select value={companyFilter} onValueChange={setCompanyFilter}>
+            <Select value={companyFilter} onValueChange={handleCompanyChange}>
               <SelectTrigger className="w-[200px]">
                 <Building2 className="h-4 w-4 mr-2 text-slate-400" />
                 <SelectValue placeholder="Filter by company" />
@@ -550,9 +571,50 @@ export default function ContactsPage() {
         <EmptyState />
       ) : (
         <>
-          <p className={cn(ds.typography.caption, "text-right")}>
-            Showing {contacts.length} of {total} contacts
-          </p>
+          <div className="flex items-center justify-between">
+            <p className={cn(ds.typography.caption)}>
+              Showing {startIndex}-{endIndex} of {total} contacts
+            </p>
+            {totalPages > 1 && (
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setPage(0)}
+                  disabled={page === 0}
+                >
+                  First
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setPage(p => Math.max(0, p - 1))}
+                  disabled={page === 0}
+                >
+                  Previous
+                </Button>
+                <span className={cn(ds.typography.caption, "px-2")}>
+                  Page {page + 1} of {totalPages}
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))}
+                  disabled={page >= totalPages - 1}
+                >
+                  Next
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setPage(totalPages - 1)}
+                  disabled={page >= totalPages - 1}
+                >
+                  Last
+                </Button>
+              </div>
+            )}
+          </div>
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {contacts.map((contact) => (
               <ContactCard
@@ -562,6 +624,30 @@ export default function ContactsPage() {
               />
             ))}
           </div>
+          {/* Bottom pagination for long lists */}
+          {totalPages > 1 && contacts.length > 10 && (
+            <div className="flex items-center justify-center gap-2 pt-4">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setPage(p => Math.max(0, p - 1))}
+                disabled={page === 0}
+              >
+                Previous
+              </Button>
+              <span className={cn(ds.typography.caption, "px-2")}>
+                Page {page + 1} of {totalPages}
+              </span>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))}
+                disabled={page >= totalPages - 1}
+              >
+                Next
+              </Button>
+            </div>
+          )}
         </>
       )}
 

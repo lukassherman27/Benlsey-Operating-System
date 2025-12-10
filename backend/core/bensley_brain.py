@@ -300,9 +300,10 @@ class BensleyBrain:
             try:
                 cursor.execute("""
                     SELECT e.email_id, e.subject, e.sender_email, e.sender_name,
-                           e.date, e.category, e.snippet
+                           e.date, ec.category, e.snippet
                     FROM emails e
                     JOIN email_project_links epl ON e.email_id = epl.email_id
+                    LEFT JOIN email_content ec ON e.email_id = ec.email_id
                     WHERE epl.project_code = ?
                     ORDER BY e.date DESC
                     LIMIT 50

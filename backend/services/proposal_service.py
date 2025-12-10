@@ -18,15 +18,21 @@ from .base_service import BaseService
 class ProposalService(BaseService):
     """Service for proposal operations"""
 
-    DEFAULT_ACTIVE_STATUSES = ['proposal', 'active_project', 'active']
+    # Real statuses from the database
+    DEFAULT_ACTIVE_STATUSES = [
+        'First Contact', 'Meeting Held', 'NDA Signed', 'Proposal Prep',
+        'Proposal Sent', 'Negotiation', 'On Hold'
+    ]
     STATUS_ALIASES = {
-        'project': 'active',
-        'projects': 'active',
-        'active_project': 'active',
-        'active_projects': 'active',
-        'proposal': 'proposal',
-        'proposals': 'proposal',
-        'pipeline': 'proposal',
+        'active': 'First Contact,Meeting Held,NDA Signed,Proposal Prep,Proposal Sent,Negotiation,On Hold',
+        'pipeline': 'First Contact,Meeting Held,Proposal Prep,Proposal Sent,Negotiation',
+        'won': 'Contract Signed',
+        'lost': 'Lost,Declined',
+        'dormant': 'Dormant',
+        'on_hold': 'On Hold',
+        # Legacy aliases for backward compatibility
+        'proposal': 'Proposal Sent',
+        'proposals': 'First Contact,Meeting Held,Proposal Prep,Proposal Sent,Negotiation',
     }
 
     def _resolve_statuses(
@@ -55,8 +61,17 @@ class ProposalService(BaseService):
             lowered = value.lower()
             if lowered in ('all', '*'):
                 return []
-            normalized = self.STATUS_ALIASES.get(lowered, value)
-            statuses.append(normalized)
+            # Check if this is an alias that maps to multiple statuses
+            alias_value = self.STATUS_ALIASES.get(lowered)
+            if alias_value:
+                # Alias value may be comma-separated list of real statuses
+                for real_status in alias_value.split(','):
+                    if real_status.strip() and real_status.strip() not in statuses:
+                        statuses.append(real_status.strip())
+            else:
+                # Not an alias, use the value as-is
+                if value not in statuses:
+                    statuses.append(value)
 
         return statuses
 
@@ -396,15 +411,18 @@ class ProposalService(BaseService):
                 return self.count_rows('proposals', clause, params)
             return self.count_rows('proposals')
 
-        stats['total_proposals'] = count_proposals(None)
-        stats['active_projects'] = count_proposals("is_active_project = 1")
+        # Total proposals = ALL proposals regardless of status
+        stats['total_proposals'] = self.count_rows('proposals')
+        # Active pipeline = proposals in active statuses (excludes Dormant, Lost, Declined, Contract Signed)
+        stats['active_pipeline'] = count_proposals(None)
+        # Active projects = proposals that became contracts
+        stats['active_projects'] = self.count_rows('proposals', "status = 'Contract Signed'", ())
         stats['healthy'] = count_proposals("health_score >= 70")
         stats['at_risk'] = count_proposals("health_score < 70 AND health_score >= 40")
         stats['critical'] = count_proposals("health_score < 40")
         stats['active_last_week'] = count_proposals("days_since_contact <= 7")
-        stats['need_followup'] = count_proposals(
-            "days_since_contact > 14 AND is_active_project = 1"
-        )
+        # Need followup = proposals with old contact dates (still in pipeline)
+        stats['need_followup'] = count_proposals("days_since_contact > 14")
         stats['needs_attention'] = stats['need_followup']
 
         avg_clause = combine_clause("health_score IS NOT NULL")
@@ -541,7 +559,7 @@ class ProposalService(BaseService):
             FROM proposals
             WHERE days_since_contact >= 21
             AND is_active_project = 1
-            AND status IN ('proposal', 'active', 'active_project')
+            AND status IN ('First Contact', 'Meeting Held', 'Proposal Prep', 'Proposal Sent', 'Negotiation', 'On Hold')
             ORDER BY days_since_contact DESC
         """
         stalled_proposals = self.execute_query(stalled_sql, ())
@@ -559,7 +577,7 @@ class ProposalService(BaseService):
             LEFT JOIN change_log c ON c.entity_id = p.project_id
                 AND c.entity_type = 'proposal'
                 AND c.field_changed = 'status'
-                AND c.new_value IN ('won', 'active', 'active_project')
+                AND c.new_value = 'Contract Signed'
                 AND date(c.changed_at) >= date(?)
             WHERE (
                 (date(p.contract_signed_date) >= date(?) AND p.contract_signed_date IS NOT NULL)
@@ -573,7 +591,7 @@ class ProposalService(BaseService):
         pipeline_value_sql = """
             SELECT COALESCE(SUM(project_value), 0) as total_value
             FROM proposals
-            WHERE status IN ('proposal', 'active', 'active_project')
+            WHERE status IN ('First Contact', 'Meeting Held', 'Proposal Prep', 'Proposal Sent', 'Negotiation', 'On Hold')
             AND is_active_project = 1
         """
         pipeline_result = self.execute_query(pipeline_value_sql, (), fetch_one=True)
@@ -612,7 +630,7 @@ class ProposalService(BaseService):
         active_sql = """
             SELECT COUNT(*) as count, COALESCE(SUM(project_value), 0) as value
             FROM proposals
-            WHERE status IN ('proposal', 'active', 'active_project')
+            WHERE status IN ('First Contact', 'Meeting Held', 'Proposal Prep', 'Proposal Sent', 'Negotiation', 'On Hold')
             AND is_active_project = 1
         """
         active_result = self.execute_query(active_sql, (), fetch_one=True)
@@ -620,14 +638,14 @@ class ProposalService(BaseService):
         won_sql = """
             SELECT COUNT(*) as count, COALESCE(SUM(project_value), 0) as value
             FROM proposals
-            WHERE status = 'won'
+            WHERE status = 'Contract Signed'
         """
         won_result = self.execute_query(won_sql, (), fetch_one=True)
 
         lost_sql = """
             SELECT COUNT(*) as count, COALESCE(SUM(project_value), 0) as value
             FROM proposals
-            WHERE status IN ('lost', 'declined', 'cancelled')
+            WHERE status IN ('Lost', 'Declined')
         """
         lost_result = self.execute_query(lost_sql, (), fetch_one=True)
 

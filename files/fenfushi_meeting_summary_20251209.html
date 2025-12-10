@@ -1,0 +1,610 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      line-height: 1.6;
+      color: #2d3748;
+      max-width: 850px;
+      margin: 0 auto;
+      padding: 0;
+      background: #f7fafc;
+    }
+    .email-container {
+      background: white;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.07);
+      margin: 20px;
+    }
+    .header {
+      background: linear-gradient(135deg, #1a365d 0%, #2c5282 50%, #2b6cb0 100%);
+      color: white;
+      padding: 35px 40px;
+      position: relative;
+    }
+    .header::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 4px;
+      background: linear-gradient(90deg, #48bb78, #38b2ac, #4299e1);
+    }
+    .header h1 {
+      margin: 0 0 8px 0;
+      font-size: 26px;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+    }
+    .header .subtitle {
+      opacity: 0.92;
+      font-size: 15px;
+      font-weight: 400;
+    }
+    .header .project-badge {
+      background: rgba(255,255,255,0.18);
+      padding: 6px 14px;
+      border-radius: 20px;
+      display: inline-block;
+      margin-top: 14px;
+      font-size: 13px;
+      font-weight: 500;
+      border: 1px solid rgba(255,255,255,0.25);
+    }
+    .content {
+      padding: 35px 40px;
+    }
+    .meta-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+      margin-bottom: 30px;
+    }
+    .meta-card {
+      background: linear-gradient(135deg, #f7fafc 0%, #edf2f7 100%);
+      border-radius: 10px;
+      padding: 18px 20px;
+      border: 1px solid #e2e8f0;
+    }
+    .meta-card.full-width {
+      grid-column: 1 / -1;
+    }
+    .meta-label {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: #718096;
+      font-weight: 600;
+      margin-bottom: 6px;
+    }
+    .meta-value {
+      color: #2d3748;
+      font-size: 14px;
+      font-weight: 500;
+    }
+    .attendee-chip {
+      display: inline-block;
+      padding: 5px 12px;
+      border-radius: 16px;
+      margin: 3px 4px 3px 0;
+      font-size: 12px;
+      font-weight: 500;
+    }
+    .attendee-chip.bensley {
+      background: linear-gradient(135deg, #ebf8ff, #bee3f8);
+      color: #2b6cb0;
+      border: 1px solid #90cdf4;
+    }
+    .attendee-chip.client {
+      background: linear-gradient(135deg, #faf5ff, #e9d8fd);
+      color: #6b46c1;
+      border: 1px solid #d6bcfa;
+    }
+    .attendee-chip.consultant {
+      background: linear-gradient(135deg, #f0fff4, #c6f6d5);
+      color: #276749;
+      border: 1px solid #9ae6b4;
+    }
+    .summary-box {
+      background: linear-gradient(135deg, #ebf8ff 0%, #e6fffa 100%);
+      border-left: 5px solid #3182ce;
+      padding: 20px 24px;
+      margin-bottom: 28px;
+      border-radius: 0 10px 10px 0;
+      font-size: 14px;
+    }
+    .summary-box strong {
+      color: #2c5282;
+    }
+    .alert-box {
+      background: linear-gradient(135deg, #fffaf0 0%, #feebc8 100%);
+      border: 2px solid #ed8936;
+      padding: 20px 24px;
+      margin: 28px 0;
+      border-radius: 10px;
+      position: relative;
+    }
+    .alert-box::before {
+      content: '⚠️';
+      font-size: 24px;
+      position: absolute;
+      top: -12px;
+      left: 20px;
+      background: white;
+      padding: 0 8px;
+      border-radius: 50%;
+    }
+    .alert-box h3 {
+      color: #c05621;
+      margin: 0 0 10px 0;
+      font-size: 16px;
+      font-weight: 700;
+    }
+    .alert-box p {
+      margin: 8px 0;
+      font-size: 14px;
+      color: #744210;
+    }
+    .alert-box .highlight {
+      background: #fbd38d;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-weight: 600;
+    }
+    h2 {
+      color: #1a365d;
+      font-size: 17px;
+      font-weight: 700;
+      border-bottom: 3px solid #e2e8f0;
+      padding-bottom: 10px;
+      margin-top: 32px;
+      margin-bottom: 18px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    h2 .icon {
+      font-size: 20px;
+    }
+    h3 {
+      color: #2c5282;
+      font-size: 14px;
+      margin-top: 22px;
+      margin-bottom: 12px;
+      font-weight: 600;
+    }
+    table {
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 0;
+      margin-bottom: 22px;
+      font-size: 13px;
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    }
+    th {
+      background: linear-gradient(135deg, #2d3748 0%, #4a5568 100%);
+      color: white;
+      font-weight: 600;
+      text-align: left;
+      padding: 12px 14px;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    td {
+      padding: 12px 14px;
+      border-bottom: 1px solid #e2e8f0;
+      vertical-align: top;
+      background: white;
+    }
+    tr:last-child td {
+      border-bottom: none;
+    }
+    tr:hover td {
+      background: #f7fafc;
+    }
+    .status {
+      display: inline-block;
+      padding: 4px 10px;
+      border-radius: 12px;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+    .status.done {
+      background: #c6f6d5;
+      color: #22543d;
+    }
+    .status.pending {
+      background: #fed7aa;
+      color: #c05621;
+    }
+    .status.progress {
+      background: #bee3f8;
+      color: #2b6cb0;
+    }
+    .action-section {
+      background: white;
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
+      margin-bottom: 18px;
+      overflow: hidden;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    }
+    .action-header {
+      background: linear-gradient(135deg, #2d3748 0%, #4a5568 100%);
+      color: white;
+      padding: 12px 18px;
+      font-weight: 600;
+      font-size: 13px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .action-header.bensley {
+      background: linear-gradient(135deg, #2b6cb0 0%, #3182ce 100%);
+    }
+    .action-header.mep {
+      background: linear-gradient(135deg, #38a169 0%, #48bb78 100%);
+    }
+    .action-header.client {
+      background: linear-gradient(135deg, #805ad5 0%, #9f7aea 100%);
+    }
+    .action-header.pm {
+      background: linear-gradient(135deg, #dd6b20 0%, #ed8936 100%);
+    }
+    .action-section table {
+      margin: 0;
+      box-shadow: none;
+      border-radius: 0;
+    }
+    .action-section th {
+      background: #f7fafc;
+      color: #4a5568;
+    }
+    .decision-box {
+      background: linear-gradient(135deg, #faf5ff 0%, #e9d8fd 100%);
+      border: 1px solid #d6bcfa;
+      border-radius: 10px;
+      padding: 22px 26px;
+      margin-top: 28px;
+    }
+    .decision-box h3 {
+      color: #553c9a;
+      margin: 0 0 14px 0;
+      font-size: 15px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .decision-box ul {
+      margin: 0;
+      padding-left: 22px;
+    }
+    .decision-box li {
+      margin-bottom: 10px;
+      color: #44337a;
+      font-size: 13px;
+    }
+    .next-meeting {
+      background: linear-gradient(135deg, #1a365d 0%, #2c5282 100%);
+      color: white;
+      padding: 22px 26px;
+      border-radius: 10px;
+      margin-top: 28px;
+    }
+    .next-meeting h3 {
+      color: white;
+      margin: 0 0 8px 0;
+      font-size: 15px;
+    }
+    .next-meeting p {
+      margin: 0;
+      opacity: 0.92;
+      font-size: 13px;
+    }
+    .footer {
+      margin-top: 35px;
+      padding-top: 25px;
+      border-top: 2px solid #e2e8f0;
+      font-size: 12px;
+      color: #718096;
+      text-align: center;
+    }
+    .footer img {
+      height: 30px;
+      margin-bottom: 10px;
+    }
+    .detail-text {
+      font-size: 13px;
+      color: #4a5568;
+      margin-bottom: 16px;
+      line-height: 1.7;
+    }
+    .detail-text strong {
+      color: #2d3748;
+    }
+    .highlight-point {
+      background: #fffaf0;
+      border-left: 3px solid #ed8936;
+      padding: 12px 16px;
+      margin: 14px 0;
+      font-size: 13px;
+      border-radius: 0 6px 6px 0;
+    }
+  </style>
+</head>
+<body>
+
+<div class="email-container">
+  <div class="header">
+    <h1>🏝️ FENFUSHI ISLAND LUXURY RESORT</h1>
+    <div class="subtitle">Client-Consultant Coordination Meeting Minutes</div>
+    <div class="project-badge">📋 24 BK-058 | Raa Atoll, Maldives</div>
+  </div>
+
+  <div class="content">
+    <div class="meta-grid">
+      <div class="meta-card">
+        <div class="meta-label">Date & Time</div>
+        <div class="meta-value">December 9, 2025 | 3:00 PM SGT</div>
+      </div>
+      <div class="meta-card">
+        <div class="meta-label">Platform</div>
+        <div class="meta-value">Zoom Video Conference</div>
+      </div>
+      <div class="meta-card full-width">
+        <div class="meta-label">Attendees</div>
+        <div class="meta-value">
+          <span class="attendee-chip bensley">Leng (BENSLEY)</span>
+          <span class="attendee-chip client">Bharath (Grand Fenfushi)</span>
+          <span class="attendee-chip client">Anbu (Grand Fenfushi)</span>
+          <span class="attendee-chip consultant">Chathura (VICM - PM)</span>
+          <span class="attendee-chip consultant">Satish (VICM)</span>
+          <span class="attendee-chip consultant">Tarana (Innoviv - MEP)</span>
+          <span class="attendee-chip consultant">Ashok (Impossible CE - IT/ELV)</span>
+          <span class="attendee-chip consultant">Huifang (Marriott Liaison)</span>
+          <span class="attendee-chip consultant">Suresh, Akom (Tri-Arc - Kitchen)</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="summary-box">
+      <strong>Meeting Summary:</strong> Weekly coordination meeting covering master plan updates, villa MEP room redesign (now individual rooms per villa instead of shared), ADD building basement requirements for floor-mounted AC system, water villa positioning near reef edge, and villa equipment coordination. Key progress made with multiple Thursday deadlines for Marriott submission preparation.
+    </div>
+
+    <!-- SCOPE ALERT - KIDS CLUB -->
+    <div class="alert-box">
+      <h3>SCOPE CLARIFICATION: KIDS CLUB</h3>
+      <p><span class="highlight">BENSLEY's contracted scope for Kids Club = FACADE DESIGN ONLY</span></p>
+      <p><strong>Issue:</strong> Leng started drawing internal space planning (round buildings, floor plans) when this should be <strong>Worldwide Kids' scope</strong>. Now Worldwide Kids is asking BENSLEY for more details and expecting us to design everything.</p>
+      <p><strong>Quote from meeting:</strong> <em>"Actual scope, Leng, was Bensley was supposed to only design the facade of the kids club. But now, since you have started stepping into the plans, she is asking more details. Initially, the floor plan and everything was in her scope. And only Bensley had to design the facade and the exterior. Only the exterior."</em></p>
+      <p><strong>Resolution:</strong> Go back to Worldwide Kids - internal space planning is their scope, not BENSLEY's. Leng to stay quiet and just demarcate the area on master plan. Let them design the space, then BENSLEY does facade only.</p>
+    </div>
+
+    <h2><span class="icon">📋</span> Master Plan Update (10 Points)</h2>
+
+    <table>
+      <tr>
+        <th style="width:35px">#</th>
+        <th>Item</th>
+        <th style="width:100px">Status</th>
+        <th>Notes</th>
+      </tr>
+      <tr>
+        <td>1</td>
+        <td>ADD entrance - DC access from both sides</td>
+        <td><span class="status pending">Pending</span></td>
+        <td>Bill insists on rear access only. To discuss with Marriott Thursday. <strong>Bill to join.</strong></td>
+      </tr>
+      <tr>
+        <td>2</td>
+        <td>Omission of Coipul</td>
+        <td><span class="status done">Done</span></td>
+        <td>Removed from plan</td>
+      </tr>
+      <tr>
+        <td>3</td>
+        <td>Dive center shifted to interior</td>
+        <td><span class="status done">Done</span></td>
+        <td>Now embedded in back-of-house footprint</td>
+      </tr>
+      <tr>
+        <td>4</td>
+        <td>Spa village green buffer zone</td>
+        <td><span class="status done">Done</span></td>
+        <td>Buffer added between service harbor and spa</td>
+      </tr>
+      <tr>
+        <td>5</td>
+        <td>3.6m clear height in BOH kitchen</td>
+        <td><span class="status progress">In Progress</span></td>
+        <td>New section being developed. Slab-to-slab ~4.5m with 1.7m ceiling height.</td>
+      </tr>
+      <tr>
+        <td>6</td>
+        <td>Separate gym access</td>
+        <td><span class="status done">Done</span></td>
+        <td>Using reserve area as buggy drop-off with walkway</td>
+      </tr>
+      <tr>
+        <td>7</td>
+        <td>Shift villas near GM house for more beach</td>
+        <td><span class="status done">Done</span></td>
+        <td>Shifted south. ~10m to vegetation line, ~8m beach per villa achieved.</td>
+      </tr>
+      <tr>
+        <td>8</td>
+        <td>Straighten buggy path near kids club</td>
+        <td><span class="status done">Done</span></td>
+        <td>New buggy road incorporated in updated master plan</td>
+      </tr>
+      <tr>
+        <td>9</td>
+        <td>Presidential villa buggy access</td>
+        <td><span class="status progress">In Progress</span></td>
+        <td>Still being worked on - noted</td>
+      </tr>
+      <tr>
+        <td>10</td>
+        <td>Total villas = 70</td>
+        <td><span class="status done">Done</span></td>
+        <td>Reduced from 71 (one villa removed)</td>
+      </tr>
+    </table>
+
+    <div class="highlight-point">
+      <strong>Water Villas Issue:</strong> Some villas too close to reef edge / deep water zone (3-4m depth). Site team to provide seabed levels and demarcate safe boundary line. Once boundary provided, Leng will adjust internal villa layout.
+    </div>
+
+    <h2><span class="icon">🏠</span> Villa MEP Rooms - New Approach</h2>
+
+    <div class="detail-text">
+      <strong>Previous Design:</strong> Shared MEP room between two villas<br>
+      <strong>New Design:</strong> Individual MEP room attached to each villa behind outdoor shower area
+    </div>
+
+    <div class="detail-text">
+      <strong>Rationale:</strong> Landscape boundary walls removed from villas, outdoor shower now enclosed with solid walls. MEP room can utilize existing solid wall structure - just add wall extension and roof. Significantly cheaper than standalone MEP buildings.
+    </div>
+
+    <div class="detail-text">
+      <strong>Equipment to house:</strong> Swimming pool pump + electrical panels (AC outdoor units handled separately)
+    </div>
+
+    <div class="detail-text">
+      <strong>For 2BR Villas (V2A, V3A):</strong> Can have pop-outs on both sides of outdoor shower area. ~1m wall space available on each side.
+    </div>
+
+    <h2><span class="icon">🏛️</span> ADD Building - MEP Basement</h2>
+
+    <div class="detail-text">
+      <strong>Current Design:</strong> 2.4m deep basement under entire building footprint for floor-mounted AC system (airport-style floor grilles, exposed ceiling above)
+    </div>
+
+    <div class="highlight-point">
+      <strong>Technical Concern:</strong> AC outdoor units currently consolidated 130m away from dining area (near spa/service jetty). This distance is technically problematic. Original plan had units split between hot kitchen area and spa area.
+    </div>
+
+    <div class="detail-text">
+      <strong>Client Direction (Bharath):</strong> <em>"Whatever the architect is asking, please go for it. Don't compromise on all these things."</em>
+    </div>
+
+    <div class="detail-text">
+      <strong>Optimization:</strong> Full basement NOT needed - only required for indoor dining/buffet zones. Outdoor deck areas do not need basement. May only need pocketed duct runs, not entire 2.4m depth everywhere.
+    </div>
+
+    <h2><span class="icon">💧</span> Step Well / Tidal Pool (Main Arrival)</h2>
+
+    <div class="detail-text">
+      <strong>Concept:</strong> Tidal pool with seawater pipes from ocean (not freshwater filtration pool). Structure raised above sea level with 1.5m high tide allowance. Can be drained via pumps for performances/dry platform use.
+    </div>
+
+    <div class="detail-text">
+      <strong>Technical Concerns (Tarana/Innoviv):</strong> Water quality affected by sedimentation from sand. Previous design was 5-6m deep - now simplified to shallower section. Feasibility review in progress.
+    </div>
+
+    <h2><span class="icon">📝</span> Other Items Discussed</h2>
+
+    <div class="detail-text">
+      <strong>IT/ELV Layouts (Ashok):</strong> Sent today. Needs Leng to confirm TV placement (pedestal vs wall mount?), telephone locations, and IT rack position. Note: 2BR villas currently show TV only in living room, not bedrooms - confirm if intentional.
+    </div>
+
+    <div class="detail-text">
+      <strong>Staff Accommodation Drawings:</strong> All consultants have submitted (VICM, Riyan, Innoviv). Ready to issue to contractor for BOH buildings. Site visit Saturday for tree relocation decisions.
+    </div>
+
+    <div class="detail-text">
+      <strong>Marriott Lookbook:</strong> Shared to all consultants. Standard guidance only - need operations team input for resort-specific requirements. To discuss with Suresh (Tri-Arc) on Thursday for 2 mockup villas.
+    </div>
+
+    <h2><span class="icon">✅</span> Action Items</h2>
+
+    <div class="action-section">
+      <div class="action-header bensley">🎨 BENSLEY (Leng)</div>
+      <table>
+        <tr><th>Action</th><th style="width:110px">Deadline</th></tr>
+        <tr><td>Send updated master plan drawings to Marriott/Huifang for review</td><td><strong>Tomorrow</strong></td></tr>
+        <tr><td>Send updated villa layouts (with outdoor shower, no boundary walls) to Innoviv</td><td><strong>Immediately</strong></td></tr>
+        <tr><td>Review Ashok's IT layouts - confirm TV/telephone/IT rack placements</td><td>ASAP</td></tr>
+        <tr><td>Propose toilet/walkway solutions for ADD guest access</td><td>Before Thursday</td></tr>
+        <tr><td>Mark ADD basement zones needed on plan (not full footprint)</td><td>Before Thursday</td></tr>
+        <tr><td>Ensure Bill joins Thursday meeting for ADD entrance discussion</td><td>Thursday</td></tr>
+      </table>
+    </div>
+
+    <div class="action-section">
+      <div class="action-header mep">⚡ INNOVIV (Tarana) - MEP</div>
+      <table>
+        <tr><th>Action</th><th style="width:110px">Deadline</th></tr>
+        <tr><td>Sketch MEP space requirements for V1, V2A, V3A villa types with equipment layout</td><td><strong>Thursday</strong></td></tr>
+        <tr><td>Review ADD basement - confirm actual space requirements, optimize design</td><td><strong>Thursday</strong></td></tr>
+        <tr><td>Address AC outdoor unit 130m distance concern - propose alternatives</td><td>Thursday</td></tr>
+        <tr><td>Review step well tidal pool technicality - report constraints</td><td>TBD</td></tr>
+      </table>
+    </div>
+
+    <div class="action-section">
+      <div class="action-header client">👤 CLIENT (Grand Fenfushi)</div>
+      <table>
+        <tr><th>Action</th><th style="width:110px">Deadline</th></tr>
+        <tr><td>Provide seabed levels / spot levels around water villa area (Anbu)</td><td><strong>ASAP</strong></td></tr>
+        <tr><td>Demarcate safe boundary line away from reef edge for water villas</td><td><strong>ASAP</strong></td></tr>
+        <tr><td>Confirm BOH construction start - issue LOA confirmation email to Huifang</td><td>This week</td></tr>
+      </table>
+    </div>
+
+    <div class="action-section">
+      <div class="action-header pm">📊 VICM (Chathura) - PM</div>
+      <table>
+        <tr><th>Action</th><th style="width:110px">Deadline</th></tr>
+        <tr><td>Coordinate with site surveyor for water villa boundary marking</td><td>This week</td></tr>
+        <tr><td>Issue villa layouts to site team for setting out</td><td>This week</td></tr>
+        <tr><td>Compile and issue staff accommodation drawings to contractor</td><td>Today/Tomorrow</td></tr>
+      </table>
+    </div>
+
+    <div class="action-section">
+      <div class="action-header">🍳 TRI-ARC (Suresh) - Kitchen/FF&E</div>
+      <table>
+        <tr><th>Action</th><th style="width:110px">Deadline</th></tr>
+        <tr><td><strong>Provide equipment requirements for villa layouts</strong> (minibar, kitchen, etc.) - OUTSTANDING</td><td><strong>Overdue</strong></td></tr>
+        <tr><td>Start with 2 mockup villas - pull from Marriott lookbook + operations input</td><td>Discuss Thursday</td></tr>
+      </table>
+    </div>
+
+    <div class="decision-box">
+      <h3>📌 Key Decisions Made</h3>
+      <ul>
+        <li><strong>Villa MEP Rooms:</strong> Individual rooms per villa (not shared between villas) - attached behind outdoor shower</li>
+        <li><strong>ADD Air Conditioning:</strong> Floor-mounted AC system approved (subject to Innoviv feasibility confirmation)</li>
+        <li><strong>Roof Garden:</strong> Proceeding above back-of-house building</li>
+        <li><strong>Water Villas:</strong> Positions to be adjusted once site provides safe boundary from reef edge</li>
+        <li><strong>Mockup Priority:</strong> Focus on 2 mockup villas first before full villa detailing</li>
+      </ul>
+    </div>
+
+    <div class="next-meeting">
+      <h3>📅 Next Meeting: Thursday</h3>
+      <p><strong>Purpose:</strong> Marriott DD Submission Meeting (Part 2 - 2 Mockup Villas)</p>
+      <p><strong>Required:</strong> Bill (BENSLEY) to join for ADD entrance discussion. Suresh/Akom (Tri-Arc) to attend for villa equipment coordination.</p>
+    </div>
+
+    <div class="footer">
+      <p>Minutes prepared from meeting recording | December 9, 2025</p>
+      <p><strong>Project:</strong> 24 BK-058 - Luxury Resort Development at Fenfushi Island, Raa Atoll, Maldives</p>
+      <p style="margin-top: 12px; font-size: 11px; color: #a0aec0;">BENSLEY Design Studios | Bangkok, Thailand</p>
+    </div>
+
+  </div>
+</div>
+
+</body>
+</html>

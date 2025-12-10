@@ -9,7 +9,6 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { ds, bensleyVoice, getLoadingMessage } from "@/lib/design-system";
 import {
-  CheckSquare,
   Link2,
   DollarSign,
   Edit3,
@@ -54,12 +53,6 @@ function ToolCardSkeleton() {
 }
 
 export default function AdminOverviewPage() {
-  // Fetch validation stats
-  const { data: validationData, isLoading: loadingValidation } = useQuery({
-    queryKey: ["admin-validation-stats"],
-    queryFn: () => api.getValidationSuggestions("pending"),
-  });
-
   // Fetch learning stats
   const { data: learningStats, isLoading: loadingLearning } = useQuery({
     queryKey: ["admin-learning-stats"],
@@ -78,14 +71,13 @@ export default function AdminOverviewPage() {
     queryFn: () => api.getEmailValidationQueue({ status: "unlinked", limit: 1 }),
   });
 
-  const isLoading = loadingValidation || loadingLearning || loadingSuggestions || loadingEmailLinks;
+  const isLoading = loadingLearning || loadingSuggestions || loadingEmailLinks;
 
   // Calculate stats
-  const pendingValidation = validationData?.stats?.pending || 0;
   const pendingLearning = learningStats?.suggestions?.pending || 0;
   const pendingSuggestions = suggestionsStats?.by_status?.pending || 0;
   const unlinkedEmails = emailLinksData?.counts?.unlinked || 0;
-  const totalPending = pendingValidation + pendingLearning + pendingSuggestions;
+  const totalPending = pendingLearning + pendingSuggestions;
 
   // Color helper for each tool
   const colorClasses = {
@@ -135,15 +127,15 @@ export default function AdminOverviewPage() {
 
   const adminTools: AdminTool[] = [
     {
-      href: "/admin/validation",
-      label: "Data Validation",
-      description: "Review AI-generated data corrections",
-      icon: CheckSquare,
+      href: "/admin/suggestions",
+      label: "AI Suggestions",
+      description: "Review email links and contact suggestions",
+      icon: Sparkles,
       color: "emerald",
       stat: {
-        value: pendingValidation,
+        value: pendingSuggestions,
         label: "pending",
-        highlight: pendingValidation > 0,
+        highlight: pendingSuggestions > 0,
       },
     },
     {

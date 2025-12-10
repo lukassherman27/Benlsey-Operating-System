@@ -1,7 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { KPICards } from "@/components/dashboard/kpi-cards";
+import { useQuery } from "@tanstack/react-query";
+import { KPICard, formatLargeNumber } from "@/components/dashboard/kpi-card";
+import { RoleSwitcher, DashboardRole } from "@/components/dashboard/role-switcher";
 import { HotItemsWidget } from "@/components/dashboard/hot-items-widget";
 import { CalendarWidget } from "@/components/dashboard/calendar-widget";
 import { InvoiceAgingWidget } from "@/components/dashboard/invoice-aging-widget";
@@ -9,14 +11,38 @@ import { RecentEmailsWidget } from "@/components/dashboard/recent-emails-widget"
 import { ProposalTrackerWidget } from "@/components/dashboard/proposal-tracker-widget";
 import { QuickActionsWidget } from "@/components/dashboard/quick-actions-widget";
 import { ImportSummaryWidget } from "@/components/dashboard/import-summary-widget";
+import { FollowUpWidget } from "@/components/dashboard/follow-up-widget";
 import { cn } from "@/lib/utils";
 import { ds } from "@/lib/design-system";
-import { Clock, RefreshCw } from "lucide-react";
+import {
+  Clock,
+  RefreshCw,
+  DollarSign,
+  Briefcase,
+  TrendingUp,
+  AlertCircle,
+  FileText,
+  Calendar,
+  CheckSquare
+} from "lucide-react";
 import { format } from "date-fns";
+import { api } from "@/lib/api";
 
 export default function DashboardPage() {
-  const [period, setPeriod] = useState("all_time");
+  const [role, setRole] = useState<DashboardRole>("bill");
   const [lastUpdated] = useState(new Date());
+
+  // Fetch role-based stats
+  const { data: stats, isLoading, error } = useQuery({
+    queryKey: ["dashboard-stats", role],
+    queryFn: () =>
+      fetch(`http://localhost:8000/api/dashboard/stats?role=${role}`)
+        .then((res) => {
+          if (!res.ok) throw new Error("Failed to fetch dashboard stats");
+          return res.json();
+        }),
+    refetchInterval: 1000 * 60 * 5, // Refetch every 5 minutes
+  });
 
   return (
     <div className={cn("w-full max-w-full", ds.spacing.spacious, "space-y-6")}>
@@ -43,13 +69,119 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Row 2: KPI Cards with Period Selector */}
-      <KPICards period={period} onPeriodChange={setPeriod} />
+      {/* Row 2: Role Switcher */}
+      <div>
+        <RoleSwitcher onRoleChange={setRole} defaultRole={role} />
+      </div>
 
-      {/* Row 3: Hot Items Strip */}
+      {/* Row 3: Role-based KPI Cards */}
+      {isLoading ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          {[1, 2, 3, 4].map((i) => (
+            <div key={i} className="animate-pulse">
+              <div className="h-32 bg-slate-200 rounded-xl" />
+            </div>
+          ))}
+        </div>
+      ) : error ? (
+        <div className="p-6 bg-red-50 border border-red-200 rounded-xl">
+          <p className="text-sm text-red-600">Error loading dashboard stats</p>
+        </div>
+      ) : stats && role === "bill" ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <KPICard
+            label="Pipeline Value"
+            value={formatLargeNumber(stats.pipeline_value || 0)}
+            subtitle="Active proposals"
+            icon={<TrendingUp className="h-5 w-5" />}
+            variant="default"
+          />
+          <KPICard
+            label="Active Projects"
+            value={stats.active_projects_count || 0}
+            subtitle="In delivery"
+            icon={<Briefcase className="h-5 w-5" />}
+            variant="default"
+          />
+          <KPICard
+            label="Outstanding"
+            value={formatLargeNumber(stats.outstanding_invoices_total || 0)}
+            subtitle="Invoices due"
+            icon={<DollarSign className="h-5 w-5" />}
+            variant="warning"
+          />
+          <KPICard
+            label="Overdue Invoices"
+            value={stats.overdue_invoices_count || 0}
+            subtitle="Need attention"
+            icon={<AlertCircle className="h-5 w-5" />}
+            variant={stats.overdue_invoices_count > 0 ? "danger" : "default"}
+          />
+        </div>
+      ) : stats && role === "pm" ? (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <KPICard
+            label="My Projects"
+            value={stats.my_projects_count || 0}
+            subtitle="Active projects"
+            icon={<Briefcase className="h-5 w-5" />}
+            variant="default"
+          />
+          <KPICard
+            label="Deliverables Due"
+            value={stats.deliverables_due_this_week || 0}
+            subtitle="This week"
+            icon={<Calendar className="h-5 w-5" />}
+            variant={stats.deliverables_due_this_week > 0 ? "warning" : "default"}
+          />
+          <KPICard
+            label="Open RFIs"
+            value={stats.open_rfis_count || 0}
+            subtitle="Need response"
+            icon={<FileText className="h-5 w-5" />}
+            variant={stats.open_rfis_count > 0 ? "warning" : "default"}
+          />
+        </div>
+      ) : stats && role === "finance" ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <KPICard
+            label="Total Outstanding"
+            value={formatLargeNumber(stats.total_outstanding || 0)}
+            subtitle="All invoices"
+            icon={<DollarSign className="h-5 w-5" />}
+            variant="warning"
+          />
+          <KPICard
+            label="30+ Days Overdue"
+            value={formatLargeNumber(stats.overdue_30_days || 0)}
+            subtitle="Aging invoices"
+            icon={<AlertCircle className="h-5 w-5" />}
+            variant="danger"
+          />
+          <KPICard
+            label="60+ Days Overdue"
+            value={formatLargeNumber(stats.overdue_60_days || 0)}
+            subtitle="Urgent follow-up"
+            icon={<AlertCircle className="h-5 w-5" />}
+            variant="danger"
+          />
+          <KPICard
+            label="90+ Days Overdue"
+            value={formatLargeNumber(stats.overdue_90_plus || 0)}
+            subtitle="Critical"
+            icon={<AlertCircle className="h-5 w-5" />}
+            variant="danger"
+          />
+        </div>
+      ) : null}
+
+      {/* Row 4: Hot Items Strip */}
       <HotItemsWidget />
 
-      {/* Row 4: Two Columns - Calendar & Quick Stats */}
+      {/* Row 5: Follow-Up Needed - Full Width */}
+      <FollowUpWidget />
+
+      {/* Row 6: Two Columns - Calendar & Quick Stats */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Left: Calendar Widget */}
         <CalendarWidget />
@@ -64,7 +196,7 @@ export default function DashboardPage() {
           </p>
           <div className="space-y-2">
             <a
-              href="/query"
+              href="/search"
               className={cn(ds.buttons.primary, "inline-flex items-center gap-2 w-full justify-center")}
             >
               Open Query Interface →
@@ -81,7 +213,7 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Row 5: Main Content Grid - 2 Columns on Large Screens */}
+      {/* Row 7: Main Content Grid - 2 Columns on Large Screens */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* LEFT COLUMN */}
         <div className="space-y-6">

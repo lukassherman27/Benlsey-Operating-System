@@ -1636,9 +1636,10 @@ If the question is unclear or cannot be answered with available data, set sql to
                 # Get recent emails (last 30 days)
                 cursor.execute("""
                     SELECT e.email_id, e.subject, e.sender_email, e.sender_name,
-                           e.date, e.snippet, e.category
+                           e.date, e.snippet, ec.category
                     FROM emails e
                     JOIN email_project_links epl ON e.email_id = epl.email_id
+                    LEFT JOIN email_content ec ON e.email_id = ec.email_id
                     WHERE epl.project_code = ?
                     AND e.date >= date('now', '-30 days')
                     ORDER BY e.date DESC

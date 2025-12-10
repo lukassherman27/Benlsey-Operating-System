@@ -46,6 +46,7 @@ from .info_handler import InfoHandler
 from .email_link_handler import EmailLinkHandler
 from .status_handler import ProposalStatusHandler
 from .contact_link_handler import ContactLinkHandler
+from .link_review_handler import LinkReviewHandler
 
 # Add handlers to exports
 __all__.extend([
@@ -58,4 +59,5 @@ __all__.extend([
     "EmailLinkHandler",
     "ProposalStatusHandler",
     "ContactLinkHandler",
+    "LinkReviewHandler",
 ])

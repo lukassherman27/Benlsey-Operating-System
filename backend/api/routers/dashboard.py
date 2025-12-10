@@ -2,7 +2,7 @@
 Dashboard Router - Dashboard and KPI endpoints
 
 Endpoints:
-    GET /api/dashboard/stats - Dashboard statistics
+    GET /api/dashboard/stats - Dashboard statistics (with optional role-based filtering)
     GET /api/dashboard/kpis - KPI metrics
     GET /api/dashboard/decision-tiles - Decision tiles for dashboard
     GET /api/briefing/daily - Daily briefing
@@ -27,13 +27,199 @@ router = APIRouter(prefix="/api", tags=["dashboard"])
 
 
 # ============================================================================
+# ROLE-BASED STATISTICS HELPER
+# ============================================================================
+
+async def get_role_based_stats(role: str) -> dict:
+    """Get role-specific dashboard statistics
+
+    Args:
+        role: Role identifier (bill, pm, finance)
+
+    Returns:
+        Role-specific KPI dictionary
+    """
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+
+    try:
+        if role == "bill":
+            # Executive KPIs
+            # Pipeline value: SUM of active proposals (all now USD after data fix)
+            cursor.execute("""
+                SELECT COALESCE(SUM(project_value), 0) as pipeline_value
+                FROM proposals
+                WHERE current_status NOT IN ('Lost', 'Declined', 'Dormant', 'Contract Signed', 'Contract signed', 'Cancelled')
+                AND project_value > 0
+            """)
+            pipeline_value = cursor.fetchone()['pipeline_value'] or 0
+
+            # Active projects count
+            cursor.execute("""
+                SELECT COUNT(*) as count
+                FROM projects
+                WHERE status = 'Active' OR is_active_project = 1
+            """)
+            active_projects_count = cursor.fetchone()['count'] or 0
+
+            # Outstanding invoices total (active projects only)
+            cursor.execute("""
+                SELECT COALESCE(SUM(i.invoice_amount - COALESCE(i.payment_amount, 0)), 0) as outstanding
+                FROM invoices i
+                JOIN projects p ON i.project_id = p.project_id
+                WHERE p.is_active_project = 1
+                AND (i.invoice_amount - COALESCE(i.payment_amount, 0)) > 0
+            """)
+            outstanding_invoices_total = cursor.fetchone()['outstanding'] or 0
+
+            # Overdue invoices count (active projects only)
+            cursor.execute("""
+                SELECT COUNT(*) as count
+                FROM invoices i
+                JOIN projects p ON i.project_id = p.project_id
+                WHERE p.is_active_project = 1
+                AND i.due_date < date('now')
+                AND (i.invoice_amount - COALESCE(i.payment_amount, 0)) > 0
+            """)
+            overdue_invoices_count = cursor.fetchone()['count'] or 0
+
+            return {
+                "role": "bill",
+                "pipeline_value": round(pipeline_value, 2),
+                "active_projects_count": active_projects_count,
+                "outstanding_invoices_total": round(outstanding_invoices_total, 2),
+                "overdue_invoices_count": overdue_invoices_count
+            }
+
+        elif role == "pm":
+            # PM KPIs
+            # My projects count (for now, all active projects)
+            cursor.execute("""
+                SELECT COUNT(*) as count
+                FROM projects
+                WHERE status = 'Active' OR is_active_project = 1
+            """)
+            my_projects_count = cursor.fetchone()['count'] or 0
+
+            # Deliverables due this week (from project_milestones)
+            cursor.execute("""
+                SELECT COUNT(*) as count
+                FROM project_milestones
+                WHERE status NOT IN ('completed', 'cancelled')
+                AND planned_date >= date('now')
+                AND planned_date <= date('now', '+7 days')
+            """)
+            deliverables_due_this_week = cursor.fetchone()['count'] or 0
+
+            # Open RFIs count
+            cursor.execute("""
+                SELECT COUNT(*) as count
+                FROM rfis
+                WHERE status = 'open'
+            """)
+            open_rfis_count = cursor.fetchone()['count'] or 0
+
+            return {
+                "role": "pm",
+                "my_projects_count": my_projects_count,
+                "deliverables_due_this_week": deliverables_due_this_week,
+                "open_rfis_count": open_rfis_count
+            }
+
+        elif role == "finance":
+            # Finance KPIs (active projects only)
+            # Total outstanding
+            cursor.execute("""
+                SELECT COALESCE(SUM(i.invoice_amount - COALESCE(i.payment_amount, 0)), 0) as outstanding
+                FROM invoices i
+                JOIN projects p ON i.project_id = p.project_id
+                WHERE p.is_active_project = 1
+                AND (i.invoice_amount - COALESCE(i.payment_amount, 0)) > 0
+            """)
+            total_outstanding = cursor.fetchone()['outstanding'] or 0
+
+            # Overdue 30 days
+            cursor.execute("""
+                SELECT COALESCE(SUM(i.invoice_amount - COALESCE(i.payment_amount, 0)), 0) as overdue
+                FROM invoices i
+                JOIN projects p ON i.project_id = p.project_id
+                WHERE p.is_active_project = 1
+                AND i.due_date < date('now', '-30 days')
+                AND (i.invoice_amount - COALESCE(i.payment_amount, 0)) > 0
+            """)
+            overdue_30_days = cursor.fetchone()['overdue'] or 0
+
+            # Overdue 60 days
+            cursor.execute("""
+                SELECT COALESCE(SUM(i.invoice_amount - COALESCE(i.payment_amount, 0)), 0) as overdue
+                FROM invoices i
+                JOIN projects p ON i.project_id = p.project_id
+                WHERE p.is_active_project = 1
+                AND i.due_date < date('now', '-60 days')
+                AND (i.invoice_amount - COALESCE(i.payment_amount, 0)) > 0
+            """)
+            overdue_60_days = cursor.fetchone()['overdue'] or 0
+
+            # Overdue 90+ days
+            cursor.execute("""
+                SELECT COALESCE(SUM(i.invoice_amount - COALESCE(i.payment_amount, 0)), 0) as overdue
+                FROM invoices i
+                JOIN projects p ON i.project_id = p.project_id
+                WHERE p.is_active_project = 1
+                AND i.due_date < date('now', '-90 days')
+                AND (i.invoice_amount - COALESCE(i.payment_amount, 0)) > 0
+            """)
+            overdue_90_plus = cursor.fetchone()['overdue'] or 0
+
+            # Recent payments (last 7 days) - active projects only
+            cursor.execute("""
+                SELECT COALESCE(SUM(i.payment_amount), 0) as recent_payments
+                FROM invoices i
+                JOIN projects p ON i.project_id = p.project_id
+                WHERE p.is_active_project = 1
+                AND i.payment_date >= date('now', '-7 days')
+                AND i.payment_date <= date('now')
+            """)
+            recent_payments_7_days = cursor.fetchone()['recent_payments'] or 0
+
+            return {
+                "role": "finance",
+                "total_outstanding": round(total_outstanding, 2),
+                "overdue_30_days": round(overdue_30_days, 2),
+                "overdue_60_days": round(overdue_60_days, 2),
+                "overdue_90_plus": round(overdue_90_plus, 2),
+                "recent_payments_7_days": round(recent_payments_7_days, 2)
+            }
+
+        else:
+            raise HTTPException(status_code=400, detail=f"Invalid role: {role}. Must be one of: bill, pm, finance")
+
+    finally:
+        conn.close()
+
+
+# ============================================================================
 # DASHBOARD STATISTICS
 # ============================================================================
 
 @router.get("/dashboard/stats")
-async def get_dashboard_stats():
-    """Get comprehensive dashboard statistics"""
+async def get_dashboard_stats(role: Optional[str] = Query(None, description="Role filter: bill, pm, finance")):
+    """Get comprehensive dashboard statistics with optional role-based filtering
+
+    Args:
+        role: Optional role filter (bill, pm, finance) for role-specific KPIs
+
+    Returns:
+        - If role is specified: Role-specific KPIs
+        - If no role: Legacy comprehensive stats (backward compatible)
+    """
     try:
+        # Role-based stats
+        if role:
+            return await get_role_based_stats(role)
+
+        # Legacy comprehensive stats (backward compatible)
         # Get proposal stats
         proposal_stats = proposal_service.get_dashboard_stats()
 
@@ -163,6 +349,7 @@ async def get_dashboard_kpis(
         period_label = period_labels.get(period, "All Time")
 
         # ========== REMAINING CONTRACT VALUE (not period-filtered) ==========
+        # Total contract value for active projects
         cursor.execute("""
             SELECT COALESCE(SUM(total_fee_usd), 0) as total_contract_value
             FROM projects
@@ -170,12 +357,28 @@ async def get_dashboard_kpis(
         """)
         total_contract_value = cursor.fetchone()['total_contract_value'] or 0
 
+        # Paid amount for active projects only
         cursor.execute("""
-            SELECT COALESCE(SUM(payment_amount), 0) as total_paid
-            FROM invoices
+            SELECT COALESCE(SUM(i.payment_amount), 0) as total_paid
+            FROM invoices i
+            JOIN projects p ON i.project_id = p.project_id
+            WHERE p.is_active_project = 1
         """)
-        all_time_paid = cursor.fetchone()['total_paid'] or 0
-        remaining_contract_value = total_contract_value - all_time_paid
+        paid_for_active = cursor.fetchone()['total_paid'] or 0
+        all_time_paid = paid_for_active  # Keep for compatibility
+
+        # Outstanding for active projects
+        cursor.execute("""
+            SELECT COALESCE(SUM(i.invoice_amount - COALESCE(i.payment_amount, 0)), 0) as outstanding
+            FROM invoices i
+            JOIN projects p ON i.project_id = p.project_id
+            WHERE p.is_active_project = 1
+            AND (i.invoice_amount - COALESCE(i.payment_amount, 0)) > 0
+        """)
+        outstanding_for_active = cursor.fetchone()['outstanding'] or 0
+
+        # Correct calculation: Total - Paid - Outstanding = Remaining (not yet invoiced)
+        remaining_contract_value = total_contract_value - paid_for_active - outstanding_for_active
 
         # ========== PAID IN PERIOD ==========
         if current_start and current_end:
@@ -203,20 +406,24 @@ async def get_dashboard_kpis(
         paid_trend = calculate_trend(paid_in_period, paid_prev_period)
         # For "paid", up is good
 
-        # ========== OUTSTANDING INVOICES ==========
+        # ========== OUTSTANDING INVOICES (active projects only) ==========
         cursor.execute("""
-            SELECT COALESCE(SUM(invoice_amount - COALESCE(payment_amount, 0)), 0) as outstanding
-            FROM invoices
-            WHERE status != 'paid' OR (invoice_amount - COALESCE(payment_amount, 0)) > 0
+            SELECT COALESCE(SUM(i.invoice_amount - COALESCE(i.payment_amount, 0)), 0) as outstanding
+            FROM invoices i
+            JOIN projects p ON i.project_id = p.project_id
+            WHERE p.is_active_project = 1
+            AND (i.invoice_amount - COALESCE(i.payment_amount, 0)) > 0
         """)
         outstanding_invoices = cursor.fetchone()['outstanding'] or 0
 
         # Compare to 30 days ago for outstanding trend
         cursor.execute("""
-            SELECT COALESCE(SUM(invoice_amount - COALESCE(payment_amount, 0)), 0) as outstanding
-            FROM invoices
-            WHERE invoice_date <= date('now', '-30 days')
-            AND (status != 'paid' OR (invoice_amount - COALESCE(payment_amount, 0)) > 0)
+            SELECT COALESCE(SUM(i.invoice_amount - COALESCE(i.payment_amount, 0)), 0) as outstanding
+            FROM invoices i
+            JOIN projects p ON i.project_id = p.project_id
+            WHERE p.is_active_project = 1
+            AND i.invoice_date <= date('now', '-30 days')
+            AND (i.invoice_amount - COALESCE(i.payment_amount, 0)) > 0
         """)
         outstanding_prev = cursor.fetchone()['outstanding'] or outstanding_invoices
         outstanding_trend = calculate_trend(outstanding_invoices, outstanding_prev)
@@ -330,22 +537,24 @@ async def get_dashboard_kpis(
         else:
             win_rate = 0
 
-        # Pipeline value (proposals not yet won - is_active_project=0, not completed/lost)
+        # Pipeline value from proposals table (all now USD after data fix)
         cursor.execute("""
-            SELECT COALESCE(SUM(total_fee_usd), 0) as pipeline
-            FROM projects
-            WHERE is_active_project = 0
-            AND status NOT IN ('Completed', 'completed', 'Cancelled', 'cancelled', 'lost', 'declined', 'archived')
+            SELECT COALESCE(SUM(project_value), 0) as pipeline
+            FROM proposals
+            WHERE current_status NOT IN ('Lost', 'Declined', 'Dormant', 'Contract Signed', 'Contract signed', 'Cancelled')
+            AND project_value > 0
         """)
         pipeline_value = cursor.fetchone()['pipeline'] or 0
 
-        # Overdue invoices count and amount
+        # Overdue invoices count and amount (active projects only)
         cursor.execute("""
             SELECT COUNT(*) as count,
-                   COALESCE(SUM(invoice_amount - COALESCE(payment_amount, 0)), 0) as amount
-            FROM invoices
-            WHERE due_date < date('now')
-            AND (invoice_amount - COALESCE(payment_amount, 0)) > 0
+                   COALESCE(SUM(i.invoice_amount - COALESCE(i.payment_amount, 0)), 0) as amount
+            FROM invoices i
+            JOIN projects p ON i.project_id = p.project_id
+            WHERE p.is_active_project = 1
+            AND i.due_date < date('now')
+            AND (i.invoice_amount - COALESCE(i.payment_amount, 0)) > 0
         """)
         row = cursor.fetchone()
         overdue_count = row['count'] or 0
@@ -362,6 +571,9 @@ async def get_dashboard_kpis(
             },
             "remaining_contract_value": {
                 "value": remaining_contract_value,
+                "total_contract": total_contract_value,
+                "paid": paid_for_active,
+                "outstanding": outstanding_for_active,
                 "trend": {"value": 0, "direction": "neutral", "label": ""}
             },
             "active_projects": {
@@ -422,12 +634,14 @@ async def get_decision_tiles():
 
         tiles = []
 
-        # Overdue invoices
+        # Overdue invoices (active projects only)
         cursor.execute("""
-            SELECT COUNT(*) as count, COALESCE(SUM(invoice_amount - COALESCE(payment_amount, 0)), 0) as amount
-            FROM invoices
-            WHERE status != 'paid'
-            AND due_date < date('now')
+            SELECT COUNT(*) as count, COALESCE(SUM(i.invoice_amount - COALESCE(i.payment_amount, 0)), 0) as amount
+            FROM invoices i
+            JOIN projects p ON i.project_id = p.project_id
+            WHERE p.is_active_project = 1
+            AND i.due_date < date('now')
+            AND (i.invoice_amount - COALESCE(i.payment_amount, 0)) > 0
         """)
         overdue = cursor.fetchone()
         if overdue['count'] > 0:
@@ -529,6 +743,7 @@ async def get_daily_briefing():
                     "type": "no_contact",
                     "priority": "high",
                     "project_code": p["project_code"],
+                    "project_name": p["project_title"],
                     "project_title": p["project_title"],
                     "action": f"Call client - {p['next_action'] or 'follow up'}",
                     "context": f"{days} days no contact"
@@ -537,6 +752,7 @@ async def get_daily_briefing():
                 needs_attention.append({
                     "type": "follow_up",
                     "project_code": p["project_code"],
+                    "project_name": p["project_title"],
                     "project_title": p["project_title"],
                     "action": p["next_action"] or "Schedule follow up",
                     "context": f"{days} days since contact"

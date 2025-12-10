@@ -185,6 +185,249 @@ async def get_validation_queue(
 
 
 # ============================================================================
+# EMAIL REVIEW QUEUE - For learning loop (MUST be before {email_id} routes)
+# ============================================================================
+
+@router.get("/emails/review-queue")
+async def get_review_queue(
+    limit: int = Query(50, ge=1, le=200, description="Max emails to return")
+):
+    """
+    Get emails with pending AI suggestions for review.
+
+    Returns emails that have pending suggestions (email_link, contact_link, etc.)
+    with inline AI suggestion details and sender context.
+
+    Used by the Email Review Queue page for batch reviewing with approve/reject.
+    """
+    try:
+        result = email_intelligence_service.get_review_queue(limit=limit)
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/emails/bulk-approve")
+async def bulk_approve_emails(
+    email_ids: List[int] = Query(..., description="List of email IDs to approve"),
+    learn_patterns: bool = Query(True, description="Learn patterns from approvals")
+):
+    """
+    Bulk approve multiple email suggestions at once.
+
+    Each email must have a pending suggestion. The suggested link is applied.
+    Optionally learns patterns from all approvals.
+
+    Returns summary of successes and failures.
+    """
+    try:
+        from services.ai_learning_service import AILearningService
+
+        ai_service = AILearningService(DB_PATH)
+
+        results = {
+            "approved": 0,
+            "failed": 0,
+            "patterns_learned": [],
+            "errors": []
+        }
+
+        for email_id in email_ids:
+            try:
+                # Find pending suggestion for this email
+                with sqlite3.connect(DB_PATH) as conn:
+                    cursor = conn.cursor()
+                    cursor.execute("""
+                        SELECT suggestion_id, project_code
+                        FROM ai_suggestions
+                        WHERE source_type = 'email'
+                        AND source_id = ?
+                        AND status = 'pending'
+                        AND suggestion_type = 'email_link'
+                        LIMIT 1
+                    """, (email_id,))
+                    suggestion = cursor.fetchone()
+
+                if not suggestion:
+                    results["failed"] += 1
+                    results["errors"].append({
+                        "email_id": email_id,
+                        "error": "No pending suggestion found"
+                    })
+                    continue
+
+                suggestion_id, target_code = suggestion  # target_code is actually project_code
+
+                # Approve the suggestion
+                result = ai_service.approve_suggestion(suggestion_id)
+
+                if result.get('success'):
+                    results["approved"] += 1
+
+                    # Learn pattern if requested
+                    if learn_patterns:
+                        with sqlite3.connect(DB_PATH) as conn:
+                            cursor = conn.cursor()
+                            cursor.execute("SELECT sender_email FROM emails WHERE email_id = ?", (email_id,))
+                            sender_row = cursor.fetchone()
+
+                        if sender_row and sender_row[0]:
+                            sender_email = sender_row[0]
+                            domain = sender_email.split('@')[1] if '@' in sender_email else None
+                            if domain and domain not in [p.split('@')[1] if '@' in p else p for p in results["patterns_learned"]]:
+                                results["patterns_learned"].append(f"@{domain} → {target_code}")
+                else:
+                    results["failed"] += 1
+                    results["errors"].append({
+                        "email_id": email_id,
+                        "error": result.get('error', 'Unknown error')
+                    })
+
+            except Exception as e:
+                results["failed"] += 1
+                results["errors"].append({
+                    "email_id": email_id,
+                    "error": str(e)
+                })
+
+        return {
+            "success": True,
+            "message": f"Approved {results['approved']} emails, {results['failed']} failed",
+            "data": results
+        }
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/emails/{email_id}/quick-approve")
+async def quick_approve_email(
+    email_id: int,
+    project_code: str = Query(..., description="Project code to link to"),
+    learn_pattern: bool = Query(True, description="Learn sender pattern from this approval")
+):
+    """
+    Quick approve an email link suggestion.
+
+    This:
+    1. Creates the email-proposal link
+    2. Marks the suggestion as applied
+    3. Optionally learns a sender pattern for future emails
+
+    Returns info about pattern learning for UI feedback.
+    """
+    try:
+        from services.ai_learning_service import AILearningService
+
+        ai_service = AILearningService(DB_PATH)
+
+        # Find the pending suggestion for this email
+        with sqlite3.connect(DB_PATH) as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT suggestion_id, project_code
+                FROM ai_suggestions
+                WHERE source_type = 'email'
+                AND source_id = ?
+                AND status = 'pending'
+                AND suggestion_type = 'email_link'
+                LIMIT 1
+            """, (email_id,))
+            suggestion = cursor.fetchone()
+
+        if not suggestion:
+            # No existing suggestion - create direct link
+            # Get proposal_id from project_code
+            with sqlite3.connect(DB_PATH) as conn:
+                cursor = conn.cursor()
+                cursor.execute("""
+                    SELECT proposal_id, project_name FROM proposals WHERE project_code = ?
+                """, (project_code,))
+                proposal = cursor.fetchone()
+
+            if not proposal:
+                raise HTTPException(status_code=404, detail=f"Project {project_code} not found")
+
+            proposal_id, project_name = proposal
+
+            # Create direct link
+            with sqlite3.connect(DB_PATH) as conn:
+                cursor = conn.cursor()
+                cursor.execute("""
+                    INSERT OR REPLACE INTO email_proposal_links
+                    (email_id, proposal_id, confidence_score, match_method, created_at)
+                    VALUES (?, ?, 1.0, 'manual_quick_approve', datetime('now'))
+                """, (email_id, proposal_id))
+                conn.commit()
+
+            pattern_result = None
+            if learn_pattern:
+                # Get sender email to learn pattern
+                with sqlite3.connect(DB_PATH) as conn:
+                    cursor = conn.cursor()
+                    cursor.execute("SELECT sender_email FROM emails WHERE email_id = ?", (email_id,))
+                    sender_row = cursor.fetchone()
+
+                if sender_row and sender_row[0]:
+                    sender_email = sender_row[0]
+                    domain = sender_email.split('@')[1] if '@' in sender_email else None
+
+                    if domain:
+                        pattern_result = f"domain_to_proposal: @{domain} → {project_code}"
+
+            return {
+                "success": True,
+                "link_created": True,
+                "project_code": project_code,
+                "project_name": project_name,
+                "pattern_learned": pattern_result,
+                "message": f"Email linked to {project_code} ({project_name})"
+            }
+
+        else:
+            # Have existing suggestion - approve it
+            suggestion_id, suggested_project = suggestion
+
+            # If user picked a different project than suggested, treat as correction
+            if project_code != suggested_project:
+                # Approve with correction
+                result = ai_service.approve_suggestion_with_correction(
+                    suggestion_id,
+                    correct_value=project_code
+                )
+            else:
+                # Approve as-is
+                result = ai_service.approve_suggestion(suggestion_id)
+
+            pattern_result = None
+            if learn_pattern and result.get('success'):
+                # Learn pattern from this approval
+                with sqlite3.connect(DB_PATH) as conn:
+                    cursor = conn.cursor()
+                    cursor.execute("SELECT sender_email FROM emails WHERE email_id = ?", (email_id,))
+                    sender_row = cursor.fetchone()
+
+                if sender_row and sender_row[0]:
+                    sender_email = sender_row[0]
+                    domain = sender_email.split('@')[1] if '@' in sender_email else None
+                    if domain:
+                        pattern_result = f"domain_to_proposal: @{domain} → {project_code}"
+
+            return {
+                "success": True,
+                "link_created": result.get('success', False),
+                "project_code": project_code,
+                "pattern_learned": pattern_result,
+                "message": result.get('message', f"Email linked to {project_code}")
+            }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ============================================================================
 # EMAIL DETAIL ENDPOINTS
 # ============================================================================
 
@@ -305,6 +548,48 @@ async def mark_email_read(email_id: int):
     try:
         result = email_service.mark_as_read(email_id)
         return action_response(True, message="Marked as read")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/emails/{email_id}/extract-scheduling")
+async def extract_scheduling_data(email_id: int):
+    """
+    Extract scheduling data from an email using OpenAI.
+
+    Extracts:
+    - deadlines: Dates and deadlines mentioned
+    - people: People mentioned with their apparent roles
+    - project_references: Project codes found
+    - potential_nicknames: Informal project names that might be aliases
+    - action_items: Tasks and action items
+
+    Used by the adaptive suggestions UI when category is "Internal > Scheduling".
+    """
+    try:
+        from services.scheduling_email_parser import SchedulingEmailParser
+        from api.dependencies import DB_PATH
+
+        parser = SchedulingEmailParser(db_path=DB_PATH)
+        result = parser.parse_email_by_id(email_id)
+
+        if not result.get('success'):
+            raise HTTPException(
+                status_code=404 if 'not found' in result.get('error', '').lower() else 400,
+                detail=result.get('error', 'Extraction failed')
+            )
+
+        return {
+            "success": True,
+            "email_id": email_id,
+            "deadlines": result.get('deadlines', []),
+            "people": result.get('people', []),
+            "project_references": result.get('project_references', []),
+            "potential_nicknames": result.get('potential_nicknames', []),
+            "action_items": result.get('action_items', [])
+        }
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -444,6 +729,48 @@ async def scan_sent_for_proposals(
         }
     except HTTPException:
         raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/emails/process-sent-emails")
+async def process_sent_emails(
+    days_back: int = Query(30, ge=1, le=90, description="Days to look back"),
+    limit: int = Query(200, ge=1, le=500, description="Max emails to process")
+):
+    """
+    Process sent emails that haven't been linked yet.
+
+    Uses SentEmailLinker to match outbound @bensley.com emails to proposals via:
+    1. Project code in subject/body (0.95 confidence)
+    2. Recipient matches proposals.contact_email (0.95 confidence)
+    3. Recipient found in contacts table (0.85 confidence)
+    4. Domain patterns from learned patterns (0.70 confidence, needs review)
+
+    Returns summary of auto-linked, needs_review, and unmatched emails.
+    """
+    try:
+        from services.sent_email_linker import SentEmailLinker
+
+        linker = SentEmailLinker(DB_PATH)
+        results = linker.process_unlinked_sent_emails(days_back=days_back, limit=limit)
+
+        return {
+            "success": True,
+            "message": f"Processed {results['total']} sent emails: "
+                      f"{results['auto_linked']} auto-linked, "
+                      f"{results['needs_review']} need review, "
+                      f"{results['no_match']} unmatched",
+            "data": {
+                "total_processed": results['total'],
+                "auto_linked": results['auto_linked'],
+                "needs_review": results['needs_review'],
+                "no_match": results['no_match'],
+                "no_external_recipients": results['no_external_recipients'],
+                "linked_emails": results['linked_emails'][:20],  # First 20
+                "review_emails": results['review_emails'][:10]   # First 10
+            }
+        }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

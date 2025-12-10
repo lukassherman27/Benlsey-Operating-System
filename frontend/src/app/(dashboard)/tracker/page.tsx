@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useMemo } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useMemo, useEffect, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { ProposalTrackerItem, DisciplineFilter } from "@/lib/types";
@@ -66,8 +66,13 @@ function getActivityColor(days: number): { bg: string; text: string; label: stri
   return { bg: "bg-red-100", text: "text-red-700", label: "Stalled" };
 }
 
-export default function ProposalTrackerPage() {
+function ProposalTrackerContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const codeParam = searchParams.get("code");
+  const highlightParam = searchParams.get("highlight");
+  const filterParam = searchParams.get("filter");
+
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<ProposalStatus | "all">("all");
   const [disciplineFilter, setDisciplineFilter] = useState<DisciplineFilter>("all");
@@ -76,6 +81,21 @@ export default function ProposalTrackerPage() {
   const [selectedProposal, setSelectedProposal] = useState<ProposalTrackerItem | null>(null);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [activeMetric, setActiveMetric] = useState<string | null>(null);
+  const [highlightedCode, setHighlightedCode] = useState<string | null>(null);
+
+  // Read URL params on mount - auto-search for code if provided
+  useEffect(() => {
+    if (codeParam) {
+      setSearch(codeParam);
+      if (highlightParam === "true") {
+        setHighlightedCode(codeParam);
+      }
+    }
+    // Handle filter param from FollowUpWidget
+    if (filterParam === "needs-followup") {
+      setActiveMetric("followup");
+    }
+  }, [codeParam, highlightParam, filterParam]);
 
   // Fetch stats
   const { data: statsData } = useQuery({
@@ -791,5 +811,14 @@ export default function ProposalTrackerPage() {
         onOpenChange={setEditDialogOpen}
       />
     </div>
+  );
+}
+
+// Wrap in Suspense for useSearchParams (Next.js 14+ requirement)
+export default function ProposalTrackerPage() {
+  return (
+    <Suspense fallback={<div className="p-8 text-center">Loading tracker...</div>}>
+      <ProposalTrackerContent />
+    </Suspense>
   );
 }

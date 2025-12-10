@@ -42,6 +42,7 @@ def get_db() -> Generator[sqlite3.Connection, None, None]:
     """
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA foreign_keys = ON")  # CRITICAL: Enable FK enforcement
     try:
         yield conn
     finally:
@@ -60,6 +61,7 @@ def get_db_context():
     """
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA foreign_keys = ON")  # CRITICAL: Enable FK enforcement
     try:
         yield conn
     finally:
@@ -75,4 +77,5 @@ def get_db_connection() -> sqlite3.Connection:
     """
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA foreign_keys = ON")  # CRITICAL: Enable FK enforcement
     return conn

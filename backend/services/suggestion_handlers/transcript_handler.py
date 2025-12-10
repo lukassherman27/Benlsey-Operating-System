@@ -60,7 +60,7 @@ class TranscriptLinkHandler(BaseSuggestionHandler):
         """, (transcript_id,))
         current = cursor.fetchone()
 
-        meeting_title = current[2] if current else "Unknown transcript"
+        meeting_title = (current[2] if current and current[2] else None) or "Unknown transcript"
         current_proposal = current[0] if current else None
         current_project = current[1] if current else None
 

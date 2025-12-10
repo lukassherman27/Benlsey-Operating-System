@@ -1,6 +1,20 @@
 """
 Email Project Linker - Links unlinked emails to PROJECTS (not proposals)
 
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!! DISABLED: This script has been disabled as of 2025-12-02.                 !!
+!! It created 873 bad auto-links with flawed logic:                          !!
+!! - "Sender is known project contact" mapped contacts to wrong projects     !!
+!! - One contact can work on multiple projects; this only picked one         !!
+!!                                                                           !!
+!! DO NOT RUN THIS SCRIPT. Use the GPT-based suggestion pipeline instead:    !!
+!! POST /api/admin/process-email/{email_id}                                  !!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+DEPRECATED: This script is deprecated as of 2025-12-02.
+Use the suggestion-based workflow via API: POST /api/admin/process-unlinked-emails
+All links now require human approval through the suggestion review system.
+
 Strategies (in order of confidence):
 1. Thread Inheritance: If any HIGH-CONFIDENCE email in thread is linked, inherit
 2. Sender Pattern: EXTERNAL senders with 5+ emails to ONE project
@@ -14,8 +28,31 @@ MODES:
 
 FIXED: 2025-11-30 - Internal domain/sender exclusions added
 UPDATED: 2025-11-30 - Added --suggest mode for ai_suggestions, contact extraction
+DISABLED: 2025-12-02 - Contact logic was broken, created 873 bad links
 Created: 2025-11-29
 """
+
+import sys
+print("=" * 70)
+print("ERROR: This script has been DISABLED.")
+print("")
+print("The contact-to-project linking logic was flawed:")
+print("- Contacts can work on multiple projects")
+print("- This script only picked ONE project per contact")
+print("- Result: 873 emails linked to wrong projects")
+print("")
+print("Use the GPT-based suggestion pipeline instead:")
+print("  POST /api/admin/process-email/{email_id}")
+print("=" * 70)
+sys.exit(1)
+
+import warnings
+warnings.warn(
+    "This script is DEPRECATED. Use API: POST /api/admin/process-unlinked-emails. "
+    "All email links now require human approval through the suggestion review system.",
+    DeprecationWarning,
+    stacklevel=2
+)
 
 import sqlite3
 import re

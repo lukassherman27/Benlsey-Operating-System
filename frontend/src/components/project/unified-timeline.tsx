@@ -6,8 +6,16 @@ import { Badge } from "@/components/ui/badge";
 import {
   Mail, Mic, AlertCircle, DollarSign, Flag,
   ChevronDown, ChevronRight, Calendar, CheckCircle,
-  Sparkles, FileText, TrendingUp, Clock
+  Sparkles, FileText, TrendingUp, Clock, Send, Inbox,
+  Users, Building2, Globe, Filter
 } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useState } from "react";
 import { format, parseISO, isValid } from "date-fns";
 import { cn } from "@/lib/utils";
@@ -20,8 +28,13 @@ interface TimelineEvent {
   id: number;
   // Email specific
   sender?: string;
+  sender_name?: string;
+  recipient_emails?: string;
   confidence?: number;
   link_method?: string;
+  email_category?: "internal" | "client" | "external";
+  direction?: "sent" | "received";
+  category?: string;
   // Transcript specific
   participants?: string;
   duration_seconds?: number;
@@ -50,6 +63,12 @@ interface TimelineResponse {
     status_change?: number;
     suggestion_approved?: number;
   };
+  email_category_counts?: {
+    internal: number;
+    client: number;
+    external: number;
+  };
+  unique_people?: string[];
 }
 
 interface UnifiedTimelineProps {
@@ -94,6 +113,38 @@ const EVENT_DOT_COLORS: Record<string, string> = {
   proposal_sent: "bg-amber-500",
 };
 
+// Email category styling
+const EMAIL_CATEGORY_STYLES: Record<string, { badge: string; icon: typeof Users; label: string }> = {
+  internal: {
+    badge: "bg-slate-100 text-slate-700 border-slate-200",
+    icon: Users,
+    label: "Internal",
+  },
+  client: {
+    badge: "bg-teal-50 text-teal-700 border-teal-200",
+    icon: Building2,
+    label: "Client",
+  },
+  external: {
+    badge: "bg-purple-50 text-purple-700 border-purple-200",
+    icon: Globe,
+    label: "External",
+  },
+};
+
+const DIRECTION_STYLES: Record<string, { badge: string; icon: typeof Send; label: string }> = {
+  sent: {
+    badge: "bg-blue-50 text-blue-700 border-blue-200",
+    icon: Send,
+    label: "Sent",
+  },
+  received: {
+    badge: "bg-emerald-50 text-emerald-700 border-emerald-200",
+    icon: Inbox,
+    label: "Received",
+  },
+};
+
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
 
 // Helper to format date safely
@@ -121,12 +172,15 @@ const getMonthYear = (dateStr: string) => {
 export function UnifiedTimeline({ projectCode, limit = 20, showStory = false }: UnifiedTimelineProps) {
   const [expandedEvents, setExpandedEvents] = useState<Set<string>>(new Set());
   const [typeFilter, setTypeFilter] = useState<string>("all");
+  const [personFilter, setPersonFilter] = useState<string>("all");
+  const [emailCategoryFilter, setEmailCategoryFilter] = useState<string>("all");
 
   const { data, isLoading, error } = useQuery<TimelineResponse>({
-    queryKey: ["unified-timeline", projectCode, typeFilter, limit],
+    queryKey: ["unified-timeline", projectCode, typeFilter, personFilter, limit],
     queryFn: async () => {
       const params = new URLSearchParams({ limit: String(limit) });
-      if (typeFilter !== "all") params.set("types", typeFilter);
+      if (typeFilter !== "all") params.set("item_types", typeFilter);
+      if (personFilter !== "all") params.set("person", personFilter);
 
       const res = await fetch(
         `${API_BASE_URL}/api/projects/${encodeURIComponent(projectCode)}/unified-timeline?${params}`
@@ -171,10 +225,19 @@ export function UnifiedTimeline({ projectCode, limit = 20, showStory = false }: 
 
   const events: TimelineEvent[] = data?.timeline || [];
   const itemCounts = data?.item_counts || { email: 0, transcript: 0, invoice: 0, rfi: 0 };
+  const emailCategoryCounts = data?.email_category_counts || { internal: 0, client: 0, external: 0 };
+  const uniquePeople = data?.unique_people || [];
+
+  // Apply client-side email category filter
+  const filteredEvents = events.filter((event) => {
+    if (emailCategoryFilter === "all") return true;
+    if (event.type !== "email") return emailCategoryFilter === "all";
+    return event.email_category === emailCategoryFilter;
+  });
 
   // Group events by month for date markers
   const eventsByMonth: Map<string, TimelineEvent[]> = new Map();
-  events.forEach((event) => {
+  filteredEvents.forEach((event) => {
     const monthYear = getMonthYear(event.date) || "Unknown";
     if (!eventsByMonth.has(monthYear)) {
       eventsByMonth.set(monthYear, []);
@@ -183,17 +246,40 @@ export function UnifiedTimeline({ projectCode, limit = 20, showStory = false }: 
   });
 
   const filterTypes = ["all", "email", "transcript", "rfi", "invoice", "status_change"];
+  const emailCategoryTypes = ["all", "internal", "client", "external"];
 
   return (
     <Card>
-      <CardHeader className="flex flex-row items-center justify-between pb-3">
-        <CardTitle className="flex items-center gap-2">
-          <Calendar className="h-5 w-5" />
-          {showStory ? "The Story" : "Project Timeline"}
-          <Badge variant="secondary" className="ml-2">
-            {data?.total || 0} events
-          </Badge>
-        </CardTitle>
+      <CardHeader className="pb-3 space-y-3">
+        <div className="flex flex-row items-center justify-between">
+          <CardTitle className="flex items-center gap-2">
+            <Calendar className="h-5 w-5" />
+            {showStory ? "The Story" : "Project Timeline"}
+            <Badge variant="secondary" className="ml-2">
+              {filteredEvents.length} events
+            </Badge>
+          </CardTitle>
+
+          {/* Person Filter */}
+          {uniquePeople.length > 0 && (
+            <Select value={personFilter} onValueChange={setPersonFilter}>
+              <SelectTrigger className="w-[180px] h-8 text-xs">
+                <Filter className="h-3 w-3 mr-1" />
+                <SelectValue placeholder="Filter by person" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All People</SelectItem>
+                {uniquePeople.map((person) => (
+                  <SelectItem key={person} value={person}>
+                    {person}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+        </div>
+
+        {/* Type Filters */}
         <div className="flex gap-1.5 flex-wrap">
           {filterTypes.map((type) => (
             <Badge
@@ -210,13 +296,42 @@ export function UnifiedTimeline({ projectCode, limit = 20, showStory = false }: 
             </Badge>
           ))}
         </div>
+
+        {/* Email Category Filters (only show when emails are selected) */}
+        {(typeFilter === "all" || typeFilter === "email") && itemCounts.email > 0 && (
+          <div className="flex gap-1.5 flex-wrap items-center">
+            <span className="text-xs text-slate-500 mr-1">Email type:</span>
+            {emailCategoryTypes.map((cat) => {
+              const style = cat !== "all" ? EMAIL_CATEGORY_STYLES[cat] : null;
+              const count = cat === "all"
+                ? emailCategoryCounts.internal + emailCategoryCounts.client + emailCategoryCounts.external
+                : emailCategoryCounts[cat as keyof typeof emailCategoryCounts] || 0;
+              return (
+                <Badge
+                  key={cat}
+                  variant="outline"
+                  className={cn(
+                    "cursor-pointer capitalize text-xs px-2 py-0.5",
+                    emailCategoryFilter === cat
+                      ? style?.badge || "bg-slate-900 text-white border-slate-900"
+                      : "hover:bg-slate-100"
+                  )}
+                  onClick={() => setEmailCategoryFilter(cat)}
+                >
+                  {cat === "all" ? "All" : style?.label}
+                  {` (${count})`}
+                </Badge>
+              );
+            })}
+          </div>
+        )}
       </CardHeader>
       <CardContent className="pt-0">
-        {events.length === 0 ? (
+        {filteredEvents.length === 0 ? (
           <div className="text-center py-12">
             <Clock className="h-12 w-12 mx-auto text-slate-200 mb-3" />
             <p className="text-muted-foreground">
-              No events found for this project
+              {events.length === 0 ? "No events found for this project" : "No events match the current filters"}
             </p>
           </div>
         ) : (
@@ -284,7 +399,36 @@ export function UnifiedTimeline({ projectCode, limit = 20, showStory = false }: 
                               </div>
                               <div className="flex-1 min-w-0">
                                 <div className="flex items-center justify-between gap-2">
-                                  <p className="font-medium text-sm truncate">{event.title}</p>
+                                  <div className="flex items-center gap-2 min-w-0">
+                                    <p className="font-medium text-sm truncate">{event.title}</p>
+                                    {/* Email category and direction badges */}
+                                    {event.type === "email" && (
+                                      <div className="flex gap-1 flex-shrink-0">
+                                        {event.email_category && EMAIL_CATEGORY_STYLES[event.email_category] && (
+                                          <Badge
+                                            variant="outline"
+                                            className={cn(
+                                              "text-[10px] px-1.5 py-0 h-4 font-normal",
+                                              EMAIL_CATEGORY_STYLES[event.email_category].badge
+                                            )}
+                                          >
+                                            {EMAIL_CATEGORY_STYLES[event.email_category].label}
+                                          </Badge>
+                                        )}
+                                        {event.direction && DIRECTION_STYLES[event.direction] && (
+                                          <Badge
+                                            variant="outline"
+                                            className={cn(
+                                              "text-[10px] px-1.5 py-0 h-4 font-normal",
+                                              DIRECTION_STYLES[event.direction].badge
+                                            )}
+                                          >
+                                            {DIRECTION_STYLES[event.direction].label}
+                                          </Badge>
+                                        )}
+                                      </div>
+                                    )}
+                                  </div>
                                   <span className="text-xs opacity-75 flex-shrink-0 whitespace-nowrap">
                                     {formatDate(event.date)}
                                   </span>
@@ -337,13 +481,21 @@ function EventDetails({ event }: { event: TimelineEvent }) {
         <div className="space-y-2">
           <div className="flex gap-4 text-xs flex-wrap">
             {event.sender && (
-              <span><strong>From:</strong> {event.sender}</span>
+              <span><strong>From:</strong> {event.sender_name || event.sender}</span>
             )}
+            {event.recipient_emails && (
+              <span><strong>To:</strong> {event.recipient_emails.slice(0, 50)}{event.recipient_emails.length > 50 ? '...' : ''}</span>
+            )}
+          </div>
+          <div className="flex gap-4 text-xs flex-wrap">
             {event.confidence && (
               <span><strong>Match Confidence:</strong> {Math.round(event.confidence * 100)}%</span>
             )}
             {event.link_method && (
               <span><strong>Linked by:</strong> {event.link_method}</span>
+            )}
+            {event.category && (
+              <span><strong>Category:</strong> {event.category}</span>
             )}
           </div>
           <p className="text-sm">{event.summary}</p>

@@ -276,7 +276,7 @@ class UserLearningService:
             if p.get('pattern_data'):
                 try:
                     p['pattern_data'] = json.loads(p['pattern_data'])
-                except:
+                except (json.JSONDecodeError, TypeError):
                     pass
             patterns.append(p)
 

@@ -1387,7 +1387,8 @@ export default function SuggestionsPage() {
                                 </code>
                                 {(() => {
                                   // Check both proposals (more common) and projects
-                                  const projName = proposalOptions.find(p => p.code === suggestion.project_code)?.name
+                                  const projName = suggestion.project_name
+                                    || proposalOptions.find(p => p.code === suggestion.project_code)?.name
                                     || projectOptions.find(p => p.code === suggestion.project_code)?.name;
                                   return projName ? (
                                     <span className="text-xs text-slate-500 truncate max-w-[200px]">{projName}</span>
@@ -1396,7 +1397,29 @@ export default function SuggestionsPage() {
                               </div>
                             )}
 
-                            {suggestion.source_reference && (
+                            {/* Email context for faster review */}
+                            {suggestion.source_type === "email" && suggestion.email_subject && (
+                              <div className="mt-2 p-2 bg-slate-50 rounded-md border border-slate-100">
+                                <div className="flex items-start gap-2">
+                                  <Mail className="h-4 w-4 text-slate-400 mt-0.5 shrink-0" />
+                                  <div className="min-w-0 flex-1">
+                                    <p className="text-xs font-medium text-slate-700 truncate">
+                                      {suggestion.email_subject}
+                                    </p>
+                                    <p className="text-xs text-slate-500 mt-0.5">
+                                      From: {suggestion.email_sender_name || suggestion.email_sender || "Unknown"}
+                                    </p>
+                                    {suggestion.email_preview && (
+                                      <p className="text-xs text-slate-400 mt-1 line-clamp-2">
+                                        {suggestion.email_preview}
+                                      </p>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+
+                            {!suggestion.email_subject && suggestion.source_reference && (
                               <p className="text-xs text-slate-400 mt-1 truncate">
                                 From: {suggestion.source_reference}
                               </p>

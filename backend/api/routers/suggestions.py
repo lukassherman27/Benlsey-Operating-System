@@ -83,11 +83,18 @@ async def get_suggestions(
         cursor.execute(f"SELECT COUNT(*) FROM ai_suggestions WHERE {where_sql}", params)
         total = cursor.fetchone()[0]
 
-        # Get paginated results
+        # Get paginated results with email context for faster review
         cursor.execute(f"""
-            SELECT * FROM ai_suggestions
-            WHERE {where_sql}
-            ORDER BY confidence_score DESC, created_at DESC
+            SELECT
+                s.*,
+                e.subject as email_subject,
+                e.sender_name as email_sender_name,
+                e.sender_email as email_sender,
+                SUBSTR(COALESCE(e.snippet, e.body_preview, ''), 1, 200) as email_preview
+            FROM ai_suggestions s
+            LEFT JOIN emails e ON s.source_type = 'email' AND s.source_id = e.email_id
+            WHERE {where_sql.replace('status', 's.status').replace('suggestion_type', 's.suggestion_type').replace('confidence_score', 's.confidence_score')}
+            ORDER BY s.confidence_score DESC, s.created_at DESC
             LIMIT ? OFFSET ?
         """, params + [limit, offset])
 
@@ -1335,6 +1342,106 @@ async def reject_with_correction(
             result_data["subcategory"] = request.subcategory
             result_data["corrected"] = True
 
+        # Handle scheduling data (when category is internal:scheduling)
+        if email_id and request.category == 'internal' and request.subcategory == 'scheduling':
+            scheduling_data = {}
+
+            # Process deadlines
+            if request.deadlines:
+                scheduling_data['deadlines'] = [
+                    {
+                        'date': d.date,
+                        'context': d.context,
+                        'project_code': d.project_code,
+                        'is_hard_deadline': d.is_hard_deadline
+                    }
+                    for d in request.deadlines
+                ]
+
+            # Process people
+            if request.people:
+                scheduling_data['people'] = [
+                    {
+                        'name': p.name,
+                        'role': p.role,
+                        'action_item': p.action_item
+                    }
+                    for p in request.people
+                ]
+
+            # Store scheduling data in email_content.entities
+            if scheduling_data:
+                # Get existing entities or create new
+                cursor.execute("""
+                    SELECT content_id, entities FROM email_content WHERE email_id = ?
+                """, (email_id,))
+                content_row = cursor.fetchone()
+
+                if content_row:
+                    existing_entities = {}
+                    if content_row['entities']:
+                        try:
+                            existing_entities = json.loads(content_row['entities'])
+                        except (json.JSONDecodeError, TypeError):
+                            pass
+
+                    existing_entities['scheduling'] = scheduling_data
+
+                    cursor.execute("""
+                        UPDATE email_content
+                        SET entities = ?,
+                            subcategory = 'scheduling'
+                        WHERE content_id = ?
+                    """, (json.dumps(existing_entities), content_row['content_id']))
+                else:
+                    # Create new email_content record
+                    cursor.execute("""
+                        INSERT INTO email_content (email_id, category, subcategory, entities)
+                        VALUES (?, 'internal', 'scheduling', ?)
+                    """, (email_id, json.dumps({'scheduling': scheduling_data})))
+
+                result_data["scheduling_data_stored"] = True
+                result_data["scheduling"] = scheduling_data
+
+            # Process confirmed nicknames - store in learned_patterns
+            if request.nicknames:
+                nicknames_created = []
+                for nickname in request.nicknames:
+                    if nickname.confirm:
+                        # Create entity_pattern in learned_patterns for this nickname
+                        condition_json = json.dumps({
+                            'alias': nickname.nickname.lower().strip(),
+                            'project_code': nickname.project_code
+                        })
+                        action_json = json.dumps({
+                            'link_to_project': nickname.project_code,
+                            'alias_type': 'project_nickname'
+                        })
+
+                        cursor.execute("""
+                            INSERT INTO learned_patterns (
+                                pattern_name, pattern_type, condition, action,
+                                confidence_score, evidence_count, is_active
+                            ) VALUES (
+                                ?, 'entity_pattern', ?, ?,
+                                0.9, 1, 1
+                            )
+                            ON CONFLICT(pattern_name) DO UPDATE SET
+                                evidence_count = evidence_count + 1,
+                                confidence_score = MIN(1.0, confidence_score + 0.05)
+                        """, (
+                            f"nickname:{nickname.nickname.lower().strip()}",
+                            condition_json,
+                            action_json
+                        ))
+                        nicknames_created.append({
+                            'nickname': nickname.nickname,
+                            'project_code': nickname.project_code
+                        })
+
+                if nicknames_created:
+                    result_data["nicknames_learned"] = nicknames_created
+
         # Create pattern if requested
         if request.create_pattern and result_data.get("corrected") and email_id:
             cursor.execute(
@@ -2468,6 +2575,145 @@ async def get_multi_project_contacts():
             "success": True,
             "contacts": contacts,
             "count": len(contacts)
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ============================================================================
+# CONTEXT-AWARE SUGGESTION ENDPOINTS (Phase 2.0)
+# ============================================================================
+
+@router.get("/suggestions/context-aware/status")
+async def get_context_aware_status():
+    """Get the status of context-aware suggestion generation"""
+    try:
+        from backend.services.context_aware_suggestion_service import get_context_aware_service
+        service = get_context_aware_service(DB_PATH)
+
+        return {
+            "success": True,
+            "enabled": service.is_enabled(),
+            "context_stats": service.get_context_stats(),
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/suggestions/context-aware/toggle")
+async def toggle_context_aware(enable: bool = True):
+    """Enable or disable context-aware suggestion generation"""
+    try:
+        from backend.services.context_aware_suggestion_service import get_context_aware_service
+        service = get_context_aware_service(DB_PATH)
+
+        service.set_enabled(enable, updated_by="api")
+
+        return {
+            "success": True,
+            "enabled": enable,
+            "message": f"Context-aware suggestions {'enabled' if enable else 'disabled'}"
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/suggestions/context-aware/generate")
+async def generate_context_aware_suggestions(
+    email_id: Optional[int] = None,
+    limit: int = Query(50, ge=1, le=200, description="Max emails to process in batch"),
+    hours_back: int = Query(24, ge=1, le=168, description="Hours to look back for unprocessed emails")
+):
+    """
+    Generate context-aware suggestions for emails.
+
+    If email_id is provided, processes that single email.
+    Otherwise, processes up to `limit` unprocessed emails from the last `hours_back` hours.
+    """
+    try:
+        from backend.services.context_aware_suggestion_service import get_context_aware_service
+        service = get_context_aware_service(DB_PATH)
+
+        if email_id:
+            result = service.generate_suggestions_for_email(email_id)
+        else:
+            result = service.generate_suggestions_batch(
+                email_ids=None,
+                limit=limit,
+                hours_back=hours_back
+            )
+
+        return {
+            "success": result.get("success", False),
+            **result
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/suggestions/context-aware/context")
+async def get_context_bundle():
+    """
+    Get the current context bundle used for GPT analysis.
+
+    Useful for debugging and understanding what context is being injected.
+    """
+    try:
+        from backend.services.context_bundler import get_context_bundler
+        bundler = get_context_bundler(DB_PATH)
+
+        bundle = bundler.get_bundle()
+
+        # Return summary, not full content (to avoid huge response)
+        return {
+            "success": True,
+            "built_at": bundle.get("built_at"),
+            "estimated_tokens": bundle.get("estimated_tokens"),
+            "proposal_count": len(bundle.get("active_proposals", [])),
+            "project_count": len(bundle.get("active_projects", [])),
+            "pattern_count": len(bundle.get("learned_patterns", [])),
+            "contact_mapping_count": len(bundle.get("contact_mappings", [])),
+            "multi_project_contacts": bundle.get("multi_project_contacts", []),
+            # Include sample of proposals for verification
+            "sample_proposals": bundle.get("active_proposals", [])[:5],
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/suggestions/context-aware/refresh-context")
+async def refresh_context_bundle():
+    """Force refresh the context bundle cache"""
+    try:
+        from backend.services.context_aware_suggestion_service import get_context_aware_service
+        service = get_context_aware_service(DB_PATH)
+
+        result = service.refresh_context()
+
+        return {
+            "success": True,
+            "message": "Context bundle refreshed",
+            **result
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/suggestions/context-aware/usage")
+async def get_gpt_usage_stats(
+    days: int = Query(30, ge=1, le=365, description="Number of days to look back")
+):
+    """Get GPT API usage statistics for cost monitoring"""
+    try:
+        from backend.services.context_aware_suggestion_service import get_context_aware_service
+        service = get_context_aware_service(DB_PATH)
+
+        stats = service.get_usage_stats(days=days)
+
+        return {
+            "success": True,
+            "period_days": days,
+            **stats
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

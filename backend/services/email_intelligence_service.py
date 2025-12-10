@@ -63,7 +63,7 @@ class EmailIntelligenceService(BaseService):
                         e.date,
                         e.date_normalized,
                         e.has_attachments,
-                        e.category,
+                        ec.category,
                         e.snippet,
                         ec.ai_summary,
                         ec.sentiment,
@@ -88,7 +88,7 @@ class EmailIntelligenceService(BaseService):
                         e.date,
                         e.date_normalized,
                         e.has_attachments,
-                        e.category,
+                        ec.category,
                         e.snippet,
                         ec.ai_summary,
                         ec.sentiment,
@@ -118,7 +118,7 @@ class EmailIntelligenceService(BaseService):
                         e.date,
                         e.date_normalized,
                         e.has_attachments,
-                        e.category,
+                        ec.category,
                         e.snippet,
                         ec.ai_summary,
                         ec.sentiment,
@@ -672,3 +672,163 @@ class EmailIntelligenceService(BaseService):
 
             columns = [desc[0] for desc in cursor.description]
             return [dict(zip(columns, row)) for row in cursor.fetchall()]
+
+    # ============================================================================
+    # REVIEW QUEUE - Emails with pending suggestions
+    # ============================================================================
+
+    def get_review_queue(self, limit: int = 50) -> Dict[str, Any]:
+        """
+        Get emails with pending AI suggestions for review.
+
+        Returns emails that have:
+        - Pending email_link suggestions
+        - Pending contact_link suggestions
+        - Any other pending suggestions
+
+        Each email includes:
+        - Email content (subject, sender, snippet)
+        - The AI suggestion with confidence and reason
+        - Sender context (other emails from same sender, linked projects)
+
+        Used by the Email Review Queue page for batch reviewing.
+        """
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+
+            # Get emails with pending suggestions
+            # Note: ai_suggestions uses target_table, project_code, description, suggested_data
+            cursor.execute("""
+                SELECT
+                    e.email_id,
+                    e.subject,
+                    e.sender_email,
+                    e.sender_name,
+                    COALESCE(e.date, e.date_normalized) as date,
+                    e.snippet,
+                    e.has_attachments,
+                    ec.category,
+                    ec.ai_summary,
+                    s.suggestion_id,
+                    s.suggestion_type,
+                    s.target_table,
+                    s.target_id,
+                    s.project_code as target_code,
+                    s.confidence_score,
+                    s.title as match_method,
+                    s.description as match_reason,
+                    s.suggested_data as suggested_value,
+                    s.detected_entities as context,
+                    s.created_at as suggestion_created,
+                    -- Get project/proposal name for display
+                    COALESCE(p.project_name, pr.project_title) as target_name
+                FROM ai_suggestions s
+                INNER JOIN emails e ON s.source_id = e.email_id AND s.source_type = 'email'
+                LEFT JOIN email_content ec ON e.email_id = ec.email_id
+                LEFT JOIN proposals p ON s.target_table = 'proposals' AND s.target_id = p.proposal_id
+                LEFT JOIN projects pr ON s.target_table = 'projects' AND s.target_id = pr.project_id
+                WHERE s.status = 'pending'
+                AND s.suggestion_type IN ('email_link', 'contact_link', 'project_alias')
+                ORDER BY s.confidence_score DESC, s.created_at DESC
+                LIMIT ?
+            """, (limit,))
+
+            columns = [desc[0] for desc in cursor.description]
+            rows = cursor.fetchall()
+
+            # Build email list with suggestions
+            emails = []
+            for row in rows:
+                email_data = dict(zip(columns, row))
+
+                # Extract suggestion into nested object
+                suggestion = {
+                    'suggestion_id': email_data.pop('suggestion_id'),
+                    'type': email_data.pop('suggestion_type'),
+                    'target_type': email_data.pop('target_table'),  # renamed from target_type
+                    'target_id': email_data.pop('target_id'),
+                    'target_code': email_data.pop('target_code'),
+                    'target_name': email_data.pop('target_name'),
+                    'confidence': email_data.pop('confidence_score'),
+                    'match_method': email_data.pop('match_method'),
+                    'reason': email_data.pop('match_reason'),
+                    'suggested_value': email_data.pop('suggested_value'),
+                    'context': email_data.pop('context'),
+                    'created_at': email_data.pop('suggestion_created'),
+                }
+                email_data['suggestion'] = suggestion
+
+                emails.append(email_data)
+
+            # Get sender context for each unique sender
+            sender_emails = list(set(e.get('sender_email') for e in emails if e.get('sender_email')))
+
+            sender_context = {}
+            if sender_emails:
+                for sender in sender_emails:
+                    if not sender:
+                        continue
+
+                    # Count emails from this sender
+                    cursor.execute("""
+                        SELECT COUNT(*) FROM emails WHERE sender_email = ?
+                    """, (sender,))
+                    total = cursor.fetchone()[0]
+
+                    # Get linked projects for this sender
+                    cursor.execute("""
+                        SELECT DISTINCT epl.project_code
+                        FROM emails e
+                        INNER JOIN email_proposal_links epl ON e.email_id = epl.email_id
+                        WHERE e.sender_email = ?
+                        LIMIT 5
+                    """, (sender,))
+                    linked_projects = [row[0] for row in cursor.fetchall()]
+
+                    # Check if known contact
+                    cursor.execute("""
+                        SELECT contact_id FROM contacts WHERE email = ?
+                    """, (sender,))
+                    is_contact = cursor.fetchone() is not None
+
+                    sender_context[sender] = {
+                        'total_emails': total,
+                        'linked_projects': linked_projects,
+                        'is_known_contact': is_contact
+                    }
+
+            # Attach sender context to each email
+            for email in emails:
+                sender = email.get('sender_email')
+                if sender and sender in sender_context:
+                    email['sender_context'] = sender_context[sender]
+                else:
+                    email['sender_context'] = {
+                        'total_emails': 0,
+                        'linked_projects': [],
+                        'is_known_contact': False
+                    }
+
+            # Get queue stats
+            cursor.execute("""
+                SELECT COUNT(*) FROM ai_suggestions
+                WHERE status = 'pending'
+                AND suggestion_type IN ('email_link', 'contact_link', 'project_alias')
+            """)
+            total_pending = cursor.fetchone()[0]
+
+            cursor.execute("""
+                SELECT suggestion_type, COUNT(*)
+                FROM ai_suggestions
+                WHERE status = 'pending'
+                GROUP BY suggestion_type
+            """)
+            by_type = {row[0]: row[1] for row in cursor.fetchall()}
+
+            return {
+                'success': True,
+                'count': len(emails),
+                'total_pending': total_pending,
+                'by_type': by_type,
+                'emails': emails
+            }

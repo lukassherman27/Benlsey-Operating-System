@@ -230,3 +230,134 @@ async def update_invoice(invoice_number: str, request: InvoiceUpdateRequest):
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+# ============================================================================
+# FINANCIAL ANALYTICS - Revenue Trends & Client Payment Behavior
+# ============================================================================
+
+@router.get("/invoices/revenue-trends")
+async def get_revenue_trends(months: int = Query(12, ge=1, le=24)):
+    """
+    Get monthly revenue/collections trends for the past N months.
+    Returns invoiced amounts, paid amounts, and collection rates by month.
+    """
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+
+        cursor.execute("""
+            SELECT
+                strftime('%Y-%m', invoice_date) as month,
+                COUNT(*) as invoice_count,
+                COALESCE(SUM(invoice_amount), 0) as total_invoiced,
+                COALESCE(SUM(CASE WHEN payment_amount > 0 THEN payment_amount ELSE 0 END), 0) as total_paid,
+                COUNT(CASE WHEN payment_amount > 0 THEN 1 END) as paid_count,
+                AVG(CASE
+                    WHEN payment_date IS NOT NULL AND invoice_date IS NOT NULL
+                    THEN julianday(payment_date) - julianday(invoice_date)
+                END) as avg_days_to_pay
+            FROM invoices
+            WHERE invoice_date IS NOT NULL
+              AND invoice_date >= date('now', '-' || ? || ' months')
+            GROUP BY month
+            ORDER BY month ASC
+        """, (months,))
+
+        rows = cursor.fetchall()
+
+        trends = []
+        for row in rows:
+            total_inv = row['total_invoiced'] or 0
+            total_pd = row['total_paid'] or 0
+            trends.append({
+                "month": row['month'],
+                "invoice_count": row['invoice_count'],
+                "total_invoiced": round(total_inv, 2),
+                "total_paid": round(total_pd, 2),
+                "paid_count": row['paid_count'],
+                "collection_rate": round((total_pd / total_inv * 100), 1) if total_inv > 0 else 0,
+                "avg_days_to_pay": round(row['avg_days_to_pay'], 0) if row['avg_days_to_pay'] else None
+            })
+
+        conn.close()
+
+        return {
+            "success": True,
+            "data": trends,
+            "count": len(trends)
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/invoices/client-payment-behavior")
+async def get_client_payment_behavior(limit: int = Query(10, ge=1, le=50)):
+    """
+    Get payment behavior analytics by project/client.
+    Returns top projects by payments with average days to pay and collection metrics.
+    """
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+
+        cursor.execute("""
+            SELECT
+                p.project_code,
+                p.project_title as project_name,
+                COUNT(i.invoice_id) as invoice_count,
+                COALESCE(SUM(i.invoice_amount), 0) as total_invoiced,
+                COALESCE(SUM(i.payment_amount), 0) as total_paid,
+                COALESCE(SUM(i.invoice_amount) - SUM(COALESCE(i.payment_amount, 0)), 0) as outstanding,
+                COUNT(CASE WHEN i.payment_amount > 0 THEN 1 END) as paid_invoice_count,
+                AVG(CASE
+                    WHEN i.payment_date IS NOT NULL AND i.invoice_date IS NOT NULL
+                    THEN julianday(i.payment_date) - julianday(i.invoice_date)
+                END) as avg_days_to_pay,
+                MIN(i.invoice_date) as first_invoice,
+                MAX(i.invoice_date) as last_invoice
+            FROM invoices i
+            JOIN projects p ON i.project_id = p.project_id
+            WHERE i.invoice_amount > 0
+            GROUP BY p.project_id
+            HAVING total_paid > 0
+            ORDER BY total_paid DESC
+            LIMIT ?
+        """, (limit,))
+
+        rows = cursor.fetchall()
+
+        clients = []
+        for row in rows:
+            total_inv = row['total_invoiced'] or 0
+            total_pd = row['total_paid'] or 0
+            clients.append({
+                "project_code": row['project_code'],
+                "project_name": row['project_name'],
+                "invoice_count": row['invoice_count'],
+                "total_invoiced": round(total_inv, 2),
+                "total_paid": round(total_pd, 2),
+                "outstanding": round(row['outstanding'] or 0, 2),
+                "paid_invoice_count": row['paid_invoice_count'],
+                "collection_rate": round((total_pd / total_inv * 100), 1) if total_inv > 0 else 0,
+                "avg_days_to_pay": round(row['avg_days_to_pay'], 0) if row['avg_days_to_pay'] else None,
+                "payment_speed": (
+                    "Fast" if row['avg_days_to_pay'] and row['avg_days_to_pay'] < 30
+                    else "Normal" if row['avg_days_to_pay'] and row['avg_days_to_pay'] < 60
+                    else "Slow" if row['avg_days_to_pay'] else "Unknown"
+                ),
+                "first_invoice": row['first_invoice'],
+                "last_invoice": row['last_invoice']
+            })
+
+        conn.close()
+
+        return {
+            "success": True,
+            "data": clients,
+            "count": len(clients)
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

@@ -159,7 +159,7 @@ class ExcelProjectImporter:
                     start_date = row['start_date'].strftime('%Y-%m-%d')
                 else:
                     start_date = pd.to_datetime(row['start_date']).strftime('%Y-%m-%d')
-            except:
+            except (ValueError, AttributeError):
                 pass
 
         if pd.notna(row.get('completion_target')):
@@ -168,7 +168,7 @@ class ExcelProjectImporter:
                     completion_target = row['completion_target'].strftime('%Y-%m-%d')
                 else:
                     completion_target = pd.to_datetime(row['completion_target']).strftime('%Y-%m-%d')
-            except:
+            except (ValueError, AttributeError):
                 pass
 
         # Print what we're about to create

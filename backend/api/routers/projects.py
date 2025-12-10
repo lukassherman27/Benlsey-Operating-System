@@ -162,46 +162,90 @@ async def get_project_financial_summary(project_code: str):
         conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
 
+        # First try to find in projects table
         cursor.execute("""
             SELECT p.project_id, p.project_code, p.project_title,
-                   c.company_name as client_name,
-                   p.total_fee_usd as contract_value
+                   p.project_title as project_name,
+                   COALESCE(c.company_name, p.project_title) as client_name,
+                   p.total_fee_usd as contract_value,
+                   p.total_fee_usd as contract_value_usd,
+                   p.total_fee_usd as total_fee_usd,
+                   p.current_phase,
+                   p.status,
+                   p.contract_signed_date,
+                   p.city,
+                   p.country
             FROM projects p
             LEFT JOIN clients c ON p.client_id = c.client_id
             WHERE p.project_code = ?
         """, (project_code,))
 
         project_row = cursor.fetchone()
+
+        # If not found in projects, try proposals (for pre-contract proposals)
+        if not project_row:
+            cursor.execute("""
+                SELECT
+                    NULL as project_id,
+                    project_code,
+                    project_name as project_title,
+                    project_name,
+                    client_company as client_name,
+                    total_value as contract_value,
+                    total_value as contract_value_usd,
+                    total_value as total_fee_usd,
+                    status as current_phase,
+                    status,
+                    NULL as contract_signed_date,
+                    city,
+                    country
+                FROM proposals
+                WHERE project_code = ?
+            """, (project_code,))
+            project_row = cursor.fetchone()
+
         if not project_row:
             conn.close()
             raise HTTPException(status_code=404, detail=f"Project {project_code} not found")
 
         project = dict(project_row)
-        project_id = project['project_id']
+        project_id = project.get('project_id')
 
-        # Get invoice totals
-        cursor.execute("""
-            SELECT
-                COALESCE(SUM(invoice_amount), 0) as total_invoiced,
-                COALESCE(SUM(payment_amount), 0) as total_paid
-            FROM invoices
-            WHERE project_id = ?
-        """, (project_id,))
+        # Get invoice totals (only if we have a project_id)
+        total_invoiced = 0
+        total_paid = 0
+        if project_id:
+            cursor.execute("""
+                SELECT
+                    COALESCE(SUM(invoice_amount), 0) as total_invoiced,
+                    COALESCE(SUM(payment_amount), 0) as total_paid
+                FROM invoices
+                WHERE project_id = ?
+            """, (project_id,))
+            totals = cursor.fetchone()
+            total_invoiced = totals['total_invoiced'] if totals else 0
+            total_paid = totals['total_paid'] if totals else 0
 
-        totals = cursor.fetchone()
         conn.close()
 
         contract_value = project.get('contract_value') or 0
-        total_invoiced = totals['total_invoiced'] if totals else 0
-        total_paid = totals['total_paid'] if totals else 0
 
         summary = {
             "project_code": project_code,
-            "project_title": project['project_title'],
-            "client_name": project['client_name'],
+            "project_title": project.get('project_title'),
+            "project_name": project.get('project_name') or project.get('project_title'),
+            "client_name": project.get('client_name'),
             "contract_value": contract_value,
+            "contract_value_usd": contract_value,
+            "total_fee_usd": contract_value,
+            "current_phase": project.get('current_phase'),
+            "status": project.get('status'),
+            "contract_signed_date": project.get('contract_signed_date'),
+            "city": project.get('city'),
+            "country": project.get('country'),
             "total_invoiced": total_invoiced,
             "total_paid": total_paid,
+            "paid_to_date_usd": total_paid,
             "outstanding": total_invoiced - total_paid,
             "remaining_to_invoice": contract_value - total_invoiced,
             "percent_invoiced": round((total_invoiced / contract_value * 100), 1) if contract_value > 0 else 0,
@@ -669,7 +713,10 @@ async def delete_phase_fee(breakdown_id: str):
 async def get_unified_timeline(
     project_code: str,
     limit: int = Query(100, ge=1, le=500),
-    item_types: Optional[str] = Query(None, description="Comma-separated types: email,transcript,invoice,rfi")
+    item_types: Optional[str] = Query(None, description="Comma-separated types: email,transcript,invoice,rfi"),
+    person: Optional[str] = Query(None, description="Filter by person (sender email or name)"),
+    date_from: Optional[str] = Query(None, description="Start date filter (YYYY-MM-DD)"),
+    date_to: Optional[str] = Query(None, description="End date filter (YYYY-MM-DD)")
 ):
     """Get unified timeline combining emails, transcripts, invoices, and RFIs for a project.
 
@@ -679,6 +726,7 @@ async def get_unified_timeline(
     - title: Subject/title of the item
     - summary: Brief description
     - id: Item ID for linking
+    - email_category: For emails, internal/client/external
     """
     try:
         conn = sqlite3.connect(DB_PATH)
@@ -702,9 +750,13 @@ async def get_unified_timeline(
 
         timeline_items = []
 
+        # Bensley internal domains
+        internal_domains = ['bensley.com', 'bensley.co.id']
+
         # Get emails (from email_project_links)
         if not type_filter or 'email' in type_filter:
-            cursor.execute("""
+            # Build query with optional filters
+            email_query = """
                 SELECT
                     e.email_id as id,
                     'email' as type,
@@ -712,18 +764,63 @@ async def get_unified_timeline(
                     e.subject as title,
                     COALESCE(e.snippet, SUBSTR(e.body_full, 1, 200)) as summary,
                     e.sender_email as sender,
+                    e.sender_name,
+                    e.recipient_emails,
+                    ec.category,
+                    e.folder,
                     epl.confidence,
                     epl.link_method
                 FROM emails e
                 JOIN email_project_links epl ON e.email_id = epl.email_id
+                LEFT JOIN email_content ec ON e.email_id = ec.email_id
                 WHERE epl.project_id = ?
-                ORDER BY e.date DESC
-                LIMIT ?
-            """, (project_id, limit))
+            """
+            params = [project_id]
+
+            # Add person filter
+            if person:
+                email_query += " AND (e.sender_email LIKE ? OR e.sender_name LIKE ? OR e.recipient_emails LIKE ?)"
+                person_pattern = f"%{person}%"
+                params.extend([person_pattern, person_pattern, person_pattern])
+
+            # Add date filters
+            if date_from:
+                email_query += " AND e.date >= ?"
+                params.append(date_from)
+            if date_to:
+                email_query += " AND e.date <= ?"
+                params.append(date_to + " 23:59:59")
+
+            email_query += " ORDER BY e.date DESC LIMIT ?"
+            params.append(limit)
+
+            cursor.execute(email_query, params)
 
             for row in cursor.fetchall():
                 item = dict(row)
                 item['date'] = item.get('date', '')
+
+                # Determine email_category (internal/external)
+                sender = (item.get('sender') or '').lower()
+                is_internal = any(domain in sender for domain in internal_domains)
+
+                # Check category field for more context
+                category = item.get('category', '') or ''
+
+                if is_internal or category == 'internal':
+                    item['email_category'] = 'internal'
+                elif category in ['contract', 'design', 'financial', 'meeting', 'administrative']:
+                    # These are likely project-related client communications
+                    item['email_category'] = 'client'
+                else:
+                    item['email_category'] = 'external'
+
+                # Determine direction
+                if item.get('folder') == 'SENT' or item.get('folder') == 'Sent':
+                    item['direction'] = 'sent'
+                else:
+                    item['direction'] = 'received'
+
                 timeline_items.append(item)
 
         # Get transcripts
@@ -808,6 +905,33 @@ async def get_unified_timeline(
         # Limit to requested size
         timeline_items = timeline_items[:limit]
 
+        # Extract unique people (for filter dropdown)
+        people_set = set()
+        for item in timeline_items:
+            if item.get('type') == 'email':
+                sender = item.get('sender_name') or item.get('sender')
+                if sender:
+                    # Clean up sender - remove email-style formatting
+                    sender_clean = sender.split('<')[0].strip().strip('"')
+                    if sender_clean and '@' not in sender_clean:
+                        people_set.add(sender_clean)
+            elif item.get('type') == 'transcript':
+                participants = item.get('participants', '')
+                if participants:
+                    for p in participants.split(','):
+                        p_clean = p.strip()
+                        if p_clean:
+                            people_set.add(p_clean)
+
+        unique_people = sorted(list(people_set))
+
+        # Count email categories
+        email_category_counts = {
+            "internal": sum(1 for i in timeline_items if i.get('type') == 'email' and i.get('email_category') == 'internal'),
+            "client": sum(1 for i in timeline_items if i.get('type') == 'email' and i.get('email_category') == 'client'),
+            "external": sum(1 for i in timeline_items if i.get('type') == 'email' and i.get('email_category') == 'external'),
+        }
+
         return {
             "success": True,
             "project_code": project_code,
@@ -818,10 +942,72 @@ async def get_unified_timeline(
                 "transcript": sum(1 for i in timeline_items if i.get('type') == 'transcript'),
                 "invoice": sum(1 for i in timeline_items if i.get('type') == 'invoice'),
                 "rfi": sum(1 for i in timeline_items if i.get('type') == 'rfi'),
-            }
+            },
+            "email_category_counts": email_category_counts,
+            "unique_people": unique_people,
         }
 
     except HTTPException:
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+# ============================================================================
+# PROJECT TEAM ENDPOINT
+# ============================================================================
+
+@router.get("/projects/{project_code}/team")
+async def get_project_team(project_code: str):
+    """
+    Get team assignments for a project from contact_project_mappings.
+    
+    Returns list of team members with their roles and disciplines.
+    Uses contact_project_mappings table which has 119+ records.
+    
+    Example: GET /api/projects/25%20BK-033/team
+    """
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        
+        # Get team members from contact_project_mappings
+        cursor.execute("""
+            SELECT 
+                cpm.contact_email,
+                cpm.contact_name as name,
+                c.role,
+                c.position as discipline,
+                c.company,
+                c.phone,
+                cpm.email_count,
+                cpm.first_email_date,
+                cpm.last_email_date,
+                cpm.is_primary_contact,
+                c.contact_id
+            FROM contact_project_mappings cpm
+            LEFT JOIN contacts c ON cpm.contact_email = c.email
+            WHERE cpm.project_code = ?
+            ORDER BY cpm.is_primary_contact DESC, cpm.email_count DESC, cpm.contact_name
+        """, (project_code,))
+        
+        team_members = []
+        for row in cursor.fetchall():
+            member = dict(row)
+            # Clean up the data
+            member['name'] = member.get('name') or 'Unknown'
+            member['role'] = member.get('role') or 'Team Member'
+            member['discipline'] = member.get('discipline') or 'General'
+            team_members.append(member)
+        
+        conn.close()
+        
+        return {
+            "success": True,
+            "project_code": project_code,
+            "team": team_members,
+            "count": len(team_members)
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to get project team: {str(e)}")

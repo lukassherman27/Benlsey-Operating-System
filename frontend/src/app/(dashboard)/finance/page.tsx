@@ -8,7 +8,9 @@ import { InvoiceQuickActions } from "@/components/dashboard/invoice-quick-action
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { DollarSign, TrendingUp, Calendar, Download, AlertTriangle, Clock } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { DollarSign, TrendingUp, Calendar, Download, AlertTriangle, Clock, Zap, Timer, ArrowRight } from "lucide-react";
+import Link from "next/link";
 
 /**
  * Finance Dashboard Page
@@ -132,16 +134,10 @@ export default function FinancePage() {
         </div>
       </div>
 
-      {/* Bottom Section - Additional Charts */}
+      {/* Bottom Section - Real Charts */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <PlaceholderChart
-          title="Revenue Trends"
-          description="Monthly collections over time"
-        />
-        <PlaceholderChart
-          title="Client Payment Behavior"
-          description="Top clients by payment speed"
-        />
+        <RevenueTrendsChart />
+        <ClientPaymentBehaviorChart />
       </div>
     </div>
   );
@@ -186,20 +182,258 @@ function KPICard({
   );
 }
 
-function PlaceholderChart({
-  title,
-  description,
-}: {
-  title: string;
-  description: string;
-}) {
+function RevenueTrendsChart() {
+  const { data, isLoading, isError } = useQuery({
+    queryKey: ["revenue-trends"],
+    queryFn: () => api.getRevenueTrends(12),
+    staleTime: 1000 * 60 * 10,
+  });
+
+  const formatCurrency = (value: number) => {
+    if (value >= 1000000) return `$${(value / 1000000).toFixed(1)}M`;
+    if (value >= 1000) return `$${(value / 1000).toFixed(0)}K`;
+    return `$${value.toFixed(0)}`;
+  };
+
+  const formatMonth = (month: string) => {
+    const [year, m] = month.split("-");
+    const date = new Date(parseInt(year), parseInt(m) - 1);
+    return date.toLocaleDateString("en-US", { month: "short", year: "2-digit" });
+  };
+
+  if (isLoading) {
+    return (
+      <Card className="border-gray-200 bg-gradient-to-br from-gray-50 to-slate-50">
+        <CardHeader>
+          <CardTitle className="text-lg flex items-center gap-2">
+            <TrendingUp className="h-5 w-5 text-blue-600" />
+            Revenue Trends
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="h-48 flex items-center justify-center">
+            <Skeleton className="h-full w-full rounded-lg" />
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (isError || !data?.data) {
+    return (
+      <Card className="border-gray-200 bg-gradient-to-br from-gray-50 to-slate-50">
+        <CardHeader>
+          <CardTitle className="text-lg flex items-center gap-2">
+            <TrendingUp className="h-5 w-5 text-blue-600" />
+            Revenue Trends
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="h-48 flex items-center justify-center text-muted-foreground">
+            Unable to load revenue data
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  const trends = data.data;
+  const maxPaid = Math.max(...trends.map(t => t.total_paid), 1);
+
   return (
-    <div className="rounded-lg border border-gray-200 p-6 bg-gradient-to-br from-gray-50 to-slate-50">
-      <h3 className="text-lg font-semibold mb-1">{title}</h3>
-      <p className="text-sm text-muted-foreground mb-4">{description}</p>
-      <div className="h-48 bg-gray-100 rounded-lg flex items-center justify-center">
-        <p className="text-sm text-muted-foreground">Chart coming soon...</p>
-      </div>
-    </div>
+    <Card className="border-gray-200 bg-gradient-to-br from-gray-50 to-slate-50">
+      <CardHeader className="pb-2">
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-lg flex items-center gap-2">
+            <TrendingUp className="h-5 w-5 text-blue-600" />
+            Revenue Trends
+          </CardTitle>
+          <Badge variant="outline" className="text-xs">
+            Last {trends.length} months
+          </Badge>
+        </div>
+        <p className="text-sm text-muted-foreground">Monthly collections over time</p>
+      </CardHeader>
+      <CardContent>
+        <div className="space-y-3">
+          {trends.slice(-6).map((month, idx) => (
+            <div key={month.month} className="space-y-1">
+              <div className="flex justify-between text-xs">
+                <span className="font-medium">{formatMonth(month.month)}</span>
+                <span className="text-muted-foreground">
+                  {formatCurrency(month.total_paid)} collected
+                </span>
+              </div>
+              <div className="h-6 bg-gray-100 rounded-full overflow-hidden relative">
+                <div
+                  className="h-full bg-gradient-to-r from-emerald-400 to-emerald-600 rounded-full transition-all duration-500"
+                  style={{ width: `${(month.total_paid / maxPaid) * 100}%` }}
+                />
+                {month.collection_rate > 0 && (
+                  <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] font-medium text-gray-600">
+                    {month.collection_rate}% rate
+                  </span>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+        <div className="mt-4 pt-3 border-t flex items-center justify-between text-sm">
+          <div>
+            <span className="text-muted-foreground">Total: </span>
+            <span className="font-semibold text-emerald-700">
+              {formatCurrency(trends.reduce((sum, t) => sum + t.total_paid, 0))}
+            </span>
+          </div>
+          <div>
+            <span className="text-muted-foreground">Avg/month: </span>
+            <span className="font-semibold">
+              {formatCurrency(trends.reduce((sum, t) => sum + t.total_paid, 0) / trends.length)}
+            </span>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function ClientPaymentBehaviorChart() {
+  const { data, isLoading, isError } = useQuery({
+    queryKey: ["client-payment-behavior"],
+    queryFn: () => api.getClientPaymentBehavior(8),
+    staleTime: 1000 * 60 * 10,
+  });
+
+  const formatCurrency = (value: number) => {
+    if (value >= 1000000) return `$${(value / 1000000).toFixed(1)}M`;
+    if (value >= 1000) return `$${(value / 1000).toFixed(0)}K`;
+    return `$${value.toFixed(0)}`;
+  };
+
+  const getSpeedColor = (speed: string) => {
+    switch (speed) {
+      case "Fast": return "bg-emerald-100 text-emerald-700 border-emerald-200";
+      case "Normal": return "bg-blue-100 text-blue-700 border-blue-200";
+      case "Slow": return "bg-amber-100 text-amber-700 border-amber-200";
+      default: return "bg-gray-100 text-gray-600 border-gray-200";
+    }
+  };
+
+  const getSpeedIcon = (speed: string) => {
+    switch (speed) {
+      case "Fast": return <Zap className="h-3 w-3" />;
+      case "Normal": return <Clock className="h-3 w-3" />;
+      case "Slow": return <Timer className="h-3 w-3" />;
+      default: return null;
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <Card className="border-gray-200 bg-gradient-to-br from-gray-50 to-slate-50">
+        <CardHeader>
+          <CardTitle className="text-lg flex items-center gap-2">
+            <DollarSign className="h-5 w-5 text-green-600" />
+            Client Payment Behavior
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-3">
+            {[...Array(5)].map((_, i) => (
+              <Skeleton key={i} className="h-12 w-full rounded-lg" />
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (isError || !data?.data) {
+    return (
+      <Card className="border-gray-200 bg-gradient-to-br from-gray-50 to-slate-50">
+        <CardHeader>
+          <CardTitle className="text-lg flex items-center gap-2">
+            <DollarSign className="h-5 w-5 text-green-600" />
+            Client Payment Behavior
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="h-48 flex items-center justify-center text-muted-foreground">
+            Unable to load payment data
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  const clients = data.data;
+
+  return (
+    <Card className="border-gray-200 bg-gradient-to-br from-gray-50 to-slate-50">
+      <CardHeader className="pb-2">
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-lg flex items-center gap-2">
+            <DollarSign className="h-5 w-5 text-green-600" />
+            Client Payment Behavior
+          </CardTitle>
+          <Badge variant="outline" className="text-xs">
+            Top {clients.length} clients
+          </Badge>
+        </div>
+        <p className="text-sm text-muted-foreground">By total payments received</p>
+      </CardHeader>
+      <CardContent>
+        <div className="space-y-2">
+          {clients.slice(0, 6).map((client) => (
+            <Link
+              key={client.project_code}
+              href={`/projects/${client.project_code}`}
+              className="block"
+            >
+              <div className="flex items-center justify-between p-2 rounded-lg hover:bg-white/50 transition-colors border border-transparent hover:border-gray-200 cursor-pointer group">
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium truncate group-hover:text-blue-600">
+                    {client.project_name}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {client.invoice_count} invoices • {formatCurrency(client.total_paid)} paid
+                  </p>
+                </div>
+                <div className="flex items-center gap-2 ml-2">
+                  <Badge
+                    variant="outline"
+                    className={`text-[10px] px-2 py-0.5 flex items-center gap-1 ${getSpeedColor(client.payment_speed)}`}
+                  >
+                    {getSpeedIcon(client.payment_speed)}
+                    {client.avg_days_to_pay ? `${client.avg_days_to_pay}d` : "N/A"}
+                  </Badge>
+                  <ArrowRight className="h-3 w-3 text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+                </div>
+              </div>
+            </Link>
+          ))}
+        </div>
+        <div className="mt-3 pt-3 border-t grid grid-cols-3 gap-4 text-center text-xs">
+          <div>
+            <p className="text-muted-foreground">Fast (&lt;30d)</p>
+            <p className="font-semibold text-emerald-700">
+              {clients.filter(c => c.payment_speed === "Fast").length}
+            </p>
+          </div>
+          <div>
+            <p className="text-muted-foreground">Normal (30-60d)</p>
+            <p className="font-semibold text-blue-700">
+              {clients.filter(c => c.payment_speed === "Normal").length}
+            </p>
+          </div>
+          <div>
+            <p className="text-muted-foreground">Slow (&gt;60d)</p>
+            <p className="font-semibold text-amber-700">
+              {clients.filter(c => c.payment_speed === "Slow").length}
+            </p>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
   );
 }

@@ -114,7 +114,7 @@ export function HotItemsWidget() {
         icon: <Sparkles className="h-4 w-4" />,
         text: `AI: ${sug.title}`,
         subtext: sug.description?.slice(0, 50) || sug.suggested_action,
-        link: "/suggestions",
+        link: "/admin/suggestions",
         urgency: sug.priority === "high" ? "high" : "low",
       });
     });
@@ -179,7 +179,7 @@ export function HotItemsWidget() {
             </span>
           </div>
           <Link
-            href="/suggestions"
+            href="/admin/suggestions"
             className="text-xs text-slate-500 hover:text-slate-700 flex items-center gap-1"
           >
             View all <ChevronRight className="h-3 w-3" />

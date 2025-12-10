@@ -190,7 +190,7 @@ class FollowUpAgent(BaseService):
                 action_date = datetime.fromisoformat(next_action_date).date()
                 if action_date <= datetime.now().date():
                     score += 15
-            except:
+            except (ValueError, TypeError):
                 pass
 
         # Health score factor (up to 10 points)
@@ -215,7 +215,7 @@ class FollowUpAgent(BaseService):
                 action_date = datetime.fromisoformat(next_action_date).date()
                 if action_date <= today:
                     return "overdue_action"
-            except:
+            except (ValueError, TypeError):
                 pass
 
         if days_since_contact is None:
@@ -483,62 +483,18 @@ Return JSON with:
         return results
 
     def _create_follow_up_suggestion(self, proposal: Dict):
-        """Create a follow-up suggestion in the learning system"""
-        urgency = proposal.get('urgency', 'medium')
-        priority_map = {
-            'critical': 'critical',
-            'urgent': 'high',
-            'overdue_action': 'critical',
-            'high': 'high',
-            'medium': 'medium',
-            'low': 'low'
-        }
+        """
+        DEPRECATED: Individual follow_up suggestions are now replaced with weekly report.
 
-        priority = priority_map.get(urgency, 'medium')
+        Use scripts/core/generate_stale_proposals_report.py instead to generate
+        a single consolidated report of all stale proposals.
 
-        # Calculate confidence based on data quality
-        confidence = 0.7
-        if proposal.get('email_count', 0) > 5:
-            confidence += 0.1
-        if proposal.get('last_contact_date'):
-            confidence += 0.1
-
-        suggestion_data = {
-            'proposal_id': proposal['proposal_id'],
-            'project_code': proposal['project_code'],
-            'days_since_contact': proposal.get('days_since_contact'),
-            'urgency': urgency,
-            'priority_score': proposal.get('priority_score', 50),
-            'suggested_approach': self._get_suggested_approach(urgency)
-        }
-
-        with self.get_connection() as conn:
-            cursor = conn.cursor()
-            cursor.execute("""
-                INSERT OR IGNORE INTO ai_suggestions (
-                    suggestion_type, priority, confidence_score,
-                    source_type, source_id, source_reference,
-                    title, description, suggested_action,
-                    suggested_data, target_table, project_code,
-                    proposal_id, status, created_at
-                ) VALUES (
-                    'follow_up_needed', ?, ?,
-                    'pattern', ?, ?,
-                    ?, ?, 'Send follow-up email',
-                    ?, 'proposals', ?, ?, 'pending', datetime('now')
-                )
-            """, (
-                priority,
-                confidence,
-                proposal['proposal_id'],
-                f"Proposal {proposal['project_code']} - {proposal['days_since_contact'] or 'N/A'} days silent",
-                f"Follow up on {proposal['project_code']}",
-                self._get_follow_up_description(proposal),
-                json.dumps(suggestion_data),
-                proposal['project_code'],
-                proposal['proposal_id']
-            ))
-            conn.commit()
+        This method is kept as a no-op for backwards compatibility.
+        """
+        # SUPPRESSED: Individual follow_up_needed suggestions create too much noise.
+        # Instead, run: python scripts/core/generate_stale_proposals_report.py
+        # This generates a single weekly report with all stale proposals grouped by urgency.
+        pass
 
     def _get_suggested_approach(self, urgency: str) -> str:
         """Get suggested follow-up approach based on urgency"""

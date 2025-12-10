@@ -357,6 +357,121 @@ def transcribe_long_audio(audio_path: Path) -> str:
 # SUMMARIZATION (Claude)
 # =============================================================================
 
+def get_project_context_from_database(project_code: str) -> Optional[Dict]:
+    """
+    Fetch detailed project/proposal context from BDS database for email formatting.
+    Returns None if project not found.
+
+    This is used AFTER AI has identified a project to enrich the email with:
+    - Project name, location, country
+    - Client name and contact info
+    - First contact date
+    - Proposal date
+    - Fee breakdown (if available)
+    - Scope summary
+    """
+    if not BDS_DATABASE.exists() or not project_code:
+        return None
+
+    try:
+        conn = sqlite3.connect(BDS_DATABASE)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+
+        context = {
+            'project_code': project_code,
+            'project_name': None,
+            'client_name': None,
+            'client_contact': None,
+            'client_email': None,
+            'location': None,
+            'country': None,
+            'first_contact_date': None,
+            'proposal_date': None,
+            'status': None,
+            'fee_total': None,
+            'fee_breakdown': None,
+            'scope_summary': None,
+        }
+
+        # Try proposals table first
+        cursor.execute("""
+            SELECT
+                project_name, client_company, contact_person, contact_email,
+                location, country, first_contact_date, created_at, status
+            FROM proposals
+            WHERE project_code = ?
+        """, (project_code,))
+
+        row = cursor.fetchone()
+        if row:
+            context['project_name'] = row['project_name']
+            context['client_name'] = row['client_company']
+            context['client_contact'] = row['contact_person']
+            context['client_email'] = row['contact_email']
+            context['location'] = row['location']
+            context['country'] = row['country']
+            context['first_contact_date'] = row['first_contact_date']
+            context['proposal_date'] = row['created_at'][:10] if row['created_at'] else None
+            context['status'] = row['status']
+
+        # Try projects table if not found in proposals
+        if not context['project_name']:
+            cursor.execute("""
+                SELECT
+                    p.project_title, p.city, p.country, p.status,
+                    c.company_name
+                FROM projects p
+                LEFT JOIN clients c ON p.client_id = c.client_id
+                WHERE p.project_code = ?
+            """, (project_code,))
+
+            row = cursor.fetchone()
+            if row:
+                context['project_name'] = row['project_title']
+                context['client_name'] = row['company_name']
+                context['location'] = row['city']
+                context['country'] = row['country']
+                context['status'] = row['status']
+
+        # Try to get fee breakdown if available
+        try:
+            cursor.execute("""
+                SELECT discipline, phase, phase_fee_usd
+                FROM project_fee_breakdown
+                WHERE project_code = ?
+                ORDER BY discipline, phase
+            """, (project_code,))
+
+            fees = cursor.fetchall()
+            if fees:
+                fee_breakdown = {}
+                total = 0
+                for fee in fees:
+                    disc = fee['discipline'] or 'Other'
+                    if disc not in fee_breakdown:
+                        fee_breakdown[disc] = 0
+                    fee_breakdown[disc] += fee['phase_fee_usd'] or 0
+                    total += fee['phase_fee_usd'] or 0
+                if total > 0:
+                    context['fee_breakdown'] = fee_breakdown
+                    context['fee_total'] = total
+        except Exception:
+            # Fee breakdown table might not have data for this project
+            pass
+
+        conn.close()
+
+        # Only return if we found something useful
+        if context['project_name']:
+            return context
+        return None
+
+    except Exception as e:
+        logger.error(f"Error fetching project context: {e}")
+        return None
+
+
 def get_all_context_from_database() -> Dict:
     """
     Fetch ALL relevant context from BDS database for AI matching.
@@ -644,14 +759,9 @@ Provide your analysis in the following JSON format:
 
 ```json
 {{
-    "summary": "2-3 sentence executive summary of the meeting",
-    "key_points": [
-        "Key point 1",
-        "Key point 2",
-        "Key point 3"
-    ],
+    "detailed_summary": "A detailed, conversational summary of the meeting (3-6 paragraphs). Write it like you're explaining to a colleague who wasn't on the call what was discussed. Include: what the client's current situation is, what they need from us, what we explained about our process, any unique aspects of the project, synergies or rapport discussed, and what was agreed for next steps. Use natural language, not bullet points.",
     "action_items": [
-        {{"task": "Description", "owner": "Person name", "deadline": "If mentioned", "owner_role": "Their role if known"}}
+        {{"task": "Description", "owner": "Person name", "deadline": "If mentioned or null", "owner_role": "Their role if known"}}
     ],
     "new_project_candidate": {{
         "is_new_project": true or false,
@@ -669,18 +779,23 @@ Provide your analysis in the following JSON format:
         "reasoning": "Why this project was matched"
     }},
     "participants": [
-        {{"name": "Person name", "role": "Their role", "type": "client/team/vendor/unknown"}}
+        {{"name": "Person name", "role": "Their role/title and company", "type": "client/team/vendor/unknown"}}
     ],
     "meeting_type": "One of: Client Call, Internal Meeting, Site Visit, Vendor Call, Design Review, Other",
     "sentiment": "Positive, Neutral, or Negative overall tone",
     "follow_up_required": true or false,
-    "next_meeting_mentioned": "Date/time if mentioned, null if not"
+    "follow_up_date": "Date/timeframe if mentioned (e.g., 'mid-January', 'next week'), null if not"
 }}
 ```
 
-Be accurate and concise. Match names to known contacts when possible.
-If no existing project is clearly mentioned but the conversation is about a new potential project/client, set new_project_candidate.is_new_project to true and fill in as many details as possible. If no project is clearly mentioned, set detected_project.code to null.
-Only include action items that were explicitly discussed.
+**IMPORTANT GUIDELINES:**
+- Match names to known contacts when possible
+- For participants, include their role AND company (e.g., "Founder, Marcheval Advisory Group" not just "Founder")
+- For Bensley team members, you can leave role empty unless they have a specific title
+- The detailed_summary should read like a natural narrative, not a list of bullet points
+- If no existing project is clearly mentioned but the conversation is about a new potential project/client, set new_project_candidate.is_new_project to true
+- If no project is clearly mentioned, set detected_project.code to null
+- Only include action items that were explicitly discussed
 """
 
     # Use Claude if available and configured, otherwise use OpenAI
@@ -819,19 +934,69 @@ def format_email_html(
     transcript: str,
     summary: Dict,
     audio_filename: str,
-    duration_seconds: float = None
+    duration_seconds: float = None,
+    include_full_transcript: bool = False,
+    project_context: Dict = None
 ) -> str:
-    """Format transcript and summary as HTML email."""
+    """
+    Format transcript and summary as HTML email.
 
+    Args:
+        transcript: Full transcript text
+        summary: AI-generated summary dict
+        audio_filename: Original audio filename
+        duration_seconds: Recording duration
+        include_full_transcript: If False, omit full transcript from email body (it's in attachment)
+        project_context: Optional dict with project details from database (for background box)
+    """
+
+    # Project Background Box (shown if we have project context from database)
+    project_background = ""
+    if project_context and project_context.get('project_name'):
+        ctx = project_context
+
+        # Build fee info if available
+        fee_info = ""
+        if ctx.get('fee_total'):
+            fee_info = f"<p style='margin-bottom: 0;'><strong>Fee:</strong> ${ctx['fee_total']:,.0f}"
+            if ctx.get('fee_breakdown'):
+                breakdown_parts = [f"{disc} (${amt:,.0f})" for disc, amt in ctx['fee_breakdown'].items()]
+                fee_info += f" — {' + '.join(breakdown_parts)}"
+            fee_info += "</p>"
+
+        # Build timeline info
+        timeline_info = ""
+        if ctx.get('first_contact_date') or ctx.get('proposal_date'):
+            timeline_parts = []
+            if ctx.get('first_contact_date'):
+                timeline_parts.append(f"First contact: {ctx['first_contact_date']}")
+            if ctx.get('proposal_date'):
+                timeline_parts.append(f"Proposal sent: {ctx['proposal_date']}")
+            timeline_info = f"<p style='margin-bottom: 10px;'><strong>Timeline:</strong> {'. '.join(timeline_parts)}</p>"
+
+        # Build location info
+        location_parts = [p for p in [ctx.get('location'), ctx.get('country')] if p]
+        location_str = ', '.join(location_parts) if location_parts else 'TBD'
+
+        project_background = f"""
+        <div style="background: #f0f7ff; padding: 15px; border-radius: 8px; margin-bottom: 20px; border-left: 4px solid #1a73e8;">
+            <h3 style="margin-top: 0; color: #1a73e8;">Project Background</h3>
+            <p style="margin-bottom: 10px;"><strong>Project:</strong> {ctx.get('project_code')} — {ctx.get('project_name')}</p>
+            <p style="margin-bottom: 10px;"><strong>Client:</strong> {ctx.get('client_name') or 'TBD'}{f" ({ctx.get('client_contact')})" if ctx.get('client_contact') and ctx.get('client_contact') != ctx.get('client_name') else ''}</p>
+            <p style="margin-bottom: 10px;"><strong>Location:</strong> {location_str}</p>
+            {timeline_info}
+            {fee_info}
+        </div>
+        """
+
+    # Simple project tag (fallback if no full context but AI detected a project)
     project_info = ""
-    if summary.get('detected_project', {}).get('code'):
+    if not project_background and summary.get('detected_project', {}).get('code'):
         proj = summary['detected_project']
-        confidence_pct = int(proj.get('confidence', 0) * 100)
         project_info = f"""
-        <div style="background: #e8f5e9; padding: 15px; border-radius: 8px; margin: 15px 0;">
-            <strong>Detected Project:</strong> {proj['code']}<br>
-            <strong>Confidence:</strong> {confidence_pct}%<br>
-            <small>{proj.get('reasoning', '')}</small>
+        <div style="background: #e8f5e9; padding: 15px; border-radius: 8px; margin: 15px 0; border-left: 4px solid #4caf50;">
+            <strong>🎯 Project:</strong> {proj['code']} - {proj.get('name', '')}<br>
+            <small style="color: #666;">{proj.get('reasoning', '')}</small>
         </div>
         """
 
@@ -839,28 +1004,29 @@ def format_email_html(
     if summary.get('action_items'):
         items = "".join([
             f"<li><strong>{item.get('task', 'Task')}</strong>"
-            f"{' - ' + item.get('owner', '') if item.get('owner') else ''}"
-            f"{' (Due: ' + item.get('deadline') + ')' if item.get('deadline') else ''}</li>"
+            f"<br><span style='color: #666; font-size: 13px;'>→ {item.get('owner', 'TBD')}"
+            f"{' (by ' + item.get('deadline') + ')' if item.get('deadline') else ''}</span></li>"
             for item in summary['action_items']
         ])
         action_items_html = f"""
-        <h3>Action Items</h3>
-        <ul>{items}</ul>
+        <div style="background: #fff3e0; padding: 15px; border-radius: 8px; margin: 15px 0; border-left: 4px solid #ff9800;">
+            <h3 style="margin-top: 0; color: #e65100;">📋 Action Items</h3>
+            <ul style="margin-bottom: 0;">{items}</ul>
+        </div>
         """
 
     new_project_html = ""
     new_proj = summary.get('new_project_candidate', {})
     if new_proj and new_proj.get('is_new_project'):
         new_project_html = f"""
-        <div style="background: #fff7e6; padding: 15px; border-radius: 8px; margin: 15px 0; border-left: 4px solid #ffa000;">
-            <h3 style="margin-top: 0;">New Potential Project</h3>
-            <p>
+        <div style="background: #e3f2fd; padding: 15px; border-radius: 8px; margin: 15px 0; border-left: 4px solid #2196f3;">
+            <h3 style="margin-top: 0; color: #1565c0;">🆕 New Project Opportunity</h3>
+            <p style="margin-bottom: 0;">
                 <strong>Client:</strong> {new_proj.get('client_name') or 'Unknown'}<br>
-                <strong>Project Name:</strong> {new_proj.get('project_name') or 'Not provided'}<br>
-                <strong>Location:</strong> {new_proj.get('location') or 'Not provided'}<br>
-                <strong>Scope:</strong> {new_proj.get('scope') or 'Not provided'}<br>
-                <strong>Approx. Size (sqft):</strong> {new_proj.get('approximate_size_sqft') or 'Not mentioned'}<br>
-                <strong>Notes:</strong> {new_proj.get('notes') or '—'}
+                <strong>Project:</strong> {new_proj.get('project_name') or 'Not named yet'}<br>
+                <strong>Location:</strong> {new_proj.get('location') or 'TBD'}<br>
+                <strong>Scope:</strong> {new_proj.get('scope') or 'TBD'}<br>
+                {f"<strong>Notes:</strong> {new_proj.get('notes')}" if new_proj.get('notes') else ''}
             </p>
         </div>
         """
@@ -869,7 +1035,7 @@ def format_email_html(
     if summary.get('key_points'):
         points = "".join([f"<li>{point}</li>" for point in summary['key_points']])
         key_points_html = f"""
-        <h3>Key Points</h3>
+        <h3 style="color: #1a73e8;">💡 Key Points</h3>
         <ul>{points}</ul>
         """
 
@@ -877,7 +1043,33 @@ def format_email_html(
     if duration_seconds:
         mins = int(duration_seconds // 60)
         secs = int(duration_seconds % 60)
-        duration_str = f"<br><strong>Duration:</strong> {mins}:{secs:02d}"
+        duration_str = f" ({mins}:{secs:02d})"
+
+    # Participants list
+    participants = summary.get('participants', [])
+    participants_str = ', '.join([
+        f"{p.get('name', p)} ({p.get('role', 'Unknown')})" if isinstance(p, dict) else str(p)
+        for p in participants
+    ]) if participants else 'Unknown'
+
+    # Full transcript section (optional)
+    transcript_section = ""
+    if include_full_transcript:
+        transcript_section = f"""
+        <h3 style="color: #1a73e8;">📝 Full Transcript</h3>
+        <div style="background: #fafafa; padding: 20px; border-radius: 8px; white-space: pre-wrap; font-size: 13px; max-height: 500px; overflow-y: auto; border: 1px solid #e0e0e0;">
+{transcript}
+        </div>
+        """
+    else:
+        transcript_section = """
+        <p style="color: #666; font-style: italic; font-size: 13px;">
+            📎 Full transcript attached as text file.
+        </p>
+        """
+
+    # Get summary text - support both old 'summary' and new 'detailed_summary' fields
+    summary_text = summary.get('detailed_summary') or summary.get('summary', 'No summary generated.')
 
     return f"""
     <!DOCTYPE html>
@@ -885,45 +1077,42 @@ def format_email_html(
     <head>
         <style>
             body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; max-width: 800px; margin: 0 auto; padding: 20px; }}
-            h1 {{ color: #1a73e8; border-bottom: 2px solid #1a73e8; padding-bottom: 10px; }}
-            h2 {{ color: #5f6368; }}
-            h3 {{ color: #1a73e8; margin-top: 25px; }}
-            .summary {{ background: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #1a73e8; }}
-            .transcript {{ background: #fafafa; padding: 20px; border-radius: 8px; white-space: pre-wrap; font-size: 14px; max-height: 500px; overflow-y: auto; }}
-            .meta {{ color: #5f6368; font-size: 14px; }}
+            h1 {{ color: #1a73e8; border-bottom: 2px solid #1a73e8; padding-bottom: 10px; font-size: 22px; }}
+            h2 {{ color: #333; font-size: 18px; }}
+            h3 {{ color: #1a73e8; margin-top: 25px; font-size: 16px; }}
+            .summary {{ background: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0; }}
+            .summary p {{ margin-bottom: 12px; }}
+            .summary p:last-child {{ margin-bottom: 0; }}
+            .meta {{ color: #5f6368; font-size: 13px; margin-bottom: 15px; }}
             ul {{ padding-left: 20px; }}
             li {{ margin: 8px 0; }}
         </style>
     </head>
     <body>
-        <h1>Meeting Transcript</h1>
+        <h1>🎤 Meeting Summary</h1>
 
         <div class="meta">
-            <strong>Recording:</strong> {audio_filename}<br>
-            <strong>Processed:</strong> {datetime.now().strftime('%Y-%m-%d %H:%M')}
-            {duration_str}<br>
+            <strong>Date:</strong> {datetime.now().strftime('%B %d, %Y')}{duration_str}<br>
             <strong>Type:</strong> {summary.get('meeting_type', 'Unknown')}<br>
-            <strong>Participants:</strong> {', '.join([p.get('name', p) if isinstance(p, dict) else str(p) for p in summary.get('participants', ['Unknown'])])}
+            <strong>Participants:</strong> {participants_str}
         </div>
 
+        {project_background}
         {project_info}
         {new_project_html}
 
         <div class="summary">
-            <h2>Summary</h2>
-            <p>{summary.get('summary', 'No summary generated.')}</p>
+            <h2>Meeting Summary</h2>
+            {summary_text}
         </div>
 
         {key_points_html}
         {action_items_html}
-
-        <h3>Full Transcript</h3>
-        <div class="transcript">{transcript}</div>
+        {transcript_section}
 
         <hr style="margin-top: 30px; border: none; border-top: 1px solid #e0e0e0;">
-        <p style="color: #9e9e9e; font-size: 12px;">
-            Automatically generated by BDS Voice Transcriber<br>
-            Powered by OpenAI Whisper + Claude AI
+        <p style="color: #9e9e9e; font-size: 11px;">
+            Automatically generated by BDS Voice Transcriber
         </p>
     </body>
     </html>
@@ -1022,7 +1211,7 @@ def save_to_database(
             audio_path.name,
             str(audio_path),
             transcript,
-            summary.get('summary', ''),
+            summary.get('detailed_summary') or summary.get('summary', ''),
             json.dumps(summary.get('key_points', [])),
             json.dumps(summary.get('action_items', [])),
             project_id,
@@ -1131,7 +1320,21 @@ def process_audio_file(audio_path: Path) -> bool:
         save_to_database(audio_path, transcript, summary, project_id)
 
         # 5. Send email
-        email_html = format_email_html(transcript, summary, audio_path.name)
+        # Fetch project context from database if a project was detected
+        project_context = None
+        detected_code = summary.get('detected_project', {}).get('code')
+        if detected_code:
+            project_context = get_project_context_from_database(detected_code)
+            if project_context:
+                logger.info(f"Loaded project context for {detected_code}: {project_context.get('project_name')}")
+
+        email_html = format_email_html(
+            transcript,
+            summary,
+            audio_path.name,
+            include_full_transcript=False,
+            project_context=project_context
+        )
 
         # Create transcript attachment
         transcript_bytes = transcript.encode('utf-8')
@@ -1139,11 +1342,14 @@ def process_audio_file(audio_path: Path) -> bool:
             (f"{audio_path.stem}_transcript.txt", transcript_bytes)
         ]
 
-        subject = f"Meeting Transcript: {audio_path.stem}"
+        # Build subject line
+        subject = "Meeting Summary"
         if summary.get('new_project_candidate', {}).get('is_new_project'):
-            subject = f"[New Project] {subject}"
-        if summary.get('detected_project', {}).get('code'):
-            subject = f"[{summary['detected_project']['code']}] {subject}"
+            new_proj = summary['new_project_candidate']
+            subject = f"[New Project] {new_proj.get('client_name') or 'Unknown Client'}"
+        elif detected_code:
+            project_name = (project_context or {}).get('project_name') or summary.get('detected_project', {}).get('name', '')
+            subject = f"[{detected_code}] Meeting Summary: {project_name}"
 
         send_email(subject, email_html, attachments)
 

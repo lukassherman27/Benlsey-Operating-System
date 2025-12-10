@@ -181,7 +181,7 @@ class MeetingBriefingService:
                 if t.get(field):
                     try:
                         t[field] = json.loads(t[field])
-                    except:
+                    except (json.JSONDecodeError, TypeError):
                         pass
             transcripts.append(t)
 

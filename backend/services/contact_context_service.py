@@ -762,5 +762,7 @@ def get_contact_context_service() -> ContactContextService:
     """Get the singleton contact context service instance"""
     global _service
     if _service is None:
-        _service = ContactContextService()
+        # Use the same DB path as other services
+        from api.dependencies import DB_PATH
+        _service = ContactContextService(db_path=DB_PATH)
     return _service

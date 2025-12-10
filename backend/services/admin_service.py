@@ -357,8 +357,8 @@ class AdminService(BaseService):
                         datetime.now().isoformat(), str(e)
                     ))
                     conn.commit()
-                except:
-                    pass
+                except Exception as log_err:
+                    pass  # Logging failure shouldn't mask the original error
 
                 return {
                     "success": False,
@@ -507,13 +507,14 @@ class AdminService(BaseService):
                     e.sender_email,
                     e.date as email_date,
                     e.snippet,
-                    e.category,
+                    ec.category,
                     -- Project/Proposal details
                     COALESCE(epl.project_code, p.project_code, pr.project_code) as project_code,
                     COALESCE(p.project_title, pr.project_name) as project_name,
                     COALESCE(p.status, pr.status) as project_status
                 FROM email_project_links epl
                 JOIN emails e ON epl.email_id = e.email_id
+                LEFT JOIN email_content ec ON e.email_id = ec.email_id
                 LEFT JOIN projects p ON (
                     epl.project_id = p.project_id
                     OR (epl.project_id IS NULL AND (
