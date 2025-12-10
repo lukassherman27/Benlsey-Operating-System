@@ -18,6 +18,7 @@ from typing import Optional
 from datetime import datetime
 
 from api.services import proposal_service, proposal_tracker_service
+from api.dependencies import DB_PATH
 from api.models import (
     CreateProposalRequest,
     UpdateProposalRequest,
@@ -81,23 +82,24 @@ async def get_at_risk_proposals(
         with proposal_service.get_connection() as conn:
             cursor = conn.cursor()
 
+            # Query proposals table (not projects!)
             cursor.execute("""
-                SELECT COUNT(*) FROM projects
+                SELECT COUNT(*) FROM proposals
                 WHERE health_score IS NOT NULL AND health_score < 50
-                AND is_active_project = 1
+                AND status NOT IN ('Lost', 'Declined', 'Contract Signed', 'Dormant')
             """)
             total = cursor.fetchone()[0] or 0
 
             offset = (page - 1) * per_page
             cursor.execute("""
                 SELECT
-                    proposal_id, project_code, project_title, client_company,
+                    proposal_id, project_code, project_name, client_company,
                     health_score, days_since_contact, last_contact_date,
-                    next_action, status, total_fee_usd, outstanding_usd,
+                    next_action, status, project_value,
                     contact_person, created_at, updated_at
-                FROM projects
+                FROM proposals
                 WHERE health_score IS NOT NULL AND health_score < 50
-                AND is_active_project = 1
+                AND status NOT IN ('Lost', 'Declined', 'Contract Signed', 'Dormant')
                 ORDER BY health_score ASC
                 LIMIT ? OFFSET ?
             """, (per_page, offset))
@@ -107,18 +109,17 @@ async def get_at_risk_proposals(
                 proposals.append({
                     "proposal_id": row[0],
                     "project_code": row[1],
-                    "project_title": row[2],
+                    "project_name": row[2],
                     "client_company": row[3],
                     "health_score": row[4],
                     "days_since_contact": row[5],
                     "last_contact_date": row[6],
                     "next_action": row[7],
                     "status": row[8],
-                    "total_fee_usd": row[9],
-                    "outstanding_usd": row[10],
-                    "contact_person": row[11],
-                    "created_at": row[12],
-                    "updated_at": row[13]
+                    "project_value": row[9],
+                    "contact_person": row[10],
+                    "created_at": row[11],
+                    "updated_at": row[12]
                 })
 
             data = proposals[:limit] if limit < per_page else proposals
@@ -140,22 +141,23 @@ async def get_needs_follow_up_proposals(
         with proposal_service.get_connection() as conn:
             cursor = conn.cursor()
 
+            # Query proposals table (not projects!)
             cursor.execute("""
-                SELECT COUNT(*) FROM projects
+                SELECT COUNT(*) FROM proposals
                 WHERE days_since_contact >= ?
-                AND is_active_project = 1
+                AND status NOT IN ('Lost', 'Declined', 'Contract Signed', 'Dormant')
             """, (min_days,))
             total = cursor.fetchone()[0] or 0
 
             offset = (page - 1) * per_page
             cursor.execute("""
                 SELECT
-                    project_id, project_code, project_title,
+                    proposal_id, project_code, project_name,
                     health_score, days_since_contact, status,
-                    total_fee_usd, country, updated_at
-                FROM projects
+                    project_value, country, updated_at
+                FROM proposals
                 WHERE days_since_contact >= ?
-                AND is_active_project = 1
+                AND status NOT IN ('Lost', 'Declined', 'Contract Signed', 'Dormant')
                 ORDER BY days_since_contact DESC
                 LIMIT ? OFFSET ?
             """, (min_days, per_page, offset))
@@ -163,13 +165,13 @@ async def get_needs_follow_up_proposals(
             proposals = []
             for row in cursor.fetchall():
                 proposals.append({
-                    "project_id": row[0],
+                    "proposal_id": row[0],
                     "project_code": row[1],
-                    "project_title": row[2],
+                    "project_name": row[2],
                     "health_score": row[3],
                     "days_since_contact": row[4],
                     "status": row[5],
-                    "total_fee_usd": row[6],
+                    "project_value": row[6],
                     "country": row[7],
                     "updated_at": row[8]
                 })
@@ -374,3 +376,94 @@ async def get_tracker_emails(project_code: str):
         return response
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to get emails: {str(e)}")
+
+
+# ============================================================================
+# PROPOSAL VERSION TRACKING ENDPOINTS
+# ============================================================================
+
+@router.get("/proposals/{project_code}/versions")
+async def get_proposal_versions(project_code: str):
+    """
+    Get all versions of a proposal with documents and fee history.
+
+    Returns:
+        - project_code, project_name, client info
+        - current_fee, num_versions
+        - versions: List of proposal documents with dates
+        - fee_changes: List of fee change events
+
+    Example: GET /api/proposals/25%20BK-087/versions
+    """
+    try:
+        from services.proposal_version_service import ProposalVersionService
+
+        svc = ProposalVersionService(DB_PATH)
+        result = svc.get_proposal_versions(project_code)
+
+        if not result.get('success'):
+            raise HTTPException(status_code=404, detail=result.get('error', 'Not found'))
+
+        return result
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to get versions: {str(e)}")
+
+
+@router.get("/proposals/{project_code}/fee-history")
+async def get_proposal_fee_history(project_code: str):
+    """
+    Get fee change timeline for a proposal.
+
+    Returns list of fee changes with dates, from initial to current.
+    """
+    try:
+        from services.proposal_version_service import ProposalVersionService
+
+        svc = ProposalVersionService(DB_PATH)
+        history = svc.get_fee_history(project_code)
+
+        return {
+            "success": True,
+            "project_code": project_code,
+            "fee_history": history,
+            "count": len(history)
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to get fee history: {str(e)}")
+
+
+@router.get("/proposals/search/by-client")
+async def search_proposals_by_client(
+    client: str = Query(..., min_length=2, description="Client name to search"),
+    include_versions: bool = Query(False, description="Include version counts")
+):
+    """
+    Search proposals by client name or company.
+
+    Answers: "How many proposals did we send to Vahine Island?"
+
+    Example: GET /api/proposals/search/by-client?client=Vahine&include_versions=true
+    """
+    try:
+        from services.proposal_version_service import ProposalVersionService
+
+        svc = ProposalVersionService(DB_PATH)
+
+        if include_versions:
+            # Get full summary with version counts
+            result = svc.get_version_summary_by_client(client)
+        else:
+            # Just search
+            proposals = svc.search_proposals_by_client(client, include_versions=False)
+            result = {
+                "success": True,
+                "client": client,
+                "proposals": proposals,
+                "count": len(proposals)
+            }
+
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to search proposals: {str(e)}")

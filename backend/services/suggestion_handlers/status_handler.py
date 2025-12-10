@@ -12,18 +12,53 @@ from .base import BaseSuggestionHandler, ChangePreview, SuggestionResult
 from .registry import register_handler
 
 
-# Valid status transitions for proposals
+# Valid status transitions for proposals - Full Lifecycle
+# IMPORTANT: These use TitleCase to match database values
+# Flow: First Contact → Meeting Held → Proposal Prep → Proposal Sent → Negotiation
+#       → Contract Signed (win) or Lost/Declined/Dormant
 VALID_STATUSES = [
-    'lead',           # Initial inquiry
-    'drafting',       # Proposal being drafted
-    'proposal_sent',  # Proposal sent to client
-    'awaiting_response',  # Waiting for client feedback
-    'negotiation',    # In negotiation
-    'won',            # Contract signed
-    'lost',           # Did not win
-    'on_hold',        # Temporarily paused
-    'cancelled'       # No longer pursuing
+    # Early stages (TitleCase - matches DB)
+    'First Contact',     # New lead comes in
+    'Meeting Held',      # Call/meeting completed
+    'Proposal Prep',     # Working on proposal
+
+    # Proposal sent and beyond
+    'Proposal Sent',     # Proposal sent to client
+    'Negotiation',       # Discussing fees, scope, terms
+
+    # Final outcomes
+    'Contract Signed',   # Won - contract signed!
+    'Lost',              # Did not win
+    'Declined',          # We declined to pursue
+    'Dormant',           # No activity, may revive
+    'On Hold',           # Temporarily paused
+
+    # Legacy lowercase aliases (for backwards compatibility with GPT suggestions)
+    'proposal_sent',     # → maps to 'Proposal Sent'
+    'first_contact',     # → maps to 'First Contact'
+    'meeting_held',      # → maps to 'Meeting Held'
+    'proposal_prep',     # → maps to 'Proposal Prep'
+    'negotiation',       # → maps to 'Negotiation'
+    'contract_signed',   # → maps to 'Contract Signed'
+    'lost',              # → maps to 'Lost'
+    'declined',          # → maps to 'Declined'
+    'dormant',           # → maps to 'Dormant'
+    'on_hold',           # → maps to 'On Hold'
 ]
+
+# Mapping from lowercase to TitleCase (for normalization)
+STATUS_NORMALIZE = {
+    'proposal_sent': 'Proposal Sent',
+    'first_contact': 'First Contact',
+    'meeting_held': 'Meeting Held',
+    'proposal_prep': 'Proposal Prep',
+    'negotiation': 'Negotiation',
+    'contract_signed': 'Contract Signed',
+    'lost': 'Lost',
+    'declined': 'Declined',
+    'dormant': 'Dormant',
+    'on_hold': 'On Hold',
+}
 
 
 @register_handler
@@ -46,11 +81,12 @@ class ProposalStatusHandler(BaseSuggestionHandler):
         """
         Validate the suggested data for updating proposal status.
 
-        Required: new_status and project_code
+        Required: new_status (or suggested_status) and project_code
         """
         errors = []
 
-        new_status = suggested_data.get("new_status")
+        # Accept either 'new_status' or 'suggested_status' (GPT uses the latter)
+        new_status = suggested_data.get("new_status") or suggested_data.get("suggested_status")
         if not new_status:
             errors.append("Status update requires 'new_status' field")
         elif new_status not in VALID_STATUSES:
@@ -68,7 +104,12 @@ class ProposalStatusHandler(BaseSuggestionHandler):
         Generate preview of the status update.
         """
         project_code = suggestion.get("project_code") or suggested_data.get("project_code")
-        new_status = suggested_data.get("new_status")
+        # Accept either 'new_status' or 'suggested_status' (GPT uses the latter)
+        new_status = suggested_data.get("new_status") or suggested_data.get("suggested_status")
+
+        # Normalize lowercase status to TitleCase
+        if new_status and new_status in STATUS_NORMALIZE:
+            new_status = STATUS_NORMALIZE[new_status]
 
         # Get current status from database
         old_status = None
@@ -94,8 +135,8 @@ class ProposalStatusHandler(BaseSuggestionHandler):
             {"field": "status", "old": old_status, "new": new_status},
         ]
 
-        # If updating to proposal_sent, also update proposal_sent_date
-        if new_status == "proposal_sent":
+        # If updating to Proposal Sent, also update proposal_sent_date
+        if new_status == "Proposal Sent":
             email_date = suggested_data.get("email_date")
             changes.append({
                 "field": "proposal_sent_date",
@@ -127,7 +168,12 @@ class ProposalStatusHandler(BaseSuggestionHandler):
 
         project_code = suggestion.get("project_code") or suggested_data.get("project_code")
         suggestion_id = suggestion.get("suggestion_id")
-        new_status = suggested_data.get("new_status")
+        # Accept either 'new_status' or 'suggested_status' (GPT uses the latter)
+        new_status = suggested_data.get("new_status") or suggested_data.get("suggested_status")
+
+        # Normalize lowercase status to TitleCase for database consistency
+        if new_status and new_status in STATUS_NORMALIZE:
+            new_status = STATUS_NORMALIZE[new_status]
 
         if not project_code:
             return SuggestionResult(
@@ -164,8 +210,8 @@ class ProposalStatusHandler(BaseSuggestionHandler):
         update_fields = ["status = ?", "last_status_change = date('now')", "status_changed_by = 'ai_suggestion'"]
         update_values = [new_status]
 
-        # If proposal_sent, update additional fields
-        if new_status == "proposal_sent":
+        # If Proposal Sent, update additional fields
+        if new_status == "Proposal Sent":
             email_date = suggested_data.get("email_date", datetime.now().strftime("%Y-%m-%d"))
             update_fields.append("proposal_sent_date = ?")
             update_values.append(email_date)
@@ -208,7 +254,7 @@ class ProposalStatusHandler(BaseSuggestionHandler):
         })
 
         # If we updated sent date, record that too
-        if new_status == "proposal_sent":
+        if new_status == "Proposal Sent":
             email_date = suggested_data.get("email_date", datetime.now().strftime("%Y-%m-%d"))
             self._record_change(
                 suggestion_id=suggestion_id,
