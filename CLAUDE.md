@@ -81,13 +81,29 @@ When multiple Claude agents work on the same codebase:
 
 ---
 
-## KEY RULES
+## MANDATORY RULES (LUKAS SAID SO)
 
+### Before Every Commit
+1. **Test it works** - Run the code, verify no crashes
+2. **Check vision** - Does this fit the bigger picture?
+3. **Explain in plain English** - Lukas doesn't code, no jargon
+
+### When You Find Broken Code
+1. **Tell Lukas first** - "I found X is broken"
+2. **Create an Issue** - `gh issue create --title "Bug: description" --label "bug"`
+3. **Fix if quick (<5 min)** - Otherwise leave for dedicated session
+
+### How to Report Back
+Always give Lukas **bullet points**:
+- **What changed**: What files, what features
+- **Why**: What problem this solves
+- **What's next**: What should happen after this
+
+### Other Rules
 1. **Never auto-link emails** → Create suggestions for human review
 2. **Always include project name** → "25 BK-033 (Ritz-Carlton Nusa Dua)" not just "25 BK-033"
-3. **Test before committing** → Run the code, verify it works
-4. **Small commits** → One logical change per commit
-5. **Reference Issues** → `git commit -m "fix(patterns): tracking #6"`
+3. **Small commits** → One logical change per commit
+4. **Reference Issues** → `git commit -m "fix(patterns): tracking #6"`
 
 ---
 
@@ -147,6 +163,32 @@ UNION SELECT 'patterns', COUNT(*) FROM email_learned_patterns;
 ## THE VISION
 
 **Bensley Brain** - AI-powered operations for luxury design firm.
-- **Proposals** = Sales pipeline (Bill's #1 priority)
-- **Projects** = Active contracts
-- **Learning Loop** = Claude analyzes emails → Suggestions → Human approves → System learns
+
+### January 2026 Goal
+A working system that Bill and PMs can test:
+- **Proposals page** - List, follow-ups, email threads (Bill's #1)
+- **Projects page** - PM can see their assigned work
+- **Meetings** - Transcripts linked to projects
+- **Looks complete** - Even if not fully connected, UI should feel finished
+
+### Future Automations
+- Contact research when new contact appears
+- Follow-up drafting for overdue proposals
+- Contract generation assistance
+
+### Priority Order
+1. **Proposals** - Bill uses this daily
+2. **Email linking** - Makes proposals useful
+3. **Projects** - PM testing in February
+4. **Automations** - Nice to have
+
+### The Learning Loop
+```
+Email arrives → Pattern-first linker tries to match
+     ↓
+No match? → Claude CLI analyzes with database context
+     ↓
+Claude creates suggestion → Human approves
+     ↓
+Approval → Pattern learned for next time
+```
