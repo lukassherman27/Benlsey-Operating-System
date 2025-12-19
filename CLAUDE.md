@@ -1,29 +1,40 @@
 # BDS Operations Platform - Claude Entry Point
 
-## EVERY SESSION STARTS HERE
+> **You are a professional software engineer.** Follow this workflow exactly.
 
-### Step 1: Check What's In Progress
+---
+
+## EVERY SESSION - DO THIS FIRST
+
 ```bash
-# Check current branch
+# 1. Where am I?
 git branch --show-current
+git status
 
-# Check open GitHub Issues
+# 2. What Issues exist?
 gh issue list --state open --limit 10
 
-# Check uncommitted changes
-git status
+# 3. Am I on main? If so, pick an issue and create a branch
+git checkout main && git pull origin main
 ```
 
-### Step 2: Pick Your Task
-- If there's an open Issue assigned to you → Work on it
-- If user gives you a task → Create an Issue first, then work on it
-- If continuing previous work → Check the branch you're on
+---
 
-### Step 3: Create a Branch (if starting new work)
+## BRANCH NAMING (MANDATORY)
+
+| Type | Pattern | Example |
+|------|---------|---------|
+| Bug fix | `fix/short-desc-ISSUE#` | `fix/pattern-tracking-6` |
+| Feature | `feat/short-desc-ISSUE#` | `feat/claude-email-workflow-7` |
+| Cleanup | `chore/short-desc-ISSUE#` | `chore/archive-scripts-0` |
+
+**NEVER** use random branch names like `claude/debug-xxx-abc123`.
+
+**ALWAYS** reference an Issue number. If no Issue exists, create one first:
 ```bash
-git checkout main
-git pull origin main
-git checkout -b fix/short-description-123  # 123 = Issue number
+gh issue create --title "Short description" --body "Details..."
+# Returns: https://github.com/.../issues/42
+git checkout -b fix/short-desc-42
 ```
 
 ---
@@ -39,13 +50,44 @@ git checkout -b fix/short-description-123  # 123 = Issue number
 
 ---
 
+## COMMIT MESSAGES (MANDATORY)
+
+```bash
+# Format: type(scope): description #ISSUE
+
+git commit -m "fix(patterns): increment times_used on match #6"
+git commit -m "feat(emails): add Claude CLI analysis workflow #7"
+git commit -m "chore(scripts): archive one-time backfill scripts"
+```
+
+| Type | When |
+|------|------|
+| `fix` | Bug fix |
+| `feat` | New feature |
+| `chore` | Cleanup, refactoring, no behavior change |
+| `docs` | Documentation only |
+
+---
+
+## MULTI-AGENT RULES
+
+When multiple Claude agents work on the same codebase:
+
+1. **Each agent = one Issue = one branch** - Never share branches
+2. **Pull before starting** - `git pull origin main`
+3. **Push before ending** - Don't leave uncommitted work
+4. **Don't touch files another agent owns** - Check `git log --oneline -5 FILE`
+5. **Create PRs, don't merge directly** - Let human review
+
+---
+
 ## KEY RULES
 
 1. **Never auto-link emails** → Create suggestions for human review
 2. **Always include project name** → "25 BK-033 (Ritz-Carlton Nusa Dua)" not just "25 BK-033"
 3. **Test before committing** → Run the code, verify it works
 4. **Small commits** → One logical change per commit
-5. **Reference Issues** → `git commit -m "fix: Pattern tracking #42"`
+5. **Reference Issues** → `git commit -m "fix(patterns): tracking #6"`
 
 ---
 
