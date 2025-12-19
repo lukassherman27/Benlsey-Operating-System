@@ -162,25 +162,19 @@ UNION SELECT 'patterns', COUNT(*) FROM email_learned_patterns;
 
 ## THE VISION
 
-**Bensley Brain** - AI-powered operations for luxury design firm.
+**READ THE FULL VISION:** `docs/roadmap.md`
 
-### January 2026 Goal
-A working system that Bill and PMs can test:
-- **Proposals page** - List, follow-ups, email threads (Bill's #1)
-- **Projects page** - PM can see their assigned work
-- **Meetings** - Transcripts linked to projects
-- **Looks complete** - Even if not fully connected, UI should feel finished
+That file contains:
+- Complete system vision (Bensley Brain)
+- Phase timeline (what's built when)
+- Success metrics
+- Agent structure
 
-### Future Automations
-- Contact research when new contact appears
-- Follow-up drafting for overdue proposals
-- Contract generation assistance
-
-### Priority Order
-1. **Proposals** - Bill uses this daily
-2. **Email linking** - Makes proposals useful
-3. **Projects** - PM testing in February
-4. **Automations** - Nice to have
+### Quick Summary (but read roadmap.md for full picture)
+- **January 2026**: Bill & PMs testing proposals, projects, meetings
+- **Priority #1**: Proposals (Bill's daily tool)
+- **Priority #2**: Email linking (makes proposals useful)
+- **Priority #3**: Projects (PM testing in February)
 
 ### The Learning Loop
 ```
