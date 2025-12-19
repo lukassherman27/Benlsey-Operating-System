@@ -88,12 +88,67 @@ class ProposalService(BaseService):
         if proposal is None:
             return None
 
-        # Add health_calculated boolean and ensure health_score is always a number
-        health_score = proposal.get('health_score')
-        proposal['health_calculated'] = health_score is not None
-        proposal['health_score'] = health_score if health_score is not None else 0.0
+        # Calculate health_score if not set or 0
+        stored_health = proposal.get('health_score')
+        if stored_health is None or stored_health == 0:
+            proposal['health_score'] = self._calculate_health_score(proposal)
+            proposal['health_calculated'] = True
+        else:
+            proposal['health_score'] = stored_health
+            proposal['health_calculated'] = True
 
         return proposal
+
+    def _calculate_health_score(self, proposal: Dict[str, Any]) -> float:
+        """
+        Calculate health score based on proposal data.
+
+        Scoring logic:
+        - Start at 100
+        - Deduct for days since contact
+        - Deduct if ball in court is 'us' and stale
+        - Bonus for active communication
+        - Consider status
+        """
+        score = 100.0
+
+        # Days since contact penalty
+        days = proposal.get('days_since_contact')
+        if days is not None:
+            if days > 30:
+                score -= 40  # Critical
+            elif days > 14:
+                score -= 20  # At risk
+            elif days > 7:
+                score -= 10  # Needs attention
+
+        # Ball in court penalty (if ball is with us and we're not acting)
+        ball = proposal.get('ball_in_court', '').lower()
+        if ball == 'us':
+            if days is not None and days > 14:
+                score -= 20  # We're dropping the ball
+            elif days is not None and days > 7:
+                score -= 10
+
+        # Status-based adjustments
+        status = proposal.get('status', '')
+        if status in ('Lost', 'Declined'):
+            score = 0  # Terminal states
+        elif status == 'Contract Signed':
+            score = 100  # Won
+        elif status == 'Dormant':
+            score = 20  # Low but not dead
+        elif status == 'On Hold':
+            score = 40  # Paused
+
+        # Bonus for active communication
+        email_count = proposal.get('email_count', 0)
+        if email_count and email_count > 20:
+            score = min(100, score + 10)
+        elif email_count and email_count > 10:
+            score = min(100, score + 5)
+
+        return max(0, min(100, score))  # Clamp to 0-100
 
     def _enhance_proposals(self, proposals: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         """Enhance a list of proposals"""
@@ -191,15 +246,12 @@ class ProposalService(BaseService):
         sql = """
             SELECT
                 p.*,
-                COUNT(DISTINCT e.email_id) as email_count,
-                COUNT(DISTINCT d.document_id) as document_count
+                COUNT(DISTINCT e.email_id) as email_count
             FROM proposals p
-            LEFT JOIN email_proposal_links epl ON p.project_id = epl.proposal_id
+            LEFT JOIN email_proposal_links epl ON p.proposal_id = epl.proposal_id
             LEFT JOIN emails e ON epl.email_id = e.email_id
-            LEFT JOIN document_proposal_links dpl ON p.project_id = dpl.proposal_id
-            LEFT JOIN documents d ON dpl.document_id = d.document_id
             WHERE p.project_code = ?
-            GROUP BY p.project_id
+            GROUP BY p.proposal_id
         """
         result = self.execute_query(sql, (project_code,), fetch_one=True)
         return self._enhance_proposal(result)

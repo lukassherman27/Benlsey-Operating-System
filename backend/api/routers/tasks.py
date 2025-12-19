@@ -29,11 +29,27 @@ router = APIRouter(prefix="/api", tags=["tasks"])
 # REQUEST MODELS
 # ============================================================================
 
+class CreateTaskRequest(BaseModel):
+    """Request to create a new task"""
+    title: str
+    description: Optional[str] = None
+    task_type: Optional[str] = "action_item"
+    priority: Optional[str] = "medium"
+    due_date: Optional[str] = None
+    project_code: Optional[str] = None
+    proposal_id: Optional[int] = None
+    assignee: Optional[str] = "us"
+
+
 class UpdateTaskRequest(BaseModel):
     """Request to update a task"""
+    title: Optional[str] = None
+    description: Optional[str] = None
     status: Optional[str] = None
     priority: Optional[str] = None
     due_date: Optional[str] = None
+    assignee: Optional[str] = None
+    task_type: Optional[str] = None
 
 
 class UpdateTaskStatusRequest(BaseModel):
@@ -264,6 +280,114 @@ async def get_overdue_tasks():
 
 
 # ============================================================================
+# CREATE TASK
+# ============================================================================
+
+@router.post("/tasks")
+async def create_task(request: CreateTaskRequest):
+    """Create a new task"""
+    try:
+        conn = get_db()
+        cursor = conn.cursor()
+
+        # Get proposal_id from project_code if not provided
+        proposal_id = request.proposal_id
+        if not proposal_id and request.project_code:
+            cursor.execute(
+                "SELECT proposal_id FROM proposals WHERE project_code = ?",
+                [request.project_code]
+            )
+            row = cursor.fetchone()
+            if row:
+                proposal_id = row[0]
+
+        cursor.execute("""
+            INSERT INTO tasks (
+                title, description, task_type, priority, status,
+                due_date, project_code, proposal_id, assignee, created_at
+            ) VALUES (?, ?, ?, ?, 'pending', ?, ?, ?, ?, datetime('now'))
+        """, [
+            request.title,
+            request.description,
+            request.task_type or 'action_item',
+            request.priority or 'medium',
+            request.due_date,
+            request.project_code,
+            proposal_id,
+            request.assignee or 'us'
+        ])
+
+        task_id = cursor.lastrowid
+        conn.commit()
+
+        # Get the created task
+        cursor.execute("SELECT * FROM tasks WHERE task_id = ?", [task_id])
+        task = row_to_dict(cursor.fetchone())
+        conn.close()
+
+        return action_response(True, data={"task": task, "task_id": task_id}, message="Task created")
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ============================================================================
+# STAFF ENDPOINT (for assignee dropdown)
+# ============================================================================
+
+@router.get("/staff")
+async def get_staff():
+    """Get list of active staff members for task assignment"""
+    try:
+        conn = get_db()
+        cursor = conn.cursor()
+
+        cursor.execute("""
+            SELECT
+                staff_id,
+                first_name,
+                last_name,
+                nickname,
+                email,
+                department,
+                role
+            FROM staff
+            WHERE is_active = 1
+            ORDER BY first_name, last_name
+        """)
+
+        staff = [row_to_dict(row) for row in cursor.fetchall()]
+        conn.close()
+
+        # Add special entries
+        assignees = [
+            {"id": "us", "name": "Us (Bensley)", "type": "team"},
+            {"id": "them", "name": "Client/Them", "type": "external"},
+        ]
+
+        for s in staff:
+            name = s.get('nickname') or s.get('first_name') or 'Unknown'
+            assignees.append({
+                "id": str(s['staff_id']),
+                "name": name,
+                "full_name": f"{s.get('first_name', '')} {s.get('last_name', '')}".strip(),
+                "email": s.get('email'),
+                "department": s.get('department'),
+                "role": s.get('role'),
+                "type": "staff"
+            })
+
+        return {
+            "success": True,
+            "assignees": assignees,
+            "count": len(assignees)
+        }
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ============================================================================
 # SINGLE TASK ENDPOINTS
 # ============================================================================
 
@@ -328,14 +452,14 @@ async def get_task(task_id: int):
 
 @router.put("/tasks/{task_id}")
 async def update_task(task_id: int, request: UpdateTaskRequest):
-    """Update a task (status, priority, due_date)"""
+    """Update a task (all fields)"""
     try:
         conn = get_db()
         cursor = conn.cursor()
 
         # Check task exists
         cursor.execute("SELECT * FROM tasks WHERE task_id = ?", [task_id])
-        task = cursor.fetchone()
+        task = row_to_dict(cursor.fetchone())
         if not task:
             conn.close()
             raise HTTPException(status_code=404, detail=f"Task {task_id} not found")
@@ -343,8 +467,17 @@ async def update_task(task_id: int, request: UpdateTaskRequest):
         # Build update
         updates = []
         params = []
+        completing = False
 
-        if request.status:
+        if request.title is not None:
+            updates.append("title = ?")
+            params.append(request.title)
+
+        if request.description is not None:
+            updates.append("description = ?")
+            params.append(request.description)
+
+        if request.status is not None:
             if request.status not in ('pending', 'in_progress', 'completed', 'cancelled'):
                 raise HTTPException(status_code=400, detail=f"Invalid status: {request.status}")
             updates.append("status = ?")
@@ -353,16 +486,28 @@ async def update_task(task_id: int, request: UpdateTaskRequest):
             if request.status == 'completed':
                 updates.append("completed_at = ?")
                 params.append(datetime.utcnow().isoformat())
+                completing = True
+            elif task.get('status') == 'completed':
+                # Uncompleting - clear completed_at
+                updates.append("completed_at = NULL")
 
-        if request.priority:
+        if request.priority is not None:
             if request.priority not in ('low', 'medium', 'high', 'critical'):
                 raise HTTPException(status_code=400, detail=f"Invalid priority: {request.priority}")
             updates.append("priority = ?")
             params.append(request.priority)
 
-        if request.due_date:
+        if request.due_date is not None:
             updates.append("due_date = ?")
-            params.append(request.due_date)
+            params.append(request.due_date if request.due_date else None)
+
+        if request.assignee is not None:
+            updates.append("assignee = ?")
+            params.append(request.assignee)
+
+        if request.task_type is not None:
+            updates.append("task_type = ?")
+            params.append(request.task_type)
 
         if not updates:
             conn.close()
@@ -373,6 +518,50 @@ async def update_task(task_id: int, request: UpdateTaskRequest):
         cursor.execute(f"""
             UPDATE tasks SET {', '.join(updates)} WHERE task_id = ?
         """, params)
+
+        # Update ball_in_court if completing a task linked to a proposal
+        ball_updated = False
+        if completing:
+            proposal_id = task.get('proposal_id')
+            project_code = task.get('project_code')
+
+            if proposal_id:
+                cursor.execute("""
+                    SELECT COUNT(*) FROM tasks
+                    WHERE proposal_id = ?
+                    AND status NOT IN ('completed', 'cancelled')
+                    AND COALESCE(assignee, 'us') = 'us'
+                """, [proposal_id])
+                remaining = cursor.fetchone()[0]
+                if remaining == 0:
+                    cursor.execute("""
+                        UPDATE proposals
+                        SET ball_in_court = 'them',
+                            waiting_for = 'Completed all action items - awaiting client response'
+                        WHERE proposal_id = ?
+                    """, [proposal_id])
+                    ball_updated = True
+            elif project_code:
+                cursor.execute("SELECT proposal_id FROM proposals WHERE project_code = ?", [project_code])
+                row = cursor.fetchone()
+                if row:
+                    prop_id = row[0]
+                    cursor.execute("""
+                        SELECT COUNT(*) FROM tasks
+                        WHERE (proposal_id = ? OR project_code = ?)
+                        AND status NOT IN ('completed', 'cancelled')
+                        AND COALESCE(assignee, 'us') = 'us'
+                    """, [prop_id, project_code])
+                    remaining = cursor.fetchone()[0]
+                    if remaining == 0:
+                        cursor.execute("""
+                            UPDATE proposals
+                            SET ball_in_court = 'them',
+                                waiting_for = 'Completed all action items - awaiting client response'
+                            WHERE proposal_id = ?
+                        """, [prop_id])
+                        ball_updated = True
+
         conn.commit()
 
         # Get updated task
@@ -380,7 +569,7 @@ async def update_task(task_id: int, request: UpdateTaskRequest):
         updated_task = row_to_dict(cursor.fetchone())
         conn.close()
 
-        return action_response(True, data={"task": updated_task}, message="Task updated")
+        return action_response(True, data={"task": updated_task, "ball_updated": ball_updated}, message="Task updated")
 
     except HTTPException:
         raise
@@ -429,26 +618,81 @@ async def update_task_status(task_id: int, request: UpdateTaskStatusRequest):
 
 @router.post("/tasks/{task_id}/complete")
 async def complete_task(task_id: int):
-    """Mark a task as completed"""
+    """Mark a task as completed and update ball_in_court if linked to proposal"""
     try:
         conn = get_db()
         cursor = conn.cursor()
 
-        # Check task exists
+        # Check task exists and get proposal_id
         cursor.execute("SELECT * FROM tasks WHERE task_id = ?", [task_id])
-        task = cursor.fetchone()
+        task = row_to_dict(cursor.fetchone())
         if not task:
             conn.close()
             raise HTTPException(status_code=404, detail=f"Task {task_id} not found")
 
-        # Update
+        # Update task to completed
         cursor.execute("""
             UPDATE tasks SET status = 'completed', completed_at = ? WHERE task_id = ?
         """, [datetime.utcnow().isoformat(), task_id])
+
+        ball_updated = False
+        proposal_id = task.get('proposal_id')
+        project_code = task.get('project_code')
+
+        # Update ball_in_court if task linked to a proposal
+        if proposal_id:
+            # Count remaining open tasks assigned to "us" for this proposal
+            cursor.execute("""
+                SELECT COUNT(*) FROM tasks
+                WHERE proposal_id = ?
+                AND status NOT IN ('completed', 'cancelled')
+                AND COALESCE(assignee, 'us') = 'us'
+            """, [proposal_id])
+            remaining_our_tasks = cursor.fetchone()[0]
+
+            if remaining_our_tasks == 0:
+                # All our tasks done - ball goes to them
+                cursor.execute("""
+                    UPDATE proposals
+                    SET ball_in_court = 'them',
+                        waiting_for = 'Completed all action items - awaiting client response'
+                    WHERE proposal_id = ?
+                """, [proposal_id])
+                ball_updated = True
+        elif project_code:
+            # Check by project_code if no proposal_id
+            # Get proposal_id from project_code
+            cursor.execute("""
+                SELECT proposal_id FROM proposals WHERE project_code = ?
+            """, [project_code])
+            proposal_row = cursor.fetchone()
+            if proposal_row:
+                prop_id = proposal_row[0]
+                cursor.execute("""
+                    SELECT COUNT(*) FROM tasks
+                    WHERE (proposal_id = ? OR project_code = ?)
+                    AND status NOT IN ('completed', 'cancelled')
+                    AND COALESCE(assignee, 'us') = 'us'
+                """, [prop_id, project_code])
+                remaining_our_tasks = cursor.fetchone()[0]
+
+                if remaining_our_tasks == 0:
+                    cursor.execute("""
+                        UPDATE proposals
+                        SET ball_in_court = 'them',
+                            waiting_for = 'Completed all action items - awaiting client response'
+                        WHERE proposal_id = ?
+                    """, [prop_id])
+                    ball_updated = True
+
         conn.commit()
         conn.close()
 
-        return action_response(True, message=f"Task {task_id} marked as completed")
+        message = f"Task {task_id} marked as completed"
+        if ball_updated:
+            message += " - ball moved to client (all action items done)"
+
+        return action_response(True, message=message, data={"ball_updated": ball_updated})
 
     except HTTPException:
         raise

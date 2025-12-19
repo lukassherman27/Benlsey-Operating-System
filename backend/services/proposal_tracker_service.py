@@ -14,39 +14,44 @@ class ProposalTrackerService(BaseService):
     """Service for managing proposal tracker operations"""
 
     def get_stats(self) -> Dict[str, Any]:
-        """Get overall proposal tracker statistics"""
+        """Get overall proposal tracker statistics - queries from proposals table (source of truth)"""
         with self.get_connection() as conn:
             cursor = conn.cursor()
 
-            # Get overall stats from proposal_tracker (active tracking)
-            # Pipeline = Only First Contact, Drafting, Proposal Sent (excludes On Hold, Contract Signed, etc)
+            # Active pipeline stats (excludes Lost, Declined, Dormant, Contract Signed)
             cursor.execute("""
                 SELECT
                     COUNT(*) as total_proposals,
                     COALESCE(SUM(project_value), 0) as total_pipeline_value,
-                    COALESCE(AVG(CAST(JULIANDAY('now') - JULIANDAY(status_changed_date) AS INTEGER)), 0) as avg_days_in_status
-                FROM proposal_tracker
-                WHERE is_active = 1
-                    AND current_status IN ('First Contact', 'Drafting', 'Proposal Sent')
+                    COALESCE(AVG(CAST(JULIANDAY('now') - JULIANDAY(COALESCE(updated_at, created_at)) AS INTEGER)), 0) as avg_days_in_status
+                FROM proposals
+                WHERE status IN ('First Contact', 'Meeting Held', 'NDA Signed', 'Proposal Prep', 'Proposal Sent', 'Negotiation')
             """)
             stats = dict(cursor.fetchone())
 
-            # Get status breakdown
+            # Get status breakdown from proposals table
             cursor.execute("""
                 SELECT
-                    current_status,
+                    status as current_status,
                     COUNT(*) as count,
                     COALESCE(SUM(project_value), 0) as total_value
-                FROM proposal_tracker
-                WHERE is_active = 1
-                GROUP BY current_status
+                FROM proposals
+                WHERE status IS NOT NULL AND status != ''
+                GROUP BY status
                 ORDER BY
-                    CASE current_status
-                        WHEN 'Proposal Sent' THEN 1
-                        WHEN 'Drafting' THEN 2
-                        WHEN 'First Contact' THEN 3
-                        WHEN 'On Hold' THEN 4
-                        ELSE 5
+                    CASE status
+                        WHEN 'First Contact' THEN 1
+                        WHEN 'Meeting Held' THEN 2
+                        WHEN 'NDA Signed' THEN 3
+                        WHEN 'Proposal Prep' THEN 4
+                        WHEN 'Proposal Sent' THEN 5
+                        WHEN 'Negotiation' THEN 6
+                        WHEN 'On Hold' THEN 7
+                        WHEN 'Contract Signed' THEN 8
+                        WHEN 'Lost' THEN 9
+                        WHEN 'Declined' THEN 10
+                        WHEN 'Dormant' THEN 11
+                        ELSE 12
                     END
             """)
 
@@ -56,17 +61,16 @@ class ProposalTrackerService(BaseService):
 
             stats['status_breakdown'] = status_breakdown
 
-            # Get proposals needing follow-up (>14 days in current status, not on hold)
+            # Proposals needing follow-up (>14 days since update, still active)
             cursor.execute("""
                 SELECT COUNT(*) as needs_followup
-                FROM proposal_tracker
-                WHERE is_active = 1
-                AND CAST(JULIANDAY('now') - JULIANDAY(status_changed_date) AS INTEGER) > 14
-                AND current_status != 'On Hold'
+                FROM proposals
+                WHERE CAST(JULIANDAY('now') - JULIANDAY(COALESCE(updated_at, created_at)) AS INTEGER) > 14
+                AND status NOT IN ('Contract Signed', 'Lost', 'Declined', 'Dormant', 'On Hold')
             """)
             stats['needs_followup'] = cursor.fetchone()['needs_followup']
 
-            # COMPREHENSIVE STATS from proposals table (all proposals, not just tracked)
+            # COMPREHENSIVE STATS from proposals table
             # Total proposals (all time, all statuses)
             cursor.execute("""
                 SELECT
@@ -78,13 +82,13 @@ class ProposalTrackerService(BaseService):
             stats['all_proposals_total'] = all_proposals_row['all_proposals_total']
             stats['all_proposals_value'] = all_proposals_row['all_proposals_value']
 
-            # Active proposals (not lost/cancelled)
+            # Active proposals (not closed - excludes won, lost, declined, dormant)
             cursor.execute("""
                 SELECT
                     COUNT(*) as active_proposals_count,
                     COALESCE(SUM(project_value), 0) as active_proposals_value
                 FROM proposals
-                WHERE status NOT IN ('lost', 'cancelled')
+                WHERE status NOT IN ('Contract Signed', 'Lost', 'Declined', 'Dormant', 'Cancelled')
             """)
             active_row = dict(cursor.fetchone())
             stats['active_proposals_count'] = active_row['active_proposals_count']
@@ -96,7 +100,7 @@ class ProposalTrackerService(BaseService):
                     COUNT(*) as signed_2025_count,
                     COALESCE(SUM(project_value), 0) as signed_2025_value
                 FROM proposals
-                WHERE status = 'won'
+                WHERE status = 'Contract Signed'
                 AND contract_signed_date >= '2025-01-01'
             """)
             signed_2025_row = dict(cursor.fetchone())
@@ -128,6 +132,30 @@ class ProposalTrackerService(BaseService):
             stats['sent_2024_count'] = sent_2024_row['sent_2024_count']
             stats['sent_2024_value'] = sent_2024_row['sent_2024_value']
 
+            # Won (Contract Signed) - all time
+            cursor.execute("""
+                SELECT
+                    COUNT(*) as won_count,
+                    COALESCE(SUM(project_value), 0) as won_value
+                FROM proposals
+                WHERE status = 'Contract Signed'
+            """)
+            won_row = dict(cursor.fetchone())
+            stats['won_count'] = won_row['won_count']
+            stats['won_value'] = won_row['won_value']
+
+            # Lost/Declined - all time
+            cursor.execute("""
+                SELECT
+                    COUNT(*) as lost_count,
+                    COALESCE(SUM(project_value), 0) as lost_value
+                FROM proposals
+                WHERE status IN ('Lost', 'Declined')
+            """)
+            lost_row = dict(cursor.fetchone())
+            stats['lost_count'] = lost_row['lost_count']
+            stats['lost_value'] = lost_row['lost_value']
+
             return stats
 
     def get_proposals_list(
@@ -139,26 +167,26 @@ class ProposalTrackerService(BaseService):
         page: int = 1,
         per_page: int = 50
     ) -> Dict[str, Any]:
-        """Get paginated list of proposals with filters"""
+        """Get paginated list of proposals with filters - queries from proposals table (source of truth)"""
 
-        # Build WHERE clauses
-        where_clauses = ["pt.is_active = 1"]
+        # Build WHERE clauses - query from proposals table directly
+        where_clauses = ["1=1"]  # Always true base
         params = []
 
         if status:
-            where_clauses.append("pt.current_status = ?")
-            params.append(status)
-
-        if country:
-            where_clauses.append("pt.country = ?")
-            params.append(country)
+            # Handle "Lost" as a group filter (includes Lost + Declined)
+            if status == "Lost":
+                where_clauses.append("p.status IN ('Lost', 'Declined')")
+            else:
+                where_clauses.append("p.status = ?")
+                params.append(status)
 
         if search:
-            where_clauses.append("(pt.project_code LIKE ? OR pt.project_name LIKE ?)")
+            where_clauses.append("(p.project_code LIKE ? OR p.project_name LIKE ?)")
             search_term = f"%{search}%"
             params.extend([search_term, search_term])
 
-        # Discipline filter - joins with proposals table
+        # Discipline filter
         if discipline:
             if discipline == 'landscape':
                 where_clauses.append("p.is_landscape = 1")
@@ -167,16 +195,14 @@ class ProposalTrackerService(BaseService):
             elif discipline == 'architect':
                 where_clauses.append("p.is_architect = 1")
             elif discipline == 'combined':
-                # Combined = has 2+ disciplines
                 where_clauses.append("(p.is_landscape + p.is_interior + p.is_architect) >= 2")
 
         where_sql = " AND ".join(where_clauses)
 
-        # Get total count (with JOIN for discipline filter)
+        # Get total count
         count_sql = f"""
             SELECT COUNT(*) as total
-            FROM proposal_tracker pt
-            LEFT JOIN proposals p ON pt.project_code = p.project_code
+            FROM proposals p
             WHERE {where_sql}
         """
 
@@ -185,35 +211,66 @@ class ProposalTrackerService(BaseService):
             cursor.execute(count_sql, params)
             total = cursor.fetchone()['total']
 
-            # Get paginated data (with JOIN for discipline info)
+            # Get paginated data from proposals + email stats (NO proposal_tracker - it's stale)
             offset = (page - 1) * per_page
             data_sql = f"""
                 SELECT
-                    pt.id,
-                    pt.project_code,
-                    pt.project_name,
-                    pt.project_value,
-                    pt.country,
-                    pt.current_status,
-                    pt.last_week_status,
-                    pt.status_changed_date,
-                    CAST(JULIANDAY('now') - JULIANDAY(pt.status_changed_date) AS INTEGER) as days_in_current_status,
-                    pt.first_contact_date,
-                    pt.proposal_sent_date,
-                    pt.proposal_sent,
-                    pt.current_remark,
-                    pt.latest_email_context,
-                    pt.waiting_on,
-                    pt.next_steps,
-                    pt.last_email_date,
-                    pt.updated_at,
+                    p.proposal_id as id,
+                    p.project_code,
+                    p.project_name,
+                    p.project_value,
+                    COALESCE(p.country, '') as country,
+                    p.status as current_status,
+                    '' as last_week_status,
+                    -- Use status-appropriate date for when we entered this status
+                    CASE
+                        WHEN p.status = 'Proposal Sent' THEN COALESCE(p.proposal_sent_date, p.updated_at)
+                        WHEN p.status = 'First Contact' THEN COALESCE(p.first_contact_date, email_stats.first_email_date, p.created_at)
+                        WHEN p.status = 'Contract Signed' THEN COALESCE(p.contract_signed_date, p.updated_at)
+                        ELSE p.updated_at
+                    END as status_changed_date,
+                    -- Days in status calculated from actual evidence dates
+                    CAST(JULIANDAY('now') - JULIANDAY(
+                        CASE
+                            WHEN p.status = 'Proposal Sent' THEN COALESCE(p.proposal_sent_date, p.updated_at)
+                            WHEN p.status = 'First Contact' THEN COALESCE(p.first_contact_date, email_stats.first_email_date, p.created_at)
+                            WHEN p.status = 'Contract Signed' THEN COALESCE(p.contract_signed_date, p.updated_at)
+                            ELSE p.updated_at
+                        END
+                    ) AS INTEGER) as days_in_current_status,
+                    COALESCE(p.first_contact_date, email_stats.first_email_date, p.created_at) as first_contact_date,
+                    COALESCE(p.proposal_sent_date, '') as proposal_sent_date,
+                    CASE WHEN p.proposal_sent_date IS NOT NULL THEN 1 ELSE 0 END as proposal_sent,
+                    COALESCE(p.remarks, p.status_notes, p.correspondence_summary, '') as current_remark,
+                    '' as latest_email_context,
+                    COALESCE(p.waiting_for, '') as waiting_on,
+                    COALESCE(p.next_action, '') as next_steps,
+                    COALESCE(email_stats.last_email_date, '') as last_email_date,
+                    COALESCE(email_stats.email_count, 0) as email_count,
+                    COALESCE(email_stats.first_email_date, '') as first_email_date,
+                    p.updated_at,
                     COALESCE(p.is_landscape, 0) as is_landscape,
                     COALESCE(p.is_interior, 0) as is_interior,
-                    COALESCE(p.is_architect, 0) as is_architect
-                FROM proposal_tracker pt
-                LEFT JOIN proposals p ON pt.project_code = p.project_code
+                    COALESCE(p.is_architect, 0) as is_architect,
+                    p.client_company,
+                    p.contact_person,
+                    p.last_contact_date,
+                    p.days_since_contact,
+                    COALESCE(p.ball_in_court, '') as ball_in_court,
+                    COALESCE(p.waiting_for, '') as waiting_for
+                FROM proposals p
+                LEFT JOIN (
+                    SELECT
+                        epl.proposal_id,
+                        COUNT(*) as email_count,
+                        MAX(e.date) as last_email_date,
+                        MIN(e.date) as first_email_date
+                    FROM email_proposal_links epl
+                    JOIN emails e ON epl.email_id = e.email_id
+                    GROUP BY epl.proposal_id
+                ) email_stats ON p.proposal_id = email_stats.proposal_id
                 WHERE {where_sql}
-                ORDER BY pt.project_code
+                ORDER BY p.project_code DESC
                 LIMIT ? OFFSET ?
             """
 
@@ -229,43 +286,42 @@ class ProposalTrackerService(BaseService):
             }
 
     def get_discipline_stats(self) -> Dict[str, Any]:
-        """Get proposal counts and values by discipline"""
+        """Get proposal counts and values by discipline - from proposals table"""
         with self.get_connection() as conn:
             cursor = conn.cursor()
 
-            # Get stats for each discipline
-            cursor.execute("""
+            # Active status filter
+            active_filter = "status NOT IN ('Contract Signed', 'Lost', 'Declined', 'Dormant', 'Cancelled')"
+
+            # Get stats for each discipline from proposals table directly
+            cursor.execute(f"""
                 SELECT
                     'landscape' as discipline,
                     COUNT(*) as count,
-                    COALESCE(SUM(pt.project_value), 0) as total_value
-                FROM proposal_tracker pt
-                LEFT JOIN proposals p ON pt.project_code = p.project_code
-                WHERE pt.is_active = 1 AND p.is_landscape = 1
+                    COALESCE(SUM(project_value), 0) as total_value
+                FROM proposals
+                WHERE {active_filter} AND is_landscape = 1
                 UNION ALL
                 SELECT
                     'interior' as discipline,
                     COUNT(*) as count,
-                    COALESCE(SUM(pt.project_value), 0) as total_value
-                FROM proposal_tracker pt
-                LEFT JOIN proposals p ON pt.project_code = p.project_code
-                WHERE pt.is_active = 1 AND p.is_interior = 1
+                    COALESCE(SUM(project_value), 0) as total_value
+                FROM proposals
+                WHERE {active_filter} AND is_interior = 1
                 UNION ALL
                 SELECT
                     'architect' as discipline,
                     COUNT(*) as count,
-                    COALESCE(SUM(pt.project_value), 0) as total_value
-                FROM proposal_tracker pt
-                LEFT JOIN proposals p ON pt.project_code = p.project_code
-                WHERE pt.is_active = 1 AND p.is_architect = 1
+                    COALESCE(SUM(project_value), 0) as total_value
+                FROM proposals
+                WHERE {active_filter} AND is_architect = 1
                 UNION ALL
                 SELECT
                     'combined' as discipline,
                     COUNT(*) as count,
-                    COALESCE(SUM(pt.project_value), 0) as total_value
-                FROM proposal_tracker pt
-                LEFT JOIN proposals p ON pt.project_code = p.project_code
-                WHERE pt.is_active = 1 AND (p.is_landscape + p.is_interior + p.is_architect) >= 2
+                    COALESCE(SUM(project_value), 0) as total_value
+                FROM proposals
+                WHERE {active_filter} AND (COALESCE(is_landscape, 0) + COALESCE(is_interior, 0) + COALESCE(is_architect, 0)) >= 2
             """)
 
             disciplines = {}
@@ -275,11 +331,11 @@ class ProposalTrackerService(BaseService):
                     'total_value': row['total_value']
                 }
 
-            # Get all proposals count for "All Disciplines"
-            cursor.execute("""
+            # Get all active proposals count for "All Disciplines"
+            cursor.execute(f"""
                 SELECT COUNT(*) as count, COALESCE(SUM(project_value), 0) as total_value
-                FROM proposal_tracker
-                WHERE is_active = 1
+                FROM proposals
+                WHERE {active_filter}
             """)
             all_row = cursor.fetchone()
             disciplines['all'] = {
@@ -290,36 +346,72 @@ class ProposalTrackerService(BaseService):
             return disciplines
 
     def get_proposal_by_code(self, project_code: str) -> Optional[Dict[str, Any]]:
-        """Get single proposal by project code"""
+        """Get single proposal by project code - queries proposals table (source of truth)"""
         with self.get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute("""
                 SELECT
-                    id,
-                    project_code,
-                    project_name,
-                    project_value,
-                    country,
-                    current_status,
-                    last_week_status,
-                    status_changed_date,
-                    CAST(JULIANDAY('now') - JULIANDAY(status_changed_date) AS INTEGER) as days_in_current_status,
-                    first_contact_date,
-                    proposal_sent_date,
-                    proposal_sent,
-                    current_remark,
-                    project_summary,
-                    latest_email_context,
-                    waiting_on,
-                    next_steps,
-                    last_email_date,
-                    last_email_id,
-                    is_active,
-                    created_at,
-                    updated_at,
-                    last_synced_at
-                FROM proposal_tracker
-                WHERE project_code = ?
+                    p.proposal_id as id,
+                    p.project_code,
+                    p.project_name,
+                    p.project_value,
+                    COALESCE(p.country, '') as country,
+                    p.status as current_status,
+                    '' as last_week_status,
+                    -- Use status-appropriate date
+                    CASE
+                        WHEN p.status = 'Proposal Sent' THEN COALESCE(p.proposal_sent_date, p.updated_at)
+                        WHEN p.status = 'First Contact' THEN COALESCE(p.first_contact_date, email_stats.first_email_date, p.created_at)
+                        WHEN p.status = 'Contract Signed' THEN COALESCE(p.contract_signed_date, p.updated_at)
+                        ELSE p.updated_at
+                    END as status_changed_date,
+                    CAST(JULIANDAY('now') - JULIANDAY(
+                        CASE
+                            WHEN p.status = 'Proposal Sent' THEN COALESCE(p.proposal_sent_date, p.updated_at)
+                            WHEN p.status = 'First Contact' THEN COALESCE(p.first_contact_date, email_stats.first_email_date, p.created_at)
+                            WHEN p.status = 'Contract Signed' THEN COALESCE(p.contract_signed_date, p.updated_at)
+                            ELSE p.updated_at
+                        END
+                    ) AS INTEGER) as days_in_current_status,
+                    COALESCE(p.first_contact_date, email_stats.first_email_date, p.created_at) as first_contact_date,
+                    COALESCE(p.proposal_sent_date, '') as proposal_sent_date,
+                    CASE WHEN p.proposal_sent_date IS NOT NULL THEN 1 ELSE 0 END as proposal_sent,
+                    COALESCE(p.remarks, p.status_notes, p.correspondence_summary, '') as current_remark,
+                    COALESCE(p.scope_summary, '') as project_summary,
+                    '' as latest_email_context,
+                    COALESCE(p.waiting_for, '') as waiting_on,
+                    COALESCE(p.next_action, '') as next_steps,
+                    COALESCE(email_stats.last_email_date, '') as last_email_date,
+                    COALESCE(email_stats.email_count, 0) as email_count,
+                    COALESCE(email_stats.first_email_date, '') as first_email_date,
+                    0 as last_email_id,
+                    1 as is_active,
+                    p.created_at,
+                    p.updated_at,
+                    p.updated_at as last_synced_at,
+                    COALESCE(p.is_landscape, 0) as is_landscape,
+                    COALESCE(p.is_interior, 0) as is_interior,
+                    COALESCE(p.is_architect, 0) as is_architect,
+                    p.client_company,
+                    p.contact_person,
+                    p.contact_email,
+                    p.contact_phone,
+                    p.last_contact_date,
+                    p.days_since_contact,
+                    p.health_score,
+                    p.win_probability
+                FROM proposals p
+                LEFT JOIN (
+                    SELECT
+                        epl.proposal_id,
+                        COUNT(*) as email_count,
+                        MAX(e.date) as last_email_date,
+                        MIN(e.date) as first_email_date
+                    FROM email_proposal_links epl
+                    JOIN emails e ON epl.email_id = e.email_id
+                    GROUP BY epl.proposal_id
+                ) email_stats ON p.proposal_id = email_stats.proposal_id
+                WHERE p.project_code = ?
             """, (project_code,))
 
             row = cursor.fetchone()
@@ -330,18 +422,24 @@ class ProposalTrackerService(BaseService):
         project_code: str,
         updates: Dict[str, Any]
     ) -> Dict[str, Any]:
-        """Update proposal fields"""
+        """Update proposal fields - writes to proposals table (source of truth)"""
+
+        # Map tracker field names to proposals table field names
+        field_mapping = {
+            'current_status': 'status',
+            'current_remark': 'remarks',
+            'project_summary': 'scope_summary',
+            'waiting_on': 'waiting_for',
+            'next_steps': 'next_action',
+        }
 
         allowed_fields = {
             'project_name', 'project_value', 'country',
             'current_status', 'current_remark', 'project_summary',
             'waiting_on', 'next_steps',
             'proposal_sent_date', 'first_contact_date',
-            'proposal_sent',
             'contact_person', 'contact_email', 'contact_phone',
-            'latest_email_context', 'last_email_date',
-            # Provenance tracking fields
-            'updated_by', 'source_type', 'change_reason'
+            'ball_in_court', 'waiting_for', 'remarks', 'status',
         }
 
         # Filter to allowed fields
@@ -349,9 +447,6 @@ class ProposalTrackerService(BaseService):
 
         if not update_fields:
             return {'success': False, 'message': 'No valid fields to update'}
-
-        # Check if status changed
-        status_changed = 'current_status' in update_fields
 
         with self.get_connection() as conn:
             cursor = conn.cursor()
@@ -361,20 +456,21 @@ class ProposalTrackerService(BaseService):
             if not current:
                 return {'success': False, 'message': 'Proposal not found'}
 
-            # If status changed, update status history fields
-            if status_changed and update_fields['current_status'] != current['current_status']:
-                update_fields['last_week_status'] = current['current_status']
-                update_fields['status_changed_date'] = datetime.now().isoformat()
-
             # Always update updated_at
             update_fields['updated_at'] = datetime.now().isoformat()
 
-            # Build UPDATE query
-            set_clause = ', '.join([f"{k} = ?" for k in update_fields.keys()])
-            values = list(update_fields.values()) + [project_code]
+            # Map field names for proposals table
+            db_fields = {}
+            for k, v in update_fields.items():
+                db_key = field_mapping.get(k, k)
+                db_fields[db_key] = v
+
+            # Build UPDATE query for proposals table
+            set_clause = ', '.join([f"{k} = ?" for k in db_fields.keys()])
+            values = list(db_fields.values()) + [project_code]
 
             sql = f"""
-                UPDATE proposal_tracker
+                UPDATE proposals
                 SET {set_clause}
                 WHERE project_code = ?
             """
@@ -385,7 +481,7 @@ class ProposalTrackerService(BaseService):
             return {
                 'success': True,
                 'message': 'Proposal updated successfully',
-                'updated_fields': list(update_fields.keys())
+                'updated_fields': list(db_fields.keys())
             }
 
     def get_status_history(self, project_code: str) -> List[Dict[str, Any]]:
@@ -394,17 +490,17 @@ class ProposalTrackerService(BaseService):
             cursor = conn.cursor()
             cursor.execute("""
                 SELECT
-                    id,
+                    history_id as id,
                     project_code,
                     old_status,
                     new_status,
-                    changed_date,
+                    status_date,
                     changed_by,
-                    source_email_id,
+                    source,
                     notes
                 FROM proposal_status_history
                 WHERE project_code = ?
-                ORDER BY changed_date DESC
+                ORDER BY status_date DESC
             """, (project_code,))
 
             return [dict(row) for row in cursor.fetchall()]
@@ -416,7 +512,7 @@ class ProposalTrackerService(BaseService):
         """Get AI-extracted email intelligence for a proposal"""
         with self.get_connection() as conn:
             cursor = conn.cursor()
-            # Query emails linked to this project with AI content
+            # Query emails linked to this proposal with AI content
             cursor.execute("""
                 SELECT
                     e.email_id,
@@ -431,32 +527,33 @@ class ProposalTrackerService(BaseService):
                     ec.sentiment as client_sentiment,
                     ec.importance_score as confidence_score,
                     ec.human_approved,
-                    epl.project_code,
-                    epl.confidence as link_confidence,
-                    epl.link_method,
+                    p.project_code,
+                    epl.confidence_score as link_confidence,
+                    epl.match_method as link_method,
                     CASE
                         WHEN ec.action_required = 1 THEN 'Action Required'
                         WHEN ec.urgency_level = 'high' THEN 'High Priority'
                         ELSE NULL
                     END as status_update
                 FROM emails e
-                INNER JOIN email_project_links epl ON e.email_id = epl.email_id
+                INNER JOIN email_proposal_links epl ON e.email_id = epl.email_id
+                INNER JOIN proposals p ON epl.proposal_id = p.proposal_id
                 LEFT JOIN email_content ec ON e.email_id = ec.email_id
-                WHERE epl.project_code = ?
+                WHERE p.project_code = ?
                 ORDER BY e.date DESC
-                LIMIT 20
             """, (project_code,))
 
             return [dict(row) for row in cursor.fetchall()]
 
     def get_countries_list(self) -> List[str]:
-        """Get unique list of countries for filtering"""
+        """Get unique list of countries for filtering - from proposals table"""
         with self.get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute("""
                 SELECT DISTINCT country
-                FROM proposal_tracker
-                WHERE is_active = 1 AND country IS NOT NULL
+                FROM proposals
+                WHERE country IS NOT NULL AND country != ''
+                AND status NOT IN ('Contract Signed', 'Lost', 'Declined', 'Dormant', 'Cancelled')
                 ORDER BY country
             """)
 

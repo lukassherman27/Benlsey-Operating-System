@@ -1,7 +1,8 @@
 """
 Deadline handler for deadline_detected suggestions.
 
-Creates tasks in the tasks table when deadline suggestions are approved.
+Creates deliverables in the deliverables table when deadline suggestions are approved.
+(Updated from tasks to deliverables with migration 086)
 """
 
 from datetime import datetime, timedelta
@@ -94,63 +95,72 @@ class DeadlineHandler(BaseSuggestionHandler):
     """
     Handler for deadline_detected suggestions.
 
-    Creates a task in the tasks table with type='deadline'.
+    Creates a deliverable in the deliverables table.
     Uses the detected deadline date(s) from the suggestion.
     """
 
     suggestion_type = "deadline_detected"
-    target_table = "tasks"
+    target_table = "deliverables"
     is_actionable = True
 
     def validate(self, suggested_data: Dict[str, Any]) -> List[str]:
         """
-        Validate the suggested data for creating a deadline task.
+        Validate the suggested data for creating a deliverable.
 
-        Required: dates array with at least one date, or context describing the deadline.
+        Required: deliverable_name or dates/context describing the deadline.
         """
         errors = []
 
+        deliverable_name = suggested_data.get("deliverable_name")
         dates = suggested_data.get("dates", [])
         context = suggested_data.get("context", "")
+        deadline_date = suggested_data.get("deadline_date")
 
-        if not dates and not context:
-            errors.append("Deadline suggestion requires dates or context")
+        if not deliverable_name and not dates and not context:
+            errors.append("Deliverable requires a name, dates, or context")
 
         return errors
 
     def preview(self, suggestion: Dict[str, Any], suggested_data: Dict[str, Any]) -> ChangePreview:
         """
-        Generate preview of the deadline task that will be created.
+        Generate preview of the deliverable that will be created.
         """
+        deliverable_name = suggested_data.get("deliverable_name")
+        deliverable_type = suggested_data.get("deliverable_type", "other")
         dates = suggested_data.get("dates", [])
         context = suggested_data.get("context", "")
+        deadline_date = suggested_data.get("deadline_date")
         project_code = suggestion.get("project_code") or suggested_data.get("project_code")
 
-        # Try to parse the first date
-        due_date = None
-        for date_str in dates:
-            parsed = parse_deadline_date(date_str)
-            if parsed:
-                due_date = parsed
-                break
+        # Determine name
+        if deliverable_name:
+            name = deliverable_name
+        elif context:
+            name = context[:80] if len(context) <= 80 else context[:77] + "..."
+        else:
+            name = "Deliverable"
+
+        # Try to parse the due date
+        due_date = deadline_date
+        if not due_date:
+            for date_str in dates:
+                parsed = parse_deadline_date(date_str)
+                if parsed:
+                    due_date = parsed
+                    break
 
         # Default to 30 days if no date parseable
         if not due_date:
             due_date = (datetime.now() + timedelta(days=30)).strftime("%Y-%m-%d")
 
-        # Build title from context
-        title = context[:80] if context else "Deadline"
-        if len(context) > 80:
-            title = context[:77] + "..."
-
-        summary = f"Create deadline task: '{title}'"
+        summary = f"Create deliverable: '{name[:40]}'"
         if project_code:
             summary += f" for {project_code}"
         summary += f" (due: {due_date})"
 
         changes = [
-            {"field": "title", "new": title},
-            {"field": "task_type", "new": "deadline"},
+            {"field": "name", "new": name},
+            {"field": "deliverable_type", "new": deliverable_type},
             {"field": "status", "new": "pending"},
             {"field": "due_date", "new": due_date},
             {"field": "priority", "new": "high"},
@@ -163,7 +173,7 @@ class DeadlineHandler(BaseSuggestionHandler):
             changes.append({"field": "detected_dates", "info": ", ".join(dates)})
 
         return ChangePreview(
-            table="tasks",
+            table="deliverables",
             action="insert",
             summary=summary,
             changes=changes
@@ -171,102 +181,126 @@ class DeadlineHandler(BaseSuggestionHandler):
 
     def apply(self, suggestion: Dict[str, Any], suggested_data: Dict[str, Any]) -> SuggestionResult:
         """
-        Create a deadline task in the tasks table.
+        Create a deliverable in the deliverables table.
 
-        Returns rollback_data with the task_id for undo.
+        Returns rollback_data with the deliverable_id for undo.
         """
         cursor = self.conn.cursor()
 
+        deliverable_name = suggested_data.get("deliverable_name")
+        deliverable_type = suggested_data.get("deliverable_type", "other")
         dates = suggested_data.get("dates", [])
         context = suggested_data.get("context", "")
+        deadline_date = suggested_data.get("deadline_date")
+        description = suggested_data.get("description", "")
+        source_quote = suggested_data.get("source_quote")
+
         project_code = suggestion.get("project_code") or suggested_data.get("project_code")
-        proposal_id = suggestion.get("proposal_id") or suggested_data.get("proposal_id")
         suggestion_id = suggestion.get("suggestion_id")
         source_email_id = suggestion.get("source_id") if suggestion.get("source_type") == "email" else None
 
-        # Build title from context
-        title = context[:100] if context else "Deadline detected"
+        # Determine name
+        if deliverable_name:
+            name = deliverable_name
+        elif context:
+            name = context[:100]
+        else:
+            name = "Deliverable detected"
 
-        # Build description with detected dates
-        description = f"Deadline detected: {', '.join(dates)}" if dates else None
-        if context and dates:
-            description = f"Deadline detected: {', '.join(dates)}\n\nContext: {context}"
+        # Build description with detected dates and context
+        full_description = description
+        if dates and not full_description:
+            full_description = f"Deadline detected: {', '.join(dates)}"
+        if context and full_description:
+            full_description = f"{full_description}\n\nContext: {context}"
+        elif context:
+            full_description = context
+        if source_quote:
+            full_description = f"{full_description}\n\nFrom email: \"{source_quote}\"" if full_description else f"From email: \"{source_quote}\""
 
         # Parse due date
-        due_date = None
-        for date_str in dates:
-            parsed = parse_deadline_date(date_str)
-            if parsed:
-                due_date = parsed
-                break
+        due_date = deadline_date
+        if not due_date:
+            for date_str in dates:
+                parsed = parse_deadline_date(date_str)
+                if parsed:
+                    due_date = parsed
+                    break
 
         # Default to 30 days if no date parseable
         if not due_date:
             due_date = (datetime.now() + timedelta(days=30)).strftime("%Y-%m-%d")
 
-        # Insert the task
+        # Look up project_id from project_code
+        project_id = None
+        if project_code:
+            result = cursor.execute(
+                "SELECT project_id FROM projects WHERE project_code = ?",
+                (project_code,)
+            ).fetchone()
+            if result:
+                project_id = result[0]
+
+        # Insert the deliverable
         cursor.execute("""
-            INSERT INTO tasks (
-                title, description, task_type, priority, status,
-                due_date, project_code, proposal_id,
-                source_suggestion_id, source_email_id
+            INSERT INTO deliverables (
+                name, description, deliverable_type, status, priority,
+                due_date, project_code, project_id,
+                created_at, created_by
             )
-            VALUES (?, ?, 'deadline', 'high', 'pending', ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, 'pending', 'high', ?, ?, ?, datetime('now'), 'ai_suggestion')
         """, (
-            title,
-            description,
+            name,
+            full_description,
+            deliverable_type,
             due_date,
             project_code,
-            proposal_id,
-            suggestion_id,
-            source_email_id
+            project_id
         ))
 
-        task_id = cursor.lastrowid
+        deliverable_id = cursor.lastrowid
         self.conn.commit()
 
         # Record the change in audit trail
         self._record_change(
             suggestion_id=suggestion_id,
-            table_name="tasks",
-            record_id=task_id,
+            table_name="deliverables",
+            record_id=deliverable_id,
             field_name=None,
             old_value=None,
-            new_value=f"task_id={task_id}",
+            new_value=f"deliverable_id={deliverable_id}",
             change_type="insert"
         )
         self.conn.commit()
 
         return SuggestionResult(
             success=True,
-            message=f"Created deadline task #{task_id}: {title[:50]} (due: {due_date})",
+            message=f"Created deliverable #{deliverable_id}: {name[:50]} (due: {due_date})",
             changes_made=[{
-                "table": "tasks",
-                "record_id": task_id,
+                "table": "deliverables",
+                "record_id": deliverable_id,
                 "change_type": "insert"
             }],
-            rollback_data={"task_id": task_id}
+            rollback_data={"deliverable_id": deliverable_id}
         )
 
     def rollback(self, rollback_data: Dict[str, Any]) -> bool:
         """
-        Delete the created task.
+        Delete the created deliverable.
         """
-        task_id = rollback_data.get("task_id")
-        if not task_id:
+        deliverable_id = rollback_data.get("deliverable_id")
+        if not deliverable_id:
             return False
 
         cursor = self.conn.cursor()
 
-        # Delete the task
-        cursor.execute("DELETE FROM tasks WHERE task_id = ?", (task_id,))
+        cursor.execute("DELETE FROM deliverables WHERE deliverable_id = ?", (deliverable_id,))
 
-        # Mark the change record as rolled back
         cursor.execute("""
             UPDATE suggestion_changes
             SET rolled_back = 1, rolled_back_at = datetime('now')
-            WHERE table_name = 'tasks' AND record_id = ? AND change_type = 'insert'
-        """, (task_id,))
+            WHERE table_name = 'deliverables' AND record_id = ? AND change_type = 'insert'
+        """, (deliverable_id,))
 
         self.conn.commit()
 

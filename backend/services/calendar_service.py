@@ -372,14 +372,23 @@ Return ONLY valid JSON, no explanation."""
         return meetings
 
     def get_meetings_for_project(self, project_code: str) -> List[Dict]:
-        """Get all meetings for a project"""
+        """Get all meetings for a project, including linked transcript data"""
         conn = self._get_connection()
         cursor = conn.cursor()
 
+        # Get meetings with LEFT JOIN to transcripts
         cursor.execute("""
-            SELECT * FROM meetings
-            WHERE project_code LIKE ?
-            ORDER BY meeting_date DESC, start_time
+            SELECT
+                m.*,
+                t.id as transcript_id,
+                t.summary as transcript_summary,
+                t.key_points as transcript_key_points,
+                t.action_items as transcript_action_items,
+                t.duration_seconds as transcript_duration
+            FROM meetings m
+            LEFT JOIN meeting_transcripts t ON m.transcript_id = t.id
+            WHERE m.project_code LIKE ?
+            ORDER BY m.meeting_date DESC, m.start_time
         """, (f"%{project_code}%",))
 
         meetings = [dict(row) for row in cursor.fetchall()]

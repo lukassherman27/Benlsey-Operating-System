@@ -32,6 +32,15 @@ export interface ProposalDetail extends ProposalSummary {
   win_probability?: number | null;
   created_date?: string | null;
   updated_date?: string | null;
+  client_company?: string | null;
+  next_steps?: string | null;
+  // Ball in court tracking
+  ball_in_court?: string | null;
+  waiting_for?: string | null;
+  // Value and contact info
+  project_value?: number | null;
+  primary_contact_name?: string | null;
+  primary_contact_email?: string | null;
 }
 
 export interface ProposalHealth {
@@ -136,13 +145,14 @@ export interface AnalyticsDashboard {
 }
 
 export interface DashboardStats {
-  proposals: {
+  // Legacy stats (no role)
+  proposals?: {
     total: number;
     active: number;
     at_risk: number;
     needs_follow_up: number;
   };
-  revenue: {
+  revenue?: {
     total_contracts: number;
     paid: number;
     outstanding: number;
@@ -153,6 +163,22 @@ export interface DashboardStats {
   needs_review?: number;
   total_attachments?: number;
   training_progress?: Record<string, unknown>;
+  // Role-based stats (role=bill)
+  role?: string;
+  pipeline_value?: number;
+  active_projects_count?: number;
+  outstanding_invoices_total?: number;
+  overdue_invoices_count?: number;
+  // Role-based stats (role=pm)
+  my_projects_count?: number;
+  deliverables_due_this_week?: number;
+  open_rfis_count?: number;
+  // Role-based stats (role=finance)
+  total_outstanding?: number;
+  overdue_30_days?: number;
+  overdue_60_days?: number;
+  overdue_90_plus?: number;
+  recent_payments_7_days?: number;
 }
 
 export interface KPITrend {
@@ -746,7 +772,12 @@ export interface ProposalTrackerItem {
   waiting_on: string | null;
   next_steps: string | null;
   last_email_date: string | null;
+  email_count?: number;
+  first_email_date?: string | null;
   updated_at: string;
+  // Ball in court tracking
+  ball_in_court?: string | null;
+  waiting_for?: string | null;
   // Optional contact/summary fields used in quick edit dialog
   contact_person?: string | null;
   contact_email?: string | null;
@@ -1223,4 +1254,129 @@ export interface ValidationSuggestion {
   status: 'pending' | 'applied' | 'approved' | 'denied';
   reviewed_by?: string;
   reviewed_at?: string;
+}
+
+// ============================================================================
+// My Day Types
+// ============================================================================
+
+export interface MyDayTask {
+  task_id: number;
+  title: string;
+  description: string | null;
+  task_type: string;
+  priority: string;
+  status: string;
+  due_date: string | null;
+  project_code: string | null;
+  assignee: string | null;
+  created_at: string;
+}
+
+export interface MyDayMeeting {
+  meeting_id: number;
+  meeting_title: string | null;
+  meeting_type: string | null;
+  meeting_date: string;
+  start_time: string | null;
+  end_time: string | null;
+  location: string | null;
+  project_code: string | null;
+  status: string;
+  attendees: string | null;
+}
+
+export interface MyDayProposal {
+  proposal_id: number;
+  project_code: string;
+  project_name: string;
+  client_name: string | null;
+  status: string;
+  ball_in_court: string | null;
+  waiting_for: string | null;
+  last_contact_date: string | null;
+  next_followup_date: string | null;
+  probability: number | null;
+  urgency: 'overdue' | 'today' | 'upcoming';
+  days_since_contact: number | null;
+}
+
+export interface MyDaySuggestion {
+  suggestion_id: number;
+  suggestion_type: string;
+  title: string;
+  description: string | null;
+  priority: string;
+  confidence_score: number | null;
+  project_code: string | null;
+  created_at: string;
+}
+
+export interface MyDayCommitment {
+  commitment_id: number;
+  commitment_type: 'our_commitment' | 'their_commitment';
+  description: string;
+  committed_by: string | null;
+  due_date: string | null;
+  fulfillment_status: string;
+  project_code: string | null;
+}
+
+export interface MyDayDeliverable {
+  deliverable_id: number;
+  name: string;
+  project_code: string | null;
+  due_date: string | null;
+  status: string;
+}
+
+export interface MyDayResponse {
+  success: boolean;
+  greeting: {
+    text: string;
+    name: string;
+    date: string;
+    day_of_week: string;
+    formatted_date: string;
+  };
+  tasks: {
+    today: MyDayTask[];
+    overdue: MyDayTask[];
+    today_count: number;
+    overdue_count: number;
+    total_active: number;
+  };
+  meetings: {
+    today: MyDayMeeting[];
+    count: number;
+    has_virtual: boolean;
+  };
+  proposals: {
+    needing_followup: MyDayProposal[];
+    count: number;
+    total_our_ball: number;
+  };
+  suggestions_queue: {
+    top_suggestions: MyDaySuggestion[];
+    total_pending: number;
+    by_type: Record<string, number>;
+  };
+  week_ahead: {
+    upcoming_deadlines: MyDayTask[];
+    meetings_this_week: number;
+    decision_dates: Array<{
+      project_code: string;
+      project_name: string;
+      client_name: string | null;
+      decision_date: string;
+    }>;
+    deliverables_due: MyDayDeliverable[];
+  };
+  commitments: {
+    our_overdue: MyDayCommitment[];
+    their_overdue: MyDayCommitment[];
+    our_overdue_count: number;
+    their_overdue_count: number;
+  };
+  generated_at: string;
 }

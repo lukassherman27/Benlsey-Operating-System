@@ -81,7 +81,7 @@ import {
 import { EnhancedReviewCard } from "@/components/suggestions";
 import { AIAnalysis, UserContext, SuggestionTag } from "@/lib/types";
 
-type SuggestionType = "all" | "new_contact" | "project_alias" | "email_link";
+type SuggestionType = "all" | "new_contact" | "project_alias" | "email_link" | "follow_up_needed" | "action_required" | "proposal_status_update";
 type ConfidenceFilter = "all" | "high" | "medium" | "low";
 type ViewMode = "list" | "grouped" | "enhanced";
 
@@ -926,6 +926,18 @@ export default function SuggestionsPage() {
             <TabsTrigger value="email_link">
               <Mail className="h-4 w-4 mr-1" />
               Email Links ({stats?.pending_by_field?.email_link || 0})
+            </TabsTrigger>
+            <TabsTrigger value="follow_up_needed">
+              <Zap className="h-4 w-4 mr-1" />
+              Follow-ups ({stats?.pending_by_field?.follow_up_needed || 0})
+            </TabsTrigger>
+            <TabsTrigger value="action_required">
+              <CheckSquare className="h-4 w-4 mr-1" />
+              Actions ({stats?.pending_by_field?.action_required || 0})
+            </TabsTrigger>
+            <TabsTrigger value="proposal_status_update">
+              <FileText className="h-4 w-4 mr-1" />
+              Status Updates ({stats?.pending_by_field?.proposal_status_update || 0})
             </TabsTrigger>
           </TabsList>
 

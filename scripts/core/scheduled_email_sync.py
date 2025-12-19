@@ -55,6 +55,8 @@ sys.path.insert(0, str(PROJECT_ROOT))
 from backend.services.email_orchestrator import EmailOrchestrator
 # Import the batch suggestion service for grouped email suggestions
 from backend.services.batch_suggestion_service import get_batch_service
+# Import the pattern-first email linker for automatic email-to-proposal linking
+from backend.services.email_link_processor import process_emails as process_email_links
 
 # Note: email_project_linker was disabled 2025-12-02 due to flawed logic
 # All linking is now handled by the orchestrator's suggestion pipeline
@@ -412,10 +414,26 @@ def run_sync():
     log(f"TOTAL Errors: {total_stats['errors']}")
     log(f"Database emails: {initial_count} -> {final_count}")
 
-    # Note: The old email_project_linker was disabled 2025-12-02
-    # All linking is now handled via the orchestrator's AI suggestion pipeline
+    # STEP 2: Run pattern-first email linker (auto-links high-confidence matches)
+    log("\n" + "-" * 60)
+    log("RUNNING PATTERN-FIRST EMAIL LINKER")
+    log("-" * 60)
 
-    # ALWAYS run orchestrator for categorization (catches uncategorized backlog)
+    try:
+        link_result = process_email_links(
+            limit=500,
+            use_gpt=False,  # Don't use GPT, just pattern matching for speed
+            db_path=DB_PATH
+        )
+        log(f"Pattern Linker Results:")
+        log(f"  Emails processed: {link_result.get('total', 0)}")
+        log(f"  Auto-linked (patterns): {link_result.get('auto_linked', 0)}")
+        log(f"  Need GPT/review: {link_result.get('needs_review', 0) + (len(link_result.get('needs_gpt_ids', [])) if 'needs_gpt_ids' in link_result else 0)}")
+        log(f"  Skipped (spam): {link_result.get('skipped', 0)}")
+    except Exception as e:
+        log(f"Pattern linker error: {e}", 'ERROR')
+
+    # STEP 3: Run orchestrator for categorization (catches uncategorized backlog)
     log("\n" + "-" * 60)
     log("RUNNING EMAIL ORCHESTRATOR (Categorization + Suggestions)")
     log("-" * 60)
@@ -500,22 +518,33 @@ def main():
 
     if args.orchestrate_only:
         log("Running orchestrator only (no email import)")
-        log("This will categorize uncategorized emails and generate suggestions")
+        log("This will run pattern linking, categorization, and suggestions")
+
+        # Step 1: Pattern-first linker (auto-links based on patterns)
+        log("\n1. Running pattern-first email linker...")
+        try:
+            link_result = process_email_links(limit=500, use_gpt=False, db_path=DB_PATH)
+            log(f"  Auto-linked: {link_result.get('auto_linked', 0)}, Skipped: {link_result.get('skipped', 0)}")
+        except Exception as e:
+            log(f"  Pattern linker error: {e}", 'ERROR')
+
+        # Step 2: Orchestrator (categorization + suggestions)
+        log("\n2. Running email orchestrator...")
         orchestrator = EmailOrchestrator(DB_PATH)
         orch_result = orchestrator.process_new_emails(limit=500, hours=24)
         cat_result = orch_result.get('categorization', {})
-        log(f"Categorization: {cat_result.get('categorized', 0)} emails categorized")
+        log(f"  Categorization: {cat_result.get('categorized', 0)} emails categorized")
         sugg_result = orch_result.get('suggestions', {})
-        log(f"Suggestions: {sugg_result.get('created', 0)} new suggestions generated")
+        log(f"  Suggestions: {sugg_result.get('created', 0)} new suggestions generated")
 
-        # Also run batch suggestion service
-        log("\nRunning batch suggestion service...")
+        # Step 3: Batch suggestion service
+        log("\n3. Running batch suggestion service...")
         try:
             batch_service = get_batch_service(DB_PATH)
             batch_result = batch_service.process_emails_for_batches(hours=24, limit=500)
-            log(f"Batch: {batch_result.get('batches_created', 0)} batches, {batch_result.get('auto_approved', 0)} auto-approved")
+            log(f"  Batches: {batch_result.get('batches_created', 0)} created, {batch_result.get('auto_approved', 0)} auto-approved")
         except Exception as e:
-            log(f"Batch service error: {e}", 'ERROR')
+            log(f"  Batch service error: {e}", 'ERROR')
         return
 
     if args.dry_run:

@@ -382,20 +382,20 @@ async def get_dashboard_kpis(
 
         # ========== PAID IN PERIOD ==========
         if current_start and current_end:
-            cursor.execute(f"""
+            cursor.execute("""
                 SELECT COALESCE(SUM(payment_amount), 0) as paid
                 FROM invoices
-                WHERE payment_date >= '{current_start}' AND payment_date <= '{current_end}'
-            """)
+                WHERE payment_date >= ? AND payment_date <= ?
+            """, (current_start, current_end))
             paid_in_period = cursor.fetchone()['paid'] or 0
 
             # Previous period for comparison
             if prev_start and prev_end:
-                cursor.execute(f"""
+                cursor.execute("""
                     SELECT COALESCE(SUM(payment_amount), 0) as paid
                     FROM invoices
-                    WHERE payment_date >= '{prev_start}' AND payment_date <= '{prev_end}'
-                """)
+                    WHERE payment_date >= ? AND payment_date <= ?
+                """, (prev_start, prev_end))
                 paid_prev_period = cursor.fetchone()['paid'] or 0
             else:
                 paid_prev_period = 0
@@ -437,35 +437,35 @@ async def get_dashboard_kpis(
 
         # ========== CONTRACTS SIGNED IN PERIOD ==========
         if current_start and current_end:
-            cursor.execute(f"""
+            cursor.execute("""
                 SELECT COUNT(*) as count, COALESCE(SUM(total_fee_usd), 0) as value
                 FROM projects
                 WHERE is_active_project = 1
-                AND contract_signed_date >= '{current_start}' AND contract_signed_date <= '{current_end}'
-            """)
+                AND contract_signed_date >= ? AND contract_signed_date <= ?
+            """, (current_start, current_end))
             row = cursor.fetchone()
             contracts_signed_count = row['count'] or 0
             contracts_signed_value = row['value'] or 0
 
             if prev_start and prev_end:
-                cursor.execute(f"""
+                cursor.execute("""
                     SELECT COUNT(*) as count
                     FROM projects
                     WHERE is_active_project = 1
-                    AND contract_signed_date >= '{prev_start}' AND contract_signed_date <= '{prev_end}'
-                """)
+                    AND contract_signed_date >= ? AND contract_signed_date <= ?
+                """, (prev_start, prev_end))
                 contracts_prev = cursor.fetchone()['count'] or 0
             else:
                 contracts_prev = 0
         else:
             # All time - use current year
             current_year = datetime.now().year
-            cursor.execute(f"""
+            cursor.execute("""
                 SELECT COUNT(*) as count, COALESCE(SUM(total_fee_usd), 0) as value
                 FROM projects
                 WHERE is_active_project = 1
-                AND contract_signed_date >= '{current_year}-01-01'
-            """)
+                AND contract_signed_date >= ?
+            """, (f"{current_year}-01-01",))
             row = cursor.fetchone()
             contracts_signed_count = row['count'] or 0
             contracts_signed_value = row['value'] or 0
@@ -700,62 +700,98 @@ async def get_decision_tiles():
 
 @router.get("/briefing/daily")
 async def get_daily_briefing():
-    """Executive daily briefing - actionable intelligence"""
+    """Executive daily briefing - actionable intelligence for PROPOSALS needing follow-up"""
     try:
         conn = sqlite3.connect(DB_PATH)
         conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
 
-        # Get projects needing attention
+        # Get PROPOSALS needing attention (not active projects!)
+        # Focus on proposals that haven't converted to projects yet and need follow-up
         cursor.execute("""
-            SELECT project_id, project_code, project_title, status,
-                   health_score, days_since_contact, last_proposal_activity_date,
-                   notes, total_fee_usd
-            FROM projects
-            WHERE is_active_project = 1
-            ORDER BY health_score ASC NULLS LAST
-            LIMIT 20
+            SELECT
+                p.proposal_id,
+                p.project_code,
+                p.project_name,
+                p.current_status,
+                p.last_contact_date,
+                CASE
+                    WHEN p.last_contact_date IS NULL THEN NULL
+                    ELSE CAST(julianday('now') - julianday(p.last_contact_date) AS INTEGER)
+                END as days_since_contact,
+                p.status_notes,
+                p.project_value,
+                p.last_action,
+                p.waiting_for
+            FROM proposals p
+            WHERE p.is_active_project = 0
+              AND p.current_status NOT IN ('Lost', 'Declined', 'Dormant', 'Contract Signed', 'Contract signed', 'Cancelled')
+              AND (
+                p.last_contact_date IS NULL
+                OR julianday('now') - julianday(p.last_contact_date) > 7
+              )
+            ORDER BY days_since_contact DESC NULLS FIRST
+            LIMIT 30
         """)
 
-        projects = []
+        proposals = []
         for row in cursor.fetchall():
-            projects.append({
-                "project_id": row[0],
+            proposals.append({
+                "proposal_id": row[0],
                 "project_code": row[1],
-                "project_title": row[2],
+                "project_name": row[2],
                 "status": row[3],
-                "health_score": row[4],
+                "last_contact_date": row[4],
                 "days_since_contact": row[5],
-                "last_contact_date": row[6],
-                "next_action": row[7],
-                "total_fee_usd": row[8]
+                "status_notes": row[6],
+                "project_value": row[7],
+                "last_action": row[8],
+                "waiting_for": row[9]
             })
 
-        # Categorize
+        # Categorize by urgency
         urgent = []
         needs_attention = []
 
-        for p in projects:
-            days = p["days_since_contact"] or 999
+        for p in proposals:
+            days = p["days_since_contact"]
+            status = p.get("status") or "Unknown"
 
-            if days >= 18:
+            # Build context with status and days info
+            if days is None:
+                days_display = "No contact"
+                context = f"{status} - no email history"
+            else:
+                days_display = f"{days} days"
+                context = f"{status} - {days} days since contact"
+
+            # Determine next action from available fields
+            next_action = p.get("last_action") or p.get("waiting_for") or p.get("status_notes") or "follow up"
+
+            if days is None or days >= 14:
+                # Critical: No contact or >14 days
                 urgent.append({
                     "type": "no_contact",
                     "priority": "high",
                     "project_code": p["project_code"],
-                    "project_name": p["project_title"],
-                    "project_title": p["project_title"],
-                    "action": f"Call client - {p['next_action'] or 'follow up'}",
-                    "context": f"{days} days no contact"
+                    "project_name": p["project_name"],
+                    "project_title": p["project_name"],  # For backward compatibility
+                    "action": f"Call client - {next_action}",
+                    "context": context,
+                    "days_since_contact": days,
+                    "days_display": days_display
                 })
             elif days >= 7:
+                # Important: 7-13 days
                 needs_attention.append({
                     "type": "follow_up",
                     "project_code": p["project_code"],
-                    "project_name": p["project_title"],
-                    "project_title": p["project_title"],
-                    "action": p["next_action"] or "Schedule follow up",
-                    "context": f"{days} days since contact"
+                    "project_name": p["project_name"],
+                    "project_title": p["project_name"],  # For backward compatibility
+                    "action": next_action or "Schedule follow up",
+                    "context": context,
+                    "days_since_contact": days,
+                    "days_display": days_display
                 })
 
         conn.close()
@@ -764,7 +800,7 @@ async def get_daily_briefing():
             "date": datetime.now().strftime("%Y-%m-%d"),
             "urgent": urgent,
             "needs_attention": needs_attention,
-            "total_active": len(projects)
+            "total_active": len(proposals)
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -791,5 +827,298 @@ async def get_dashboard_meetings():
         conn.close()
 
         return {"meetings": meetings, "count": len(meetings)}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/dashboard/actions")
+async def get_action_items():
+    """
+    Get all actionable items across the system - the "What Needs Attention" view.
+
+    Returns prioritized list of:
+    - Proposals where ball is with us (need to act)
+    - Urgent/action-required emails
+    - Overdue follow-ups
+    - Open RFIs
+    - Overdue commitments
+    - Pending tasks
+    """
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+
+        actions = []
+
+        # 1. PROPOSALS - Ball with us (URGENT if > 7 days)
+        cursor.execute("""
+            SELECT
+                proposal_id,
+                project_code,
+                project_name,
+                current_status as status,
+                ball_in_court,
+                waiting_for,
+                next_action,
+                next_action_date,
+                days_since_contact,
+                last_contact_date
+            FROM proposals
+            WHERE ball_in_court = 'us'
+            AND current_status NOT IN ('Archived', 'Contract Signed', 'Declined', 'Lost', 'Dormant', 'On Hold')
+            ORDER BY days_since_contact DESC
+            LIMIT 20
+        """)
+        for row in cursor.fetchall():
+            r = dict(row)
+            urgency = "critical" if (r.get('days_since_contact') or 0) > 14 else "high" if (r.get('days_since_contact') or 0) > 7 else "medium"
+            actions.append({
+                "type": "proposal_action",
+                "urgency": urgency,
+                "project_code": r['project_code'],
+                "project_name": r['project_name'],
+                "title": f"Ball with us - {r['project_name']}",
+                "description": r.get('next_action') or r.get('waiting_for') or f"No contact for {r.get('days_since_contact', '?')} days",
+                "days_waiting": r.get('days_since_contact'),
+                "action": r.get('next_action') or "Follow up required",
+                "due_date": r.get('next_action_date'),
+                "link": f"/proposals/{r['project_code']}"
+            })
+
+        # 2. PROPOSALS - Stale (ball with them but > 14 days)
+        cursor.execute("""
+            SELECT
+                proposal_id,
+                project_code,
+                project_name,
+                current_status as status,
+                ball_in_court,
+                waiting_for,
+                days_since_contact,
+                last_contact_date
+            FROM proposals
+            WHERE (ball_in_court = 'them' OR ball_in_court IS NULL)
+            AND days_since_contact > 14
+            AND current_status NOT IN ('Archived', 'Contract Signed', 'Declined', 'Lost', 'Dormant', 'On Hold')
+            ORDER BY days_since_contact DESC
+            LIMIT 15
+        """)
+        for row in cursor.fetchall():
+            r = dict(row)
+            urgency = "high" if (r.get('days_since_contact') or 0) > 21 else "medium"
+            actions.append({
+                "type": "follow_up",
+                "urgency": urgency,
+                "project_code": r['project_code'],
+                "project_name": r['project_name'],
+                "title": f"Follow up needed - {r['project_name']}",
+                "description": f"No response for {r.get('days_since_contact', '?')} days" + (f". Waiting for: {r['waiting_for']}" if r.get('waiting_for') else ""),
+                "days_waiting": r.get('days_since_contact'),
+                "action": "Send follow-up email or call",
+                "link": f"/proposals/{r['project_code']}"
+            })
+
+        # 3. URGENT EMAILS - Recent emails needing action
+        cursor.execute("""
+            SELECT
+                e.email_id,
+                e.subject,
+                e.sender_email,
+                date(e.date) as email_date,
+                ec.urgency_level,
+                ec.action_required,
+                ec.ai_summary,
+                p.project_code,
+                p.project_name,
+                julianday('now') - julianday(e.date) as days_ago
+            FROM emails e
+            JOIN email_content ec ON e.email_id = ec.email_id
+            LEFT JOIN email_proposal_links epl ON e.email_id = epl.email_id
+            LEFT JOIN proposals p ON epl.proposal_id = p.proposal_id
+            WHERE (ec.action_required = 1 OR ec.urgency_level IN ('high', 'critical'))
+            AND e.date >= date('now', '-14 days')
+            AND e.sender_email NOT LIKE '%@bensley.com%'
+            ORDER BY e.date DESC
+            LIMIT 10
+        """)
+        for row in cursor.fetchall():
+            r = dict(row)
+            urgency = "critical" if r.get('urgency_level') == 'critical' else "high" if r.get('action_required') else "medium"
+            actions.append({
+                "type": "email_action",
+                "urgency": urgency,
+                "project_code": r.get('project_code'),
+                "project_name": r.get('project_name'),
+                "title": f"Email needs response: {r['subject'][:50]}",
+                "description": r.get('ai_summary') or f"From {r['sender_email']}",
+                "from": r['sender_email'],
+                "email_date": r['email_date'],
+                "days_ago": round(r.get('days_ago', 0)),
+                "action": "Review and respond",
+                "link": f"/proposals/{r['project_code']}" if r.get('project_code') else None
+            })
+
+        # 4. OPEN RFIs
+        cursor.execute("""
+            SELECT
+                r.rfi_id,
+                r.rfi_number,
+                r.subject,
+                r.date_due,
+                r.priority,
+                r.status,
+                r.project_code,
+                p.project_name,
+                julianday('now') - julianday(r.date_due) as days_overdue
+            FROM rfis r
+            LEFT JOIN proposals p ON r.project_code = p.project_code
+            WHERE r.status = 'open'
+            ORDER BY r.date_due ASC
+            LIMIT 10
+        """)
+        for row in cursor.fetchall():
+            r = dict(row)
+            is_overdue = (r.get('days_overdue') or 0) > 0
+            urgency = "critical" if is_overdue else "high" if r.get('priority') == 'high' else "medium"
+            actions.append({
+                "type": "rfi",
+                "urgency": urgency,
+                "project_code": r.get('project_code'),
+                "project_name": r.get('project_name'),
+                "title": f"RFI {r['rfi_number']}: {(r['subject'] or '')[:40]}",
+                "description": f"Due: {r['date_due']}" + (" (OVERDUE)" if is_overdue else ""),
+                "due_date": r['date_due'],
+                "days_overdue": round(r.get('days_overdue', 0)) if is_overdue else None,
+                "action": "Respond to RFI",
+                "link": f"/proposals/{r['project_code']}" if r.get('project_code') else "/rfis"
+            })
+
+        # 5. OVERDUE COMMITMENTS (our commitments)
+        cursor.execute("""
+            SELECT
+                c.commitment_id,
+                c.description,
+                c.due_date,
+                c.commitment_type,
+                c.committed_by,
+                p.project_code,
+                p.project_name,
+                julianday('now') - julianday(c.due_date) as days_overdue
+            FROM commitments c
+            LEFT JOIN proposals p ON c.project_code = p.project_code
+            WHERE c.fulfillment_status = 'pending'
+            AND c.commitment_type = 'our_commitment'
+            AND c.due_date <= date('now', '+7 days')
+            ORDER BY c.due_date ASC
+            LIMIT 10
+        """)
+        for row in cursor.fetchall():
+            r = dict(row)
+            is_overdue = (r.get('days_overdue') or 0) > 0
+            urgency = "critical" if is_overdue else "high"
+            actions.append({
+                "type": "commitment",
+                "urgency": urgency,
+                "project_code": r.get('project_code'),
+                "project_name": r.get('project_name'),
+                "title": f"Commitment due: {r['description'][:40]}",
+                "description": f"Due: {r['due_date']}" + (" (OVERDUE)" if is_overdue else "") + (f". By: {r['committed_by']}" if r.get('committed_by') else ""),
+                "due_date": r['due_date'],
+                "days_overdue": round(r.get('days_overdue', 0)) if is_overdue else None,
+                "action": "Fulfill commitment",
+                "link": f"/proposals/{r['project_code']}" if r.get('project_code') else None
+            })
+
+        # 6. PENDING TASKS (high priority or due soon)
+        cursor.execute("""
+            SELECT
+                t.task_id,
+                t.title,
+                t.description,
+                t.due_date,
+                t.priority,
+                t.status,
+                t.project_code,
+                p.project_name,
+                julianday('now') - julianday(t.due_date) as days_overdue
+            FROM tasks t
+            LEFT JOIN proposals p ON t.project_code = p.project_code
+            WHERE t.status IN ('pending', 'in_progress')
+            AND (t.priority = 'high' OR t.due_date <= date('now', '+3 days'))
+            ORDER BY t.due_date ASC
+            LIMIT 10
+        """)
+        for row in cursor.fetchall():
+            r = dict(row)
+            is_overdue = r.get('due_date') and (r.get('days_overdue') or 0) > 0
+            urgency = "critical" if is_overdue else "high" if r.get('priority') == 'high' else "medium"
+            actions.append({
+                "type": "task",
+                "urgency": urgency,
+                "project_code": r.get('project_code'),
+                "project_name": r.get('project_name'),
+                "title": r['title'],
+                "description": r.get('description') or f"Due: {r.get('due_date', 'Not set')}",
+                "due_date": r.get('due_date'),
+                "days_overdue": round(r.get('days_overdue', 0)) if is_overdue else None,
+                "action": "Complete task",
+                "link": f"/tasks"
+            })
+
+        # 7. PROPOSALS NEEDING TO BE SENT (status = Drafting for > 7 days)
+        cursor.execute("""
+            SELECT
+                proposal_id,
+                project_code,
+                project_name,
+                current_status,
+                days_in_current_status,
+                project_value
+            FROM proposals
+            WHERE current_status = 'Drafting'
+            AND days_in_current_status > 7
+            ORDER BY days_in_current_status DESC
+            LIMIT 5
+        """)
+        for row in cursor.fetchall():
+            r = dict(row)
+            urgency = "high" if (r.get('days_in_current_status') or 0) > 14 else "medium"
+            actions.append({
+                "type": "proposal_send",
+                "urgency": urgency,
+                "project_code": r['project_code'],
+                "project_name": r['project_name'],
+                "title": f"Send proposal - {r['project_name']}",
+                "description": f"In drafting for {r.get('days_in_current_status', '?')} days",
+                "days_waiting": r.get('days_in_current_status'),
+                "action": "Finalize and send proposal",
+                "link": f"/proposals/{r['project_code']}"
+            })
+
+        conn.close()
+
+        # Sort by urgency (critical > high > medium) then by days_waiting
+        urgency_order = {"critical": 0, "high": 1, "medium": 2, "low": 3}
+        actions.sort(key=lambda x: (urgency_order.get(x.get('urgency', 'low'), 3), -(x.get('days_waiting') or x.get('days_overdue') or 0)))
+
+        # Summary counts
+        summary = {
+            "total": len(actions),
+            "critical": len([a for a in actions if a.get('urgency') == 'critical']),
+            "high": len([a for a in actions if a.get('urgency') == 'high']),
+            "by_type": {}
+        }
+        for a in actions:
+            t = a.get('type', 'other')
+            summary["by_type"][t] = summary["by_type"].get(t, 0) + 1
+
+        return {
+            "success": True,
+            "actions": actions,
+            "summary": summary,
+            "generated_at": datetime.now().isoformat()
+        }
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

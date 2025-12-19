@@ -141,6 +141,49 @@ Analyze the email below and return a JSON object with suggestions.
     "last_action": "proposal_sent" | "question_asked" | "question_answered" | "revision_requested" | "approved" | null,
     "next_action_needed": "specific action description" or null
   }} or null,
+  "action_items": [
+    {{
+      "should_create": true/false,
+      "confidence": 0.0-1.0,
+      "task_title": "Clear, actionable title",
+      "task_description": "Details from email context",
+      "assignee_hint": "us" | "them" | "specific_name",
+      "due_date_hint": "YYYY-MM-DD" or null,
+      "priority_hint": "critical" | "high" | "medium" | "low",
+      "source_quote": "The exact text that triggered this detection"
+    }}
+  ],
+  "meeting_detected": {{
+    "detected": true/false,
+    "meeting_type": "request" | "confirmation" | "follow_up" | "reschedule",
+    "proposed_date": "YYYY-MM-DD" or null,
+    "proposed_time": "HH:MM" or null,
+    "participants": ["Name (role)", ...],
+    "meeting_purpose": "What the meeting is about",
+    "location_hint": "Zoom" | "Office" | "Client Site" | null,
+    "confidence": 0.0-1.0,
+    "source_quote": "The exact text about the meeting"
+  }} or null,
+  "deliverables": [
+    {{
+      "detected": true/false,
+      "deliverable_type": "schematic" | "concept" | "contract" | "drawings" | "presentation" | "other",
+      "deadline_date": "YYYY-MM-DD" or null,
+      "milestone_status": "pending" | "completed" | "delayed",
+      "description": "Context from email",
+      "confidence": 0.0-1.0
+    }}
+  ],
+  "commitments": [
+    {{
+      "commitment_type": "our_commitment" | "their_commitment",
+      "commitment_description": "What was promised",
+      "committed_by": "Who made the commitment",
+      "due_date": "YYYY-MM-DD" or null,
+      "confidence": 0.0-1.0,
+      "source_quote": "The exact text of the commitment"
+    }}
+  ],
   "relationship_insight": {{
     "has_insight": true/false,
     "contact_email": "email",
@@ -382,6 +425,108 @@ The Active Proposals list below includes last email activity. Look for:
 - suggested_action: "Follow up with [contact name] on proposal status"
 
 This helps Bill know which proposals need attention!
+
+## Action Item Detection (CRITICAL - extract tasks from emails!)
+Analyze the email for explicit or implied action items. Look for:
+
+**Direct Requests (confidence 0.8+):**
+- "Please send", "Can you review", "Need you to", "Could you"
+- "Please provide", "Kindly share", "We request"
+- "Let me know", "Get back to me", "Respond by"
+
+**Questions Requiring Response (confidence 0.7+):**
+- "What is your availability?", "When can we schedule?"
+- "Can we discuss?", "What do you think about?"
+- "Have you had a chance to review?"
+
+**Implied Actions (confidence 0.6+):**
+- "The contract needs your signature"
+- "We're waiting for the plans"
+- "Awaiting your feedback"
+
+For each detected action item:
+- task_title: Clear, actionable (e.g., "Review site plans and provide feedback")
+- assignee_hint: "us" (Bensley needs to do), "them" (client/external), or specific name
+- due_date_hint: Extract date if mentioned, null otherwise
+- priority_hint: Use urgency language - "ASAP"/"urgent" = critical, "soon" = high, "when you can" = medium
+- source_quote: The exact text that triggered detection
+
+## Meeting Detection
+Detect meeting-related content in emails:
+
+**Meeting Requests (confidence 0.8+):**
+- "Can we schedule a call?", "Available for a meeting?"
+- "Let's set up a time to discuss", "I'd like to meet"
+- "Can we do a Zoom/Teams call?"
+
+**Meeting Confirmations (confidence 0.85+):**
+- "Confirmed for Tuesday 2pm", "See you on the 15th"
+- "The meeting is set for", "Looking forward to our call"
+- Specific date AND time mentioned together
+
+**Meeting Follow-ups (confidence 0.7+):**
+- "Following up from our call yesterday"
+- "As discussed in our meeting"
+- "Per our conversation"
+
+**Meeting Reschedules (confidence 0.8+):**
+- "Can we reschedule?", "Need to move the meeting"
+- "Something came up, can we find a new time?"
+
+Include meeting_detected with:
+- meeting_type: request, confirmation, follow_up, reschedule
+- proposed_date/time: ISO format if mentioned
+- participants: Names and roles if mentioned
+- meeting_purpose: Brief description of what meeting is about
+- location_hint: Zoom, Office, Client Site, Site Visit, etc.
+
+## Deadline/Deliverable Detection
+Look for deadline and milestone mentions:
+
+**Explicit Deadlines (confidence 0.85+):**
+- "Due by January 15", "Deadline is Friday"
+- "Must submit by end of month", "Required by Q1"
+- "Target completion date"
+
+**Milestone Completions (confidence 0.8+):**
+- "Client approved the design", "Phase 1 completed"
+- "Schematic submitted", "CD package signed off"
+- "We've finished the", "Drawings are ready"
+
+**Timeline Updates (confidence 0.75+):**
+- "Pushed to Q2", "Extended deadline to March"
+- "Ahead of schedule", "Behind schedule by 2 weeks"
+- "Timeline revised to"
+
+Include deliverables with:
+- deliverable_type: schematic, concept, contract, drawings, presentation, other
+- deadline_date: ISO format if mentioned
+- milestone_status: pending, completed, delayed
+- description: Context about the deliverable
+
+## Commitment Detection (Track Promises!)
+Track commitments made by either party:
+
+**Our Commitments (Bensley promises - confidence 0.8+):**
+- "I'll send you the proposal by Friday"
+- "We will have the drawings ready next week"
+- "Brian will prepare the contract"
+- "Let me get back to you by tomorrow"
+
+**Their Commitments (Client/External promises - confidence 0.8+):**
+- "We'll make a decision by March"
+- "They will review and get back to us"
+- "Client to provide site survey by next week"
+- "We'll send payment upon receipt"
+
+Include commitments with:
+- commitment_type: our_commitment OR their_commitment
+- commitment_description: What was promised
+- committed_by: Who made the commitment (name or "us"/"them")
+- due_date: When it should be fulfilled (if mentioned)
+- source_quote: The exact text of the commitment
+
+**Why this matters:** Unfulfilled commitments become action items!
 
 {active_proposals}
 

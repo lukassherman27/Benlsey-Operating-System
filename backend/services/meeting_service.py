@@ -57,6 +57,69 @@ class MeetingService:
 
         return meetings
 
+    def get_all_meetings(
+        self,
+        start_date: Optional[str] = None,
+        end_date: Optional[str] = None,
+        meeting_type: Optional[str] = None,
+        include_cancelled: bool = False
+    ) -> List[Dict[str, Any]]:
+        """Get all meetings with optional date range filtering, including transcript data"""
+        conn = self._get_connection()
+        cursor = conn.cursor()
+
+        query = """
+            SELECT
+                m.meeting_id as id,
+                m.title,
+                m.description,
+                m.meeting_type,
+                m.meeting_date,
+                m.start_time,
+                m.end_time,
+                m.location,
+                m.meeting_link,
+                m.project_code,
+                m.proposal_id,
+                m.participants,
+                m.status,
+                m.notes,
+                m.outcome,
+                m.transcript_id,
+                p.project_name as linked_project_name,
+                t.summary as transcript_summary,
+                t.key_points as transcript_key_points,
+                t.action_items as transcript_action_items
+            FROM meetings m
+            LEFT JOIN proposals p ON m.proposal_id = p.proposal_id
+            LEFT JOIN meeting_transcripts t ON m.transcript_id = t.id
+            WHERE 1=1
+        """
+        params = []
+
+        if start_date:
+            query += " AND m.meeting_date >= ?"
+            params.append(start_date)
+
+        if end_date:
+            query += " AND m.meeting_date <= ?"
+            params.append(end_date)
+
+        if meeting_type:
+            query += " AND m.meeting_type = ?"
+            params.append(meeting_type)
+
+        if not include_cancelled:
+            query += " AND m.status != 'cancelled'"
+
+        query += " ORDER BY m.meeting_date DESC, m.start_time DESC"
+
+        cursor.execute(query, params)
+        meetings = [dict(row) for row in cursor.fetchall()]
+        conn.close()
+
+        return meetings
+
     def get_meeting_by_id(self, meeting_id: int) -> Optional[Dict[str, Any]]:
         """Get a specific meeting by ID"""
         conn = self._get_connection()

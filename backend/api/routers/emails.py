@@ -552,6 +552,49 @@ async def mark_email_read(email_id: int):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.post("/emails/{email_id}/confirm-link")
+async def confirm_email_link(
+    email_id: int,
+    confirmed_by: str = Query("bill", description="Who confirmed this link")
+):
+    """
+    Confirm that an AI-suggested email-project link is correct.
+
+    This:
+    1. Updates confidence score to 1.0
+    2. Logs for AI training
+    """
+    try:
+        with sqlite3.connect(DB_PATH) as conn:
+            cursor = conn.cursor()
+
+            # Update confidence to 1.0 to mark as confirmed
+            cursor.execute("""
+                UPDATE email_proposal_links
+                SET confidence_score = 1.0,
+                    match_method = CASE
+                        WHEN match_method LIKE '%confirmed%' THEN match_method
+                        ELSE match_method || '_confirmed'
+                    END
+                WHERE email_id = ?
+            """, (email_id,))
+
+            if cursor.rowcount == 0:
+                raise HTTPException(status_code=404, detail=f"No link found for email {email_id}")
+
+            conn.commit()
+
+        return {
+            "success": True,
+            "message": f"Link confirmed by {confirmed_by}",
+            "training_logged": True
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.post("/emails/{email_id}/extract-scheduling")
 async def extract_scheduling_data(email_id: int):
     """
@@ -658,16 +701,15 @@ async def get_project_emails_alt(
     Frontend-compatible route for EmailActivityFeed component.
     """
     try:
-        result = email_service.get_emails_by_project(
+        emails = email_service.get_emails_by_project(
             project_code=project_code,
-            page=1,
-            per_page=limit
+            limit=limit
         )
         return {
             "success": True,
             "project_code": project_code,
-            "data": result.get('emails', []),
-            "count": result.get('total', 0)
+            "data": emails,
+            "count": len(emails)
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -785,14 +827,11 @@ async def get_project_email_summary(
     Used by EmailIntelligenceSummary component.
     """
     try:
-        result = email_service.get_emails_by_project(
+        emails = email_service.get_emails_by_project(
             project_code=project_code,
-            page=1,
-            per_page=100
+            limit=100
         )
-
-        emails = result.get('emails', [])
-        total_emails = result.get('total', 0)
+        total_emails = len(emails)
 
         if total_emails == 0:
             return {

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { format, startOfWeek, endOfWeek, addDays, isToday, isSameDay } from "date-fns";
+import { format, startOfWeek, endOfWeek, addDays, isToday, isSameDay, startOfMonth, endOfMonth, isSameMonth, addMonths } from "date-fns";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -18,7 +18,17 @@ import {
   Video,
   AlertCircle,
   CalendarDays,
+  FileText,
+  CheckCircle2,
 } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 import { ds } from "@/lib/design-system";
 
@@ -37,6 +47,12 @@ interface Meeting {
   status?: string;
   is_virtual?: boolean;
   meeting_link?: string;
+  // Transcript data
+  has_transcript?: boolean;
+  transcript_id?: number;
+  transcript_summary?: string;
+  transcript_key_points?: string;
+  transcript_action_items?: string;
 }
 
 interface CalendarEvent {
@@ -161,16 +177,19 @@ function ErrorState({ onRetry }: { onRetry: () => void }) {
 }
 
 // Meeting card component
-function MeetingCard({ meeting }: { meeting: Meeting }) {
+function MeetingCard({ meeting, onClick }: { meeting: Meeting; onClick?: () => void }) {
   const startDate = new Date(meeting.start_time);
   const isUpcoming = startDate > new Date();
 
   return (
-    <Card className={cn(
-      ds.borderRadius.card,
-      "border-slate-200 hover:border-slate-300 transition-colors",
-      isToday(startDate) && "border-teal-300 bg-teal-50/30"
-    )}>
+    <Card
+      className={cn(
+        ds.borderRadius.card,
+        "border-slate-200 hover:border-slate-300 transition-colors cursor-pointer",
+        isToday(startDate) && "border-teal-300 bg-teal-50/30"
+      )}
+      onClick={onClick}
+    >
       <CardContent className="p-4">
         <div className="flex items-start gap-4">
           {/* Date block */}
@@ -189,9 +208,16 @@ function MeetingCard({ meeting }: { meeting: Meeting }) {
           {/* Meeting details */}
           <div className="flex-1 min-w-0">
             <div className="flex items-start justify-between gap-2">
-              <h3 className={cn(ds.typography.bodyBold, ds.textColors.primary, "truncate")}>
-                {meeting.title}
-              </h3>
+              <div className="flex items-center gap-2">
+                <h3 className={cn(ds.typography.bodyBold, ds.textColors.primary, "truncate")}>
+                  {meeting.title}
+                </h3>
+                {meeting.has_transcript && (
+                  <Badge className="bg-purple-100 text-purple-700 text-xs">
+                    <FileText className="h-3 w-3 mr-1" /> Notes
+                  </Badge>
+                )}
+              </div>
               {getStatusBadge(isUpcoming ? "upcoming" : meeting.status)}
             </div>
 
@@ -353,9 +379,157 @@ function WeekCalendar({
   );
 }
 
+// Month calendar view
+function MonthCalendar({
+  meetings,
+  currentDate,
+  onDateChange
+}: {
+  meetings: Meeting[];
+  currentDate: Date;
+  onDateChange: (date: Date) => void;
+}) {
+  const monthStart = startOfMonth(currentDate);
+  const monthEnd = endOfMonth(currentDate);
+  const calendarStart = startOfWeek(monthStart, { weekStartsOn: 1 });
+  const calendarEnd = endOfWeek(monthEnd, { weekStartsOn: 1 });
+
+  const days: Date[] = [];
+  let day = calendarStart;
+  while (day <= calendarEnd) {
+    days.push(day);
+    day = addDays(day, 1);
+  }
+
+  const getMeetingsForDay = (date: Date) => {
+    return meetings.filter(m => isSameDay(new Date(m.start_time), date));
+  };
+
+  const weeks: Date[][] = [];
+  for (let i = 0; i < days.length; i += 7) {
+    weeks.push(days.slice(i, i + 7));
+  }
+
+  return (
+    <Card className={cn(ds.borderRadius.card, "border-slate-200")}>
+      <CardHeader className="pb-2">
+        <div className="flex items-center justify-between">
+          <CardTitle className={cn(ds.typography.heading3, ds.textColors.primary)}>
+            {format(currentDate, "MMMM yyyy")}
+          </CardTitle>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => onDateChange(addMonths(currentDate, -1))}
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => onDateChange(new Date())}
+            >
+              Today
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => onDateChange(addMonths(currentDate, 1))}
+            >
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent>
+        {/* Day headers */}
+        <div className="grid grid-cols-7 gap-1 mb-2">
+          {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((dayName) => (
+            <div key={dayName} className="text-center text-xs font-medium text-slate-500 py-2">
+              {dayName}
+            </div>
+          ))}
+        </div>
+
+        {/* Calendar grid */}
+        <div className="space-y-1">
+          {weeks.map((week, weekIndex) => (
+            <div key={weekIndex} className="grid grid-cols-7 gap-1">
+              {week.map((day) => {
+                const dayMeetings = getMeetingsForDay(day);
+                const isCurrentDay = isToday(day);
+                const isCurrentMonth = isSameMonth(day, currentDate);
+
+                return (
+                  <div
+                    key={day.toISOString()}
+                    className={cn(
+                      "min-h-[80px] p-1 rounded-lg border",
+                      !isCurrentMonth && "opacity-40",
+                      isCurrentDay ? "border-teal-300 bg-teal-50" : "border-slate-100 bg-white"
+                    )}
+                  >
+                    <div className={cn(
+                      "text-xs font-medium mb-1",
+                      isCurrentDay ? "text-teal-700" : "text-slate-600"
+                    )}>
+                      {format(day, "d")}
+                    </div>
+                    <div className="space-y-0.5">
+                      {dayMeetings.slice(0, 2).map((meeting) => (
+                        <div
+                          key={meeting.id}
+                          className={cn(
+                            "text-[10px] px-1 py-0.5 rounded truncate",
+                            getMeetingTypeColor(meeting.meeting_type)
+                          )}
+                          title={`${format(new Date(meeting.start_time), "h:mm a")} - ${meeting.title}`}
+                        >
+                          {meeting.title}
+                        </div>
+                      ))}
+                      {dayMeetings.length > 2 && (
+                        <div className="text-[10px] text-slate-500 text-center">
+                          +{dayMeetings.length - 2}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+// Helper to parse JSON fields from transcript
+function parseJsonField(field: string | null | undefined): unknown[] {
+  if (!field) return [];
+  try {
+    const parsed = JSON.parse(field);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+// Extract display text from action item (can be string or object with task field)
+function getActionItemText(item: unknown): string {
+  if (typeof item === 'string') return item;
+  if (item && typeof item === 'object' && 'task' in item) return (item as { task: string }).task;
+  return String(item);
+}
+
 export default function MeetingsPage() {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [activeTab, setActiveTab] = useState<"upcoming" | "past">("upcoming");
+  const [viewMode, setViewMode] = useState<"week" | "month">("week");
+  const [typeFilter, setTypeFilter] = useState<string>("all");
+  const [selectedMeeting, setSelectedMeeting] = useState<Meeting | null>(null);
 
   // Fetch all meetings
   const { data: meetings = [], isLoading, error, refetch } = useQuery({
@@ -364,13 +538,18 @@ export default function MeetingsPage() {
     staleTime: 1000 * 60 * 5,
   });
 
+  // Apply type filter
+  const filteredMeetings = typeFilter === "all"
+    ? meetings
+    : meetings.filter(m => m.meeting_type?.toLowerCase() === typeFilter);
+
   // Filter meetings by tab
   const now = new Date();
-  const upcomingMeetings = meetings
+  const upcomingMeetings = filteredMeetings
     .filter(m => new Date(m.start_time) >= now)
     .sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime());
 
-  const pastMeetings = meetings
+  const pastMeetings = filteredMeetings
     .filter(m => new Date(m.start_time) < now)
     .sort((a, b) => new Date(b.start_time).getTime() - new Date(a.start_time).getTime());
 
@@ -400,6 +579,45 @@ export default function MeetingsPage() {
             <Calendar className="h-3.5 w-3.5" />
             {format(new Date(), "EEEE, MMM d")}
           </Badge>
+        </div>
+      </div>
+
+      {/* View Controls */}
+      <div className="flex flex-wrap items-center gap-4">
+        <div className="flex items-center gap-2 bg-slate-100 rounded-lg p-1">
+          <Button
+            variant={viewMode === "week" ? "default" : "ghost"}
+            size="sm"
+            onClick={() => setViewMode("week")}
+          >
+            Week
+          </Button>
+          <Button
+            variant={viewMode === "month" ? "default" : "ghost"}
+            size="sm"
+            onClick={() => setViewMode("month")}
+          >
+            Month
+          </Button>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-slate-500">Type:</span>
+          <div className="flex gap-1">
+            {["all", "client", "internal", "site_visit", "review"].map((type) => (
+              <Badge
+                key={type}
+                variant={typeFilter === type ? "default" : "outline"}
+                className={cn(
+                  "cursor-pointer transition-colors",
+                  typeFilter === type ? "" : getMeetingTypeColor(type === "all" ? undefined : type)
+                )}
+                onClick={() => setTypeFilter(type)}
+              >
+                {type === "all" ? "All" : type.replace("_", " ")}
+              </Badge>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -454,13 +672,21 @@ export default function MeetingsPage() {
         </Card>
       </div>
 
-      {/* Week Calendar View */}
+      {/* Calendar View */}
       {!isLoading && !error && (
-        <WeekCalendar
-          meetings={meetings}
-          currentDate={currentDate}
-          onDateChange={setCurrentDate}
-        />
+        viewMode === "week" ? (
+          <WeekCalendar
+            meetings={filteredMeetings}
+            currentDate={currentDate}
+            onDateChange={setCurrentDate}
+          />
+        ) : (
+          <MonthCalendar
+            meetings={filteredMeetings}
+            currentDate={currentDate}
+            onDateChange={setCurrentDate}
+          />
+        )
       )}
 
       {/* Meeting List */}
@@ -484,7 +710,7 @@ export default function MeetingsPage() {
           ) : (
             <div className="space-y-3">
               {upcomingMeetings.map((meeting) => (
-                <MeetingCard key={meeting.id} meeting={meeting} />
+                <MeetingCard key={meeting.id} meeting={meeting} onClick={() => setSelectedMeeting(meeting)} />
               ))}
             </div>
           )}
@@ -500,12 +726,133 @@ export default function MeetingsPage() {
           ) : (
             <div className="space-y-3">
               {pastMeetings.map((meeting) => (
-                <MeetingCard key={meeting.id} meeting={meeting} />
+                <MeetingCard key={meeting.id} meeting={meeting} onClick={() => setSelectedMeeting(meeting)} />
               ))}
             </div>
           )}
         </TabsContent>
       </Tabs>
+
+      {/* Meeting Detail Modal */}
+      <Dialog open={!!selectedMeeting} onOpenChange={(open) => !open && setSelectedMeeting(null)}>
+        <DialogContent className="max-w-2xl max-h-[85vh]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              {selectedMeeting?.title}
+              {selectedMeeting?.has_transcript && (
+                <Badge className="bg-purple-100 text-purple-700">
+                  <FileText className="h-3 w-3 mr-1" /> Has Meeting Notes
+                </Badge>
+              )}
+            </DialogTitle>
+          </DialogHeader>
+          <ScrollArea className="max-h-[60vh]">
+            {selectedMeeting && (
+              <div className="space-y-4 pr-4">
+                {/* Meeting Info */}
+                <div className="grid grid-cols-2 gap-4 p-4 bg-slate-50 rounded-lg">
+                  <div>
+                    <p className="text-xs font-medium text-slate-500 uppercase">Date</p>
+                    <p className="text-sm text-slate-900">
+                      {format(new Date(selectedMeeting.start_time), "EEEE, MMMM d, yyyy")}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs font-medium text-slate-500 uppercase">Time</p>
+                    <p className="text-sm text-slate-900">
+                      {format(new Date(selectedMeeting.start_time), "h:mm a")}
+                      {selectedMeeting.end_time && ` - ${format(new Date(selectedMeeting.end_time), "h:mm a")}`}
+                    </p>
+                  </div>
+                  {selectedMeeting.meeting_type && (
+                    <div>
+                      <p className="text-xs font-medium text-slate-500 uppercase">Type</p>
+                      <Badge variant="outline" className={cn("text-xs", getMeetingTypeColor(selectedMeeting.meeting_type))}>
+                        {selectedMeeting.meeting_type.replace(/_/g, " ")}
+                      </Badge>
+                    </div>
+                  )}
+                  {selectedMeeting.project_code && (
+                    <div>
+                      <p className="text-xs font-medium text-slate-500 uppercase">Project</p>
+                      <Badge variant="outline" className="text-xs">
+                        {selectedMeeting.project_code}
+                      </Badge>
+                    </div>
+                  )}
+                  {selectedMeeting.location && (
+                    <div className="col-span-2">
+                      <p className="text-xs font-medium text-slate-500 uppercase">Location</p>
+                      <p className="text-sm text-slate-900 flex items-center gap-1">
+                        <MapPin className="h-3 w-3" />
+                        {selectedMeeting.location}
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Transcript Summary */}
+                {selectedMeeting.transcript_summary && (
+                  <div className="space-y-3">
+                    <h3 className="text-sm font-semibold text-purple-800 flex items-center gap-2">
+                      <FileText className="h-4 w-4" />
+                      Meeting Summary
+                    </h3>
+                    <div className="p-4 bg-purple-50 rounded-lg border border-purple-100">
+                      <p className="text-sm text-slate-700 whitespace-pre-wrap">
+                        {selectedMeeting.transcript_summary}
+                      </p>
+                    </div>
+
+                    {/* Key Points */}
+                    {selectedMeeting.transcript_key_points && parseJsonField(selectedMeeting.transcript_key_points).length > 0 && (
+                      <div>
+                        <h4 className="text-xs font-semibold text-purple-700 uppercase mb-2">Key Points</h4>
+                        <ul className="space-y-1">
+                          {parseJsonField(selectedMeeting.transcript_key_points).map((point, i) => (
+                            <li key={i} className="text-sm text-slate-600 flex items-start gap-2">
+                              <span className="text-purple-400 mt-1">•</span>
+                              <span>{String(point)}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+
+                    {/* Action Items */}
+                    {selectedMeeting.transcript_action_items && parseJsonField(selectedMeeting.transcript_action_items).length > 0 && (
+                      <div>
+                        <h4 className="text-xs font-semibold text-purple-700 uppercase mb-2">Action Items</h4>
+                        <ul className="space-y-1">
+                          {parseJsonField(selectedMeeting.transcript_action_items).map((item, i) => (
+                            <li key={i} className="text-sm text-slate-600 flex items-start gap-2">
+                              <CheckCircle2 className="h-4 w-4 text-purple-400 mt-0.5 flex-shrink-0" />
+                              <span>{getActionItemText(item)}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Description if no transcript */}
+                {!selectedMeeting.transcript_summary && selectedMeeting.description && (
+                  <div className="p-4 bg-slate-50 rounded-lg">
+                    <h3 className="text-xs font-semibold text-slate-500 uppercase mb-2">Description</h3>
+                    <p className="text-sm text-slate-700">{selectedMeeting.description}</p>
+                  </div>
+                )}
+              </div>
+            )}
+          </ScrollArea>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setSelectedMeeting(null)}>
+              Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -38,6 +38,11 @@ class SuggestionWriter(BaseService):
         "status_update": 0.8,  # Higher threshold for status changes
         "stale_proposal": 0.5,  # Lower threshold for alerts
         "relationship_insight": 0.6,
+        # NEW: Task/Meeting/Deliverable detection thresholds
+        "action_item": 0.7,
+        "meeting_detected": 0.75,
+        "deadline_detected": 0.7,
+        "commitment": 0.65,
     }
 
     # Valid email classification types
@@ -259,6 +264,36 @@ class SuggestionWriter(BaseService):
         # NEW: Suggest creating a new proposal if email is about unknown project
         if analysis.get("new_proposal"):
             sid = self._write_new_proposal_suggestion(email_id, analysis["new_proposal"], email_data)
+            if sid:
+                suggestion_ids.append(sid)
+
+        # ==== NEW: Task/Meeting/Deliverable/Commitment Detection ====
+
+        # Process action items (tasks detected from email)
+        action_items = analysis.get("action_items", [])
+        for action_item in action_items:
+            sid = self._write_action_item_suggestion(email_id, action_item, email_data, primary_project_code)
+            if sid:
+                suggestion_ids.append(sid)
+
+        # Process meeting detection
+        meeting_detected = analysis.get("meeting_detected")
+        if meeting_detected and meeting_detected.get("detected"):
+            sid = self._write_meeting_suggestion(email_id, meeting_detected, email_data, primary_project_code)
+            if sid:
+                suggestion_ids.append(sid)
+
+        # Process deliverables/deadlines
+        deliverables = analysis.get("deliverables", [])
+        for deliverable in deliverables:
+            sid = self._write_deliverable_suggestion(email_id, deliverable, email_data, primary_project_code)
+            if sid:
+                suggestion_ids.append(sid)
+
+        # Process commitments (promises made by us or them)
+        commitments = analysis.get("commitments", [])
+        for commitment in commitments:
+            sid = self._write_commitment_suggestion(email_id, commitment, email_data, primary_project_code)
             if sid:
                 suggestion_ids.append(sid)
 
@@ -884,3 +919,293 @@ class SuggestionWriter(BaseService):
 
         result = self.execute_query(query, tuple(params), fetch_one=True)
         return result.get("count", 0) > 0
+
+    # ==================================================================
+    # NEW: Task/Meeting/Deliverable/Commitment Suggestion Methods
+    # ==================================================================
+
+    def _write_action_item_suggestion(
+        self,
+        email_id: int,
+        action_item: Dict[str, Any],
+        email_data: Dict[str, Any] = None,
+        project_code: str = None,
+    ) -> Optional[int]:
+        """
+        Create action_item suggestion from GPT-detected task in email.
+
+        These become tasks when approved.
+        """
+        if not action_item.get("should_create"):
+            return None
+
+        confidence = action_item.get("confidence", 0)
+        if confidence < self.CONFIDENCE_THRESHOLDS["action_item"]:
+            logger.debug(f"Action item confidence {confidence} below threshold")
+            return None
+
+        task_title = action_item.get("task_title")
+        if not task_title:
+            return None
+
+        # Check for duplicate
+        if self.check_duplicate_suggestion(email_id, "action_item", project_code):
+            logger.debug(f"Duplicate action_item suggestion for email {email_id}")
+            return None
+
+        subject = email_data.get("subject", "Unknown") if email_data else "Unknown"
+
+        # Map assignee hint to category
+        assignee_hint = action_item.get("assignee_hint", "us")
+        if assignee_hint == "us":
+            category = "Project" if project_code else "Admin"
+        elif assignee_hint == "them":
+            category = "Project"
+        else:
+            category = "Project"
+
+        suggested_data = {
+            "task_title": task_title,
+            "task_description": action_item.get("task_description", ""),
+            "assignee_hint": assignee_hint,
+            "due_date_hint": action_item.get("due_date_hint"),
+            "priority_hint": action_item.get("priority_hint", "medium"),
+            "category": category,
+            "source_email_id": email_id,
+            "source_quote": action_item.get("source_quote"),
+            "project_code": project_code,
+        }
+
+        # Determine priority from hint
+        priority_map = {"critical": "high", "high": "high", "medium": "medium", "low": "low"}
+        priority = priority_map.get(action_item.get("priority_hint", "medium"), "medium")
+
+        return self._insert_suggestion(
+            suggestion_type="action_item",
+            priority=priority,
+            confidence_score=confidence,
+            source_type="email",
+            source_id=email_id,
+            source_reference=f"Email: {subject[:50]}",
+            title=f"Task: {task_title[:60]}",
+            description=f"Detected action item: {task_title}. {action_item.get('task_description', '')}",
+            suggested_action="Create task",
+            suggested_data=suggested_data,
+            target_table="tasks",
+            project_code=project_code,
+        )
+
+    def _write_meeting_suggestion(
+        self,
+        email_id: int,
+        meeting_data: Dict[str, Any],
+        email_data: Dict[str, Any] = None,
+        project_code: str = None,
+    ) -> Optional[int]:
+        """
+        Create meeting_detected suggestion from GPT analysis.
+
+        These become meeting records when approved.
+        """
+        if not meeting_data.get("detected"):
+            return None
+
+        confidence = meeting_data.get("confidence", 0)
+        if confidence < self.CONFIDENCE_THRESHOLDS["meeting_detected"]:
+            logger.debug(f"Meeting confidence {confidence} below threshold")
+            return None
+
+        # Check for duplicate
+        if self.check_duplicate_suggestion(email_id, "meeting_detected", project_code):
+            logger.debug(f"Duplicate meeting_detected suggestion for email {email_id}")
+            return None
+
+        subject = email_data.get("subject", "Unknown") if email_data else "Unknown"
+        meeting_type = meeting_data.get("meeting_type", "request")
+        meeting_purpose = meeting_data.get("meeting_purpose", "Meeting")
+
+        # Build title based on type
+        if meeting_type == "confirmation":
+            title = f"Meeting confirmed: {meeting_purpose[:40]}"
+        elif meeting_type == "reschedule":
+            title = f"Meeting reschedule: {meeting_purpose[:40]}"
+        else:
+            title = f"Meeting request: {meeting_purpose[:40]}"
+
+        suggested_data = {
+            "meeting_type": meeting_type,
+            "meeting_purpose": meeting_purpose,
+            "proposed_date": meeting_data.get("proposed_date"),
+            "proposed_time": meeting_data.get("proposed_time"),
+            "participants": meeting_data.get("participants", []),
+            "location_hint": meeting_data.get("location_hint"),
+            "source_email_id": email_id,
+            "source_quote": meeting_data.get("source_quote"),
+            "project_code": project_code,
+        }
+
+        # Priority based on meeting type
+        if meeting_type == "confirmation":
+            priority = "high"
+        elif meeting_type == "reschedule":
+            priority = "high"
+        else:
+            priority = "medium"
+
+        return self._insert_suggestion(
+            suggestion_type="meeting_detected",
+            priority=priority,
+            confidence_score=confidence,
+            source_type="email",
+            source_id=email_id,
+            source_reference=f"Email: {subject[:50]}",
+            title=title,
+            description=f"Meeting detected in email. {meeting_data.get('source_quote', '')}",
+            suggested_action="Create meeting",
+            suggested_data=suggested_data,
+            target_table="meetings",
+            project_code=project_code,
+        )
+
+    def _write_deliverable_suggestion(
+        self,
+        email_id: int,
+        deliverable_data: Dict[str, Any],
+        email_data: Dict[str, Any] = None,
+        project_code: str = None,
+    ) -> Optional[int]:
+        """
+        Create deadline_detected suggestion from GPT analysis.
+
+        These become deliverable records when approved.
+        """
+        if not deliverable_data.get("detected"):
+            return None
+
+        confidence = deliverable_data.get("confidence", 0)
+        if confidence < self.CONFIDENCE_THRESHOLDS["deadline_detected"]:
+            logger.debug(f"Deliverable confidence {confidence} below threshold")
+            return None
+
+        deliverable_name = deliverable_data.get("deliverable_name")
+        if not deliverable_name:
+            return None
+
+        # Check for duplicate
+        if self.check_duplicate_suggestion(email_id, "deadline_detected", project_code):
+            logger.debug(f"Duplicate deadline_detected suggestion for email {email_id}")
+            return None
+
+        subject = email_data.get("subject", "Unknown") if email_data else "Unknown"
+
+        suggested_data = {
+            "deliverable_name": deliverable_name,
+            "deliverable_type": deliverable_data.get("deliverable_type", "other"),
+            "deadline_date": deliverable_data.get("deadline_date"),
+            "milestone_status": deliverable_data.get("milestone_status"),
+            "description": deliverable_data.get("description", ""),
+            "source_email_id": email_id,
+            "source_quote": deliverable_data.get("source_quote"),
+            "project_code": project_code,
+        }
+
+        # Priority based on deadline proximity (if date provided)
+        priority = "medium"
+        deadline_date = deliverable_data.get("deadline_date")
+        if deadline_date:
+            try:
+                from datetime import datetime
+                deadline = datetime.strptime(deadline_date, "%Y-%m-%d")
+                days_until = (deadline - datetime.now()).days
+                if days_until <= 7:
+                    priority = "high"
+                elif days_until <= 30:
+                    priority = "medium"
+                else:
+                    priority = "low"
+            except (ValueError, TypeError):
+                pass
+
+        return self._insert_suggestion(
+            suggestion_type="deadline_detected",
+            priority=priority,
+            confidence_score=confidence,
+            source_type="email",
+            source_id=email_id,
+            source_reference=f"Email: {subject[:50]}",
+            title=f"Deliverable: {deliverable_name[:50]}",
+            description=f"Deadline detected: {deliverable_name}. Due: {deadline_date or 'TBD'}",
+            suggested_action="Create deliverable",
+            suggested_data=suggested_data,
+            target_table="deliverables",
+            project_code=project_code,
+        )
+
+    def _write_commitment_suggestion(
+        self,
+        email_id: int,
+        commitment_data: Dict[str, Any],
+        email_data: Dict[str, Any] = None,
+        project_code: str = None,
+    ) -> Optional[int]:
+        """
+        Create commitment suggestion from GPT analysis.
+
+        Tracks promises made by us or by clients/partners.
+        These become commitment records when approved.
+        """
+        if not commitment_data.get("detected"):
+            return None
+
+        confidence = commitment_data.get("confidence", 0)
+        if confidence < self.CONFIDENCE_THRESHOLDS["commitment"]:
+            logger.debug(f"Commitment confidence {confidence} below threshold")
+            return None
+
+        description = commitment_data.get("description")
+        if not description:
+            return None
+
+        commitment_type = commitment_data.get("commitment_type", "our_commitment")
+        if commitment_type not in ("our_commitment", "their_commitment"):
+            commitment_type = "our_commitment"
+
+        # Check for duplicate
+        if self.check_duplicate_suggestion(email_id, "commitment", project_code):
+            logger.debug(f"Duplicate commitment suggestion for email {email_id}")
+            return None
+
+        subject = email_data.get("subject", "Unknown") if email_data else "Unknown"
+
+        suggested_data = {
+            "commitment_type": commitment_type,
+            "description": description,
+            "committed_by": commitment_data.get("committed_by"),
+            "due_date": commitment_data.get("due_date"),
+            "source_email_id": email_id,
+            "source_quote": commitment_data.get("source_quote"),
+            "project_code": project_code,
+        }
+
+        # Title based on who made the commitment
+        if commitment_type == "our_commitment":
+            title = f"We promised: {description[:45]}"
+            priority = "high"  # Our commitments are high priority
+        else:
+            title = f"They promised: {description[:45]}"
+            priority = "medium"
+
+        return self._insert_suggestion(
+            suggestion_type="commitment",
+            priority=priority,
+            confidence_score=confidence,
+            source_type="email",
+            source_id=email_id,
+            source_reference=f"Email: {subject[:50]}",
+            title=title,
+            description=f"Commitment detected: {description}",
+            suggested_action="Track commitment",
+            suggested_data=suggested_data,
+            target_table="commitments",
+            project_code=project_code,
+        )

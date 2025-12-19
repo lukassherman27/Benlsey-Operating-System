@@ -332,7 +332,7 @@ export default function DashboardPage() {
 
   const dashboardStatsQuery = useQuery({
     queryKey: ["dashboard-stats"],
-    queryFn: api.getDashboardStats,
+    queryFn: () => api.getDashboardStats(),
     refetchInterval: 1000 * 60 * 5,
   });
 

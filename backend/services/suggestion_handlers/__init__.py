@@ -40,6 +40,7 @@ __all__ = [
 from .task_handler import FollowUpHandler
 from .transcript_handler import TranscriptLinkHandler
 from .contact_handler import ContactHandler
+from .update_contact_handler import UpdateContactHandler
 from .proposal_handler import FeeChangeHandler
 from .deadline_handler import DeadlineHandler
 from .info_handler import InfoHandler
@@ -47,12 +48,17 @@ from .email_link_handler import EmailLinkHandler
 from .status_handler import ProposalStatusHandler
 from .contact_link_handler import ContactLinkHandler
 from .link_review_handler import LinkReviewHandler
+# NEW: Task/Meeting/Commitment handlers (Phase 2 enhancement)
+from .action_item_handler import ActionItemHandler, ActionRequiredHandler
+from .meeting_handler import MeetingHandler
+from .commitment_handler import CommitmentHandler
 
 # Add handlers to exports
 __all__.extend([
     "FollowUpHandler",
     "TranscriptLinkHandler",
     "ContactHandler",
+    "UpdateContactHandler",
     "FeeChangeHandler",
     "DeadlineHandler",
     "InfoHandler",
@@ -60,4 +66,9 @@ __all__.extend([
     "ProposalStatusHandler",
     "ContactLinkHandler",
     "LinkReviewHandler",
+    # NEW: Task/Meeting/Commitment handlers
+    "ActionItemHandler",
+    "ActionRequiredHandler",
+    "MeetingHandler",
+    "CommitmentHandler",
 ])

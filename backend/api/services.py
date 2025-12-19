@@ -55,6 +55,12 @@ from services.user_learning_service import UserLearningService
 from services.invoice_service import InvoiceService
 from services.email_orchestrator import EmailOrchestrator
 
+# Orphaned services now being connected (Dec 2025)
+from services.pattern_first_linker import get_pattern_linker
+from services.proposal_version_service import ProposalVersionService
+from services.transcript_consolidation_service import TranscriptConsolidationService
+from services.batch_suggestion_service import get_batch_service
+
 # Initialize all services
 try:
     logger.info(f"📂 Loading services with database: {DB_PATH}")
@@ -87,6 +93,12 @@ try:
     user_learning_service = UserLearningService(DB_PATH)
     invoice_service = InvoiceService(DB_PATH)
     email_orchestrator = EmailOrchestrator(DB_PATH)
+
+    # Orphaned services now being wired up (Dec 2025)
+    pattern_linker = get_pattern_linker(DB_PATH)
+    proposal_version_service = ProposalVersionService(DB_PATH)
+    transcript_consolidation_service = TranscriptConsolidationService(DB_PATH)
+    batch_suggestion_service = get_batch_service(DB_PATH)
 
     logger.info("✅ All services initialized successfully")
 
@@ -124,6 +136,11 @@ __all__ = [
     'user_learning_service',
     'invoice_service',
     'email_orchestrator',
+    # Newly wired services (Dec 2025)
+    'pattern_linker',
+    'proposal_version_service',
+    'transcript_consolidation_service',
+    'batch_suggestion_service',
     'DB_PATH',
     'logger',
 ]

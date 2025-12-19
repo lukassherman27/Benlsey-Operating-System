@@ -11,7 +11,10 @@ import { RecentEmailsWidget } from "@/components/dashboard/recent-emails-widget"
 import { ProposalTrackerWidget } from "@/components/dashboard/proposal-tracker-widget";
 import { QuickActionsWidget } from "@/components/dashboard/quick-actions-widget";
 import { ImportSummaryWidget } from "@/components/dashboard/import-summary-widget";
-import { FollowUpWidget } from "@/components/dashboard/follow-up-widget";
+import { ActionsWidget } from "@/components/dashboard/actions-widget";
+import { DailyBriefing } from "@/components/dashboard/daily-briefing";
+import { AnalyticsInsights } from "@/components/dashboard/analytics-insights";
+import { PersonalProjectsWidget } from "@/components/dashboard/personal-projects-widget";
 import { cn } from "@/lib/utils";
 import { ds } from "@/lib/design-system";
 import {
@@ -23,7 +26,6 @@ import {
   AlertCircle,
   FileText,
   Calendar,
-  CheckSquare
 } from "lucide-react";
 import { format } from "date-fns";
 import { api } from "@/lib/api";
@@ -35,12 +37,7 @@ export default function DashboardPage() {
   // Fetch role-based stats
   const { data: stats, isLoading, error } = useQuery({
     queryKey: ["dashboard-stats", role],
-    queryFn: () =>
-      fetch(`http://localhost:8000/api/dashboard/stats?role=${role}`)
-        .then((res) => {
-          if (!res.ok) throw new Error("Failed to fetch dashboard stats");
-          return res.json();
-        }),
+    queryFn: () => api.getDashboardStats(role),
     refetchInterval: 1000 * 60 * 5, // Refetch every 5 minutes
   });
 
@@ -69,12 +66,15 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Row 2: Role Switcher */}
+      {/* Row 2: Daily Briefing - Context-aware summary */}
+      <DailyBriefing userName="Bill" />
+
+      {/* Row 3: Role Switcher */}
       <div>
         <RoleSwitcher onRoleChange={setRole} defaultRole={role} />
       </div>
 
-      {/* Row 3: Role-based KPI Cards */}
+      {/* Row 4: Role-based KPI Cards */}
       {isLoading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           {[1, 2, 3, 4].map((i) => (
@@ -115,7 +115,7 @@ export default function DashboardPage() {
             value={stats.overdue_invoices_count || 0}
             subtitle="Need attention"
             icon={<AlertCircle className="h-5 w-5" />}
-            variant={stats.overdue_invoices_count > 0 ? "danger" : "default"}
+            variant={(stats.overdue_invoices_count ?? 0) > 0 ? "danger" : "default"}
           />
         </div>
       ) : stats && role === "pm" ? (
@@ -132,14 +132,14 @@ export default function DashboardPage() {
             value={stats.deliverables_due_this_week || 0}
             subtitle="This week"
             icon={<Calendar className="h-5 w-5" />}
-            variant={stats.deliverables_due_this_week > 0 ? "warning" : "default"}
+            variant={(stats.deliverables_due_this_week ?? 0) > 0 ? "warning" : "default"}
           />
           <KPICard
             label="Open RFIs"
             value={stats.open_rfis_count || 0}
             subtitle="Need response"
             icon={<FileText className="h-5 w-5" />}
-            variant={stats.open_rfis_count > 0 ? "warning" : "default"}
+            variant={(stats.open_rfis_count ?? 0) > 0 ? "warning" : "default"}
           />
         </div>
       ) : stats && role === "finance" ? (
@@ -175,11 +175,11 @@ export default function DashboardPage() {
         </div>
       ) : null}
 
-      {/* Row 4: Hot Items Strip */}
-      <HotItemsWidget />
+      {/* Row 4: What Needs Attention - Primary Action Widget */}
+      <ActionsWidget limit={10} />
 
-      {/* Row 5: Follow-Up Needed - Full Width */}
-      <FollowUpWidget />
+      {/* Row 5: Hot Items Strip */}
+      <HotItemsWidget />
 
       {/* Row 6: Two Columns - Calendar & Quick Stats */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -213,7 +213,10 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Row 7: Main Content Grid - 2 Columns on Large Screens */}
+      {/* Row 7: Analytics Insights - Business metrics when healthy */}
+      <AnalyticsInsights />
+
+      {/* Row 8: Main Content Grid - 2 Columns on Large Screens */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* LEFT COLUMN */}
         <div className="space-y-6">
@@ -236,6 +239,9 @@ export default function DashboardPage() {
           <QuickActionsWidget />
         </div>
       </div>
+
+      {/* Row 9: Personal Projects - Toggle-able */}
+      <PersonalProjectsWidget defaultVisible={false} />
     </div>
   );
 }

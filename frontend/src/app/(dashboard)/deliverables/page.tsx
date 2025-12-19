@@ -17,15 +17,48 @@ import {
   AlertCircle,
   FileCheck,
   ExternalLink,
+  Plus,
+  X,
 } from 'lucide-react'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { useState } from 'react'
 import { cn } from '@/lib/utils'
 import { ds } from '@/lib/design-system'
 import Link from 'next/link'
 
+// Deliverable types as defined in database
+const DELIVERABLE_TYPES = [
+  'drawing', 'presentation', 'document', 'model',
+  'specification', 'report', 'review', 'other'
+] as const
+
 export default function DeliverablesPage() {
   const queryClient = useQueryClient()
   const [selectedPM, setSelectedPM] = useState<string | null>(null)
+  const [createModalOpen, setCreateModalOpen] = useState(false)
+  const [newDeliverable, setNewDeliverable] = useState({
+    name: '',
+    project_code: '',
+    deliverable_type: 'document' as string,
+    due_date: '',
+    description: '',
+  })
 
   // Fetch data
   const { data: workload, isLoading: workloadLoading, error: workloadError } = useQuery({
@@ -52,6 +85,40 @@ export default function DeliverablesPage() {
       queryClient.invalidateQueries({ queryKey: ['pm-workload'] })
     },
   })
+
+  // Create deliverable mutation
+  const createDeliverableMutation = useMutation({
+    mutationFn: (data: {
+      project_code: string
+      deliverable_name: string
+      due_date?: string
+      deliverable_type?: string
+      description?: string
+    }) => api.createDeliverable(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['deliverables'] })
+      queryClient.invalidateQueries({ queryKey: ['pm-workload'] })
+      setCreateModalOpen(false)
+      setNewDeliverable({
+        name: '',
+        project_code: '',
+        deliverable_type: 'document',
+        due_date: '',
+        description: '',
+      })
+    },
+  })
+
+  const handleCreateDeliverable = () => {
+    if (!newDeliverable.name.trim() || !newDeliverable.project_code.trim()) return
+    createDeliverableMutation.mutate({
+      project_code: newDeliverable.project_code.trim(),
+      deliverable_name: newDeliverable.name.trim(),
+      due_date: newDeliverable.due_date || undefined,
+      deliverable_type: newDeliverable.deliverable_type || undefined,
+      description: newDeliverable.description.trim() || undefined,
+    })
+  }
 
   const statusColors: Record<string, string> = {
     pending: 'bg-slate-100 text-slate-700 border-slate-200',
@@ -127,14 +194,24 @@ export default function DeliverablesPage() {
             Track project deliverables and team workload
           </p>
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => queryClient.invalidateQueries()}
-        >
-          <RefreshCw className="h-4 w-4 mr-2" />
-          Refresh
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => queryClient.invalidateQueries()}
+          >
+            <RefreshCw className="h-4 w-4 mr-2" />
+            Refresh
+          </Button>
+          <Button
+            size="sm"
+            onClick={() => setCreateModalOpen(true)}
+            className="bg-teal-600 hover:bg-teal-700 text-white"
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            Add Deliverable
+          </Button>
+        </div>
       </div>
 
       {/* Stats Cards */}
@@ -443,6 +520,96 @@ export default function DeliverablesPage() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* Create Deliverable Modal */}
+      <Dialog open={createModalOpen} onOpenChange={setCreateModalOpen}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle className={ds.typography.heading3}>Create Deliverable</DialogTitle>
+            <DialogDescription className={ds.typography.body}>
+              Add a new deliverable to track for a project.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="deliverable-name">Name *</Label>
+              <Input
+                id="deliverable-name"
+                placeholder="Schematic Design Package"
+                value={newDeliverable.name}
+                onChange={(e) => setNewDeliverable({ ...newDeliverable, name: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="project-code">Project Code *</Label>
+              <Input
+                id="project-code"
+                placeholder="25 BK-033"
+                value={newDeliverable.project_code}
+                onChange={(e) => setNewDeliverable({ ...newDeliverable, project_code: e.target.value })}
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="deliverable-type">Type</Label>
+                <Select
+                  value={newDeliverable.deliverable_type}
+                  onValueChange={(value) => setNewDeliverable({ ...newDeliverable, deliverable_type: value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {DELIVERABLE_TYPES.map((type) => (
+                      <SelectItem key={type} value={type}>
+                        {type.charAt(0).toUpperCase() + type.slice(1)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="due-date">Due Date</Label>
+                <Input
+                  id="due-date"
+                  type="date"
+                  value={newDeliverable.due_date}
+                  onChange={(e) => setNewDeliverable({ ...newDeliverable, due_date: e.target.value })}
+                />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="description">Description</Label>
+              <Input
+                id="description"
+                placeholder="Optional description"
+                value={newDeliverable.description}
+                onChange={(e) => setNewDeliverable({ ...newDeliverable, description: e.target.value })}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setCreateModalOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleCreateDeliverable}
+              disabled={!newDeliverable.name.trim() || !newDeliverable.project_code.trim() || createDeliverableMutation.isPending}
+              className="bg-teal-600 hover:bg-teal-700 text-white"
+            >
+              {createDeliverableMutation.isPending ? 'Creating...' : 'Create Deliverable'}
+            </Button>
+          </DialogFooter>
+          {createDeliverableMutation.isError && (
+            <p className="text-sm text-red-600 mt-2">
+              Error: {createDeliverableMutation.error?.message || 'Failed to create deliverable'}
+            </p>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

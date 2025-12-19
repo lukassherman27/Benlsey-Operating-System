@@ -31,6 +31,19 @@ class ChatMeetingRequest(BaseModel):
     text: str = Field(..., description="Natural language meeting request")
 
 
+class CreateMeetingRequest(BaseModel):
+    """Request model for creating meetings via JSON"""
+    title: str = Field(..., description="Meeting title")
+    meeting_type: str = Field(default="client_call", description="Type of meeting")
+    meeting_date: str = Field(..., description="Meeting date (YYYY-MM-DD)")
+    start_time: Optional[str] = Field(default=None, description="Start time (HH:MM)")
+    end_time: Optional[str] = Field(default=None, description="End time (HH:MM)")
+    location: Optional[str] = Field(default=None, description="Location or video call URL")
+    meeting_link: Optional[str] = Field(default=None, description="Video call URL")
+    project_code: Optional[str] = Field(default=None, description="Project code to link")
+    description: Optional[str] = Field(default=None, description="Meeting description")
+
+
 # ============================================================================
 # MEETING ENDPOINTS
 # ============================================================================
@@ -38,17 +51,24 @@ class ChatMeetingRequest(BaseModel):
 @router.get("/meetings")
 async def list_meetings(
     proposal_id: Optional[int] = None,
-    upcoming: bool = False
+    upcoming: bool = False,
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    meeting_type: Optional[str] = None
 ):
-    """List meetings"""
+    """List meetings with optional filters"""
     try:
         if upcoming:
             meetings = meeting_service.get_upcoming_meetings(days_ahead=30)
         elif proposal_id:
             meetings = meeting_service.get_meetings_by_proposal(proposal_id)
         else:
-            # Get all meetings for the dashboard (not just today's)
-            meetings = meeting_service.get_upcoming_meetings(days_ahead=365)
+            # Get all meetings with optional date filtering
+            meetings = meeting_service.get_all_meetings(
+                start_date=start_date,
+                end_date=end_date,
+                meeting_type=meeting_type
+            )
 
         # Format meetings for frontend compatibility
         formatted = []
@@ -75,6 +95,12 @@ async def list_meetings(
                 'status': m.get('status'),
                 'is_virtual': bool(m.get('meeting_link')),
                 'meeting_link': m.get('meeting_link'),
+                # Transcript data
+                'has_transcript': bool(m.get('transcript_id')),
+                'transcript_id': m.get('transcript_id'),
+                'transcript_summary': m.get('transcript_summary'),
+                'transcript_key_points': m.get('transcript_key_points'),
+                'transcript_action_items': m.get('transcript_action_items'),
             })
 
         response = list_response(formatted, len(formatted))
@@ -105,6 +131,40 @@ async def create_meeting(
             "location": location,
             "meeting_url": meeting_url
         })
+        return action_response(True, data={"meeting_id": meeting_id}, message="Meeting created")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to create meeting: {str(e)}")
+
+
+@router.post("/meetings/create")
+async def create_meeting_json(request: CreateMeetingRequest):
+    """Create a new meeting from JSON body"""
+    try:
+        from database.connection import get_db_connection
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        cursor.execute("""
+            INSERT INTO meetings (
+                title, description, meeting_type, meeting_date, start_time, end_time,
+                location, meeting_link, project_code, status, source, created_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'scheduled', 'manual', datetime('now'))
+        """, (
+            request.title,
+            request.description,
+            request.meeting_type,
+            request.meeting_date,
+            request.start_time,
+            request.end_time,
+            request.location,
+            request.meeting_link,
+            request.project_code
+        ))
+
+        meeting_id = cursor.lastrowid
+        conn.commit()
+        conn.close()
+
         return action_response(True, data={"meeting_id": meeting_id}, message="Meeting created")
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to create meeting: {str(e)}")

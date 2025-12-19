@@ -41,7 +41,7 @@ import {
   DollarSign,
   Calendar
 } from "lucide-react";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { formatCurrency, getStatusColor, cn } from "@/lib/utils";
 import { ds, bensleyVoice } from "@/lib/design-system";
@@ -50,13 +50,18 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { exportToCSV, prepareDataForExport } from "@/lib/export-utils";
 
 // Status colors for the pipeline visualization
-const STATUS_COLORS = {
-  "First Contact": { bg: "bg-slate-100", fill: "bg-slate-400", text: "text-slate-700" },
-  "Drafting": { bg: "bg-blue-100", fill: "bg-blue-500", text: "text-blue-700" },
-  "Proposal Sent": { bg: "bg-amber-100", fill: "bg-amber-500", text: "text-amber-700" },
-  "On Hold": { bg: "bg-orange-100", fill: "bg-orange-500", text: "text-orange-700" },
-  "Contract Signed": { bg: "bg-emerald-100", fill: "bg-emerald-500", text: "text-emerald-700" },
-  "Archived": { bg: "bg-red-100", fill: "bg-red-400", text: "text-red-700" },
+const STATUS_COLORS: Record<string, { bg: string; fill: string; text: string }> = {
+  "First Contact": { bg: "bg-blue-50", fill: "bg-blue-400", text: "text-blue-700" },
+  "Meeting Held": { bg: "bg-cyan-50", fill: "bg-cyan-500", text: "text-cyan-700" },
+  "Proposal Prep": { bg: "bg-yellow-50", fill: "bg-yellow-500", text: "text-yellow-700" },
+  "Proposal Sent": { bg: "bg-amber-50", fill: "bg-amber-500", text: "text-amber-700" },
+  "Negotiation": { bg: "bg-purple-50", fill: "bg-purple-500", text: "text-purple-700" },
+  "On Hold": { bg: "bg-gray-100", fill: "bg-gray-400", text: "text-gray-600" },
+  "Contract Signed": { bg: "bg-emerald-50", fill: "bg-emerald-500", text: "text-emerald-700" },
+  "Lost": { bg: "bg-red-50", fill: "bg-red-400", text: "text-red-600" },
+  "Declined": { bg: "bg-rose-50", fill: "bg-rose-400", text: "text-rose-600" },
+  "Dormant": { bg: "bg-slate-100", fill: "bg-slate-400", text: "text-slate-500" },
+  "Cancelled": { bg: "bg-stone-100", fill: "bg-stone-400", text: "text-stone-500" },
 };
 
 // Activity color based on days since last activity
@@ -66,9 +71,25 @@ function getActivityColor(days: number): { bg: string; text: string; label: stri
   return { bg: "bg-red-100", text: "text-red-700", label: "Stalled" };
 }
 
+// All valid proposal statuses for the dropdown
+const ALL_STATUSES = [
+  "First Contact",
+  "Meeting Held",
+  "Proposal Prep",
+  "Proposal Sent",
+  "Negotiation",
+  "On Hold",
+  "Contract Signed",
+  "Lost",
+  "Declined",
+  "Dormant",
+  "Cancelled",
+] as const;
+
 function ProposalTrackerContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const queryClient = useQueryClient();
   const codeParam = searchParams.get("code");
   const highlightParam = searchParams.get("highlight");
   const filterParam = searchParams.get("filter");
@@ -148,6 +169,21 @@ function ProposalTrackerContent() {
     },
     onError: (error: unknown) => {
       toast.error(error instanceof Error ? error.message : "Failed to generate PDF");
+    },
+  });
+
+  // Quick status update mutation
+  const updateStatusMutation = useMutation({
+    mutationFn: ({ projectCode, newStatus }: { projectCode: string; newStatus: string }) =>
+      api.updateProposalTracker(projectCode, { current_status: newStatus as ProposalStatus }),
+    onSuccess: (data, variables) => {
+      toast.success(`Status updated to ${variables.newStatus}`);
+      // Refresh the list
+      queryClient.invalidateQueries({ queryKey: ["proposalTrackerList"] });
+      queryClient.invalidateQueries({ queryKey: ["proposalTrackerStats"] });
+    },
+    onError: (error: unknown) => {
+      toast.error(error instanceof Error ? error.message : "Failed to update status");
     },
   });
 
@@ -263,262 +299,118 @@ function ProposalTrackerContent() {
         </div>
       </div>
 
-      {/* KEY METRICS - Redesigned to 6 cards */}
+      {/* YEAR OVERVIEW - 4 summary cards */}
       {stats && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {/* 1. Pipeline Value - HERO CARD */}
-          <Card
-            className={cn(
-              "md:col-span-2 lg:col-span-1",
-              ds.cards.interactive,
-              "border-teal-200",
-              activeMetric === "pipeline" && "ring-2 ring-teal-400"
-            )}
-            onClick={() => handleMetricClick("pipeline")}
-          >
-            <CardHeader className="pb-2">
-              <CardTitle className={cn(ds.typography.label, "text-teal-600 flex items-center gap-2")}>
-                <DollarSign className="h-4 w-4" />
-                Total Pipeline Value
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className={cn(ds.typography.metricLarge, ds.textColors.primary)}>
-                {formatCurrency(stats.total_pipeline_value)}
-              </div>
-              <div className={cn("flex items-center gap-4 mt-3", ds.typography.caption)}>
-                <span>{stats.total_proposals} proposals tracked</span>
-                <span className="flex items-center gap-1 text-teal-600">
-                  <TrendingUp className="h-3 w-3" />
-                  {stats.active_proposals_count} active
-                </span>
-              </div>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          {/* Total Pipeline */}
+          <Card className={cn("border-slate-200", activeMetric === "pipeline" && "ring-2 ring-slate-400")}
+                onClick={() => { setStatusFilter("all"); setActiveMetric("pipeline"); }}>
+            <CardContent className="pt-4">
+              <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">Total Pipeline</p>
+              <p className="text-2xl font-bold text-slate-900 mt-1">{stats.all_proposals_total || stats.total_proposals}</p>
+              <p className="text-sm font-semibold text-slate-600">{formatCurrency(stats.all_proposals_value || stats.total_pipeline_value)}</p>
             </CardContent>
           </Card>
 
-          {/* 2. Close to Signing */}
-          <Card
-            className={cn(
-              ds.cards.interactive,
-              "border-emerald-200",
-              activeMetric === "close" && "ring-2 ring-emerald-400"
-            )}
-            onClick={() => handleMetricClick("close", "Proposal Sent")}
-          >
-            <CardHeader className="pb-2">
-              <CardTitle className={cn(ds.typography.label, ds.status.success.text, "flex items-center gap-2")}>
-                <CheckCircle2 className="h-4 w-4" />
-                Close to Signing
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-baseline gap-2">
-                <span className={cn(ds.typography.metricLarge, ds.textColors.primary)}>
-                  {stats.status_breakdown?.find((s: { current_status: string }) => s.current_status === "Proposal Sent")?.count || 0}
-                </span>
-                <span className={cn(ds.typography.caption, ds.status.success.text)}>proposals sent</span>
-              </div>
-              <p className={cn(ds.typography.bodyBold, ds.status.success.text, "mt-1")}>
-                {formatCurrency(stats.status_breakdown?.find((s: { current_status: string }) => s.current_status === "Proposal Sent")?.total_value || 0)}
+          {/* Won (Contract Signed) */}
+          <Card className={cn("border-emerald-200 bg-emerald-50/50", activeMetric === "signed" && "ring-2 ring-emerald-400")}
+                onClick={() => handleMetricClick("signed", "Contract Signed")}>
+            <CardContent className="pt-4">
+              <p className="text-xs font-medium text-emerald-600 uppercase tracking-wide flex items-center gap-1">
+                <CheckCircle2 className="h-3 w-3" /> Won
               </p>
+              <p className="text-2xl font-bold text-emerald-700 mt-1">{stats.won_count || 0}</p>
+              <p className="text-sm font-semibold text-emerald-600">{formatCurrency(stats.won_value || 0)}</p>
             </CardContent>
           </Card>
 
-          {/* 3. Needs Follow-up - WARNING */}
-          <Card
-            className={cn(
-              ds.cards.interactive,
-              "border-amber-200",
-              activeMetric === "followup" && "ring-2 ring-amber-400"
-            )}
-            onClick={() => handleMetricClick("followup")}
-          >
-            <CardHeader className="pb-2">
-              <CardTitle className={cn(ds.typography.label, ds.status.warning.text, "flex items-center gap-2")}>
-                <AlertTriangle className="h-4 w-4" />
-                Needs Follow-up
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-baseline gap-2">
-                <span className={cn(ds.typography.metricLarge, ds.textColors.primary)}>
-                  {stats.needs_followup}
-                </span>
-                <span className={cn(ds.typography.caption, ds.status.warning.text)}>stalled &gt;14 days</span>
-              </div>
-              <p className={cn(ds.typography.caption, ds.status.warning.text, "mt-1")}>
-                Requires immediate attention
+          {/* Lost/Declined */}
+          <Card className={cn("border-red-200 bg-red-50/50", activeMetric === "lost" && "ring-2 ring-red-400")}
+                onClick={() => handleMetricClick("lost", "Lost")}>
+            <CardContent className="pt-4">
+              <p className="text-xs font-medium text-red-600 uppercase tracking-wide flex items-center gap-1">
+                <XCircle className="h-3 w-3" /> Lost
               </p>
+              <p className="text-2xl font-bold text-red-700 mt-1">{stats.lost_count || 0}</p>
+              <p className="text-sm font-semibold text-red-600">{formatCurrency(stats.lost_value || 0)}</p>
             </CardContent>
           </Card>
 
-          {/* 4. Contracts Signed YTD - SUCCESS */}
-          <Card
-            className={cn(
-              ds.cards.interactive,
-              "border-blue-200",
-              activeMetric === "signed" && "ring-2 ring-blue-400"
-            )}
-            onClick={() => handleMetricClick("signed", "Contract Signed")}
-          >
-            <CardHeader className="pb-2">
-              <CardTitle className={cn(ds.typography.label, ds.status.info.text, "flex items-center gap-2")}>
-                <Calendar className="h-4 w-4" />
-                Contracts Signed 2025
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-baseline gap-2">
-                <span className={cn(ds.typography.metricLarge, ds.textColors.primary)}>
-                  {stats.signed_2025_count || 0}
-                </span>
-                <span className={cn(ds.typography.caption, ds.status.info.text)}>this year</span>
-              </div>
-              <p className={cn(ds.typography.bodyBold, ds.status.info.text, "mt-1")}>
-                {formatCurrency(stats.signed_2025_value || 0)}
+          {/* Still Active */}
+          <Card className={cn("border-blue-200 bg-blue-50/50", activeMetric === "active" && "ring-2 ring-blue-400")}
+                onClick={() => { setStatusFilter("all"); setActiveMetric("active"); }}>
+            <CardContent className="pt-4">
+              <p className="text-xs font-medium text-blue-600 uppercase tracking-wide flex items-center gap-1">
+                <TrendingUp className="h-3 w-3" /> Active
               </p>
-            </CardContent>
-          </Card>
-
-          {/* 5. Archived/Lost Projects - with placeholder loss reason tracking */}
-          <Card
-            className={cn(
-              ds.cards.interactive,
-              activeMetric === "lost" && "ring-2 ring-slate-400"
-            )}
-            onClick={() => handleMetricClick("lost", "Archived")}
-          >
-            <CardHeader className="pb-2">
-              <CardTitle className={cn(ds.typography.label, ds.textColors.tertiary, "flex items-center gap-2")}>
-                <XCircle className="h-4 w-4" />
-                Archived / Lost
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-baseline gap-2">
-                <span className={cn(ds.typography.metricLarge, ds.textColors.primary)}>
-                  {stats.status_breakdown?.find((s: { current_status: string }) => s.current_status === "Archived")?.count || 0}
-                </span>
-                <span className={cn(ds.typography.caption)}>proposals</span>
-              </div>
-              <p className={cn(ds.typography.caption, "mt-1")}>
-                {formatCurrency(stats.status_breakdown?.find((s: { current_status: string }) => s.current_status === "Archived")?.total_value || 0)}
-              </p>
-              {/* Loss reason breakdown placeholder - will show when data is entered */}
-              <div className="mt-2 pt-2 border-t border-slate-200">
-                <p className={cn(ds.typography.tiny, ds.textColors.muted)}>
-                  Track: Competitor won • Fee too high • We declined • No follow-up
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* 6. Avg Days to Progress */}
-          <Card
-            className={cn(
-              ds.cards.interactive,
-              activeMetric === "avgdays" && "ring-2 ring-slate-400"
-            )}
-            onClick={() => handleMetricClick("avgdays")}
-          >
-            <CardHeader className="pb-2">
-              <CardTitle className={cn(ds.typography.label, ds.textColors.tertiary, "flex items-center gap-2")}>
-                <Clock className="h-4 w-4" />
-                Avg Days in Status
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-baseline gap-2">
-                <span className={cn(ds.typography.metricLarge, ds.textColors.primary)}>
-                  {Math.round(stats.avg_days_in_status)}
-                </span>
-                <span className={cn(ds.typography.caption)}>days</span>
-              </div>
-              <p className={cn(ds.typography.caption, "mt-1 flex items-center gap-1")}>
-                {stats.avg_days_in_status < 20 ? (
-                  <>
-                    <TrendingDown className={cn("h-3 w-3", ds.status.success.icon)} />
-                    <span className={ds.status.success.text}>Good velocity</span>
-                  </>
-                ) : (
-                  <>
-                    <TrendingUp className={cn("h-3 w-3", ds.status.warning.icon)} />
-                    <span className={ds.status.warning.text}>Could improve</span>
-                  </>
-                )}
-              </p>
+              <p className="text-2xl font-bold text-blue-700 mt-1">{stats.active_proposals_count}</p>
+              <p className="text-sm font-semibold text-blue-600">{formatCurrency(stats.active_proposals_value)}</p>
             </CardContent>
           </Card>
         </div>
       )}
 
-      {/* STATUS PIPELINE VISUALIZATION */}
+      {/* PIPELINE FUNNEL - Stages from early to close */}
       {stats && statusTotals.length > 0 && (
         <Card className="border-slate-200">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-slate-600">
-              Pipeline by Status
-            </CardTitle>
+          <CardHeader className="pb-2">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-sm font-medium text-slate-600">Pipeline Stages</CardTitle>
+              <div className="flex items-center gap-4 text-xs text-slate-500">
+                <span className="flex items-center gap-1">
+                  <AlertTriangle className="h-3 w-3 text-amber-500" />
+                  {stats.needs_followup} need follow-up
+                </span>
+              </div>
+            </div>
           </CardHeader>
-          <CardContent>
-            {/* Horizontal stacked bar */}
-            <div className="flex h-8 rounded-lg overflow-hidden mb-4">
-              {statusTotals.map((status: { current_status: string; count: number; total_value: number; percentage: number }) => {
-                const colors = STATUS_COLORS[status.current_status as keyof typeof STATUS_COLORS] || STATUS_COLORS["First Contact"];
-                return (
-                  <div
-                    key={status.current_status}
-                    className={cn(
-                      colors.fill,
-                      "flex items-center justify-center cursor-pointer transition-all hover:opacity-80",
-                      statusFilter === status.current_status && "ring-2 ring-offset-1 ring-slate-400"
-                    )}
-                    style={{ width: `${Math.max(status.percentage, 5)}%` }}
-                    onClick={() => {
-                      setStatusFilter(statusFilter === status.current_status ? "all" : status.current_status as ProposalStatus);
-                      setPage(1);
-                    }}
-                    title={`${status.current_status}: ${status.count} (${formatCurrency(status.total_value)})`}
-                  >
-                    {status.percentage > 10 && (
-                      <span className="text-white text-xs font-medium">{status.count}</span>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
+          <CardContent className="space-y-2">
+            {/* Active funnel stages - ordered from early to close */}
+            {[
+              { status: "First Contact", color: "bg-slate-400", textColor: "text-slate-700", label: "First Contact" },
+              { status: "Proposal Prep", color: "bg-blue-400", textColor: "text-blue-700", label: "Preparing Proposal" },
+              { status: "Proposal Sent", color: "bg-amber-500", textColor: "text-amber-700", label: "Proposal Sent" },
+              { status: "Negotiation", color: "bg-emerald-500", textColor: "text-emerald-700", label: "Negotiation" },
+              { status: "On Hold", color: "bg-orange-400", textColor: "text-orange-700", label: "On Hold (Paused)" },
+            ].map(({ status, color, textColor, label }) => {
+              const data = stats.status_breakdown?.find((s: { current_status: string }) => s.current_status === status);
+              const count = data?.count || 0;
+              const value = data?.total_value || 0;
+              const maxCount = Math.max(...(stats.status_breakdown?.map((s: { count: number }) => s.count) || [1]));
+              const widthPercent = maxCount > 0 ? Math.max((count / maxCount) * 100, 8) : 8;
 
-            {/* Legend */}
-            <div className="flex flex-wrap gap-4">
-              {statusTotals.map((status: { current_status: string; count: number; total_value: number; percentage: number }) => {
-                const colors = STATUS_COLORS[status.current_status as keyof typeof STATUS_COLORS] || STATUS_COLORS["First Contact"];
-                return (
-                  <button
-                    key={status.current_status}
-                    className={cn(
-                      "flex items-center gap-2 px-3 py-1.5 rounded-md transition-all",
-                      colors.bg,
-                      statusFilter === status.current_status && "ring-2 ring-slate-400"
-                    )}
-                    onClick={() => {
-                      setStatusFilter(statusFilter === status.current_status ? "all" : status.current_status as ProposalStatus);
-                      setPage(1);
-                    }}
-                  >
-                    <div className={cn("w-3 h-3 rounded-full", colors.fill)} />
-                    <span className={cn("text-sm font-medium", colors.text)}>
-                      {status.current_status}
-                    </span>
-                    <Badge variant="secondary" className="text-xs">
-                      {status.count}
-                    </Badge>
-                    <span className="text-xs text-slate-500">
-                      {formatCurrency(status.total_value)}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
+              return (
+                <div
+                  key={status}
+                  className={cn(
+                    "flex items-center gap-3 cursor-pointer p-2 rounded hover:bg-slate-50 transition-colors",
+                    statusFilter === status && "bg-slate-100 ring-1 ring-slate-300"
+                  )}
+                  onClick={() => {
+                    setStatusFilter(statusFilter === status ? "all" : status as ProposalStatus);
+                    setPage(1);
+                  }}
+                >
+                  {/* Stage label */}
+                  <span className={cn("w-36 text-sm font-medium", textColor)}>{label}</span>
+
+                  {/* Bar */}
+                  <div className="flex-1 h-6 bg-slate-100 rounded overflow-hidden">
+                    <div
+                      className={cn(color, "h-full flex items-center justify-end pr-2 transition-all")}
+                      style={{ width: `${widthPercent}%` }}
+                    >
+                      {count > 0 && <span className="text-white text-xs font-bold">{count}</span>}
+                    </div>
+                  </div>
+
+                  {/* Value */}
+                  <span className="w-24 text-right text-sm font-medium text-slate-600">
+                    {formatCurrency(value)}
+                  </span>
+                </div>
+              );
+            })}
           </CardContent>
         </Card>
       )}
@@ -671,14 +563,17 @@ function ProposalTrackerContent() {
                     <TableHead className={cn("text-right w-[90px] min-w-[90px]", ds.typography.captionBold)}>
                       Value
                     </TableHead>
-                    <TableHead className={cn("w-[80px] min-w-[80px]", ds.typography.captionBold)}>
-                      Country
+                    <TableHead className={cn("w-[100px] min-w-[100px]", ds.typography.captionBold)}>
+                      Last Contact
                     </TableHead>
                     <TableHead className={cn("w-[100px] min-w-[100px]", ds.typography.captionBold)}>
                       Status
                     </TableHead>
+                    <TableHead className={cn("text-center w-[60px] min-w-[60px]", ds.typography.captionBold)}>
+                      Ball
+                    </TableHead>
                     <TableHead className={cn("text-center w-[80px] min-w-[80px]", ds.typography.captionBold)}>
-                      Days
+                      Days in Status
                     </TableHead>
                     <TableHead className={cn("min-w-[150px] max-w-[250px]", ds.typography.captionBold)}>
                       Remark
@@ -718,21 +613,67 @@ function ProposalTrackerContent() {
                         <TableCell className={cn("text-right whitespace-nowrap", ds.typography.body, ds.textColors.primary)}>
                           {formatCurrency(proposal.project_value)}
                         </TableCell>
-                        <TableCell className={cn("text-sm", ds.textColors.secondary)}>
-                          {proposal.country || "—"}
+                        <TableCell className={cn("text-xs", ds.textColors.secondary)}>
+                          {proposal.last_email_date ? (
+                            <div className="flex flex-col">
+                              <span>{new Date(proposal.last_email_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
+                              {(proposal.email_count ?? 0) > 0 && (
+                                <span className="text-slate-400">{proposal.email_count} emails</span>
+                              )}
+                            </div>
+                          ) : "—"}
                         </TableCell>
-                        <TableCell>
-                          <Badge
-                            variant="outline"
-                            className={cn(
-                              ds.typography.tiny,
-                              ds.borderRadius.badge,
-                              "whitespace-nowrap",
-                              getStatusColor(proposal.current_status as ProposalStatus)
-                            )}
+                        <TableCell onClick={(e) => e.stopPropagation()}>
+                          <Select
+                            value={proposal.current_status}
+                            onValueChange={(value) => {
+                              updateStatusMutation.mutate({
+                                projectCode: proposal.project_code,
+                                newStatus: value,
+                              });
+                            }}
+                            disabled={updateStatusMutation.isPending}
                           >
-                            {proposal.current_status}
-                          </Badge>
+                            <SelectTrigger
+                              className={cn(
+                                "h-7 w-[130px] text-xs border-0 bg-transparent",
+                                STATUS_COLORS[proposal.current_status]?.bg || "bg-slate-50",
+                                STATUS_COLORS[proposal.current_status]?.text || "text-slate-600"
+                              )}
+                            >
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {ALL_STATUSES.map((status) => (
+                                <SelectItem key={status} value={status} className="text-xs">
+                                  <span className={cn(
+                                    "px-1.5 py-0.5 rounded",
+                                    STATUS_COLORS[status]?.bg,
+                                    STATUS_COLORS[status]?.text
+                                  )}>
+                                    {status}
+                                  </span>
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </TableCell>
+                        <TableCell className="text-center">
+                          {proposal.ball_in_court === 'us' ? (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700" title="Ball in our court">
+                              Us
+                            </span>
+                          ) : proposal.ball_in_court === 'them' ? (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700" title="Waiting on client">
+                              Them
+                            </span>
+                          ) : proposal.ball_in_court === 'mutual' ? (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-700" title="Mutual action needed">
+                              Both
+                            </span>
+                          ) : (
+                            <span className="text-slate-400">—</span>
+                          )}
                         </TableCell>
                         <TableCell className="text-center">
                           <div className={cn(

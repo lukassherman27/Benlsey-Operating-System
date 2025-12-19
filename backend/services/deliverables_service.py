@@ -96,92 +96,110 @@ class DeliverablesService(BaseService):
         include_overdue: bool = True
     ) -> List[Dict]:
         """Get deliverables with optional filters"""
-        with self.get_connection() as conn:
-            cursor = conn.cursor()
+        try:
+            with self.get_connection() as conn:
+                cursor = conn.cursor()
 
-            query = """
-                SELECT
-                    d.*,
-                    p.project_title,
-                    p.client_id,
-                    julianday(d.due_date) - julianday('now') as days_until_due,
-                    CASE
-                        WHEN d.status IN ('pending', 'in_progress')
-                             AND date(d.due_date) < date('now')
-                        THEN 1 ELSE 0
-                    END as is_overdue
-                FROM deliverables d
-                LEFT JOIN projects p ON d.project_id = p.project_id
-                WHERE 1=1
-            """
-            params = []
+                query = """
+                    SELECT
+                        d.*,
+                        p.project_title,
+                        p.client_id,
+                        julianday(d.due_date) - julianday('now') as days_until_due,
+                        CASE
+                            WHEN d.status IN ('pending', 'in_progress')
+                                 AND date(d.due_date) < date('now')
+                            THEN 1 ELSE 0
+                        END as is_overdue
+                    FROM deliverables d
+                    LEFT JOIN projects p ON d.project_id = p.project_id
+                    WHERE 1=1
+                """
+                params = []
 
-            if project_code:
-                query += " AND d.project_code = ?"
-                params.append(project_code)
+                if project_code:
+                    query += " AND d.project_code = ?"
+                    params.append(project_code)
 
-            if status:
-                query += " AND d.status = ?"
-                params.append(status)
+                if status:
+                    query += " AND d.status = ?"
+                    params.append(status)
 
-            if assigned_pm:
-                if assigned_pm.lower() == 'unassigned':
-                    query += " AND d.assigned_pm IS NULL"
-                else:
-                    query += " AND d.assigned_pm = ?"
-                    params.append(assigned_pm)
+                if assigned_pm:
+                    if assigned_pm.lower() == 'unassigned':
+                        query += " AND d.assigned_pm IS NULL"
+                    else:
+                        query += " AND d.assigned_pm = ?"
+                        params.append(assigned_pm)
 
-            if phase:
-                query += " AND d.phase = ?"
-                params.append(phase)
+                if phase:
+                    query += " AND d.phase = ?"
+                    params.append(phase)
 
-            query += " ORDER BY d.due_date ASC"
+                query += " ORDER BY d.due_date ASC"
 
-            cursor.execute(query, params)
-            return [dict(row) for row in cursor.fetchall()]
+                cursor.execute(query, params)
+                return [dict(row) for row in cursor.fetchall()]
+        except sqlite3.OperationalError as e:
+            if "no such table" in str(e):
+                logger.warning("Deliverables table not found - returning empty list")
+                return []
+            raise
 
     def get_overdue_deliverables(self) -> List[Dict]:
         """Get all overdue deliverables"""
-        with self.get_connection() as conn:
-            cursor = conn.cursor()
+        try:
+            with self.get_connection() as conn:
+                cursor = conn.cursor()
 
-            cursor.execute("""
-                SELECT
-                    d.*,
-                    p.project_title,
-                    julianday('now') - julianday(d.due_date) as days_overdue
-                FROM deliverables d
-                LEFT JOIN projects p ON d.project_id = p.project_id
-                WHERE d.status IN ('pending', 'in_progress')
-                AND date(d.due_date) < date('now')
-                ORDER BY days_overdue DESC
-            """)
-            return [dict(row) for row in cursor.fetchall()]
+                cursor.execute("""
+                    SELECT
+                        d.*,
+                        p.project_title,
+                        julianday('now') - julianday(d.due_date) as days_overdue
+                    FROM deliverables d
+                    LEFT JOIN projects p ON d.project_id = p.project_id
+                    WHERE d.status IN ('pending', 'in_progress')
+                    AND date(d.due_date) < date('now')
+                    ORDER BY days_overdue DESC
+                """)
+                return [dict(row) for row in cursor.fetchall()]
+        except sqlite3.OperationalError as e:
+            if "no such table" in str(e):
+                logger.warning("Deliverables table not found - returning empty list")
+                return []
+            raise
 
     def get_upcoming_deliverables(self, days_ahead: int = 14) -> List[Dict]:
         """Get deliverables due within specified days"""
-        with self.get_connection() as conn:
-            cursor = conn.cursor()
+        try:
+            with self.get_connection() as conn:
+                cursor = conn.cursor()
 
-            cursor.execute("""
-                SELECT
-                    d.*,
-                    p.project_title,
-                    p.project_code as p_code,
-                    julianday(d.due_date) - julianday('now') as days_until_due,
-                    CASE
-                        WHEN julianday(d.due_date) - julianday('now') <= 0 THEN 'today'
-                        WHEN julianday(d.due_date) - julianday('now') <= 1 THEN 'tomorrow'
-                        WHEN julianday(d.due_date) - julianday('now') <= 7 THEN 'this_week'
-                        ELSE 'upcoming'
-                    END as urgency_level
-                FROM deliverables d
-                LEFT JOIN projects p ON d.project_id = p.project_id
-                WHERE d.status IN ('pending', 'in_progress')
-                AND date(d.due_date) BETWEEN date('now') AND date('now', '+' || ? || ' days')
-                ORDER BY d.due_date ASC
-            """, (days_ahead,))
-            return [dict(row) for row in cursor.fetchall()]
+                cursor.execute("""
+                    SELECT
+                        d.*,
+                        p.project_title,
+                        p.project_code as p_code,
+                        julianday(d.due_date) - julianday('now') as days_until_due,
+                        CASE
+                            WHEN julianday(d.due_date) - julianday('now') <= 0 THEN 'today'
+                            WHEN julianday(d.due_date) - julianday('now') <= 1 THEN 'tomorrow'
+                            WHEN julianday(d.due_date) - julianday('now') <= 7 THEN 'this_week'
+                            ELSE 'upcoming'
+                        END as urgency_level
+                    FROM deliverables d
+                    LEFT JOIN projects p ON d.project_id = p.project_id
+                    WHERE d.status IN ('pending', 'in_progress')
+                    AND date(d.due_date) BETWEEN date('now') AND date('now', '+' || ? || ' days')
+                    ORDER BY d.due_date ASC
+                """, (days_ahead,))
+                return [dict(row) for row in cursor.fetchall()]
+        except sqlite3.OperationalError as e:
+            if "no such table" in str(e):
+                logger.warning("Deliverables table not found - returning empty list")
+                return []
+            raise
 
     def get_pm_workload(self, pm_name: Optional[str] = None) -> List[Dict]:
         """

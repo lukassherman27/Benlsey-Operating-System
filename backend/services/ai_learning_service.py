@@ -721,21 +721,29 @@ class AILearningService(BaseService):
         # Note: Use suggestion_type to find handler, not target_table
         # (handlers know their own target tables)
         applied = False
+        apply_error = None
         if apply_changes:
-            applied = self._apply_suggestion(suggestion)
+            applied, apply_error = self._apply_suggestion_with_error(suggestion)
 
         # Update status based on whether changes were applied
-        # If apply_changes=True and succeeded, set 'applied'; otherwise 'approved'
-        final_status = 'applied' if applied else 'approved'
+        # If apply failed, mark as 'failed' not 'approved' so user knows
+        if applied:
+            final_status = 'applied'
+        elif apply_changes and apply_error:
+            final_status = 'failed'
+        else:
+            final_status = 'approved'
+
         with self.get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute("""
                 UPDATE ai_suggestions
                 SET status = ?,
                     reviewed_by = ?,
-                    reviewed_at = datetime('now')
+                    reviewed_at = datetime('now'),
+                    review_notes = CASE WHEN ? IS NOT NULL THEN ? ELSE review_notes END
                 WHERE suggestion_id = ?
-            """, (final_status, reviewed_by, suggestion_id))
+            """, (final_status, reviewed_by, apply_error, apply_error, suggestion_id))
             conn.commit()
 
         # Record positive feedback for learning
@@ -764,7 +772,9 @@ class AILearningService(BaseService):
         return {
             'success': True,
             'suggestion_id': suggestion_id,
-            'applied': applied
+            'applied': applied,
+            'status': final_status,
+            'error': apply_error
         }
 
     def reject_suggestion(
@@ -876,6 +886,73 @@ class AILearningService(BaseService):
             'suggestion_id': suggestion_id,
             'applied': applied
         }
+
+    def _apply_suggestion_with_error(self, suggestion: Dict) -> tuple:
+        """
+        Apply a suggestion and return (success, error_message).
+
+        Returns:
+            tuple: (bool success, str error_message or None)
+        """
+        try:
+            suggestion_type = suggestion.get('suggestion_type')
+            suggestion_id = suggestion.get('suggestion_id')
+            data = json.loads(suggestion['suggested_data']) if suggestion.get('suggested_data') else {}
+
+            with self.get_connection() as conn:
+                handler = HandlerRegistry.get_handler(suggestion_type, conn)
+
+                if handler:
+                    errors = handler.validate(data)
+                    if errors:
+                        error_msg = f"Validation failed: {'; '.join(errors)}"
+                        logger.warning(f"Suggestion {suggestion_id}: {error_msg}")
+                        return False, error_msg
+
+                    result = handler.apply(suggestion, data)
+
+                    if result.success and result.rollback_data:
+                        cursor = conn.cursor()
+                        cursor.execute("""
+                            UPDATE ai_suggestions SET rollback_data = ? WHERE suggestion_id = ?
+                        """, (json.dumps(result.rollback_data), suggestion_id))
+                        conn.commit()
+
+                    if not result.success:
+                        return False, result.message or "Handler apply failed"
+                    return True, None
+
+                # Fallback to legacy - call old method
+                success = self._apply_suggestion_legacy(suggestion, data, conn)
+                return success, None if success else "Legacy handler failed"
+
+        except Exception as e:
+            logger.error(f"Error applying suggestion {suggestion.get('suggestion_id')}: {e}")
+            return False, str(e)
+
+    def _apply_suggestion_legacy(self, suggestion: Dict, data: Dict, conn) -> bool:
+        """Legacy handler for types without dedicated handlers."""
+        target_table = suggestion.get('target_table')
+        cursor = conn.cursor()
+
+        if target_table == 'contacts':
+            cursor.execute("""
+                INSERT OR IGNORE INTO contacts (name, email, first_seen_date, source)
+                VALUES (?, ?, ?, ?)
+            """, (data.get('name'), data.get('email'), data.get('first_seen'), 'ai_suggestion'))
+            conn.commit()
+            return True
+
+        elif target_table == 'proposals':
+            if 'new_value' in data:
+                cursor.execute("""
+                    UPDATE proposals SET project_value = ?, updated_at = datetime('now'), updated_by = 'ai_suggestion'
+                    WHERE project_code = ?
+                """, (data['new_value'], suggestion['project_code']))
+                conn.commit()
+                return True
+
+        return False
 
     def _apply_suggestion(self, suggestion: Dict) -> bool:
         """

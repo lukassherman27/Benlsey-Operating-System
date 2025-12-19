@@ -50,6 +50,7 @@ import {
   ProjectEmailSummary,
   ProjectHierarchy,
   ValidationSuggestion,
+  MyDayResponse,
 } from "./types";
 
 const API_BASE_URL =
@@ -215,36 +216,109 @@ export const api = {
     ),
 
   getProposalTimeline: (projectCode: string) =>
-    // Combine history and emails for timeline
+    // Combine history, emails, and documents for timeline
     Promise.all([
       request<{ data: unknown[] }>(`/api/proposal-tracker/${encodeURIComponent(projectCode)}/history`).catch(() => ({ data: [] })),
       request<{ data: unknown[] }>(`/api/proposal-tracker/${encodeURIComponent(projectCode)}/emails`).catch(() => ({ data: [] })),
-    ]).then(([historyRes, emailsRes]) => ({
+      request<{ documents: unknown[] }>(`/api/proposals/${encodeURIComponent(projectCode)}/documents`).catch(() => ({ documents: [] })),
+    ]).then(([historyRes, emailsRes, docsRes]) => ({
       proposal: { project_code: projectCode, project_name: '', status: '' },
       emails: emailsRes.data || [],
-      documents: [],
+      documents: docsRes.documents || [],
       timeline: historyRes.data || [],
       stats: {
         total_emails: (emailsRes.data || []).length,
-        total_documents: 0,
+        total_documents: (docsRes.documents || []).length,
         timeline_events: (historyRes.data || []).length,
       },
     } as unknown as ProposalTimelineResponse)),
 
+  getProposalBriefing: (projectCode: string) =>
+    request<ProposalBriefing>(`/api/proposals/${encodeURIComponent(projectCode)}/briefing`).catch(() => ({} as ProposalBriefing)),
+
+  getProposalStory: (projectCode: string) =>
+    request<{
+      success: boolean;
+      project_code: string;
+      project_name: string;
+      client: { name: string | null; company: string | null; email: string | null };
+      value: number | null;
+      milestones: Array<{
+        type: string;
+        date: string | null;
+        title: string;
+        description: string | null;
+        email_count?: number;
+      }>;
+      threads: Array<{
+        subject: string;
+        email_count: number;
+        first_date: string;
+        last_date: string;
+        participants: string[];
+      }>;
+      action_items: Array<{
+        task: string;
+        date: string | null;
+        source: string;
+      }>;
+      current_status: {
+        status: string;
+        last_contact_date: string | null;
+        days_since_contact: number | null;
+        email_count: number;
+        waiting_on: string | null;
+        suggested_action: string | null;
+      };
+    }>(`/api/proposals/${encodeURIComponent(projectCode)}/story`),
+
   getDashboardAnalytics: () =>
     request<AnalyticsDashboard>("/api/analytics/dashboard"),
 
-  getDashboardStats: () =>
-    request<DashboardStats>("/api/dashboard/stats"),
+  getDashboardStats: (role?: string) =>
+    request<DashboardStats>(`/api/dashboard/stats${role ? `?role=${role}` : ""}`),
 
   getDashboardKPIs: (params?: { period?: string; start_date?: string; end_date?: string }) =>
     request<DashboardKPIs>(`/api/dashboard/kpis${buildQuery(params || {})}`),
+
+  // Action items - What needs attention
+  getDashboardActions: () =>
+    request<{
+      success: boolean;
+      actions: Array<{
+        type: string;
+        urgency: 'critical' | 'high' | 'medium' | 'low';
+        project_code: string | null;
+        project_name: string | null;
+        title: string;
+        description: string;
+        days_waiting?: number;
+        days_overdue?: number;
+        days_ago?: number;
+        due_date?: string | null;
+        action: string;
+        link: string | null;
+        from?: string;
+        email_date?: string;
+      }>;
+      summary: {
+        total: number;
+        critical: number;
+        high: number;
+        by_type: Record<string, number>;
+      };
+      generated_at: string;
+    }>("/api/dashboard/actions"),
 
   getProposalStats: () =>
     request<ProposalStats>("/api/proposals/stats"),
 
   getDailyBriefing: () =>
     request<DailyBriefing>("/api/briefing/daily"),
+
+  // My Day - Personal daily workflow dashboard
+  getMyDay: (userId: string = 'bill', userName?: string) =>
+    request<MyDayResponse>(`/api/my-day${buildQuery({ user_id: userId, user_name: userName })}`),
 
   executeQuery: (question: string) =>
     request<QueryResponse>("/api/query/ask", {
@@ -308,11 +382,6 @@ export const api = {
       }
     ),
 
-  getProposalBriefing: (projectCode: string) =>
-    // Use intelligence context endpoint for briefing data
-    request<ProposalBriefing>(
-      `/api/intelligence/proposals/${encodeURIComponent(projectCode)}/context`
-    ).catch(() => (null as unknown as ProposalBriefing)),
 
   getDecisionTiles: () => request<DecisionTiles>("/api/dashboard/decision-tiles"),
 
@@ -674,6 +743,25 @@ export const api = {
     request<ProjectHierarchy>(
       `/api/projects/${encodeURIComponent(projectCode)}/hierarchy`
     ),
+
+  // Project Contacts API
+  getProjectContacts: (projectCode: string) =>
+    request<{
+      data: Array<{
+        email: string;
+        name: string;
+        email_count: number;
+        first_email_date: string | null;
+        last_email_date: string | null;
+        is_primary_contact: number;
+        company: string | null;
+        role: string | null;
+        phone: string | null;
+        source: string;
+      }>;
+      contacts: Array<unknown>;
+      count: number;
+    }>(`/api/projects/${encodeURIComponent(projectCode)}/contacts`),
 
   // Project Emails API
   getProjectEmails: (projectCode: string, limit: number = 20) =>
@@ -1096,7 +1184,7 @@ export const api = {
   createDeliverable: (data: {
     project_code: string;
     deliverable_name: string;
-    due_date: string;
+    due_date?: string;
     phase?: string;
     deliverable_type?: string;
     assigned_pm?: string;
@@ -1844,6 +1932,33 @@ export const api = {
       body: JSON.stringify(updates),
     }),
 
+  // Save Claude-generated summary with action items
+  saveClaudeSummary: (transcriptId: number, data: {
+    summary: string;
+    key_points?: string[];
+    action_items?: Array<{
+      task: string;
+      assignee?: string;
+      due_date?: string;
+      priority?: string;
+    }>;
+    next_meeting_date?: string;
+    proposal_code?: string;
+  }) =>
+    request<{
+      success: boolean;
+      message: string;
+      transcript_id: number;
+      proposal_id: number | null;
+      created_task_ids: number[];
+      created_meeting_id: number | null;
+      tasks_created: number;
+      meeting_created: boolean;
+    }>(`/api/meeting-transcripts/${transcriptId}/claude-summary`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+
   getProjectTranscripts: (projectCode: string) =>
     request<{
       success: boolean;
@@ -1853,9 +1968,183 @@ export const api = {
         transcript: string;
         meeting_title: string | null;
         meeting_date: string | null;
-        ai_summary: string | null;
+        summary: string | null;
+        key_points: string[] | string | null;
+        action_items: string[] | string | null;
+        participants: string[] | string | null;
+        meeting_type: string | null;
       }>;
     }>(`/api/projects/${encodeURIComponent(projectCode)}/transcripts`),
+
+  // ============================================================================
+  // TASKS API
+  // ============================================================================
+
+  getTasks: (params: {
+    status?: string;
+    priority?: string;
+    project_code?: string;
+    proposal_id?: number;
+    due_before?: string;
+    due_after?: string;
+    limit?: number;
+  } = {}) =>
+    request<{
+      success: boolean;
+      tasks: Array<{
+        task_id: number;
+        title: string;
+        description: string | null;
+        task_type: string;
+        priority: string;
+        status: string;
+        due_date: string | null;
+        project_code: string | null;
+        proposal_id: number | null;
+        assignee: string | null;
+        source_suggestion_id: number | null;
+        source_email_id: number | null;
+        source_transcript_id: number | null;
+        source_meeting_id: number | null;
+        created_at: string;
+        completed_at: string | null;
+        parent_task_id: number | null;
+        category: string | null;
+        assigned_staff_id: number | null;
+        deliverable_id: number | null;
+      }>;
+      total: number;
+      count: number;
+    }>(`/api/tasks${buildQuery(params)}`),
+
+  createTask: (data: {
+    title: string;
+    description?: string;
+    task_type?: string;
+    priority?: string;
+    due_date?: string;
+    project_code?: string;
+    proposal_id?: number;
+    assignee?: string;
+  }) =>
+    request<{ success: boolean; task: Record<string, unknown>; task_id: number; message: string }>(
+      "/api/tasks",
+      {
+        method: "POST",
+        body: JSON.stringify(data),
+      }
+    ),
+
+  updateTask: (taskId: number, data: {
+    title?: string;
+    description?: string;
+    status?: string;
+    priority?: string;
+    due_date?: string;
+    assignee?: string;
+    task_type?: string;
+  }) =>
+    request<{ success: boolean; data: { task: Record<string, unknown>; ball_updated?: boolean }; message: string }>(
+      `/api/tasks/${taskId}`,
+      {
+        method: "PUT",
+        body: JSON.stringify(data),
+      }
+    ),
+
+  completeTask: (taskId: number) =>
+    request<{ success: boolean; message: string; data: { ball_updated: boolean } }>(
+      `/api/tasks/${taskId}/complete`,
+      { method: "POST" }
+    ),
+
+  snoozeTask: (taskId: number, dueDate: string) =>
+    request<{ success: boolean; message: string }>(
+      `/api/tasks/${taskId}/snooze`,
+      {
+        method: "POST",
+        body: JSON.stringify({ due_date: dueDate }),
+      }
+    ),
+
+  getStaff: () =>
+    request<{
+      success: boolean;
+      assignees: Array<{
+        id: string;
+        name: string;
+        full_name?: string;
+        email?: string;
+        department?: string;
+        role?: string;
+        type: string;
+      }>;
+      count: number;
+    }>("/api/staff"),
+
+  // Project Tasks API
+  getProjectTasks: (projectCode: string, includeCompleted = false) =>
+    request<{
+      success: boolean;
+      project_code: string;
+      tasks: Array<{
+        task_id: number;
+        title: string;
+        description: string | null;
+        task_type: string | null;
+        priority: string;
+        status: string;
+        due_date: string | null;
+        assigned_to: string | null;
+        proposal_id: number | null;
+        project_code: string | null;
+        source_transcript_id: number | null;
+        source_meeting_id: number | null;
+        created_at: string;
+        completed_at: string | null;
+      }>;
+      count: number;
+    }>(`/api/projects/${encodeURIComponent(projectCode)}/tasks?include_completed=${includeCompleted}`),
+
+  // Project Meetings API
+  getProjectMeetings: (projectCode: string) =>
+    request<{
+      success: boolean;
+      project_code: string;
+      meetings: Array<{
+        meeting_id: number;
+        title: string;
+        description: string | null;
+        meeting_type: string;
+        meeting_date: string;
+        start_time: string | null;
+        end_time: string | null;
+        location: string | null;
+        meeting_link: string | null;
+        status: string;
+        proposal_id: number | null;
+        project_code: string | null;
+        attendees: string | null;
+        created_at: string;
+      }>;
+      count: number;
+    }>(`/api/calendar/project/${encodeURIComponent(projectCode)}`),
+
+  // Create Meeting
+  createMeeting: (data: {
+    title: string;
+    meeting_type: string;
+    meeting_date: string;
+    start_time?: string;
+    location?: string;
+    meeting_link?: string;
+    project_code?: string;
+    description?: string;
+  }) =>
+    request<{ success: boolean; meeting_id?: number; message?: string }>("/api/meetings/create", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
 
   // Unified Timeline API
   getUnifiedTimeline: (projectCode: string) =>
@@ -2128,6 +2417,72 @@ export const api = {
       }>>;
       count: number;
     }>(`/api/projects/${encodeURIComponent(projectCode)}/team`),
+
+  // ==========================================================================
+  // PREVIEW API - Lightweight entity previews for hover cards
+  // ==========================================================================
+
+  getPreviewProposal: (projectCode: string) =>
+    request<{
+      success: boolean;
+      preview: {
+        project_code: string;
+        project_name: string;
+        client_company: string;
+        project_value: number;
+        status: string;
+        health_score: number;
+        ball_in_court: string;
+        days_since_contact: number;
+        waiting_for: string | null;
+      };
+    }>(`/api/preview/proposal/${encodeURIComponent(projectCode)}`),
+
+  getPreviewProject: (projectCode: string) =>
+    request<{
+      success: boolean;
+      preview: {
+        project_code: string;
+        project_title: string;
+        client_name: string;
+        total_fee_usd: number;
+        total_paid: number;
+        outstanding: number;
+        health_status: string;
+        days_since_activity: number;
+      };
+    }>(`/api/preview/project/${encodeURIComponent(projectCode)}`),
+
+  getPreviewContact: (contactId: number) =>
+    request<{
+      success: boolean;
+      preview: {
+        contact_id: number;
+        name: string;
+        email: string;
+        company: string;
+        role: string;
+        email_count: number;
+        last_contact_date: string | null;
+        is_primary: boolean;
+      };
+    }>(`/api/preview/contact/${contactId}`),
+
+  getPreviewEmail: (emailId: number) =>
+    request<{
+      success: boolean;
+      preview: {
+        email_id: number;
+        subject: string;
+        sender_name: string;
+        sender_email: string;
+        date: string;
+        ai_summary: string | null;
+        sentiment: string | null;
+        urgency_level: string | null;
+        key_points: string[];
+      };
+    }>(`/api/preview/email/${emailId}`),
 };
 
 // Email Intelligence Types

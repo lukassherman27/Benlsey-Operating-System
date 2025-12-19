@@ -97,7 +97,7 @@ class PatternFirstLinker(BaseService):
             SELECT pattern_type, pattern_key, pattern_key_normalized,
                    target_type, target_id, target_code, target_name, confidence
             FROM email_learned_patterns
-            WHERE is_active = 1 AND confidence >= 0.7
+            WHERE is_active = 1 AND confidence >= 0.5
             ORDER BY confidence DESC
         """)
 
@@ -227,6 +227,60 @@ class PatternFirstLinker(BaseService):
                         "confidence": match["confidence"],
                         "reason": f"Keyword pattern: '{keyword}'",
                     }
+        return None
+
+    def _check_project_code_in_subject(self, email: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        """
+        Check if email subject contains a project code like [24 BK-058] or 25 BK-087.
+        This is HIGH confidence because project codes are explicit identifiers.
+        """
+        subject = email.get("subject") or ""
+
+        # Pattern: YY BK-NNN (e.g., 24 BK-058, 25 BK-087)
+        # Can be in brackets [24 BK-058] or plain text
+        pattern = r'\b(2[0-5]\s*BK-\d{3})\b'
+        matches = re.findall(pattern, subject, re.IGNORECASE)
+
+        if not matches:
+            return None
+
+        # Normalize the code (remove extra spaces)
+        code = re.sub(r'\s+', ' ', matches[0].upper())
+
+        # First check proposals table
+        proposal = self.execute_query("""
+            SELECT proposal_id, project_code, project_name
+            FROM proposals WHERE project_code = ?
+        """, (code,), fetch_one=True)
+
+        if proposal:
+            return {
+                "match_type": "project_code_in_subject",
+                "target_type": "proposal",
+                "target_id": proposal["proposal_id"],
+                "target_code": proposal["project_code"],
+                "target_name": proposal["project_name"],
+                "confidence": 0.98,  # Very high - explicit code
+                "reason": f"Project code in subject: {code}",
+            }
+
+        # Then check projects table
+        project = self.execute_query("""
+            SELECT project_id, project_code, project_title as project_name
+            FROM projects WHERE project_code = ?
+        """, (code,), fetch_one=True)
+
+        if project:
+            return {
+                "match_type": "project_code_in_subject",
+                "target_type": "project",
+                "target_id": project["project_id"],
+                "target_code": project["project_code"],
+                "target_name": project["project_name"],
+                "confidence": 0.98,
+                "reason": f"Project code in subject: {code}",
+            }
+
         return None
 
     def _is_internal_email(self, email: Dict[str, Any]) -> bool:
@@ -394,6 +448,16 @@ class PatternFirstLinker(BaseService):
                 **match,
             }
 
+        # Priority 1.5: Project code in subject (e.g., [24 BK-058])
+        match = self._check_project_code_in_subject(email)
+        if match:
+            return {
+                "linked": True,
+                "method": "project_code_in_subject",
+                "email_id": email_id,
+                **match,
+            }
+
         # Priority 2: Sender exact match
         match = self._check_sender_pattern(email, patterns)
         if match:
@@ -443,9 +507,10 @@ class PatternFirstLinker(BaseService):
                     VALUES (?, ?, ?, ?, datetime('now'))
                 """, (email_id, target_id, confidence, match_type))
             elif target_type == "project":
+                # email_project_links uses different column names: confidence, link_method
                 self.execute_update("""
                     INSERT OR IGNORE INTO email_project_links
-                    (email_id, project_id, confidence_score, match_method, created_at)
+                    (email_id, project_id, confidence, link_method, created_at)
                     VALUES (?, ?, ?, ?, datetime('now'))
                 """, (email_id, target_id, confidence, match_type))
             return True

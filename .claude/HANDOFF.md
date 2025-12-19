@@ -1,6 +1,6 @@
 # Agent Handoff
 
-**Updated:** 2025-12-09 (Early AM)
+**Updated:** 2025-12-19 (Business Context + UX Overhaul)
 
 ---
 
@@ -123,7 +123,84 @@ Email links can exist to both proposal AND project - this is fine. The point is 
 | Construction Documents | CDocs | (not CD to avoid confusion) |
 | Construction Observation | CO | Until end |
 
-**Typical project:** ~3 years, 24-36 month contract term
+**Typical project:** ~2 years contract term, but delays are common
+
+---
+
+## 6.1 Business Rules (Dec 2025)
+
+### Project Types
+- **Resort hotels** (primary)
+- **Mixed-use commercial** (only when attached to resorts)
+- **High-end residential** (palaces, villas)
+- **Boutique hotels** (mountain, urban, anywhere)
+
+### Minimum Fee
+- **$1M USD** minimum (exceptions for extensions/additional services)
+
+### Deliverables
+- Drawings, renderings, perspectives, cutouts
+- Each phase has specific deliverables with sub-tasks
+- Example: "50% DD Presentation" contains: interior lobby, ground floor, wall details, etc.
+
+### PM Tracking Needs
+- Deliverables with due dates
+- Sub-tasks within deliverables
+- Who is doing what (resource allocation)
+- Scheduling / team capacity
+- RFIs (2-day turnaround during construction)
+
+### RFIs (Request for Information)
+- From client during construction
+- Usually need material specs, drawing clarifications
+- **~2 day response time required** so construction can continue
+
+### Financial Tracking (Bill/Brian/Accounting)
+- Payments vs Progress: "They haven't paid but we're this far along → slow down"
+- Real-time invoice status
+- Outstanding amounts
+
+---
+
+## 6.2 Daily Workflow (What Bill Needs)
+
+When Bill looks at the system each day:
+1. **Meetings today** - What's scheduled
+2. **Proposals needing a nudge** - Based on context
+3. **Things to send out** - Deliverables, proposals
+4. **Tasks for today/this week**
+
+### Follow-up Logic (CRITICAL)
+**NOT just "10 days no response = follow up"**
+
+Follow-up depends on CONTEXT from correspondence:
+- If they said "we'll send you the design brief" → follow up asking for it
+- If we sent proposal and they said "give us time to check with CEO" → wait longer
+- If we sent proposal and no response for 10 days → probably time to nudge
+
+### Ball in Court
+Based on correspondence - who said they would do something next:
+- **Us**: "We'll send the proposal tomorrow"
+- **Them**: "We'll send you the design brief"
+- Move ball on each action completion
+
+### At-a-Glance View
+1. **Is everything okay?** - Quick health check
+2. **Drill down for story** - Full proposal history
+3. **Summary of entire history** - AI-generated narrative
+4. **Scope details** - Fee breakdown, what's included
+
+---
+
+## 6.3 Project Selection
+
+Not every inquiry becomes a project:
+- Too small / too busy
+- Not exciting enough
+- Too basic (want special, brand-enhancing work)
+- Bad fit (philosophies don't align)
+
+Projects should **enhance the Bensley brand**.
 
 ---
 
@@ -691,3 +768,456 @@ SELECT suggestion_type, status, COUNT(*) FROM ai_suggestions GROUP BY suggestion
 5. Create tickets for human follow-up if needed
 
 **Key principle:** Agents work autonomously, but YOU verify before updating docs.
+
+---
+
+## 24. Claude-First Architecture (Dec 2025)
+
+### Why Claude CLI, Not GPT
+
+**GPT approach (dumb):**
+```
+Email arrives → GPT sees just the email text
+GPT thinks: "Vahine... sounds like a hotel? Maybe link to... something?"
+Result: Low confidence guess, often wrong, no business context
+```
+
+**Claude CLI approach (smart):**
+```
+Email arrives → Claude CLI can:
+- Query: SELECT * FROM proposals WHERE project_name LIKE '%Vahine%'
+- See: 25 BK-087-V is Vahine Island Resort, French Polynesia
+- Check: Who else has emailed about this project?
+- Know: This sender has 12 previous emails to this proposal
+Result: High confidence, contextual suggestion
+```
+
+**Key insight:** GPT doesn't have database context. Claude CLI does. Claude CLI is the AI brain.
+
+### The Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                      EMAIL IMPORT PIPELINE                          │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                     │
+│  1. IMAP SYNC (automated, hourly)                                   │
+│     scripts/core/scheduled_email_sync.py                            │
+│     └─ Imports raw emails to `emails` table                         │
+│     └─ use_gpt=False (intentionally disabled)                       │
+│                                                                     │
+│  2. PATTERN-FIRST LINKER (automated)                                │
+│     backend/services/pattern_first_linker.py                        │
+│     └─ Checks learned patterns: sender, domain, keyword, thread     │
+│     └─ Auto-links if confidence >= 0.90 (70-80% of emails)          │
+│     └─ Remaining emails queued for Claude analysis                  │
+│                                                                     │
+│  3. CLAUDE CLI ANALYSIS (interactive, with Lukas)                   │
+│     └─ Claude reads unlinked emails from database                   │
+│     └─ Claude has FULL context: proposals, projects, contacts       │
+│     └─ Claude suggests links with reasoning                         │
+│     └─ User approves/rejects                                        │
+│     └─ System learns patterns from approvals                        │
+│                                                                     │
+│  4. PATTERN LEARNING (from Claude sessions)                         │
+│     backend/services/learning_service.py                            │
+│     └─ New sender → proposal pattern                                │
+│     └─ New domain → proposal pattern                                │
+│     └─ Confidence boosted on approval, lowered on rejection         │
+│                                                                     │
+│  5. FUTURE: AUTOMATED CLAUDE SCRIPT                                 │
+│     scripts/core/claude_email_analyzer.py (to be built)             │
+│     └─ Prepares context (proposals, contacts, patterns, history)    │
+│     └─ Calls Claude API with structured prompt                      │
+│     └─ Creates suggestions in ai_suggestions table                  │
+│     └─ User reviews suggestions via CLI or web UI                   │
+│                                                                     │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+### Current State (Dec 2025 Audit)
+
+| Component | Status | Issue |
+|-----------|--------|-------|
+| Email import | ✅ Working | 161 emails in last 14 days |
+| Pattern matching code | ✅ Working | 153 patterns exist |
+| Pattern usage tracking | ❌ Broken | times_used never increments |
+| GPT analysis | ❌ Disabled | use_gpt=False (intentional) |
+| Claude CLI analysis | ⏳ Manual | Done in conversation |
+| Suggestion creation | ⚠️ Minimal | Only 8 suggestions Dec 11 |
+| Auto-approval | ❌ Not implemented | 0 auto-approvals |
+| Learning loop | ⚠️ Partial | Patterns created but not used |
+
+### Pattern Statistics (Dec 2025)
+
+```
+Total patterns: 153
+Patterns used: 2 (1.3%)
+High-confidence (0.90+): 85 patterns → 0 uses
+Unlinked emails (30 days): 248
+Pending suggestions: 0
+```
+
+**Root cause:** Patterns exist but aren't being applied. Pattern usage isn't tracked.
+
+### Research Findings (Agent Audit Dec 2025)
+
+**From ML Best Practices Research:**
+- Gmail/Superhuman use pattern-first then ML fallback ✅ (we have this)
+- Auto-approval threshold should be 0.90+ ✅ (code exists, not running)
+- Active learning reduces labeling by 76-88%
+- Need drift detection (track pattern accuracy over time)
+- Batch suggestions by sender/domain to reduce fatigue
+
+**From AI Assistant Research:**
+- Three-tier approach: Pattern → AI → Human review ✅ (we have this)
+- Explainability matters: show WHY a link was suggested
+- Confidence calibration: claimed confidence should match actual accuracy
+- Implicit feedback: track what users click vs ignore
+
+**Key recommendation:** Claude CLI with database context > GPT without context
+
+### Implementation Phases
+
+**Phase 1: Fix Pattern System (Current)**
+- [ ] Fix times_used tracking in pattern_first_linker.py
+- [ ] Add pattern usage logging
+- [ ] Enable auto-linking for 0.90+ confidence patterns
+- [ ] Test pattern matching actually works
+
+**Phase 2: Interactive Claude Sessions (Current)**
+- [ ] Query unlinked emails from database
+- [ ] Claude analyzes with full context
+- [ ] User approves/rejects in conversation
+- [ ] System learns patterns from session
+- [ ] Update last_contact_date on proposals
+
+**Phase 3: Build Automated Claude Script (Next)**
+- [ ] Create scripts/core/claude_email_analyzer.py
+- [ ] Build context bundler (proposals, contacts, patterns, history)
+- [ ] Define structured prompt for email analysis
+- [ ] Call Claude API (Anthropic) instead of GPT
+- [ ] Write suggestions to ai_suggestions table
+- [ ] Add to cron schedule
+
+**Phase 4: Advanced Learning (Future)**
+- [ ] Drift detection (weekly pattern accuracy report)
+- [ ] Confidence calibration (adjust based on actual accuracy)
+- [ ] Batch suggestions by sender/domain
+- [ ] Explainability UI (show WHY suggestion was made)
+
+### Daily Workflow with Claude CLI
+
+**Morning routine:**
+```
+1. "What new emails came in overnight?"
+   → Claude queries: SELECT * FROM emails WHERE date > last_session
+
+2. "Categorize and link these emails"
+   → Claude analyzes each with full DB context
+   → Creates suggestions or applies links directly
+   → User approves as we go
+
+3. "What proposals need follow-up today?"
+   → Claude queries: SELECT * FROM proposals WHERE last_contact_date < threshold
+   → Shows context: last email, who has the ball, what was promised
+
+4. "Update STATUS.md with today's numbers"
+   → Claude runs counts, updates docs
+```
+
+### Claude Prompt for Email Analysis
+
+When analyzing emails, Claude should:
+
+```
+For each email, check:
+1. Is sender in email_learned_patterns? → Apply pattern
+2. Is domain in email_learned_patterns? → Apply pattern
+3. Is thread linked? → Inherit link
+4. Is project code in subject? → High confidence match
+
+If no pattern match:
+1. Search proposals/projects for name matches
+2. Check sender history (other emails from same sender)
+3. Check domain history (other emails from same domain)
+4. Look for keywords: client names, locations, project types
+
+Suggest with confidence:
+- 0.95+: Auto-apply (thread, project code, known sender)
+- 0.80-0.94: Suggest with evidence
+- 0.60-0.79: Suggest but flag for review
+- <0.60: Log only, don't suggest
+
+Always provide reasoning:
+- "Sender joe@veyopool.com has 12 previous emails to 25 BK-069"
+- "Subject contains 'Vahine' which matches 25 BK-087-V"
+- "Domain @ritzcarlton.com appears in 8 emails to 25 BK-033"
+```
+
+### Scripts to Build
+
+**1. claude_email_analyzer.py (Phase 3)**
+```python
+# Context builder
+def build_context():
+    proposals = get_active_proposals()  # With email counts, last contact
+    contacts = get_contacts_with_projects()  # Contact-project mappings
+    patterns = get_learned_patterns()  # Existing patterns
+    return {"proposals": proposals, "contacts": contacts, "patterns": patterns}
+
+# Email processor
+def process_email(email, context):
+    prompt = build_prompt(email, context)
+    response = call_claude_api(prompt)
+    return parse_suggestions(response)
+
+# Main loop
+for email in get_unlinked_emails():
+    suggestions = process_email(email, context)
+    for s in suggestions:
+        create_suggestion(s)  # Write to ai_suggestions
+```
+
+**2. pattern_health_check.py (Phase 4)**
+```python
+# Weekly pattern accuracy check
+def check_pattern_health():
+    patterns = get_patterns_with_usage()
+    for p in patterns:
+        accuracy = p.times_correct / p.times_used
+        if accuracy < 0.70:
+            deactivate_pattern(p.id)
+            log(f"Deactivated {p.pattern_key}: {accuracy:.0%} accuracy")
+```
+
+---
+
+## 25. Agent Audit Findings (Dec 2025)
+
+Five specialized agents audited the learning loop system. Complete findings below.
+
+### Agent 1: Code Deep Dive (pattern_first_linker.py)
+
+**Files analyzed:**
+- `backend/services/pattern_first_linker.py` (757 lines)
+- `backend/services/batch_suggestion_service.py` (721 lines)
+- `backend/services/learning_service.py` (1,434 lines)
+- `backend/services/ai_learning_service.py` (1,740 lines)
+
+**Pattern Matching Priority Order:**
+1. Thread inheritance (0.95 confidence)
+2. Project code in subject `[24 BK-058]` (0.98 confidence)
+3. Sender exact match (stored confidence)
+4. Domain match (stored confidence)
+5. Keyword match (stored confidence)
+6. If no match → `needs_gpt` (but GPT is disabled)
+
+**CRITICAL BUG FOUND:**
+```python
+# pattern_first_linker.apply_link() creates links BUT:
+# - Never calls learning_service.log_pattern_usage()
+# - Never increments times_used counter
+# Result: 150/152 patterns have times_used = 0
+```
+
+**Fix required:** After `apply_link()` succeeds, add:
+```python
+self.execute_update("""
+    UPDATE email_learned_patterns
+    SET times_used = times_used + 1, last_used_at = datetime('now')
+    WHERE pattern_id = ?
+""", (pattern_id,))
+```
+
+### Agent 2: Pipeline Trace (scheduled_email_sync.py)
+
+**The email processing flow:**
+```
+1. IMAP Sync → emails table (works ✅)
+2. Pattern-First Linker → called with use_gpt=False
+3. Email Orchestrator → also calls pattern linker
+4. Batch Suggestion Service → creates batched suggestions
+```
+
+**WHY GPT IS DISABLED (intentional):**
+```python
+# scheduled_email_sync.py line 425:
+process_email_links(use_gpt=False)  # Lukas will use Claude CLI instead
+
+# line 526:
+link_result = process_email_links(limit=500, use_gpt=False, db_path=DB_PATH)
+```
+
+**Result of GPT disabled:**
+- Patterns that match → Auto-link ✅
+- Patterns that don't match → "needs_gpt" → Nothing happens ❌
+- No suggestions created → Nothing for user to review ❌
+- Learning loop breaks → No human feedback ❌
+
+**The gap:** When patterns don't match and GPT is disabled, emails sit unlinked forever.
+
+### Agent 3: Database Analysis
+
+**Pattern Statistics:**
+| Metric | Value |
+|--------|-------|
+| Total patterns | 153 |
+| Active patterns | 152 |
+| Patterns used | 2 (1.3%) |
+| High-confidence (0.90+) | 85 |
+| Average confidence | 0.859 |
+
+**Patterns by Type:**
+| Type | Count | Avg Confidence | Uses |
+|------|-------|----------------|------|
+| sender_to_proposal | 46 | 0.847 | 0 |
+| domain_to_proposal | 33 | 0.768 | 2 |
+| keyword_to_proposal | 30 | 0.912 | 0 |
+| keyword_to_project | 16 | 0.894 | 0 |
+| domain_to_skip | 8 | 0.956 | 0 |
+| sender_to_internal | 8 | 0.931 | 0 |
+
+**The Only 2 Patterns Used:**
+| Pattern | Target | Confidence | Uses |
+|---------|--------|------------|------|
+| parsons.com | 25 BK-042 | 0.80 | 1 |
+| @landunion.com | 25 BK-086 | 0.90 | 1 |
+
+**AI Suggestions Stats:**
+| Type | Applied | Rejected | Total | Apply Rate |
+|------|---------|----------|-------|------------|
+| email_link | 437 | 198 | 642 | 68% |
+| follow_up_needed | 120 | 74 | 195 | 62% |
+| proposal_status_update | 10 | 168 | 178 | 6% |
+| new_contact | 5 | 122 | 129 | 4% |
+| action_required | 55 | 5 | 60 | 92% |
+
+**Email Coverage:**
+| Status | Count | % |
+|--------|-------|---|
+| Total emails | 3,843 | 100% |
+| Linked to proposals | 2,026 | 52.7% |
+| Linked to projects | 576 | 15.0% |
+| Categorized (no link needed) | 207 | 5.4% |
+| **Completely unlinked** | **1,330** | **34.6%** |
+
+**Critical finding:** 1,330 emails (34.6%) are unlinked. Pattern system could auto-link many.
+
+### Agent 4: ML Best Practices Research
+
+**Sources researched:**
+- Gmail Priority Inbox (Google Research paper)
+- Superhuman email client
+- HubSpot/Salesforce CRM auto-linking
+- Active learning literature
+- Human-in-the-loop ML surveys
+
+**Key Findings:**
+
+**1. Algorithm Performance on Small Datasets (1-3k samples):**
+- Naive Bayes: 98.06% accuracy
+- SVM: 98.00% accuracy
+- Random Forest: Best for <1k samples
+- **Recommendation:** Pattern-first + simple ML fallback
+
+**2. Confidence Thresholds (Research-Backed):**
+| Confidence | Action | Expected Accuracy |
+|------------|--------|-------------------|
+| ≥0.95 | Auto-approve | 98-99% |
+| 0.85-0.94 | Batch review | 95-97% |
+| 0.70-0.84 | Individual review | 85-94% |
+| 0.50-0.69 | Flag for expert | 70-84% |
+| <0.50 | Don't suggest | <70% |
+
+**3. Preventing Pattern Drift:**
+- Track pattern accuracy over time
+- Deactivate patterns below 70% accuracy
+- Reweight recent corrections higher
+- Monthly calibration check
+
+**4. Active Learning Reduces Labeling by 76-88%:**
+- Uncertainty sampling: Label what model is uncertain about
+- Information gain: Label what teaches the most
+- Your system already does this (corrections teach patterns)
+
+**5. Suggestion Fatigue Prevention:**
+- Batch by sender/domain (15 batches vs 150 items)
+- Progressive disclosure (show samples, not all)
+- One-click bulk approve
+
+### Agent 5: AI Assistant Patterns Research
+
+**Sources researched:**
+- RLHF implementations
+- Few-shot learning for classification
+- Explainable AI for email
+- Gmail/Superhuman architecture
+- CRM auto-linking systems
+
+**Key Findings:**
+
+**1. Three-Tier Architecture (Industry Standard):**
+```
+Tier 1: Pattern Matching (fast, free, 70-80%)
+Tier 2: AI Analysis (when patterns fail, 15-25%)
+Tier 3: Human Review (learning layer, 5-10%)
+```
+→ Your system has this, just needs wiring.
+
+**2. Explainability Matters:**
+Users trust and approve faster when they see WHY:
+```
+Link to 25 BK-087 (Vahine Island Resort)?
+WHY THIS SUGGESTION:
+✓ Email mentions "Vahine Island Resort" (3 times)
+✓ 12 previous emails from this sender went to this project
+~ New sender domain @tahaaresort.com (first time seen)
+✓ Context about "contract signed Nov 21"
+```
+
+**3. Learning from Implicit Feedback:**
+- User quickly approves → High confidence was correct
+- User views details before approving → Was uncertain
+- User ignores suggestion → Probably wrong
+→ Track these signals to improve patterns
+
+**4. Comparison to Industry:**
+| Feature | Gmail | Superhuman | Your System |
+|---------|-------|------------|-------------|
+| Pattern matching | ✅ | ✅ | ✅ |
+| ML classification | ✅ | ✅ | ⏳ (Claude) |
+| Auto-approval | ✅ | ✅ | ❌ (not wired) |
+| Explainability | ❌ | ⚠️ | ⏳ (planned) |
+| Learning | ✅ | ✅ | ⚠️ (partial) |
+| Batch review | ✅ | ✅ | ⏳ (planned) |
+
+**5. Recommended Implementation Order:**
+1. Fix pattern usage tracking (P0)
+2. Enable auto-approval for 0.90+ (P0)
+3. Add explainability to suggestions (P1)
+4. Implement batch review (P1)
+5. Add drift detection (P2)
+6. Build Claude API script (P2)
+
+### Summary: What's Broken vs What Works
+
+**Works ✅:**
+- Email import (IMAP sync)
+- Pattern matching code (logic is correct)
+- Database schema (tables exist)
+- Suggestion handlers (apply/reject works)
+- Learning service (can create patterns)
+
+**Broken ❌:**
+- Pattern usage never tracked (`times_used = 0`)
+- GPT disabled, no fallback for unknown emails
+- No suggestions created for unlinked emails
+- Auto-approval not wired up
+- 34.6% of emails sitting unlinked
+
+**Root Cause:**
+The system has all the pieces but they're disconnected:
+1. Patterns exist but usage not tracked
+2. GPT disabled (intentionally) but Claude not yet integrated
+3. No feedback loop → patterns don't improve

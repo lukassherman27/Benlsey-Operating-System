@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      line-height: 1.6;
+      color: #2d3748;
+      max-width: 850px;
+      margin: 0 auto;
+      padding: 0;
+      background: #f7fafc;
+    }
+    .email-container {
+      background: white;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.07);
+      margin: 20px;
+    }
+    .header {
+      background: linear-gradient(135deg, #1a365d 0%, #2c5282 50%, #2b6cb0 100%);
+      color: white;
+      padding: 35px 40px;
+      position: relative;
+    }
+    .header::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 4px;
+      background: linear-gradient(90deg, #48bb78, #38b2ac, #4299e1);
+    }
+    .header h1 {
+      margin: 0 0 8px 0;
+      font-size: 26px;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+    }
+    .header .subtitle {
+      opacity: 0.92;
+      font-size: 15px;
+      font-weight: 400;
+    }
+    .header .project-badge {
+      background: rgba(255,255,255,0.18);
+      padding: 6px 14px;
+      border-radius: 20px;
+      display: inline-block;
+      margin-top: 14px;
+      font-size: 13px;
+      font-weight: 500;
+      border: 1px solid rgba(255,255,255,0.25);
+      margin-right: 8px;
+    }
+    .content {
+      padding: 35px 40px;
+    }
+    .meta-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+      margin-bottom: 30px;
+    }
+    .meta-card {
+      background: linear-gradient(135deg, #f7fafc 0%, #edf2f7 100%);
+      border-radius: 10px;
+      padding: 18px 20px;
+      border: 1px solid #e2e8f0;
+    }
+    .meta-card.full-width {
+      grid-column: 1 / -1;
+    }
+    .meta-label {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: #718096;
+      font-weight: 600;
+      margin-bottom: 6px;
+    }
+    .meta-value {
+      color: #2d3748;
+      font-size: 14px;
+      font-weight: 500;
+    }
+    .attendee-chip {
+      display: inline-block;
+      padding: 5px 12px;
+      border-radius: 16px;
+      margin: 3px 4px 3px 0;
+      font-size: 12px;
+      font-weight: 500;
+    }
+    .attendee-chip.bensley {
+      background: linear-gradient(135deg, #ebf8ff, #bee3f8);
+      color: #2b6cb0;
+      border: 1px solid #90cdf4;
+    }
+    .attendee-chip.client {
+      background: linear-gradient(135deg, #faf5ff, #e9d8fd);
+      color: #6b46c1;
+      border: 1px solid #d6bcfa;
+    }
+    .summary-box {
+      background: linear-gradient(135deg, #ebf8ff 0%, #e6fffa 100%);
+      border-left: 5px solid #3182ce;
+      padding: 20px 24px;
+      margin-bottom: 28px;
+      border-radius: 0 10px 10px 0;
+      font-size: 14px;
+    }
+    .summary-box strong {
+      color: #2c5282;
+    }
+    .opportunity-box {
+      background: linear-gradient(135deg, #f0fff4 0%, #c6f6d5 100%);
+      border: 2px solid #48bb78;
+      padding: 20px 24px;
+      margin: 28px 0;
+      border-radius: 10px;
+      position: relative;
+    }
+    .opportunity-box::before {
+      content: '🌟';
+      font-size: 24px;
+      position: absolute;
+      top: -12px;
+      left: 20px;
+      background: white;
+      padding: 0 8px;
+      border-radius: 50%;
+    }
+    .opportunity-box h3 {
+      color: #276749;
+      margin: 0 0 10px 0;
+      font-size: 16px;
+      font-weight: 700;
+    }
+    .opportunity-box p {
+      margin: 8px 0;
+      font-size: 14px;
+      color: #22543d;
+    }
+    .opportunity-box .highlight {
+      background: #9ae6b4;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-weight: 600;
+    }
+    h2 {
+      color: #1a365d;
+      font-size: 17px;
+      font-weight: 700;
+      border-bottom: 3px solid #e2e8f0;
+      padding-bottom: 10px;
+      margin-top: 32px;
+      margin-bottom: 18px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    h2 .icon {
+      font-size: 20px;
+    }
+    h3 {
+      color: #2c5282;
+      font-size: 14px;
+      margin-top: 22px;
+      margin-bottom: 12px;
+      font-weight: 600;
+    }
+    table {
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 0;
+      margin-bottom: 22px;
+      font-size: 13px;
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    }
+    th {
+      background: linear-gradient(135deg, #2d3748 0%, #4a5568 100%);
+      color: white;
+      font-weight: 600;
+      text-align: left;
+      padding: 12px 14px;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    td {
+      padding: 12px 14px;
+      border-bottom: 1px solid #e2e8f0;
+      vertical-align: top;
+      background: white;
+    }
+    tr:last-child td {
+      border-bottom: none;
+    }
+    tr:hover td {
+      background: #f7fafc;
+    }
+    .status {
+      display: inline-block;
+      padding: 4px 10px;
+      border-radius: 12px;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+    .status.agreed {
+      background: #c6f6d5;
+      color: #22543d;
+    }
+    .status.pending {
+      background: #fed7aa;
+      color: #c05621;
+    }
+    .status.removed {
+      background: #e2e8f0;
+      color: #4a5568;
+    }
+    .action-section {
+      background: white;
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
+      margin-bottom: 18px;
+      overflow: hidden;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    }
+    .action-header {
+      background: linear-gradient(135deg, #2d3748 0%, #4a5568 100%);
+      color: white;
+      padding: 12px 18px;
+      font-weight: 600;
+      font-size: 13px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .action-header.bensley {
+      background: linear-gradient(135deg, #2b6cb0 0%, #3182ce 100%);
+    }
+    .action-header.client {
+      background: linear-gradient(135deg, #805ad5 0%, #9f7aea 100%);
+    }
+    .action-section table {
+      margin: 0;
+      box-shadow: none;
+      border-radius: 0;
+    }
+    .action-section th {
+      background: #f7fafc;
+      color: #4a5568;
+    }
+    .decision-box {
+      background: linear-gradient(135deg, #faf5ff 0%, #e9d8fd 100%);
+      border: 1px solid #d6bcfa;
+      border-radius: 10px;
+      padding: 22px 26px;
+      margin-top: 28px;
+    }
+    .decision-box h3 {
+      color: #553c9a;
+      margin: 0 0 14px 0;
+      font-size: 15px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .decision-box ul {
+      margin: 0;
+      padding-left: 22px;
+    }
+    .decision-box li {
+      margin-bottom: 10px;
+      color: #44337a;
+      font-size: 13px;
+    }
+    .next-steps {
+      background: linear-gradient(135deg, #1a365d 0%, #2c5282 100%);
+      color: white;
+      padding: 22px 26px;
+      border-radius: 10px;
+      margin-top: 28px;
+    }
+    .next-steps h3 {
+      color: white;
+      margin: 0 0 8px 0;
+      font-size: 15px;
+    }
+    .next-steps p {
+      margin: 0;
+      opacity: 0.92;
+      font-size: 13px;
+    }
+    .footer {
+      margin-top: 35px;
+      padding-top: 25px;
+      border-top: 2px solid #e2e8f0;
+      font-size: 12px;
+      color: #718096;
+      text-align: center;
+    }
+    .detail-text {
+      font-size: 13px;
+      color: #4a5568;
+      margin-bottom: 16px;
+      line-height: 1.7;
+    }
+    .detail-text strong {
+      color: #2d3748;
+    }
+    .highlight-point {
+      background: #fffaf0;
+      border-left: 3px solid #ed8936;
+      padding: 12px 16px;
+      margin: 14px 0;
+      font-size: 13px;
+      border-radius: 0 6px 6px 0;
+    }
+    .project-card {
+      background: white;
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
+      padding: 18px 22px;
+      margin-bottom: 16px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    }
+    .project-card h4 {
+      color: #2c5282;
+      margin: 0 0 10px 0;
+      font-size: 15px;
+      font-weight: 600;
+    }
+    .project-card .detail {
+      font-size: 13px;
+      color: #4a5568;
+      margin: 6px 0;
+    }
+    .project-card .detail strong {
+      color: #2d3748;
+    }
+  </style>
+</head>
+<body>
+
+<div class="email-container">
+  <div class="header">
+    <h1>PEARL RESORTS OF TAHITI</h1>
+    <div class="subtitle">Contract Discussion & New Project Introduction Meeting</div>
+    <div class="project-badge">25 BK-087 | Vahine Island</div>
+    <div class="project-badge">Queen's Hotel | Papeete</div>
+    <div class="project-badge">NEW | Marquesas Islands</div>
+  </div>
+
+  <div class="content">
+    <div class="meta-grid">
+      <div class="meta-card">
+        <div class="meta-label">Date & Time</div>
+        <div class="meta-value">December 11, 2025 | 10:00 AM ICT</div>
+      </div>
+      <div class="meta-card">
+        <div class="meta-label">Platform</div>
+        <div class="meta-value">Video Conference (Zoom)</div>
+      </div>
+      <div class="meta-card full-width">
+        <div class="meta-label">Attendees</div>
+        <div class="meta-value">
+          <span class="attendee-chip bensley">Bill Bensley (BENSLEY)</span>
+          <span class="attendee-chip bensley">Brian Sherman (BENSLEY)</span>
+          <span class="attendee-chip bensley">Lukas Sherman (BENSLEY)</span>
+          <span class="attendee-chip client">Romain (Pearl Resorts)</span>
+          <span class="attendee-chip client">Jean Pierre Fourcade (Pearl Resorts)</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="summary-box">
+      <strong>Meeting Summary:</strong> Productive contract negotiation meeting covering the $3.75M proposal sent in November for Vahine Island and Queen's Hotel. Key discussions around contract separation requirements (fiscal reasons), approval timelines (28 days agreed), lighting designer fees ($150-200k extra), and European electrical regulations. Exciting new opportunity introduced: a 5-star luxury resort in the Marquesas Islands with potential for 2-3 additional hotels in the region.
+    </div>
+
+    <!-- NEW OPPORTUNITY -->
+    <div class="opportunity-box">
+      <h3>NEW PROJECT OPPORTUNITY: MARQUESAS ISLANDS</h3>
+      <p><span class="highlight">5-Star Luxury Resort Development</span> - Pearl Resorts introducing new project in the Marquesas Islands (750 miles from Tahiti)</p>
+      <p><strong>Opportunity:</strong> First luxury hotel in the region. If successful, client planning <strong>2-3 more hotels</strong> in the Marquesas.</p>
+    </div>
+
+    <h2><span class="icon">📋</span> Projects Under Discussion</h2>
+
+    <div class="project-card">
+      <h4>1. Queen's Hotel - Papeete, Tahiti</h4>
+      <div class="detail"><strong>Type:</strong> Historic Boutique Hotel Refurbishment</div>
+      <div class="detail"><strong>Size:</strong> 21-22 rooms</div>
+      <div class="detail"><strong>Status:</strong> Building permit expected within months</div>
+      <div class="detail"><strong>Vision:</strong> Iconic entrance for Pearl Resorts group - historical/cultural theme featuring the royal family and events of the 1800s-1900s. Client referenced Rosewood Luang Prabang as inspiration for telling history through design.</div>
+      <div class="detail"><strong>Research:</strong> Client will provide historical documents. Rich story potential.</div>
+    </div>
+
+    <div class="project-card">
+      <h4>2. Vahine Island</h4>
+      <div class="detail"><strong>Type:</strong> New Resort Development</div>
+      <div class="detail"><strong>Status:</strong> Program not yet finalized - discussions pending</div>
+      <div class="detail"><strong>Note:</strong> Different timeline than Queen's Hotel (not as far along in approval process)</div>
+    </div>
+
+    <div class="project-card">
+      <h4>3. Marquesas Islands - NEW</h4>
+      <div class="detail"><strong>Type:</strong> New 5-Star Luxury Resort</div>
+      <div class="detail"><strong>Existing Site:</strong> Current 3-star, 20-room hotel to be transformed</div>
+      <div class="detail"><strong>Land:</strong> New piece of land acquired on right side of the bay</div>
+      <div class="detail"><strong>Terrain:</strong> Cliffs, mountains, valleys - stunning views</div>
+      <div class="detail"><strong>Concept:</strong> Bill's tent concept on cliff slope overlooking bay discussed favorably</div>
+    </div>
+
+    <h2><span class="icon">📝</span> Contract Terms Discussed</h2>
+
+    <table>
+      <tr>
+        <th style="width:40px">#</th>
+        <th>Item</th>
+        <th style="width:100px">Status</th>
+        <th>Notes</th>
+      </tr>
+      <tr>
+        <td>1</td>
+        <td>Queen's Hotel as separate project</td>
+        <td><span class="status agreed">Agreed</span></td>
+        <td>Originally BENSLEY suggested linking projects; client requires separate contracts for fiscal/tax reasons in French Polynesia. Documentation work can still proceed simultaneously.</td>
+      </tr>
+      <tr>
+        <td>2</td>
+        <td>Structural/MEP engineering excluded</td>
+        <td><span class="status agreed">Agreed</span></td>
+        <td>Engineering scope not included in BENSLEY contract</td>
+      </tr>
+      <tr>
+        <td>3</td>
+        <td>Approval period: 28 days</td>
+        <td><span class="status agreed">Agreed</span></td>
+        <td>Extended from 21 days. Client needs buffer for engineer coordination and complex French regulations.</td>
+      </tr>
+      <tr>
+        <td>4</td>
+        <td>Contract term: 36 months</td>
+        <td><span class="status agreed">Agreed</span></td>
+        <td>Building permits can take 1-1.5 years in French Polynesia</td>
+      </tr>
+      <tr>
+        <td>5</td>
+        <td>Mobilization fee timing</td>
+        <td><span class="status agreed">Agreed</span></td>
+        <td>Clock starts at contract signing + mobilization fee payment. Site visit "the next day" after mobilization.</td>
+      </tr>
+      <tr>
+        <td>6</td>
+        <td>Thai GST (7%)</td>
+        <td><span class="status agreed">Agreed</span></td>
+        <td>BENSLEY's responsibility, not the client's</td>
+      </tr>
+      <tr>
+        <td>7</td>
+        <td>Delay liquidation damages (7.6.0.1)</td>
+        <td><span class="status removed">Removed</span></td>
+        <td>Clause removed from contract per Bill's suggestion</td>
+      </tr>
+      <tr>
+        <td>8</td>
+        <td>Extra printing charges (9.1, 9.3)</td>
+        <td><span class="status removed">Removed</span></td>
+        <td>All communication via email - no physical printing needed</td>
+      </tr>
+      <tr>
+        <td>9</td>
+        <td>Interior lighting design</td>
+        <td><span class="status pending">Extra Fee</span></td>
+        <td><strong>$150,000 - $200,000</strong> for BENSLEY's lighting designer. All lighting must comply with European/French regulations for public safety.</td>
+      </tr>
+    </table>
+
+    <div class="highlight-point">
+      <strong>Site Visit Policy:</strong> BENSLEY does not charge extra for trip time - only actual travel costs (flights, etc.). Estimated ~2 trips per month during construction phase. Client can request visits freely without worrying about additional fees.
+    </div>
+
+    <h2><span class="icon">🔧</span> Technical & Regulatory Notes</h2>
+
+    <div class="detail-text">
+      <strong>European Electrical Regulations:</strong> French Polynesia follows strict European standards. All electrical/lighting installations must be certified for public safety. BENSLEY confirmed they can design to European code requirements - have done so before.
+    </div>
+
+    <div class="detail-text">
+      <strong>Local Architect Requirement:</strong> French Polynesia requires a local architect to represent projects to administration and for building permits. During construction, a local "Architect Execution" will monitor works on site.
+    </div>
+
+    <div class="detail-text">
+      <strong>Contractor Source:</strong> For Marquesas project, contractors would come from Papeete (750 miles away). Client confirmed this is standard practice.
+    </div>
+
+    <h2><span class="icon">✅</span> Action Items</h2>
+
+    <div class="action-section">
+      <div class="action-header bensley">BENSLEY</div>
+      <table>
+        <tr><th>Action</th><th style="width:110px">Owner</th><th style="width:100px">Deadline</th></tr>
+        <tr><td>Revise contracts with agreed changes (separate Queen's Hotel contract, 28-day approval, remove delay damages, remove printing clauses)</td><td>Lukas</td><td><strong>Tomorrow</strong></td></tr>
+        <tr><td>Begin research on Marquesas Islands - history, culture</td><td>Bill</td><td>Holidays</td></tr>
+        <tr><td>Research Queen's Hotel / Tahiti royal family history</td><td>Bill</td><td>Holidays</td></tr>
+        <tr><td>Plan site visit to Tahiti after contract signing</td><td>Team</td><td>Post-signing</td></tr>
+      </table>
+    </div>
+
+    <div class="action-section">
+      <div class="action-header client">PEARL RESORTS (Romain / Jean Pierre)</div>
+      <table>
+        <tr><th>Action</th><th style="width:110px">Deadline</th></tr>
+        <tr><td>Review and sign revised contracts</td><td>Upon Receipt</td></tr>
+        <tr><td>Provide historical documents for Queen's Hotel research</td><td>Before Site Visit</td></tr>
+        <tr><td>Finalize program details for Vahine Island</td><td>TBD</td></tr>
+        <tr><td>Arrange local architect partnership for permits</td><td>Before Permit Stage</td></tr>
+      </table>
+    </div>
+
+    <div class="decision-box">
+      <h3>Key Decisions Made</h3>
+      <ul>
+        <li><strong>Separate Contracts:</strong> Queen's Hotel and Vahine Island will have separate contracts for French Polynesian fiscal requirements</li>
+        <li><strong>Simultaneous Work:</strong> Despite separate contracts, design documentation can proceed simultaneously</li>
+        <li><strong>Approval Period:</strong> 28 days agreed (includes time for engineering coordination)</li>
+        <li><strong>Lighting Designer:</strong> Will be engaged as extra service ($150-200k) - must meet European standards</li>
+        <li><strong>Marquesas Project:</strong> New opportunity - high potential for future pipeline (2-3 more hotels)</li>
+        <li><strong>Site Visit Model:</strong> Frequent visits welcomed - no charge for time, only actual travel costs</li>
+      </ul>
+    </div>
+
+    <div class="next-steps">
+      <h3>Next Steps</h3>
+      <p><strong>Immediate:</strong> Lukas to send revised contracts tomorrow.</p>
+      <p><strong>Upon Signing:</strong> BENSLEY team ready to fly to Tahiti immediately after mobilization fee received.</p>
+      <p><strong>Bill's Quote:</strong> <em>"Let's not let two contracts get in the way of doing some great work."</em></p>
+    </div>
+
+    <div class="footer">
+      <p>Minutes prepared from meeting recording | December 11, 2025</p>
+      <p><strong>Projects:</strong> 25 BK-087 Vahine Island | Queen's Hotel Papeete | Marquesas Islands (NEW)</p>
+      <p><strong>Client:</strong> Pearl Resorts of Tahiti | French Polynesia</p>
+      <p style="margin-top: 12px; font-size: 11px; color: #a0aec0;">BENSLEY Design Studios | Bangkok, Thailand</p>
+    </div>
+
+  </div>
+</div>
+
+</body>
+</html>

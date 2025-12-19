@@ -227,22 +227,44 @@ export function ProjectFeesCard({ projectCode, contractValue = 0 }: ProjectFeesC
 
                   {/* Expanded phases - sorted in correct order */}
                   {isExpanded && data.phases.length > 0 && (
-                    <div className="px-3 pb-3 space-y-1">
+                    <div className="px-3 pb-3 space-y-2">
                       {sortPhases(data.phases).map((phase) => {
                         const phaseInvoicedPct = phase.phase_fee_usd > 0
                           ? Math.round((phase.total_invoiced / phase.phase_fee_usd) * 100)
                           : 0;
+                        const phasePaidPct = phase.phase_fee_usd > 0
+                          ? Math.round((phase.total_paid / phase.phase_fee_usd) * 100)
+                          : 0;
                         return (
                           <div
                             key={phase.breakdown_id}
-                            className="flex items-center justify-between py-1.5 px-2 rounded bg-white/50"
+                            className="py-2 px-3 rounded-lg bg-white border border-slate-100"
                           >
-                            <span className="text-xs text-slate-600">{phase.phase}</span>
-                            <div className="flex items-center gap-3">
-                              <span className="text-xs text-slate-500">{phaseInvoicedPct}%</span>
-                              <span className="text-xs font-medium text-slate-900">
+                            <div className="flex items-center justify-between mb-1.5">
+                              <span className="text-sm font-medium text-slate-700">{phase.phase}</span>
+                              <span className="text-sm font-semibold text-slate-900">
                                 {formatCurrency(phase.phase_fee_usd)}
                               </span>
+                            </div>
+                            {/* Phase progress bar */}
+                            <div className="h-2 w-full overflow-hidden rounded-full bg-slate-100">
+                              {/* Paid portion (darker) */}
+                              <div className="h-full flex">
+                                <div
+                                  className={cn("h-full transition-all", colors.bg.replace("-50", "-500"))}
+                                  style={{ width: `${Math.min(phasePaidPct, 100)}%` }}
+                                />
+                                {/* Invoiced but unpaid (lighter) */}
+                                <div
+                                  className={cn("h-full transition-all", colors.bg.replace("-50", "-300"))}
+                                  style={{ width: `${Math.min(Math.max(phaseInvoicedPct - phasePaidPct, 0), 100 - phasePaidPct)}%` }}
+                                />
+                              </div>
+                            </div>
+                            {/* Stats row */}
+                            <div className="flex items-center justify-between mt-1.5 text-xs text-slate-500">
+                              <span>{phaseInvoicedPct}% invoiced</span>
+                              <span>{phasePaidPct}% paid</span>
                             </div>
                           </div>
                         );

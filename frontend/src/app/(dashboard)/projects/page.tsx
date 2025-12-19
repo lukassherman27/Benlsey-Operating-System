@@ -24,8 +24,9 @@ import {
   FolderOpen,
 } from "lucide-react";
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { Edit } from "lucide-react";
+import { Edit, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ProjectQuickEditDialog } from "@/components/project-quick-edit-dialog";
 import { ds, bensleyVoice } from "@/lib/design-system";
@@ -630,22 +631,24 @@ function ProjectRow({
     }, {});
   };
 
+  const router = useRouter();
+
+  const handleRowClick = () => {
+    router.push(`/projects/${encodeURIComponent(projectCode)}`);
+  };
+
   return (
     <>
       <tr
         className="group cursor-pointer hover:bg-slate-50"
-        onClick={onToggle}
+        onClick={handleRowClick}
       >
         {/* Project Name (primary) with Code (secondary) */}
         <td className="py-4">
           <div className="flex items-center gap-2">
-            {isExpanded ? (
-              <ChevronDown className="h-4 w-4 text-slate-400" />
-            ) : (
-              <ChevronRight className="h-4 w-4 text-slate-400" />
-            )}
+            <ExternalLink className="h-4 w-4 text-slate-400 group-hover:text-teal-600" />
             <div>
-              <div className="font-medium text-slate-900">
+              <div className="font-medium text-slate-900 group-hover:text-teal-700">
                 {(project.project_title as string) || (project.client_name as string) || "Unnamed Project"}
               </div>
               <div className="text-xs text-slate-500">

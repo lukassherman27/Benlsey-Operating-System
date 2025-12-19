@@ -64,29 +64,39 @@ export function HotItemsWidget() {
       });
   }
 
-  // Add stale proposals
+  // Add stale proposals (URGENT - 14+ days or no contact)
   if (proposalsQuery.data?.urgent) {
-    proposalsQuery.data.urgent.slice(0, 3).forEach((prop) => {
+    proposalsQuery.data.urgent.slice(0, 5).forEach((prop) => {
+      // Format: "25 BK-033 (Ritz-Carlton Nusa Dua)" or just code if no name
+      const displayText = prop.project_name
+        ? `${prop.project_code} (${prop.project_name})`
+        : prop.project_code || "Unknown";
+
       hotItems.push({
         type: "proposal",
         icon: <FileText className="h-4 w-4" />,
-        text: String(prop.project_name || prop.project_code || "Unknown"),
+        text: displayText,
         subtext: String(prop.context || "Needs attention"),
-        link: `/tracker?code=${prop.project_code}`,
+        link: `/proposals/${prop.project_code}`,
         urgency: "high",
       });
     });
   }
 
-  // Add stale needs_attention
+  // Add needs_attention proposals (7-13 days)
   if (proposalsQuery.data?.needs_attention) {
-    proposalsQuery.data.needs_attention.slice(0, 2).forEach((prop) => {
+    proposalsQuery.data.needs_attention.slice(0, 5).forEach((prop) => {
+      // Format: "25 BK-033 (Ritz-Carlton Nusa Dua)" or just code if no name
+      const displayText = prop.project_name
+        ? `${prop.project_code} (${prop.project_name})`
+        : prop.project_code || "Unknown";
+
       hotItems.push({
         type: "proposal",
         icon: <FileText className="h-4 w-4" />,
-        text: String(prop.project_name || prop.project_code || "Unknown"),
+        text: displayText,
         subtext: String(prop.context || "Follow up needed"),
-        link: `/tracker?code=${prop.project_code}`,
+        link: `/proposals/${prop.project_code}`,
         urgency: "medium",
       });
     });
@@ -179,7 +189,7 @@ export function HotItemsWidget() {
             </span>
           </div>
           <Link
-            href="/admin/suggestions"
+            href="/tracker?filter=needs-followup"
             className="text-xs text-slate-500 hover:text-slate-700 flex items-center gap-1"
           >
             View all <ChevronRight className="h-3 w-3" />
@@ -189,7 +199,7 @@ export function HotItemsWidget() {
       <CardContent className="pt-0">
         <div className="overflow-x-auto pb-2 -mx-2 px-2">
           <div className="flex gap-3 min-w-max">
-            {sortedItems.slice(0, 6).map((item, idx) => (
+            {sortedItems.slice(0, 10).map((item, idx) => (
               <HotItemCard key={idx} item={item} />
             ))}
           </div>

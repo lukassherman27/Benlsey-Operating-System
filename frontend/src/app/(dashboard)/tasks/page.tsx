@@ -11,6 +11,7 @@ import {
   Clock,
   AlertTriangle,
   ChevronRight,
+  ChevronDown,
   RefreshCw,
   ListTodo,
   AlertCircle,
@@ -18,82 +19,89 @@ import {
   Calendar,
   CheckSquare,
   Bell,
+  Plus,
+  User,
+  Pencil,
+  FolderTree,
+  Filter,
+  Tag,
 } from 'lucide-react'
-import { useState } from 'react'
+import React, { useState } from 'react'
 import { cn } from '@/lib/utils'
 import { ds } from '@/lib/design-system'
 import Link from 'next/link'
+import { api } from '@/lib/api'
+import { TaskEditModal } from '@/components/tasks/task-edit-modal'
 
 // Task type matching database schema
 interface Task {
   task_id: number
   title: string
   description: string | null
-  task_type: 'follow_up' | 'action_item' | 'deadline' | 'reminder'
-  priority: 'low' | 'medium' | 'high' | 'critical'
-  status: 'pending' | 'in_progress' | 'completed' | 'cancelled'
+  task_type: string
+  priority: string
+  status: string
   due_date: string | null
   project_code: string | null
   proposal_id: number | null
   source_suggestion_id: number | null
   source_email_id: number | null
+  source_transcript_id: number | null
+  source_meeting_id: number | null
+  assignee: string | null
   created_at: string
   completed_at: string | null
+  parent_task_id: number | null
+  category: string | null
+  assigned_staff_id: number | null
+  deliverable_id: number | null
 }
 
-interface TasksResponse {
-  success: boolean
-  tasks: Task[]
-  count: number
-}
+// Task categories as defined in database
+const TASK_CATEGORIES = [
+  'Proposal', 'Project', 'Finance', 'Legal', 'Operations',
+  'Marketing', 'Personal', 'HR', 'Admin', 'Other'
+] as const
 
-// API placeholder - will be connected when backend API is created
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000'
-
-async function fetchTasks(): Promise<TasksResponse> {
-  try {
-    const response = await fetch(`${API_BASE_URL}/api/tasks`)
-    if (!response.ok) {
-      throw new Error('API not available')
-    }
-    return response.json()
-  } catch {
-    // Return empty data when API doesn't exist yet
-    return { success: true, tasks: [], count: 0 }
-  }
-}
-
-async function updateTaskStatus(taskId: number, status: string): Promise<{ success: boolean }> {
-  const response = await fetch(`${API_BASE_URL}/api/tasks/${taskId}/status`, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ status }),
-  })
-  return response.json()
-}
-
-async function snoozeTask(taskId: number, newDueDate: string): Promise<{ success: boolean }> {
-  const response = await fetch(`${API_BASE_URL}/api/tasks/${taskId}/snooze`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ due_date: newDueDate }),
-  })
-  return response.json()
+// Category badge colors
+const categoryColors: Record<string, string> = {
+  'Proposal': 'bg-teal-100 text-teal-700 border-teal-200',
+  'Project': 'bg-blue-100 text-blue-700 border-blue-200',
+  'Finance': 'bg-emerald-100 text-emerald-700 border-emerald-200',
+  'Legal': 'bg-purple-100 text-purple-700 border-purple-200',
+  'Operations': 'bg-orange-100 text-orange-700 border-orange-200',
+  'Marketing': 'bg-pink-100 text-pink-700 border-pink-200',
+  'Personal': 'bg-indigo-100 text-indigo-700 border-indigo-200',
+  'HR': 'bg-amber-100 text-amber-700 border-amber-200',
+  'Admin': 'bg-slate-100 text-slate-700 border-slate-200',
+  'Other': 'bg-gray-100 text-gray-600 border-gray-200',
 }
 
 export default function TasksPage() {
   const queryClient = useQueryClient()
   const [activeTab, setActiveTab] = useState('all')
+  const [categoryFilter, setCategoryFilter] = useState<string | null>(null)
+  const [showHierarchy, setShowHierarchy] = useState(false)
+  const [expandedTasks, setExpandedTasks] = useState<Set<number>>(new Set())
+  const [modalOpen, setModalOpen] = useState(false)
+  const [modalMode, setModalMode] = useState<'create' | 'edit'>('create')
+  const [selectedTask, setSelectedTask] = useState<Task | null>(null)
 
   // Fetch tasks
   const { data, isLoading, error } = useQuery({
     queryKey: ['tasks'],
-    queryFn: fetchTasks,
+    queryFn: () => api.getTasks({ limit: 500 }),
+  })
+
+  // Fetch staff for displaying assignee names
+  const { data: staffData } = useQuery({
+    queryKey: ['staff'],
+    queryFn: () => api.getStaff(),
   })
 
   // Mark complete mutation
   const completeTask = useMutation({
-    mutationFn: (taskId: number) => updateTaskStatus(taskId, 'completed'),
+    mutationFn: (taskId: number) => api.completeTask(taskId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tasks'] })
     },
@@ -102,11 +110,32 @@ export default function TasksPage() {
   // Snooze task mutation
   const snoozeTaskMutation = useMutation({
     mutationFn: ({ taskId, newDueDate }: { taskId: number; newDueDate: string }) =>
-      snoozeTask(taskId, newDueDate),
+      api.snoozeTask(taskId, newDueDate),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tasks'] })
     },
   })
+
+  // Open create modal
+  const handleCreateTask = () => {
+    setSelectedTask(null)
+    setModalMode('create')
+    setModalOpen(true)
+  }
+
+  // Open edit modal
+  const handleEditTask = (task: Task) => {
+    setSelectedTask(task)
+    setModalMode('edit')
+    setModalOpen(true)
+  }
+
+  // Get assignee name from ID
+  const getAssigneeName = (assigneeId: string | null) => {
+    if (!assigneeId) return null
+    const assignee = staffData?.assignees?.find(a => a.id === assigneeId)
+    return assignee?.name || assigneeId
+  }
 
   const tasks = data?.tasks || []
 
@@ -119,10 +148,17 @@ export default function TasksPage() {
       t.due_date && t.due_date < today && t.status !== 'completed' && t.status !== 'cancelled'
     ).length,
     completed: tasks.filter((t) => t.status === 'completed').length,
+    fromMeetings: tasks.filter((t) => t.source_transcript_id || t.source_meeting_id).length,
   }
 
-  // Filter tasks based on tab
+  // Filter tasks based on tab and category
   const filteredTasks = tasks.filter((task) => {
+    // First apply category filter
+    if (categoryFilter && (task.category || 'Other') !== categoryFilter) {
+      return false
+    }
+
+    // Then apply tab filter
     switch (activeTab) {
       case 'pending':
         return task.status === 'pending' || task.status === 'in_progress'
@@ -130,10 +166,43 @@ export default function TasksPage() {
         return task.due_date && task.due_date < today && task.status !== 'completed' && task.status !== 'cancelled'
       case 'completed':
         return task.status === 'completed'
+      case 'from_meetings':
+        return task.source_transcript_id || task.source_meeting_id
       default:
         return true
     }
   })
+
+  // Organize tasks for hierarchy view
+  const getChildTasks = (parentId: number) =>
+    filteredTasks.filter(t => t.parent_task_id === parentId)
+
+  const hasChildren = (taskId: number) =>
+    tasks.some(t => t.parent_task_id === taskId)
+
+  const toggleExpanded = (taskId: number) => {
+    setExpandedTasks(prev => {
+      const newSet = new Set(prev)
+      if (newSet.has(taskId)) {
+        newSet.delete(taskId)
+      } else {
+        newSet.add(taskId)
+      }
+      return newSet
+    })
+  }
+
+  // Get root tasks (no parent) for hierarchy view, or all tasks for flat view
+  const displayTasks = showHierarchy
+    ? filteredTasks.filter(t => !t.parent_task_id)
+    : filteredTasks
+
+  // Count tasks by category
+  const categoryCounts = tasks.reduce((acc, task) => {
+    const cat = task.category || 'Other'
+    acc[cat] = (acc[cat] || 0) + 1
+    return acc
+  }, {} as Record<string, number>)
 
   // Priority colors
   const priorityColors: Record<string, string> = {
@@ -220,17 +289,26 @@ export default function TasksPage() {
             Tasks
           </h1>
           <p className={cn(ds.typography.body, ds.textColors.secondary, "mt-1")}>
-            Follow-ups and action items from AI suggestions
+            Follow-ups and action items from meetings and proposals
           </p>
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => queryClient.invalidateQueries({ queryKey: ['tasks'] })}
-        >
-          <RefreshCw className="h-4 w-4 mr-2" />
-          Refresh
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => queryClient.invalidateQueries({ queryKey: ['tasks'] })}
+          >
+            <RefreshCw className="h-4 w-4 mr-2" />
+            Refresh
+          </Button>
+          <Button
+            size="sm"
+            onClick={handleCreateTask}
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            Add Task
+          </Button>
+        </div>
       </div>
 
       {/* Stats Cards */}
@@ -300,6 +378,49 @@ export default function TasksPage() {
         </Card>
       </div>
 
+      {/* Category Filter + Hierarchy Toggle */}
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="flex items-center gap-2">
+          <Tag className="h-4 w-4 text-slate-500" />
+          <span className={cn(ds.typography.caption, ds.textColors.tertiary)}>Category:</span>
+        </div>
+        <div className="flex flex-wrap gap-1.5">
+          <Button
+            variant={categoryFilter === null ? "default" : "outline"}
+            size="sm"
+            onClick={() => setCategoryFilter(null)}
+            className="h-7 px-2.5 text-xs"
+          >
+            All ({stats.total})
+          </Button>
+          {TASK_CATEGORIES.filter(cat => categoryCounts[cat] > 0).map(cat => (
+            <Button
+              key={cat}
+              variant={categoryFilter === cat ? "default" : "outline"}
+              size="sm"
+              onClick={() => setCategoryFilter(categoryFilter === cat ? null : cat)}
+              className={cn(
+                "h-7 px-2.5 text-xs",
+                categoryFilter !== cat && categoryColors[cat]
+              )}
+            >
+              {cat} ({categoryCounts[cat] || 0})
+            </Button>
+          ))}
+        </div>
+        <div className="ml-auto">
+          <Button
+            variant={showHierarchy ? "default" : "outline"}
+            size="sm"
+            onClick={() => setShowHierarchy(!showHierarchy)}
+            className="h-7"
+          >
+            <FolderTree className="h-3.5 w-3.5 mr-1.5" />
+            Hierarchy
+          </Button>
+        </div>
+      </div>
+
       {/* Filter Tabs & Task List */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
         <TabsList>
@@ -308,6 +429,10 @@ export default function TasksPage() {
           <TabsTrigger value="overdue">
             <AlertTriangle className="h-4 w-4 mr-1" />
             Overdue
+          </TabsTrigger>
+          <TabsTrigger value="from_meetings">
+            <Calendar className="h-4 w-4 mr-1" />
+            From Meetings
           </TabsTrigger>
           <TabsTrigger value="completed">Completed</TabsTrigger>
         </TabsList>
@@ -318,11 +443,12 @@ export default function TasksPage() {
               <CardTitle className={ds.typography.heading3}>
                 {activeTab === 'all' ? 'All Tasks' :
                  activeTab === 'pending' ? 'Pending Tasks' :
-                 activeTab === 'overdue' ? 'Overdue Tasks' : 'Completed Tasks'}
+                 activeTab === 'overdue' ? 'Overdue Tasks' :
+                 activeTab === 'from_meetings' ? 'Tasks from Meetings' : 'Completed Tasks'}
               </CardTitle>
             </CardHeader>
             <CardContent>
-              {filteredTasks.length === 0 ? (
+              {displayTasks.length === 0 ? (
                 <div className="text-center py-12">
                   <ListTodo className="mx-auto h-12 w-12 text-slate-300 mb-4" />
                   <p className={cn(ds.typography.heading3, ds.textColors.primary, "mb-2")}>
@@ -331,27 +457,58 @@ export default function TasksPage() {
                   <p className={cn(ds.typography.body, ds.textColors.tertiary, "max-w-md mx-auto")}>
                     {stats.total === 0
                       ? 'Tasks are created when you approve follow_up_needed suggestions from AI.'
-                      : 'Try switching to a different tab to see other tasks.'}
+                      : 'Try switching to a different tab or clearing the category filter.'}
                   </p>
                 </div>
               ) : (
                 <div className="space-y-2 max-h-[600px] overflow-y-auto">
-                  {filteredTasks.map((task) => (
+                  {displayTasks.map((task) => (
+                    <React.Fragment key={task.task_id}>
                     <div
-                      key={task.task_id}
-                      className="flex items-center justify-between p-4 border rounded-lg hover:bg-slate-50 transition-colors group"
+                      className="flex items-center justify-between p-4 border rounded-lg hover:bg-slate-50 transition-colors group cursor-pointer"
+                      onClick={() => handleEditTask(task)}
                     >
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
+                          {/* Hierarchy expand button */}
+                          {showHierarchy && hasChildren(task.task_id) && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-6 w-6 p-0 shrink-0"
+                              onClick={(e) => { e.stopPropagation(); toggleExpanded(task.task_id) }}
+                            >
+                              {expandedTasks.has(task.task_id) ? (
+                                <ChevronDown className="h-4 w-4" />
+                              ) : (
+                                <ChevronRight className="h-4 w-4" />
+                              )}
+                            </Button>
+                          )}
                           <p className={cn(ds.typography.bodyBold, ds.textColors.primary, "truncate")}>
                             {task.title}
                           </p>
+                          {task.category && task.category !== 'Other' && (
+                            <Badge
+                              variant="outline"
+                              className={cn("text-xs", categoryColors[task.category] || categoryColors['Other'])}
+                            >
+                              {task.category}
+                            </Badge>
+                          )}
+                          {task.assignee && task.assignee !== 'us' && (
+                            <Badge variant="secondary" className="text-xs flex items-center gap-1">
+                              <User className="h-3 w-3" />
+                              {getAssigneeName(task.assignee)}
+                            </Badge>
+                          )}
                         </div>
                         <div className="flex items-center gap-2 mt-1 flex-wrap">
                           {task.project_code && (
                             <Link
-                              href={`/projects/${encodeURIComponent(task.project_code)}`}
+                              href={`/proposals/${encodeURIComponent(task.project_code)}`}
                               className={cn(ds.typography.caption, "text-teal-600 font-medium hover:underline")}
+                              onClick={(e) => e.stopPropagation()}
                             >
                               {task.project_code}
                             </Link>
@@ -369,24 +526,20 @@ export default function TasksPage() {
                               </span>
                             </>
                           )}
-                          {task.source_suggestion_id && (
+                          {task.source_transcript_id && (
                             <>
                               <span className={ds.textColors.tertiary}>•</span>
-                              <Link
-                                href={`/admin/suggestions`}
-                                className={cn(ds.typography.caption, ds.textColors.tertiary, "hover:text-teal-600 flex items-center gap-1")}
-                              >
-                                <ExternalLink className="h-3 w-3" />
-                                Suggestion #{task.source_suggestion_id}
-                              </Link>
+                              <span className={cn(ds.typography.caption, "text-purple-600 font-medium flex items-center gap-1")}>
+                                <Calendar className="h-3 w-3" />
+                                From Meeting
+                              </span>
                             </>
                           )}
-                          {task.source_email_id && (
+                          {task.source_suggestion_id && !task.source_transcript_id && (
                             <>
                               <span className={ds.textColors.tertiary}>•</span>
                               <span className={cn(ds.typography.caption, ds.textColors.tertiary, "flex items-center gap-1")}>
-                                <ExternalLink className="h-3 w-3" />
-                                Email #{task.source_email_id}
+                                AI Suggestion
                               </span>
                             </>
                           )}
@@ -415,7 +568,7 @@ export default function TasksPage() {
                             <Button
                               variant="ghost"
                               size="sm"
-                              onClick={() => completeTask.mutate(task.task_id)}
+                              onClick={(e) => { e.stopPropagation(); completeTask.mutate(task.task_id) }}
                               disabled={completeTask.isPending}
                               className="h-8 px-2 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50"
                               title="Mark complete"
@@ -425,22 +578,79 @@ export default function TasksPage() {
                             <Button
                               variant="ghost"
                               size="sm"
-                              onClick={() => handleSnooze(task)}
+                              onClick={(e) => { e.stopPropagation(); handleSnooze(task) }}
                               disabled={snoozeTaskMutation.isPending}
                               className="h-8 px-2 text-amber-600 hover:text-amber-700 hover:bg-amber-50"
                               title="Snooze 7 days"
                             >
                               <Bell className="h-4 w-4" />
                             </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={(e) => { e.stopPropagation(); handleEditTask(task) }}
+                              className="h-8 px-2 text-slate-600 hover:text-slate-700 hover:bg-slate-100"
+                              title="Edit task"
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </Button>
                           </div>
                         )}
                         <ChevronRight className="h-4 w-4 text-slate-400" />
                       </div>
                     </div>
+                    {/* Child tasks (hierarchy view) */}
+                    {showHierarchy && expandedTasks.has(task.task_id) && (
+                      <div className="ml-8 border-l-2 border-slate-200 space-y-2 pl-4">
+                        {getChildTasks(task.task_id).map(childTask => (
+                          <div
+                            key={childTask.task_id}
+                            className="flex items-center justify-between p-3 border rounded-lg hover:bg-slate-50 transition-colors cursor-pointer bg-slate-50/50"
+                            onClick={() => handleEditTask(childTask)}
+                          >
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2">
+                                <p className={cn(ds.typography.body, ds.textColors.primary, "truncate")}>
+                                  {childTask.title}
+                                </p>
+                                {childTask.category && childTask.category !== 'Other' && (
+                                  <Badge
+                                    variant="outline"
+                                    className={cn("text-xs", categoryColors[childTask.category] || categoryColors['Other'])}
+                                  >
+                                    {childTask.category}
+                                  </Badge>
+                                )}
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2 ml-4">
+                              <Badge variant="outline" className={priorityColors[childTask.priority] || 'bg-slate-100 text-slate-600'}>
+                                {childTask.priority}
+                              </Badge>
+                              <Badge variant="outline" className={statusColors[childTask.status] || 'bg-slate-100 text-slate-600'}>
+                                {childTask.status.replace('_', ' ')}
+                              </Badge>
+                              {childTask.status !== 'completed' && childTask.status !== 'cancelled' && (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={(e) => { e.stopPropagation(); completeTask.mutate(childTask.task_id) }}
+                                  disabled={completeTask.isPending}
+                                  className="h-6 px-1.5 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50"
+                                >
+                                  <CheckSquare className="h-3.5 w-3.5" />
+                                </Button>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </React.Fragment>
                   ))}
                 </div>
               )}
-              {filteredTasks.length > 0 && (
+              {displayTasks.length > 0 && (
                 <div className="mt-4 pt-4 border-t">
                   <p className={cn(ds.typography.caption, ds.textColors.tertiary, "text-center")}>
                     Showing {filteredTasks.length} of {stats.total} tasks
@@ -451,6 +661,14 @@ export default function TasksPage() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* Task Edit Modal */}
+      <TaskEditModal
+        open={modalOpen}
+        onOpenChange={setModalOpen}
+        task={selectedTask}
+        mode={modalMode}
+      />
     </div>
   )
 }

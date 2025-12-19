@@ -266,34 +266,64 @@ async def get_project_financial_summary(project_code: str):
 
 @router.get("/projects/{project_code}/contacts")
 async def get_project_contacts(project_code: str):
-    """Get contacts associated with a project"""
+    """
+    Get contacts associated with a project.
+
+    Returns contacts from:
+    1. contact_project_mappings (derived from email activity)
+    2. project_contact_links (manually linked or AI suggested)
+    """
     try:
         conn = sqlite3.connect(DB_PATH)
         conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
 
-        # Get project ID first
-        cursor.execute("SELECT project_id FROM projects WHERE project_code = ?", (project_code,))
-        project = cursor.fetchone()
-        if not project:
-            conn.close()
-            raise HTTPException(status_code=404, detail=f"Project {project_code} not found")
-
-        # Get contacts for this project
+        # Get contacts from contact_project_mappings (email-derived)
         cursor.execute("""
-            SELECT c.*
-            FROM contacts c
-            JOIN project_contacts pc ON c.contact_id = pc.contact_id
-            WHERE pc.project_id = ?
-            ORDER BY c.name
-        """, (project['project_id'],))
+            SELECT
+                cpm.contact_email as email,
+                cpm.contact_name as name,
+                cpm.email_count,
+                cpm.first_email_date,
+                cpm.last_email_date,
+                cpm.is_primary_contact,
+                c.company,
+                c.role,
+                c.phone,
+                'email_activity' as source
+            FROM contact_project_mappings cpm
+            LEFT JOIN contacts c ON cpm.contact_email = c.email
+            WHERE cpm.project_code = ?
+            ORDER BY cpm.email_count DESC, cpm.is_primary_contact DESC
+        """, (project_code,))
 
         contacts = [dict(row) for row in cursor.fetchall()]
+
+        # Also check proposals table for main contact
+        cursor.execute("""
+            SELECT contact_email, contact_person, client_company
+            FROM proposals WHERE project_code = ?
+        """, (project_code,))
+        proposal = cursor.fetchone()
+
+        if proposal and proposal['contact_email']:
+            # Check if main contact is already in list
+            existing_emails = {c['email'] for c in contacts}
+            if proposal['contact_email'] not in existing_emails:
+                contacts.insert(0, {
+                    'email': proposal['contact_email'],
+                    'name': proposal['contact_person'],
+                    'company': proposal['client_company'],
+                    'is_primary_contact': 1,
+                    'source': 'proposal',
+                    'email_count': 0
+                })
+
         conn.close()
 
         response = list_response(contacts, len(contacts))
-        response["contacts"] = contacts  # Backward compat
-        response["count"] = len(contacts)  # Backward compat
+        response["contacts"] = contacts
+        response["count"] = len(contacts)
         return response
     except HTTPException:
         raise

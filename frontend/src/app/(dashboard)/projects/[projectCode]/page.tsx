@@ -9,10 +9,7 @@ import { Button } from "@/components/ui/button";
 import {
   ArrowLeft,
   Building2,
-  CheckCircle2,
   Clock,
-  DollarSign,
-  Mail,
   TrendingUp,
   AlertTriangle,
   Calendar,
@@ -24,7 +21,12 @@ import { UnifiedTimeline } from "@/components/project/unified-timeline";
 import { ProjectFeesCard } from "@/components/project/project-fees-card";
 import { ProjectTasksCard } from "@/components/project/project-tasks-card";
 import { TeamCard } from "@/components/project/team-card";
-import { ds, bensleyVoice } from "@/lib/design-system";
+import { ProjectContactsCard } from "@/components/project/project-contacts-card";
+import { ProjectMeetingsCard } from "@/components/project/project-meetings-card";
+import { ProjectEmailsCard } from "@/components/project/project-emails-card";
+import { ProjectHealthBanner, calculateProjectHealth } from "@/components/project/project-health-banner";
+import { RFIDeliverablesPanel } from "@/components/project/rfi-deliverables-panel";
+import { ds } from "@/lib/design-system";
 import { cn } from "@/lib/utils";
 
 const formatCurrency = (value?: number | null) => {
@@ -52,7 +54,9 @@ export default function ProjectDetailPage({
 }: {
   params: Promise<{ projectCode: string }>;
 }) {
-  const { projectCode } = use(params);
+  const { projectCode: rawProjectCode } = use(params);
+  // Decode in case URL params are still encoded
+  const projectCode = decodeURIComponent(rawProjectCode);
 
   // Fetch project data
   const projectDetailQuery = useQuery({
@@ -73,6 +77,9 @@ export default function ProjectDetailPage({
   const isLoading = projectDetailQuery.isLoading || invoicesQuery.isLoading;
 
   if (projectDetailQuery.error) {
+    const errorMsg = projectDetailQuery.error instanceof Error
+      ? projectDetailQuery.error.message
+      : String(projectDetailQuery.error);
     return (
       <div className="flex min-h-screen items-center justify-center bg-slate-50">
         <Card className={cn(ds.cards.default, "border-red-200 bg-red-50")}>
@@ -83,6 +90,9 @@ export default function ProjectDetailPage({
             </h2>
             <p className={cn(ds.typography.bodySmall, "mt-2")}>
               Could not load project {projectCode}
+            </p>
+            <p className="text-xs text-red-600 mt-2 font-mono">
+              Error: {errorMsg}
             </p>
             <Link href="/projects">
               <Button className={cn(ds.buttons.secondary, "mt-6")}>
@@ -153,10 +163,46 @@ export default function ProjectDetailPage({
               </div>
             </div>
             <div className="text-right">
+              <div className="flex items-center gap-2 justify-end mb-1">
+                <Badge
+                  variant="outline"
+                  className={cn(
+                    "text-xs",
+                    outstandingAmount > 0
+                      ? "bg-amber-50 text-amber-700 border-amber-200"
+                      : "bg-emerald-50 text-emerald-700 border-emerald-200"
+                  )}
+                >
+                  {outstandingAmount > 0 ? `${formatCurrency(outstandingAmount)} outstanding` : "Paid up"}
+                </Badge>
+                <Badge
+                  variant="outline"
+                  className={cn(
+                    "text-xs",
+                    (projectDetail?.status as string) === "Active"
+                      ? "bg-teal-50 text-teal-700 border-teal-200"
+                      : "bg-slate-100 text-slate-600 border-slate-200"
+                  )}
+                >
+                  {(projectDetail?.status as string) || "Active"}
+                </Badge>
+              </div>
               <p className="text-sm text-slate-500">Contract Value</p>
               <p className="text-3xl font-bold text-slate-900">
                 {formatCurrency(contractValue)}
               </p>
+              <div className="mt-2 w-48 ml-auto">
+                <div className="flex justify-between text-xs text-slate-500 mb-1">
+                  <span>{Math.round(invoicingProgress)}% invoiced</span>
+                  <span>{Math.round(paymentProgress)}% paid</span>
+                </div>
+                <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-200">
+                  <div
+                    className="h-full rounded-full bg-gradient-to-r from-teal-500 to-emerald-500 transition-all"
+                    style={{ width: `${Math.min(invoicingProgress, 100)}%` }}
+                  />
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -178,6 +224,37 @@ export default function ProjectDetailPage({
           </div>
         ) : (
           <>
+            {/* Health Banner - Shows issues if any */}
+            {(() => {
+              const health = calculateProjectHealth({
+                overdue_invoices_count: invoices.filter((i: Record<string, unknown>) =>
+                  i.status !== 'paid' && i.due_date && new Date(i.due_date as string) < new Date()
+                ).length,
+                overdue_invoices_amount: invoices
+                  .filter((i: Record<string, unknown>) => i.status !== 'paid' && i.due_date && new Date(i.due_date as string) < new Date())
+                  .reduce((sum: number, i: Record<string, unknown>) => sum + ((i.invoice_amount as number) || 0), 0),
+                open_rfis_count: (projectDetail?.open_rfis_count as number) ?? 0,
+                days_since_activity: (projectDetail?.days_since_activity as number) ?? 0,
+                overdue_deliverables_count: (projectDetail?.overdue_deliverables_count as number) ?? 0,
+              });
+              return (
+                <ProjectHealthBanner
+                  status={health.status}
+                  issues={health.issues}
+                  projectName={(projectDetail?.project_name as string) ?? projectCode}
+                  className="mb-6"
+                />
+              );
+            })()}
+
+            {/* RFI/Deliverables Panel */}
+            <RFIDeliverablesPanel
+              rfis={(projectDetail?.rfis as Array<{rfi_id: number; rfi_number?: string; subject: string; status: "open" | "answered" | "closed"; submitted_date: string; response_date?: string | null; days_open?: number}>) ?? []}
+              deliverables={(projectDetail?.deliverables as Array<{deliverable_id: number; name: string; status: "pending" | "in_progress" | "delivered" | "approved"; due_date: string | null; delivered_date?: string | null; responsible_party?: string}>) ?? []}
+              projectCode={projectCode}
+              className="mb-6"
+            />
+
             {/* Main Dashboard Cards - 3 column layout */}
             <section className="mb-8">
               <div className="grid gap-6 lg:grid-cols-3">
@@ -253,33 +330,39 @@ export default function ProjectDetailPage({
               </div>
             </section>
 
-            {/* Project Team */}
+            {/* Team & Contacts */}
             <section className="mb-8">
-              <TeamCard projectCode={projectCode} />
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-lg font-semibold text-slate-900">People</h2>
+              </div>
+              <div className="grid gap-6 lg:grid-cols-2">
+                <TeamCard projectCode={projectCode} />
+                <ProjectContactsCard projectCode={projectCode} />
+              </div>
+            </section>
+
+            {/* Communication & Meetings */}
+            <section className="mb-8">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-lg font-semibold text-slate-900">Communication</h2>
+                <Link href={`/projects/${encodeURIComponent(projectCode)}/emails`}>
+                  <Button variant="outline" size="sm" className="text-xs">
+                    View All Emails
+                  </Button>
+                </Link>
+              </div>
+              <div className="grid gap-6 lg:grid-cols-2">
+                <ProjectEmailsCard projectCode={projectCode} limit={10} />
+                <ProjectMeetingsCard projectCode={projectCode} />
+              </div>
             </section>
 
             {/* Project Activity Timeline */}
             <section className="mb-8">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-lg font-semibold text-slate-900">Activity Timeline</h2>
+              </div>
               <UnifiedTimeline projectCode={projectCode} limit={50} />
-            </section>
-
-            {/* Communication Quick Links */}
-            <section className="mb-8">
-              <Card className={ds.cards.default}>
-                <CardContent className="p-6">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <Mail className="h-5 w-5 text-blue-600" />
-                      <h3 className="font-semibold text-slate-900">Communication</h3>
-                    </div>
-                    <Link href={`/projects/${projectCode}/emails`}>
-                      <Button variant="outline" size="sm" className={ds.buttons.secondary}>
-                        View All Emails
-                      </Button>
-                    </Link>
-                  </div>
-                </CardContent>
-              </Card>
             </section>
           </>
         )}

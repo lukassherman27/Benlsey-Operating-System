@@ -2,8 +2,9 @@
 Email Orchestrator - Coordinates existing email services
 
 This is a THIN WRAPPER that calls existing services:
-- AILearningService: Suggestion generation
+- PatternFirstLinker: Auto-link emails via pattern matching (NEW - Dec 2025)
 - EmailCategoryService: Email categorization
+- AILearningService: Suggestion generation
 - EmailIntelligenceService: Timeline, validation queue
 
 Does NOT duplicate functionality - just coordinates.
@@ -16,6 +17,8 @@ from typing import Optional, List, Dict, Any
 from .base_service import BaseService
 from .ai_learning_service import AILearningService
 from .email_category_service import EmailCategoryService
+from .pattern_first_linker import get_pattern_linker
+from .meeting_summary_parser import MeetingSummaryParser
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -30,15 +33,20 @@ class EmailOrchestrator(BaseService):
         result = orchestrator.process_new_emails(limit=100)
     """
 
-    def __init__(self, db_path: str = None):
+    def __init__(self, db_path: str = None, use_context_aware: bool = True):
         super().__init__(db_path)
-        self.ai_learning = AILearningService(db_path)
+        # Enable GPT-powered context-aware suggestions by default
+        # This uses ContextAwareSuggestionService which has full Bensley business context
+        self.ai_learning = AILearningService(db_path, use_context_aware=use_context_aware)
         self.category_service = EmailCategoryService(db_path)
+        self.pattern_linker = get_pattern_linker(db_path)
+        self.meeting_parser = MeetingSummaryParser(db_path)
 
     def process_new_emails(self, limit: int = 100, hours: int = 24) -> Dict[str, Any]:
         """
         Full email processing pipeline.
 
+        0. Auto-link emails via pattern matching (NEW - added Dec 2025)
         1. Categorize uncategorized emails (uses EmailCategoryService.batch_categorize)
         2. Generate suggestions (uses AILearningService.process_recent_emails_for_suggestions)
 
@@ -53,10 +61,45 @@ class EmailOrchestrator(BaseService):
         """
         result = {
             "success": True,
+            "pattern_linking": {},
+            "meeting_summaries": {},
             "categorization": {},
             "suggestions": {},
             "errors": []
         }
+
+        # Step 0: Auto-link via pattern matching (instant, no GPT cost)
+        try:
+            link_result = self.pattern_linker.process_batch(email_ids=None, limit=limit)
+            result["pattern_linking"] = {
+                "total": link_result.get("total", 0),
+                "auto_linked": link_result.get("auto_linked", 0),
+                "links_applied": link_result.get("links_applied", 0),
+                "needs_gpt": link_result.get("needs_gpt", 0),
+                "skipped_spam": link_result.get("skipped_spam", 0),
+            }
+            logger.info(f"Pattern linking: {link_result.get('auto_linked', 0)} auto-linked, "
+                       f"{link_result.get('needs_gpt', 0)} need GPT")
+        except Exception as e:
+            logger.error(f"Pattern linking error: {e}")
+            result["errors"].append(f"Pattern linking: {str(e)}")
+            result["pattern_linking"] = {"error": str(e)}
+
+        # Step 0.5: Process meeting summary emails → create tasks
+        try:
+            meeting_result = self.meeting_parser.process_unprocessed_summaries(limit=limit)
+            result["meeting_summaries"] = {
+                "emails_found": meeting_result.get("emails_found", 0),
+                "emails_processed": meeting_result.get("emails_processed", 0),
+                "tasks_created": meeting_result.get("tasks_created", 0),
+            }
+            if meeting_result.get("tasks_created", 0) > 0:
+                logger.info(f"Meeting summaries: {meeting_result.get('tasks_created', 0)} tasks created "
+                           f"from {meeting_result.get('emails_processed', 0)} emails")
+        except Exception as e:
+            logger.error(f"Meeting summary processing error: {e}")
+            result["errors"].append(f"Meeting summaries: {str(e)}")
+            result["meeting_summaries"] = {"error": str(e)}
 
         # Step 1: Categorize uncategorized emails
         try:

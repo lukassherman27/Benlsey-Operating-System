@@ -53,7 +53,7 @@ class EmailIntelligenceService(BaseService):
             emails = []
 
             if status == "unlinked":
-                # Emails with no project link
+                # Emails with no project OR proposal link
                 cursor.execute("""
                     SELECT
                         e.email_id,
@@ -70,9 +70,10 @@ class EmailIntelligenceService(BaseService):
                         ec.urgency_level,
                         (SELECT COUNT(*) FROM email_attachments ea WHERE ea.email_id = e.email_id) as attachment_count
                     FROM emails e
-                    LEFT JOIN email_project_links epl ON e.email_id = epl.email_id
+                    LEFT JOIN email_project_links eprl ON e.email_id = eprl.email_id
+                    LEFT JOIN email_proposal_links epl ON e.email_id = epl.email_id
                     LEFT JOIN email_content ec ON e.email_id = ec.email_id
-                    WHERE epl.email_id IS NULL
+                    WHERE eprl.email_id IS NULL AND epl.email_id IS NULL
                     ORDER BY e.has_attachments DESC, e.date DESC
                     LIMIT ?
                 """, (limit,))
@@ -139,25 +140,34 @@ class EmailIntelligenceService(BaseService):
             columns = [desc[0] for desc in cursor.description]
             emails = [dict(zip(columns, row)) for row in cursor.fetchall()]
 
-            # Get counts for summary
+            # Get counts for summary - check BOTH link tables
             cursor.execute("""
                 SELECT COUNT(*) as unlinked
                 FROM emails e
-                LEFT JOIN email_project_links epl ON e.email_id = epl.email_id
-                WHERE epl.email_id IS NULL
+                LEFT JOIN email_project_links eprl ON e.email_id = eprl.email_id
+                LEFT JOIN email_proposal_links epl ON e.email_id = epl.email_id
+                WHERE eprl.email_id IS NULL AND epl.email_id IS NULL
             """)
             unlinked_count = cursor.fetchone()[0]
 
             cursor.execute("""
                 SELECT COUNT(*) as low_conf
-                FROM email_project_links
+                FROM (
+                    SELECT email_id, confidence_score as confidence FROM email_proposal_links
+                    UNION ALL
+                    SELECT email_id, confidence FROM email_project_links
+                )
                 WHERE confidence < 0.70
             """)
             low_conf_count = cursor.fetchone()[0]
 
             cursor.execute("""
-                SELECT COUNT(*) as total_linked
-                FROM email_project_links
+                SELECT COUNT(DISTINCT email_id) as total_linked
+                FROM (
+                    SELECT email_id FROM email_proposal_links
+                    UNION
+                    SELECT email_id FROM email_project_links
+                )
             """)
             total_linked = cursor.fetchone()[0]
 

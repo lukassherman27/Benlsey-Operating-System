@@ -152,3 +152,19 @@ data/*.json
 !data/README.md
 exports/*.html
 voice_transcriber/feedback.json
+
+# Database backups (any format)
+database/*.backup*
+*.db.backup*
+*.db-backup*
+
+# Training data (contains conversation logs)
+training/*.json
+training/*.jsonl
+
+
+# Binary files - never track
+files/attachments/
+*.mp4
+*.mov
+*.avi

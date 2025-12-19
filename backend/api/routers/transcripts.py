@@ -6,15 +6,39 @@ Endpoints:
     GET /api/meeting-transcripts/{id} - Get single transcript
     GET /api/meeting-transcripts/stats - Transcript statistics
     GET /api/meeting-transcripts/by-project/{project_code} - Project transcripts
+    POST /api/meeting-transcripts/{id}/claude-summary - Save Claude-generated summary with action items
 """
 
 from fastapi import APIRouter, HTTPException, Query
-from typing import Optional
+from pydantic import BaseModel
+from typing import Optional, List
+from datetime import datetime, date
 import sqlite3
 import json
 
 from api.dependencies import DB_PATH
 from api.helpers import list_response, item_response
+
+
+# ============================================================================
+# PYDANTIC MODELS
+# ============================================================================
+
+class ActionItem(BaseModel):
+    """Action item extracted from meeting summary"""
+    task: str
+    assignee: Optional[str] = None
+    due_date: Optional[str] = None  # ISO date string
+    priority: Optional[str] = "normal"  # low, normal, high, critical
+
+
+class ClaudeSummaryRequest(BaseModel):
+    """Request body for saving Claude-generated summary"""
+    summary: str
+    key_points: Optional[List[str]] = None
+    action_items: Optional[List[ActionItem]] = None
+    next_meeting_date: Optional[str] = None  # ISO date string
+    proposal_code: Optional[str] = None  # Project code to link to
 
 router = APIRouter(prefix="/api", tags=["transcripts"])
 
@@ -61,11 +85,13 @@ async def get_transcripts(
         cursor.execute(f"SELECT COUNT(*) FROM meeting_transcripts WHERE {where_sql}", params)
         total = cursor.fetchone()[0]
 
-        # Get paginated results
+        # Get paginated results - join with emails to get final summary if available
         cursor.execute(f"""
-            SELECT * FROM meeting_transcripts
-            WHERE {where_sql}
-            ORDER BY created_at DESC
+            SELECT mt.*, e.body_full as final_summary
+            FROM meeting_transcripts mt
+            LEFT JOIN emails e ON mt.final_summary_email_id = e.email_id
+            WHERE {where_sql.replace('detected_project_code', 'mt.detected_project_code')}
+            ORDER BY mt.created_at DESC
             LIMIT ? OFFSET ?
         """, params + [limit, offset])
 
@@ -129,8 +155,12 @@ async def get_transcript(transcript_id: int):
         conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
 
+        # Join with emails to get final_summary if available
         cursor.execute("""
-            SELECT * FROM meeting_transcripts WHERE id = ?
+            SELECT mt.*, e.body_full as final_summary
+            FROM meeting_transcripts mt
+            LEFT JOIN emails e ON mt.final_summary_email_id = e.email_id
+            WHERE mt.id = ?
         """, (transcript_id,))
 
         row = cursor.fetchone()
@@ -187,28 +217,32 @@ async def get_transcripts_by_project(project_code: str):
 
 @router.get("/projects/{project_code}/transcripts")
 async def get_project_transcripts(project_code: str):
-    """Get transcripts for a specific project (alternative route)"""
+    """Get transcripts for a specific project or proposal"""
     try:
         conn = sqlite3.connect(DB_PATH)
         conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
 
-        # First get project_id from project_code
+        # Try to get project_id from projects table
         cursor.execute("SELECT project_id FROM projects WHERE project_code = ?", (project_code,))
         project_row = cursor.fetchone()
+        project_id = project_row['project_id'] if project_row else None
 
-        if not project_row:
+        # Also try proposals table
+        cursor.execute("SELECT proposal_id FROM proposals WHERE project_code = ?", (project_code,))
+        proposal_row = cursor.fetchone()
+        proposal_id = proposal_row['proposal_id'] if proposal_row else None
+
+        if not project_id and not proposal_id:
             conn.close()
-            raise HTTPException(status_code=404, detail=f"Project {project_code} not found")
+            raise HTTPException(status_code=404, detail=f"Project/Proposal {project_code} not found")
 
-        project_id = project_row['project_id']
-
-        # Get transcripts by project_id or detected_project_code
+        # Get transcripts by project_id, proposal_id, or detected_project_code
         cursor.execute("""
             SELECT * FROM meeting_transcripts
-            WHERE project_id = ? OR detected_project_code = ?
+            WHERE project_id = ? OR proposal_id = ? OR detected_project_code = ?
             ORDER BY COALESCE(meeting_date, recorded_date, created_at) DESC
-        """, (project_id, project_code))
+        """, (project_id, proposal_id, project_code))
 
         rows = cursor.fetchall()
         transcripts = []
@@ -331,3 +365,199 @@ async def update_transcript(
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+# ============================================================================
+# CLAUDE SUMMARY ENDPOINT
+# ============================================================================
+
+@router.post("/meeting-transcripts/{transcript_id}/claude-summary")
+async def save_claude_summary(transcript_id: int, request: ClaudeSummaryRequest):
+    """
+    Save a Claude-generated summary with action items.
+
+    This endpoint:
+    1. Updates the transcript with summary, key_points, action_items
+    2. Creates tasks from action_items in the tasks table
+    3. Optionally creates a meeting record for next_meeting_date
+
+    Returns the created task IDs and meeting ID (if created).
+    """
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+
+        # Check if transcript exists
+        cursor.execute("SELECT * FROM meeting_transcripts WHERE id = ?", (transcript_id,))
+        transcript = cursor.fetchone()
+        if not transcript:
+            conn.close()
+            raise HTTPException(status_code=404, detail="Transcript not found")
+
+        transcript = dict(transcript)
+
+        # Get proposal_id if proposal_code provided
+        proposal_id = None
+        if request.proposal_code:
+            cursor.execute(
+                "SELECT proposal_id FROM proposals WHERE project_code = ?",
+                (request.proposal_code,)
+            )
+            proposal_row = cursor.fetchone()
+            if proposal_row:
+                proposal_id = proposal_row['proposal_id']
+
+        # If no proposal_code but transcript has detected_project_code, use that
+        if not proposal_id and transcript.get('detected_project_code'):
+            cursor.execute(
+                "SELECT proposal_id FROM proposals WHERE project_code = ?",
+                (transcript['detected_project_code'],)
+            )
+            proposal_row = cursor.fetchone()
+            if proposal_row:
+                proposal_id = proposal_row['proposal_id']
+
+        # Update transcript with summary
+        cursor.execute("""
+            UPDATE meeting_transcripts SET
+                summary = ?,
+                key_points = ?,
+                action_items = ?,
+                detected_project_code = COALESCE(?, detected_project_code)
+            WHERE id = ?
+        """, (
+            request.summary,
+            json.dumps(request.key_points) if request.key_points else None,
+            json.dumps([item.dict() for item in request.action_items]) if request.action_items else None,
+            request.proposal_code,
+            transcript_id
+        ))
+
+        created_task_ids = []
+        created_meeting_id = None
+
+        # Create tasks from action items
+        if request.action_items:
+            for item in request.action_items:
+                cursor.execute("""
+                    INSERT INTO tasks (
+                        title,
+                        description,
+                        task_type,
+                        priority,
+                        status,
+                        due_date,
+                        proposal_id,
+                        project_code,
+                        source_transcript_id,
+                        created_at
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+                """, (
+                    item.task,
+                    f"From meeting transcript: {transcript.get('meeting_title', 'Unknown')}",
+                    'action_item',
+                    item.priority or 'normal',
+                    'pending',
+                    item.due_date,
+                    proposal_id,
+                    request.proposal_code or transcript.get('detected_project_code'),
+                    transcript_id
+                ))
+                created_task_ids.append(cursor.lastrowid)
+
+        # Create meeting record for next meeting date
+        if request.next_meeting_date:
+            cursor.execute("""
+                INSERT INTO meetings (
+                    title,
+                    description,
+                    meeting_type,
+                    meeting_date,
+                    proposal_id,
+                    project_code,
+                    status,
+                    source,
+                    created_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+            """, (
+                f"Follow-up: {transcript.get('meeting_title', 'Meeting')}",
+                f"Follow-up meeting scheduled from transcript discussion",
+                'client_call',
+                request.next_meeting_date,
+                proposal_id,
+                request.proposal_code or transcript.get('detected_project_code'),
+                'scheduled',
+                'transcript_extracted'
+            ))
+            created_meeting_id = cursor.lastrowid
+
+        conn.commit()
+        conn.close()
+
+        return {
+            "success": True,
+            "message": "Claude summary saved successfully",
+            "transcript_id": transcript_id,
+            "proposal_id": proposal_id,
+            "created_task_ids": created_task_ids,
+            "created_meeting_id": created_meeting_id,
+            "tasks_created": len(created_task_ids),
+            "meeting_created": created_meeting_id is not None
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ============================================================================
+# TRANSCRIPT CONSOLIDATION (Orphaned service now wired - Dec 2025)
+# ============================================================================
+
+@router.post("/meeting-transcripts/consolidate")
+async def consolidate_transcripts(
+    min_chunks: int = Query(2, ge=1, description="Minimum chunks to consolidate"),
+    dry_run: bool = Query(False, description="Preview only, don't apply")
+):
+    """
+    Consolidate fragmented Whisper transcripts into complete records.
+
+    When Whisper hits time limits, it creates multiple chunks for a single meeting.
+    This endpoint finds and consolidates them.
+
+    Returns:
+        - candidates: Transcripts that can be consolidated
+        - consolidated: Number of transcripts consolidated (if not dry_run)
+    """
+    try:
+        from api.services import transcript_consolidation_service
+
+        # Find consolidation candidates
+        candidates = transcript_consolidation_service.find_consolidation_candidates(
+            min_chunks=min_chunks
+        )
+
+        if dry_run:
+            return {
+                "success": True,
+                "dry_run": True,
+                "candidates": candidates,
+                "total_chunks": sum(c.get("chunk_count", 0) for c in candidates),
+                "message": f"Found {len(candidates)} transcripts to consolidate"
+            }
+
+        # Actually consolidate
+        result = transcript_consolidation_service.consolidate_all(min_chunks=min_chunks)
+
+        return {
+            "success": True,
+            "dry_run": False,
+            "consolidated": result.get("consolidated", 0),
+            "errors": result.get("errors", []),
+            "message": f"Consolidated {result.get('consolidated', 0)} transcripts"
+        }
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Consolidation failed: {str(e)}")

@@ -189,7 +189,7 @@ export function ProposalTimeline({
               const isFirst = index === 0;
 
               return (
-                <div key={event.history_id} className="relative flex gap-4">
+                <div key={event.history_id || `timeline-${index}`} className="relative flex gap-4">
                   {/* Icon */}
                   <div
                     className={cn(

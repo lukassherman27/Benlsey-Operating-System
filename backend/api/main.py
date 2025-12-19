@@ -58,6 +58,8 @@ from api.routers import (
     contacts,
     tasks,
     email_categories,
+    my_day,
+    previews,
 )
 
 # Initialize logger
@@ -183,6 +185,12 @@ app.include_router(contacts.router)
 
 # Tasks
 app.include_router(tasks.router)
+
+# Personal Workflow
+app.include_router(my_day.router)
+
+# Preview API (lightweight hover cards)
+app.include_router(previews.router)
 
 # ============================================================================
 # GLOBAL EXCEPTION HANDLERS

@@ -32,7 +32,10 @@ import {
   Calendar,
   FolderOpen,
   Link2,
+  PenSquare,
 } from "lucide-react";
+import { PasteSummaryModal } from "@/components/transcripts/paste-summary-modal";
+import { FormattedSummary } from "@/components/transcripts/formatted-summary";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -58,6 +61,7 @@ interface Transcript {
   content?: string;
   word_count?: number;
   has_ai_summary?: boolean;
+  final_summary?: string; // Polished email version
 }
 
 interface MeetingGroup {
@@ -102,7 +106,8 @@ async function fetchTranscripts(): Promise<Transcript[]> {
     action_items: t.action_items as string[],
     content: t.transcript as string,
     word_count: t.transcript ? (t.transcript as string).split(/\s+/).length : undefined,
-    has_ai_summary: !!(t.summary),
+    has_ai_summary: !!(t.summary || t.final_summary),
+    final_summary: t.final_summary as string,
   }));
 }
 
@@ -287,7 +292,13 @@ function TranscriptCard({
 }
 
 // Transcript viewer
-function TranscriptViewer({ transcript }: { transcript: Transcript }) {
+function TranscriptViewer({
+  transcript,
+  onSaveSummary
+}: {
+  transcript: Transcript;
+  onSaveSummary?: () => void;
+}) {
   return (
     <Card className={cn(ds.borderRadius.card, "border-slate-200 h-full")}>
       <CardContent className="p-6 h-full flex flex-col">
@@ -316,10 +327,21 @@ function TranscriptViewer({ transcript }: { transcript: Transcript }) {
               )}
             </div>
           </div>
-          <Button variant="outline" size="sm">
-            <Download className="h-4 w-4 mr-2" />
-            Export
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onSaveSummary}
+              className="bg-purple-50 text-purple-700 border-purple-200 hover:bg-purple-100"
+            >
+              <PenSquare className="h-4 w-4 mr-2" />
+              Save Claude Summary
+            </Button>
+            <Button variant="outline" size="sm">
+              <Download className="h-4 w-4 mr-2" />
+              Export
+            </Button>
+          </div>
         </div>
 
         {/* Participants */}
@@ -345,64 +367,86 @@ function TranscriptViewer({ transcript }: { transcript: Transcript }) {
           </div>
         )}
 
-        {/* AI Summary */}
-        {transcript.summary && (
-          <div className="mb-6 p-4 bg-purple-50 rounded-lg border border-purple-200">
-            <div className="flex items-center gap-2 mb-2">
-              <Sparkles className="h-4 w-4 text-purple-600" />
-              <h4 className={cn(ds.typography.captionBold, "text-purple-700")}>
-                AI Summary
+        {/* Final Summary (polished email version) - preferred over raw fields */}
+        {transcript.final_summary ? (
+          <div className="mb-6 flex-1">
+            <div className="flex items-center gap-2 mb-3">
+              <FileText className="h-4 w-4 text-teal-600" />
+              <h4 className={cn(ds.typography.captionBold, "text-teal-700")}>
+                Meeting Summary
               </h4>
+              <Badge variant="outline" className="text-xs bg-teal-50 text-teal-700 border-teal-200">
+                Final Version
+              </Badge>
             </div>
-            <p className={cn(ds.typography.body, "text-purple-900")}>
-              {transcript.summary}
-            </p>
+            <ScrollArea className="h-[500px] rounded-lg border border-slate-200 bg-white shadow-sm">
+              <div className="p-6">
+                <FormattedSummary content={transcript.final_summary} />
+              </div>
+            </ScrollArea>
           </div>
-        )}
+        ) : (
+          <>
+            {/* Fallback: AI Summary */}
+            {transcript.summary && (
+              <div className="mb-6 p-4 bg-purple-50 rounded-lg border border-purple-200">
+                <div className="flex items-center gap-2 mb-2">
+                  <Sparkles className="h-4 w-4 text-purple-600" />
+                  <h4 className={cn(ds.typography.captionBold, "text-purple-700")}>
+                    AI Summary
+                  </h4>
+                </div>
+                <p className={cn(ds.typography.body, "text-purple-900")}>
+                  {transcript.summary}
+                </p>
+              </div>
+            )}
 
-        {/* Key Points */}
-        {transcript.key_points && transcript.key_points.length > 0 && (
-          <div className="mb-6">
-            <h4 className={cn(ds.typography.captionBold, ds.textColors.tertiary, "mb-2")}>
-              Key Points
-            </h4>
-            <ul className="space-y-2">
-              {transcript.key_points.map((point, i) => (
-                <li key={i} className="flex items-start gap-2">
-                  <span className="w-1.5 h-1.5 rounded-full bg-teal-500 mt-2 flex-shrink-0" />
-                  <span className={cn(ds.typography.body, ds.textColors.primary)}>{point}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
+            {/* Fallback: Key Points */}
+            {transcript.key_points && transcript.key_points.length > 0 && (
+              <div className="mb-6">
+                <h4 className={cn(ds.typography.captionBold, ds.textColors.tertiary, "mb-2")}>
+                  Key Points
+                </h4>
+                <ul className="space-y-2">
+                  {transcript.key_points.map((point, i) => (
+                    <li key={i} className="flex items-start gap-2">
+                      <span className="w-1.5 h-1.5 rounded-full bg-teal-500 mt-2 flex-shrink-0" />
+                      <span className={cn(ds.typography.body, ds.textColors.primary)}>{point}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
 
-        {/* Action Items */}
-        {transcript.action_items && transcript.action_items.length > 0 && (
-          <div className="mb-6">
-            <h4 className={cn(ds.typography.captionBold, ds.textColors.tertiary, "mb-2")}>
-              Action Items
-            </h4>
-            <ul className="space-y-2">
-              {transcript.action_items.map((item, i) => {
-                // Handle both string and object formats
-                const text = typeof item === 'string'
-                  ? item
-                  : (item as { task?: string })?.task || JSON.stringify(item);
-                return (
-                  <li
-                    key={i}
-                    className="flex items-start gap-2 p-2 bg-amber-50 rounded-lg border border-amber-200"
-                  >
-                    <span className="w-5 h-5 rounded bg-amber-200 text-amber-700 text-xs flex items-center justify-center flex-shrink-0">
-                      {i + 1}
-                    </span>
-                    <span className={cn(ds.typography.body, "text-amber-900")}>{text}</span>
-                  </li>
-                );
-              })}
-            </ul>
-          </div>
+            {/* Fallback: Action Items */}
+            {transcript.action_items && transcript.action_items.length > 0 && (
+              <div className="mb-6">
+                <h4 className={cn(ds.typography.captionBold, ds.textColors.tertiary, "mb-2")}>
+                  Action Items
+                </h4>
+                <ul className="space-y-2">
+                  {transcript.action_items.map((item, i) => {
+                    // Handle both string and object formats
+                    const text = typeof item === 'string'
+                      ? item
+                      : (item as { task?: string })?.task || JSON.stringify(item);
+                    return (
+                      <li
+                        key={i}
+                        className="flex items-start gap-2 p-2 bg-amber-50 rounded-lg border border-amber-200"
+                      >
+                        <span className="w-5 h-5 rounded bg-amber-200 text-amber-700 text-xs flex items-center justify-center flex-shrink-0">
+                          {i + 1}
+                        </span>
+                        <span className={cn(ds.typography.body, "text-amber-900")}>{text}</span>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+            )}
+          </>
         )}
 
         {/* Full Transcript */}
@@ -430,6 +474,7 @@ export default function TranscriptsPage() {
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
   const [viewMode, setViewMode] = useState<"grouped" | "list">("grouped");
+  const [summaryModalOpen, setSummaryModalOpen] = useState(false);
 
   // Fetch transcripts
   const { data: transcripts = [], isLoading, error, refetch } = useQuery({
@@ -711,7 +756,10 @@ export default function TranscriptsPage() {
           {/* Transcript Viewer */}
           <div className="lg:col-span-2">
             {selectedTranscript ? (
-              <TranscriptViewer transcript={selectedTranscript} />
+              <TranscriptViewer
+                transcript={selectedTranscript}
+                onSaveSummary={() => setSummaryModalOpen(true)}
+              />
             ) : (
               <Card className={cn(ds.borderRadius.card, "border-slate-200 h-[600px]")}>
                 <CardContent className="h-full flex items-center justify-center">
@@ -726,6 +774,17 @@ export default function TranscriptsPage() {
             )}
           </div>
         </div>
+      )}
+
+      {/* Paste Summary Modal */}
+      {selectedTranscript && (
+        <PasteSummaryModal
+          open={summaryModalOpen}
+          onOpenChange={setSummaryModalOpen}
+          transcriptId={selectedTranscript.id}
+          transcriptTitle={selectedTranscript.title}
+          detectedProjectCode={selectedTranscript.project_code}
+        />
       )}
     </div>
   );
