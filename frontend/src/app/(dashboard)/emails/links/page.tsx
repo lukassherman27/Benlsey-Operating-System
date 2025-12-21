@@ -5,6 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
+
 interface EmailLink {
   link_id: number;
   email_id: number;
@@ -60,7 +62,7 @@ export default function EmailLinksManagerPage() {
     try {
       setLoading(true);
 
-      let url = `http://localhost:8000/api/admin/email-links?limit=${limit}&offset=${offset}`;
+      let url = `${API_BASE_URL}/api/admin/email-links?limit=${limit}&offset=${offset}`;
 
       if (selectedType !== "all") {
         url += `&link_type=${selectedType}`;
@@ -87,7 +89,7 @@ export default function EmailLinksManagerPage() {
 
   const fetchProposals = async () => {
     try {
-      const response = await fetch("http://localhost:8000/api/proposals");
+      const response = await fetch(`${API_BASE_URL}/api/proposals`);
       const data = await response.json();
       setProposals(data.proposals || []);
     } catch (error) {
@@ -99,7 +101,7 @@ export default function EmailLinksManagerPage() {
     if (!confirm("Delete this email-proposal link? This will help train the AI not to make similar links.")) return;
 
     try {
-      await fetch(`http://localhost:8000/api/admin/email-links/${linkId}?user=bill@bensley.com`, {
+      await fetch(`${API_BASE_URL}/api/admin/email-links/${linkId}?user=bill@bensley.com`, {
         method: "DELETE"
       });
 
@@ -119,7 +121,7 @@ export default function EmailLinksManagerPage() {
 
   const approveLink = async (linkId: number, retryCount = 0) => {
     try {
-      const response = await fetch(`http://localhost:8000/api/admin/email-links/${linkId}`, {
+      const response = await fetch(`${API_BASE_URL}/api/admin/email-links/${linkId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -205,7 +207,7 @@ export default function EmailLinksManagerPage() {
 
     for (const linkId of selectedArray) {
       try {
-        await fetch(`http://localhost:8000/api/admin/email-links/${linkId}?user=bill@bensley.com`, {
+        await fetch(`${API_BASE_URL}/api/admin/email-links/${linkId}?user=bill@bensley.com`, {
           method: "DELETE"
         });
         successCount++;
@@ -239,12 +241,12 @@ export default function EmailLinksManagerPage() {
 
     try {
       // Delete old link
-      await fetch(`http://localhost:8000/api/admin/email-links/${editingLink.link_id}?user=bill@bensley.com`, {
+      await fetch(`${API_BASE_URL}/api/admin/email-links/${editingLink.link_id}?user=bill@bensley.com`, {
         method: "DELETE"
       });
 
       // Create new link
-      const response = await fetch("http://localhost:8000/api/admin/email-links", {
+      const response = await fetch(`${API_BASE_URL}/api/admin/email-links`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
