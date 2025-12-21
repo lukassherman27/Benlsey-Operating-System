@@ -43,6 +43,9 @@ import {
   ArrowUpDown,
   ArrowUp,
   ArrowDown,
+  Mail,
+  Copy,
+  X,
 } from "lucide-react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -51,6 +54,13 @@ import { ds, bensleyVoice } from "@/lib/design-system";
 import { type ProposalStatus } from "@/lib/constants";
 import { Skeleton } from "@/components/ui/skeleton";
 import { exportToCSV, prepareDataForExport } from "@/lib/export-utils";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 // Status colors for the pipeline visualization
 const STATUS_COLORS: Record<string, { bg: string; fill: string; text: string }> = {
@@ -108,6 +118,8 @@ function ProposalTrackerContent() {
   const [highlightedCode, setHighlightedCode] = useState<string | null>(null);
   const [sortField, setSortField] = useState<"value" | "date" | "status" | "days" | null>(null);
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
+  const [followUpDialogOpen, setFollowUpDialogOpen] = useState(false);
+  const [followUpEmail, setFollowUpEmail] = useState<{ subject: string; body: string; projectName: string } | null>(null);
 
   // Read URL params on mount - auto-search for code if provided
   useEffect(() => {
@@ -191,6 +203,36 @@ function ProposalTrackerContent() {
       toast.error(error instanceof Error ? error.message : "Failed to update status");
     },
   });
+
+  // Draft follow-up email mutation
+  const draftFollowUpMutation = useMutation({
+    mutationFn: ({ proposalId, projectName }: { proposalId: number; projectName: string }) =>
+      api.draftFollowUpEmail(proposalId, "professional").then(data => ({ ...data, projectName })),
+    onSuccess: (data) => {
+      if (data.success && data.subject && data.body) {
+        setFollowUpEmail({
+          subject: data.subject,
+          body: data.body,
+          projectName: data.projectName,
+        });
+        setFollowUpDialogOpen(true);
+      } else {
+        toast.error(data.error || "Failed to generate follow-up email");
+      }
+    },
+    onError: (error: unknown) => {
+      toast.error(error instanceof Error ? error.message : "Failed to draft follow-up");
+    },
+  });
+
+  // Copy email to clipboard
+  const handleCopyEmail = () => {
+    if (followUpEmail) {
+      const emailText = `Subject: ${followUpEmail.subject}\n\n${followUpEmail.body}`;
+      navigator.clipboard.writeText(emailText);
+      toast.success("Email copied to clipboard");
+    }
+  };
 
   // Export to CSV
   const handleExportCSV = () => {
@@ -658,8 +700,8 @@ function ProposalTrackerContent() {
                     <TableHead className={cn("min-w-[150px] max-w-[250px]", ds.typography.captionBold)}>
                       Remark
                     </TableHead>
-                    <TableHead className={cn("w-[50px] text-center", ds.typography.captionBold)}>
-                      Edit
+                    <TableHead className={cn("w-[80px] text-center", ds.typography.captionBold)}>
+                      Actions
                     </TableHead>
                   </TableRow>
                 </TableHeader>
@@ -771,18 +813,44 @@ function ProposalTrackerContent() {
                           </span>
                         </TableCell>
                         <TableCell className="text-center">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setSelectedProposal(proposal);
-                              setEditDialogOpen(true);
-                            }}
-                            className="h-8 w-8 p-0"
-                          >
-                            <Pencil className="h-4 w-4" />
-                          </Button>
+                          <div className="flex items-center justify-center gap-1">
+                            {/* Follow Up Button - shows when ball is in our court or needs follow-up */}
+                            {(proposal.ball_in_court === 'us' || proposal.days_in_current_status > 7) && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  draftFollowUpMutation.mutate({
+                                    proposalId: proposal.id,
+                                    projectName: proposal.project_name,
+                                  });
+                                }}
+                                disabled={draftFollowUpMutation.isPending}
+                                className="h-8 w-8 p-0 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                                title="Draft follow-up email"
+                              >
+                                {draftFollowUpMutation.isPending ? (
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                  <Mail className="h-4 w-4" />
+                                )}
+                              </Button>
+                            )}
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedProposal(proposal);
+                                setEditDialogOpen(true);
+                              }}
+                              className="h-8 w-8 p-0"
+                              title="Edit proposal"
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                          </div>
                         </TableCell>
                       </TableRow>
                     );
@@ -831,6 +899,53 @@ function ProposalTrackerContent() {
         open={editDialogOpen}
         onOpenChange={setEditDialogOpen}
       />
+
+      {/* Follow-Up Email Dialog */}
+      <Dialog open={followUpDialogOpen} onOpenChange={setFollowUpDialogOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Mail className="h-5 w-5 text-blue-600" />
+              Follow-Up Email Draft
+            </DialogTitle>
+            <DialogDescription>
+              {followUpEmail?.projectName && `Draft email for ${followUpEmail.projectName}`}
+            </DialogDescription>
+          </DialogHeader>
+          {followUpEmail && (
+            <div className="space-y-4">
+              <div>
+                <label className="text-sm font-medium text-slate-700">Subject</label>
+                <div className="mt-1 p-3 bg-slate-50 rounded-md border text-sm">
+                  {followUpEmail.subject}
+                </div>
+              </div>
+              <div>
+                <label className="text-sm font-medium text-slate-700">Body</label>
+                <div className="mt-1 p-3 bg-slate-50 rounded-md border text-sm whitespace-pre-wrap max-h-[300px] overflow-y-auto">
+                  {followUpEmail.body}
+                </div>
+              </div>
+              <div className="flex justify-end gap-2 pt-2">
+                <Button
+                  variant="outline"
+                  onClick={() => setFollowUpDialogOpen(false)}
+                >
+                  <X className="h-4 w-4 mr-2" />
+                  Close
+                </Button>
+                <Button
+                  onClick={handleCopyEmail}
+                  className="bg-blue-600 hover:bg-blue-700"
+                >
+                  <Copy className="h-4 w-4 mr-2" />
+                  Copy to Clipboard
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
