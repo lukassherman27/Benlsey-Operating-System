@@ -16,7 +16,14 @@ load_dotenv()
 
 class ProjectCreator:
     def __init__(self):
-        self.base_path = Path("/home/user/Benlsey-Operating-System/data")
+        # Use environment variable or detect from current file location
+        base_env = os.getenv('PROJECT_DATA_PATH')
+        if base_env:
+            self.base_path = Path(base_env)
+        else:
+            # Resolve relative to this file's location (backend/services/ -> root/data)
+            self.base_path = Path(__file__).parent.parent.parent / "data"
+
         self.db_path = os.getenv('DATABASE_PATH') or str(self.base_path.parent / "database" / "bensley_master.db")
         self.data_root = self.base_path.parent
 
