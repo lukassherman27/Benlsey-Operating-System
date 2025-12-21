@@ -50,7 +50,7 @@ async def get_learning_stats():
 
         # Pattern count
         cursor.execute("""
-            SELECT COUNT(*) as count FROM learned_patterns WHERE is_active = 1
+            SELECT COUNT(*) as count FROM email_learned_patterns WHERE is_active = 1
         """)
         patterns_row = cursor.fetchone()
         active_patterns = patterns_row['count'] if patterns_row else 0
@@ -83,7 +83,7 @@ async def get_learning_patterns(pattern_type: Optional[str] = None):
         cursor = conn.cursor()
 
         query = """
-            SELECT * FROM learned_patterns
+            SELECT * FROM email_learned_patterns
             WHERE is_active = 1
         """
         params = []
