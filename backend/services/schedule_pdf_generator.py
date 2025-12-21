@@ -290,7 +290,10 @@ def main():
         sys.exit(1)
 
     schedule_id = int(sys.argv[1])
-    output_path = sys.argv[2] if len(sys.argv) > 2 else f"/tmp/Bensley_Schedule_{schedule_id}.pdf"
+    # Use output directory from env or default to database/schedules/
+    output_dir = os.getenv('SCHEDULE_OUTPUT_DIR', os.path.join(os.path.dirname(DB_PATH), 'schedules'))
+    os.makedirs(output_dir, exist_ok=True)
+    output_path = sys.argv[2] if len(sys.argv) > 2 else os.path.join(output_dir, f"Bensley_Schedule_{schedule_id}.pdf")
 
     generator = SchedulePDFGenerator()
     generator.connect()

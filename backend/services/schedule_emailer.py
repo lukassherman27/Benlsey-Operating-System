@@ -73,8 +73,9 @@ class ScheduleEmailer:
 
             # Check if PDF exists
             if not pdf_path or not Path(pdf_path).exists():
-                # Generate new PDF
-                output_dir = "/tmp"
+                # Generate new PDF - use persistent directory, not /tmp
+                output_dir = os.getenv('SCHEDULE_OUTPUT_DIR', os.path.join(os.path.dirname(self.db_path), 'schedules'))
+                os.makedirs(output_dir, exist_ok=True)
                 filename = f"Bensley_Schedule_{office}_{schedule['week_start_date']}.pdf"
                 output_path = os.path.join(output_dir, filename)
 
