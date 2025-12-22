@@ -138,11 +138,30 @@ def decode_header_value(value) -> str:
     """Decode email header value"""
     if value is None:
         return ""
+
+    # Map encoding aliases that Python doesn't recognize
+    ENCODING_ALIASES = {
+        'windows-874': 'cp874',      # Thai
+        'windows-1252': 'cp1252',    # Western European
+        'windows-1251': 'cp1251',    # Cyrillic
+        'windows-1250': 'cp1250',    # Central European
+        'ks_c_5601-1987': 'euc_kr',  # Korean
+        'gb2312': 'gbk',             # Simplified Chinese
+        'iso-8859-11': 'cp874',      # Thai ISO
+    }
+
     decoded = decode_header(value)
     parts = []
     for content, encoding in decoded:
         if isinstance(content, bytes):
-            parts.append(content.decode(encoding or 'utf-8', errors='ignore'))
+            enc = encoding or 'utf-8'
+            if encoding:
+                enc = ENCODING_ALIASES.get(encoding.lower(), encoding)
+            try:
+                parts.append(content.decode(enc, errors='ignore'))
+            except (LookupError, UnicodeDecodeError):
+                # If encoding still fails, fall back to utf-8
+                parts.append(content.decode('utf-8', errors='ignore'))
         else:
             parts.append(str(content))
     return ' '.join(parts)
@@ -264,11 +283,11 @@ def sync_folder(imap_conn, folder: str, db_cursor, db_conn, account_email: str =
                 db_cursor.execute("""
                     INSERT INTO emails
                     (message_id, sender_email, recipient_emails, subject, snippet, body_full,
-                     date_normalized, processed, folder, thread_id)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?, ?)
+                     date, date_normalized, processed, folder, thread_id)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?)
                 """, (
                     message_id, sender, recipients, subject, snippet, body,
-                    email_date.isoformat(), folder_with_account, thread_id
+                    email_date.isoformat(), email_date.isoformat(), folder_with_account, thread_id
                 ))
 
                 stats['imported'] += 1
