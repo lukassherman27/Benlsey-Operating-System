@@ -105,19 +105,30 @@ async def get_filtered_outstanding(
 ):
     """Get outstanding invoices with filters"""
     try:
-        result = financial_service.get_outstanding_filtered(
-            min_days=min_days,
-            max_days=max_days,
-            min_amount=min_amount,
-            page=page,
-            per_page=per_page
-        )
-        return list_response(
-            result.get('invoices', []),
-            result.get('total', 0),
-            page,
-            per_page
-        )
+        # Get all outstanding invoices and filter in-memory
+        all_invoices = invoice_service.get_outstanding_invoices()
+
+        # Apply filters
+        filtered = []
+        for inv in all_invoices:
+            days_overdue = inv.get('days_overdue', 0) or 0
+            amount = inv.get('invoice_amount', 0) or 0
+
+            if days_overdue < min_days:
+                continue
+            if max_days is not None and days_overdue > max_days:
+                continue
+            if amount < min_amount:
+                continue
+            filtered.append(inv)
+
+        # Paginate
+        total = len(filtered)
+        start = (page - 1) * per_page
+        end = start + per_page
+        paginated = filtered[start:end]
+
+        return list_response(paginated, total, page, per_page)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -126,7 +137,7 @@ async def get_filtered_outstanding(
 async def get_recent_paid_invoices(limit: int = Query(20, ge=1, le=100)):
     """Get recently paid invoices. Returns standardized list response."""
     try:
-        invoices = financial_service.get_recent_paid(limit=limit)
+        invoices = invoice_service.get_recent_paid_invoices(limit=limit)
         response = list_response(invoices, len(invoices))
         response["invoices"] = invoices  # Backward compat
         response["count"] = len(invoices)  # Backward compat
@@ -139,7 +150,7 @@ async def get_recent_paid_invoices(limit: int = Query(20, ge=1, le=100)):
 async def get_largest_outstanding(limit: int = Query(10, ge=1, le=50)):
     """Get largest outstanding invoices. Returns standardized list response."""
     try:
-        invoices = financial_service.get_largest_outstanding(limit=limit)
+        invoices = invoice_service.get_largest_outstanding_invoices(limit=limit)
         response = list_response(invoices, len(invoices))
         response["invoices"] = invoices  # Backward compat
         response["count"] = len(invoices)  # Backward compat
@@ -152,7 +163,7 @@ async def get_largest_outstanding(limit: int = Query(10, ge=1, le=50)):
 async def get_oldest_unpaid(limit: int = Query(10, ge=1, le=50)):
     """Get oldest unpaid invoices. Returns standardized list response."""
     try:
-        invoices = financial_service.get_oldest_unpaid(limit=limit)
+        invoices = financial_service.get_oldest_unpaid_invoices(limit=limit)
         response = list_response(invoices, len(invoices))
         response["invoices"] = invoices  # Backward compat
         response["count"] = len(invoices)  # Backward compat
@@ -165,7 +176,7 @@ async def get_oldest_unpaid(limit: int = Query(10, ge=1, le=50)):
 async def get_top_outstanding(limit: int = Query(10, ge=1, le=50)):
     """Get top outstanding invoices by amount. Returns standardized list response."""
     try:
-        invoices = financial_service.get_top_outstanding(limit=limit)
+        invoices = invoice_service.get_largest_outstanding_invoices(limit=limit)
         response = list_response(invoices, len(invoices))
         response["invoices"] = invoices  # Backward compat
         response["count"] = len(invoices)  # Backward compat
