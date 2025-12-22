@@ -283,11 +283,11 @@ def sync_folder(imap_conn, folder: str, db_cursor, db_conn, account_email: str =
                 db_cursor.execute("""
                     INSERT INTO emails
                     (message_id, sender_email, recipient_emails, subject, snippet, body_full,
-                     date_normalized, processed, folder, thread_id)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?, ?)
+                     date, date_normalized, processed, folder, thread_id)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?)
                 """, (
                     message_id, sender, recipients, subject, snippet, body,
-                    email_date.isoformat(), folder_with_account, thread_id
+                    email_date.isoformat(), email_date.isoformat(), folder_with_account, thread_id
                 ))
 
                 stats['imported'] += 1
