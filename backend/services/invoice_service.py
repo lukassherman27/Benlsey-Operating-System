@@ -291,7 +291,7 @@ class InvoiceService:
             FROM invoices i
             LEFT JOIN projects p ON i.project_id = p.project_id
             LEFT JOIN project_fee_breakdown pfb ON i.breakdown_id = pfb.breakdown_id
-            WHERE i.status = 'outstanding'
+            WHERE i.status IN ('sent', 'overdue', 'outstanding')
             ORDER BY i.invoice_amount DESC
             LIMIT ?
         """, (limit,))
@@ -329,7 +329,7 @@ class InvoiceService:
                             CAST(julianday('now') - julianday(invoice_date, '+30 days') AS INTEGER)
                     END as days_overdue
                 FROM invoices
-                WHERE status = 'outstanding'
+                WHERE status IN ('sent', 'overdue', 'outstanding')
                   AND invoice_amount - COALESCE(payment_amount, 0) > 0
             )
             GROUP BY age_category

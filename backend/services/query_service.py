@@ -1699,7 +1699,7 @@ If the question is unclear or cannot be answered with available data, set sql to
                         SUM(invoice_amount) as total_invoiced,
                         SUM(payment_amount) as total_paid,
                         SUM(invoice_amount) - SUM(COALESCE(payment_amount, 0)) as outstanding,
-                        COUNT(CASE WHEN status = 'outstanding' THEN 1 END) as unpaid_count
+                        COUNT(CASE WHEN status IN ('sent', 'overdue', 'outstanding') THEN 1 END) as unpaid_count
                     FROM invoices
                     WHERE project_id = ?
                 """, (project_id,))
@@ -1977,7 +1977,7 @@ Focus on what needs attention and the overall project health."""
                            CASE WHEN due_date < ? THEN 1 ELSE 0 END as is_overdue
                     FROM invoices
                     WHERE project_id = ?
-                      AND (status = 'outstanding' OR payment_amount < invoice_amount)
+                      AND (status IN ('sent', 'overdue', 'outstanding') OR payment_amount < invoice_amount)
                     ORDER BY
                         CASE WHEN due_date < ? THEN 0 ELSE 1 END,
                         due_date ASC
