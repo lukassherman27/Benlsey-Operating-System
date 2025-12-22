@@ -52,7 +52,7 @@ async def get_invoice_aging():
 async def get_detailed_aging_breakdown():
     """Get detailed invoice aging breakdown with amounts. Returns standardized response."""
     try:
-        breakdown = financial_service.get_detailed_aging()
+        breakdown = financial_service.get_invoice_aging_summary()
         response = item_response({"breakdown": breakdown})
         response["breakdown"] = breakdown  # Backward compat
         return response
@@ -68,7 +68,20 @@ async def get_detailed_aging_breakdown():
 async def get_recent_invoices(limit: int = Query(20, ge=1, le=100)):
     """Get most recent invoices. Returns standardized list response."""
     try:
-        invoices = financial_service.get_recent_invoices(limit=limit)
+        # Use direct SQL for recent invoices
+        conn = sqlite3.connect(DB_PATH)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT i.*, p.project_code, p.project_title
+            FROM invoices i
+            LEFT JOIN projects p ON i.project_id = p.project_id
+            ORDER BY i.invoice_date DESC
+            LIMIT ?
+        """, (limit,))
+        invoices = [dict(row) for row in cursor.fetchall()]
+        conn.close()
+
         response = list_response(invoices, len(invoices))
         response["invoices"] = invoices  # Backward compat
         response["count"] = len(invoices)  # Backward compat
@@ -84,13 +97,14 @@ async def get_outstanding_invoices(
 ):
     """Get all outstanding (unpaid) invoices"""
     try:
-        result = financial_service.get_outstanding_invoices(page=page, per_page=per_page)
-        return list_response(
-            result.get('invoices', []),
-            result.get('total', 0),
-            page,
-            per_page
-        )
+        # Get all outstanding and paginate in-memory
+        all_invoices = invoice_service.get_outstanding_invoices()
+        total = len(all_invoices)
+        start = (page - 1) * per_page
+        end = start + per_page
+        paginated = all_invoices[start:end]
+
+        return list_response(paginated, total, page, per_page)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -105,19 +119,30 @@ async def get_filtered_outstanding(
 ):
     """Get outstanding invoices with filters"""
     try:
-        result = financial_service.get_outstanding_filtered(
-            min_days=min_days,
-            max_days=max_days,
-            min_amount=min_amount,
-            page=page,
-            per_page=per_page
-        )
-        return list_response(
-            result.get('invoices', []),
-            result.get('total', 0),
-            page,
-            per_page
-        )
+        # Get all outstanding invoices and filter in-memory
+        all_invoices = invoice_service.get_outstanding_invoices()
+
+        # Apply filters
+        filtered = []
+        for inv in all_invoices:
+            days_overdue = inv.get('days_overdue', 0) or 0
+            amount = inv.get('invoice_amount', 0) or 0
+
+            if days_overdue < min_days:
+                continue
+            if max_days is not None and days_overdue > max_days:
+                continue
+            if amount < min_amount:
+                continue
+            filtered.append(inv)
+
+        # Paginate
+        total = len(filtered)
+        start = (page - 1) * per_page
+        end = start + per_page
+        paginated = filtered[start:end]
+
+        return list_response(paginated, total, page, per_page)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -126,7 +151,7 @@ async def get_filtered_outstanding(
 async def get_recent_paid_invoices(limit: int = Query(20, ge=1, le=100)):
     """Get recently paid invoices. Returns standardized list response."""
     try:
-        invoices = financial_service.get_recent_paid(limit=limit)
+        invoices = invoice_service.get_recent_paid_invoices(limit=limit)
         response = list_response(invoices, len(invoices))
         response["invoices"] = invoices  # Backward compat
         response["count"] = len(invoices)  # Backward compat
@@ -139,7 +164,7 @@ async def get_recent_paid_invoices(limit: int = Query(20, ge=1, le=100)):
 async def get_largest_outstanding(limit: int = Query(10, ge=1, le=50)):
     """Get largest outstanding invoices. Returns standardized list response."""
     try:
-        invoices = financial_service.get_largest_outstanding(limit=limit)
+        invoices = invoice_service.get_largest_outstanding_invoices(limit=limit)
         response = list_response(invoices, len(invoices))
         response["invoices"] = invoices  # Backward compat
         response["count"] = len(invoices)  # Backward compat
@@ -152,7 +177,7 @@ async def get_largest_outstanding(limit: int = Query(10, ge=1, le=50)):
 async def get_oldest_unpaid(limit: int = Query(10, ge=1, le=50)):
     """Get oldest unpaid invoices. Returns standardized list response."""
     try:
-        invoices = financial_service.get_oldest_unpaid(limit=limit)
+        invoices = financial_service.get_oldest_unpaid_invoices(limit=limit)
         response = list_response(invoices, len(invoices))
         response["invoices"] = invoices  # Backward compat
         response["count"] = len(invoices)  # Backward compat
@@ -165,7 +190,8 @@ async def get_oldest_unpaid(limit: int = Query(10, ge=1, le=50)):
 async def get_top_outstanding(limit: int = Query(10, ge=1, le=50)):
     """Get top outstanding invoices by amount. Returns standardized list response."""
     try:
-        invoices = financial_service.get_top_outstanding(limit=limit)
+        # Same as largest-outstanding (duplicate endpoint kept for backward compat)
+        invoices = invoice_service.get_largest_outstanding_invoices(limit=limit)
         response = list_response(invoices, len(invoices))
         response["invoices"] = invoices  # Backward compat
         response["count"] = len(invoices)  # Backward compat
@@ -199,20 +225,18 @@ async def get_project_invoices(project_code: str):
 async def create_invoice(request: InvoiceCreateRequest):
     """Create a new invoice"""
     try:
-        result = financial_service.create_invoice(
-            project_code=request.project_code,
-            invoice_number=request.invoice_number,
-            amount_usd=request.amount_usd,
-            invoice_date=request.invoice_date,
-            due_date=request.due_date,
-            description=request.description,
-            status=request.status
-        )
-        if not result.get('success'):
-            raise HTTPException(status_code=400, detail=result.get('message'))
-        return action_response(True, data=result.get('invoice'), message="Invoice created")
-    except HTTPException:
-        raise
+        # Build data dict for invoice_service
+        invoice_data = {
+            'project_code': request.project_code,
+            'invoice_number': request.invoice_number,
+            'invoice_amount': request.amount_usd,
+            'invoice_date': request.invoice_date,
+            'due_date': request.due_date,
+            'description': request.description,
+            'status': request.status or 'sent'
+        }
+        invoice_id = invoice_service.create_invoice(invoice_data)
+        return action_response(True, data={'invoice_id': invoice_id}, message="Invoice created")
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -222,10 +246,45 @@ async def update_invoice(invoice_number: str, request: InvoiceUpdateRequest):
     """Update an invoice"""
     try:
         updates = request.dict(exclude_unset=True)
-        result = financial_service.update_invoice(invoice_number, updates)
-        if not result.get('success'):
-            raise HTTPException(status_code=400, detail=result.get('message'))
-        return action_response(True, data=result.get('invoice'), message="Invoice updated")
+
+        # Build SQL update dynamically
+        conn = sqlite3.connect(DB_PATH)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+
+        # Map request fields to DB columns
+        field_mapping = {
+            'amount_usd': 'invoice_amount',
+            'invoice_date': 'invoice_date',
+            'due_date': 'due_date',
+            'description': 'description',
+            'status': 'status',
+            'payment_date': 'payment_date',
+            'payment_amount': 'payment_amount'
+        }
+
+        set_clauses = []
+        values = []
+        for key, value in updates.items():
+            if key in field_mapping and value is not None:
+                set_clauses.append(f"{field_mapping[key]} = ?")
+                values.append(value)
+
+        if not set_clauses:
+            raise HTTPException(status_code=400, detail="No valid fields to update")
+
+        values.append(invoice_number)
+        sql = f"UPDATE invoices SET {', '.join(set_clauses)} WHERE invoice_number = ?"
+        cursor.execute(sql, values)
+
+        if cursor.rowcount == 0:
+            conn.close()
+            raise HTTPException(status_code=404, detail=f"Invoice {invoice_number} not found")
+
+        conn.commit()
+        conn.close()
+
+        return action_response(True, message="Invoice updated")
     except HTTPException:
         raise
     except Exception as e:
