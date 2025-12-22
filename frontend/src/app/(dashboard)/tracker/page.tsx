@@ -39,7 +39,10 @@ import {
   CheckCircle2,
   XCircle,
   DollarSign,
-  Calendar
+  Calendar,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
 } from "lucide-react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -103,6 +106,8 @@ function ProposalTrackerContent() {
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [activeMetric, setActiveMetric] = useState<string | null>(null);
   const [highlightedCode, setHighlightedCode] = useState<string | null>(null);
+  const [sortField, setSortField] = useState<"value" | "date" | "status" | "days" | null>(null);
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
 
   // Read URL params on mount - auto-search for code if provided
   useEffect(() => {
@@ -249,17 +254,72 @@ function ProposalTrackerContent() {
     }
   };
 
-  // Client-side filtering for "Needs Follow-up" (>14 days stalled)
+  // Client-side filtering for "Needs Follow-up" (>14 days stalled) and sorting
   const filteredProposals = useMemo(() => {
+    let result = proposals;
+
+    // Apply follow-up filter
     if (activeMetric === "followup") {
-      return proposals.filter(p =>
+      result = result.filter(p =>
         (p.days_in_current_status || 0) > 14 &&
         p.current_status !== "On Hold" &&
         p.current_status !== "Contract Signed"
       );
     }
-    return proposals;
-  }, [proposals, activeMetric]);
+
+    // Apply sorting
+    if (sortField) {
+      result = [...result].sort((a, b) => {
+        let comparison = 0;
+
+        switch (sortField) {
+          case "value":
+            comparison = (a.project_value || 0) - (b.project_value || 0);
+            break;
+          case "date":
+            const dateA = a.last_email_date ? new Date(a.last_email_date).getTime() : 0;
+            const dateB = b.last_email_date ? new Date(b.last_email_date).getTime() : 0;
+            comparison = dateA - dateB;
+            break;
+          case "status":
+            comparison = (a.current_status || "").localeCompare(b.current_status || "");
+            break;
+          case "days":
+            comparison = (a.days_in_current_status || 0) - (b.days_in_current_status || 0);
+            break;
+        }
+
+        return sortDirection === "asc" ? comparison : -comparison;
+      });
+    }
+
+    return result;
+  }, [proposals, activeMetric, sortField, sortDirection]);
+
+  // Toggle sort on column click
+  const handleSort = (field: "value" | "date" | "status" | "days") => {
+    if (sortField === field) {
+      // Toggle direction or clear if already desc
+      if (sortDirection === "desc") {
+        setSortDirection("asc");
+      } else {
+        setSortField(null);
+      }
+    } else {
+      setSortField(field);
+      setSortDirection("desc");
+    }
+  };
+
+  // Get sort icon for a column
+  const getSortIcon = (field: "value" | "date" | "status" | "days") => {
+    if (sortField !== field) {
+      return <ArrowUpDown className="h-3 w-3 ml-1 opacity-50" />;
+    }
+    return sortDirection === "desc"
+      ? <ArrowDown className="h-3 w-3 ml-1" />
+      : <ArrowUp className="h-3 w-3 ml-1" />;
+  };
 
   return (
     <div className={cn(ds.gap.loose, "space-y-6 w-full max-w-full overflow-x-hidden")}>
@@ -560,20 +620,40 @@ function ProposalTrackerContent() {
                     <TableHead className={cn("min-w-[180px] max-w-[280px]", ds.typography.captionBold)}>
                       Project Name
                     </TableHead>
-                    <TableHead className={cn("text-right w-[90px] min-w-[90px]", ds.typography.captionBold)}>
-                      Value
+                    <TableHead
+                      className={cn("text-right w-[90px] min-w-[90px] cursor-pointer hover:bg-slate-50 select-none", ds.typography.captionBold)}
+                      onClick={() => handleSort("value")}
+                    >
+                      <span className="flex items-center justify-end">
+                        Value {getSortIcon("value")}
+                      </span>
                     </TableHead>
-                    <TableHead className={cn("w-[100px] min-w-[100px]", ds.typography.captionBold)}>
-                      Last Contact
+                    <TableHead
+                      className={cn("w-[100px] min-w-[100px] cursor-pointer hover:bg-slate-50 select-none", ds.typography.captionBold)}
+                      onClick={() => handleSort("date")}
+                    >
+                      <span className="flex items-center">
+                        Last Contact {getSortIcon("date")}
+                      </span>
                     </TableHead>
-                    <TableHead className={cn("w-[100px] min-w-[100px]", ds.typography.captionBold)}>
-                      Status
+                    <TableHead
+                      className={cn("w-[100px] min-w-[100px] cursor-pointer hover:bg-slate-50 select-none", ds.typography.captionBold)}
+                      onClick={() => handleSort("status")}
+                    >
+                      <span className="flex items-center">
+                        Status {getSortIcon("status")}
+                      </span>
                     </TableHead>
                     <TableHead className={cn("text-center w-[60px] min-w-[60px]", ds.typography.captionBold)}>
                       Ball
                     </TableHead>
-                    <TableHead className={cn("text-center w-[80px] min-w-[80px]", ds.typography.captionBold)}>
-                      Days in Status
+                    <TableHead
+                      className={cn("text-center w-[80px] min-w-[80px] cursor-pointer hover:bg-slate-50 select-none", ds.typography.captionBold)}
+                      onClick={() => handleSort("days")}
+                    >
+                      <span className="flex items-center justify-center">
+                        Days {getSortIcon("days")}
+                      </span>
                     </TableHead>
                     <TableHead className={cn("min-w-[150px] max-w-[250px]", ds.typography.captionBold)}>
                       Remark
