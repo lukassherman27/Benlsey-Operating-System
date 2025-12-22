@@ -170,12 +170,29 @@ class EmailImporter:
         if not header:
             return ""
 
+        # Map encoding aliases that Python doesn't recognize
+        ENCODING_ALIASES = {
+            'windows-874': 'cp874',      # Thai
+            'windows-1252': 'cp1252',    # Western European
+            'windows-1251': 'cp1251',    # Cyrillic
+            'windows-1250': 'cp1250',    # Central European
+            'ks_c_5601-1987': 'euc_kr',  # Korean
+            'gb2312': 'gbk',             # Simplified Chinese
+            'iso-8859-11': 'cp874',      # Thai ISO
+        }
+
         decoded = decode_header(header)
         header_parts = []
 
         for part, encoding in decoded:
             if isinstance(part, bytes):
-                header_parts.append(part.decode(encoding or 'utf-8', errors='ignore'))
+                enc = encoding or 'utf-8'
+                if encoding:
+                    enc = ENCODING_ALIASES.get(encoding.lower(), encoding)
+                try:
+                    header_parts.append(part.decode(enc, errors='ignore'))
+                except (LookupError, UnicodeDecodeError):
+                    header_parts.append(part.decode('utf-8', errors='ignore'))
             else:
                 header_parts.append(part)
 
