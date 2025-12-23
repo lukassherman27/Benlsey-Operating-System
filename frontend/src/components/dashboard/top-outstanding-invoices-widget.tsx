@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { DollarSign } from 'lucide-react'
+import { TopOutstandingInvoice } from '@/lib/types'
 
 export function TopOutstandingInvoicesWidget() {
   const { data, isLoading, error } = useQuery({
@@ -48,7 +49,7 @@ export function TopOutstandingInvoicesWidget() {
       </CardHeader>
       <CardContent>
         <div className="space-y-3">
-          {invoices.map((inv: any, i: number) => (
+          {invoices.map((inv: TopOutstandingInvoice, i: number) => (
             <div key={i} className="flex items-center justify-between p-3 rounded-lg border hover:bg-gray-50">
               <div className="flex-1 min-w-0">
                 <div className="font-semibold text-lg">{inv.project_name}</div>

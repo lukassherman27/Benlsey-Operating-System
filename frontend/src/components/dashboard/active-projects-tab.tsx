@@ -12,6 +12,8 @@ import { api } from "@/lib/api";
 import { ds } from "@/lib/design-system";
 import { TrendingUp, DollarSign, FileText, Clock, AlertTriangle, CheckCircle } from "lucide-react";
 
+import { DisciplineBreakdown, ProjectPhase, PhaseInvoice } from "@/lib/types";
+
 // Define phase ordering at top level
 const PHASE_ORDER: Record<string, number> = {
   "Mobilization": 1,
@@ -403,7 +405,7 @@ function ProjectHierarchyDisplay({
   disciplines,
   projectTitle: _projectTitle,
 }: {
-  disciplines: Record<string, any>;
+  disciplines: Record<string, DisciplineBreakdown>;
   projectTitle: string;
 }) {
   return (
@@ -428,10 +430,11 @@ function ProjectHierarchyDisplay({
           {/* Phases */}
           <div className="space-y-3">
             {discipline.phases
-              ?.sort((a: any, b: any) => (PHASE_ORDER[a.phase] || 99) - (PHASE_ORDER[b.phase] || 99))
-              .map((phase: any) => {
+              ?.sort((a: ProjectPhase, b: ProjectPhase) => (PHASE_ORDER[a.phase] || 99) - (PHASE_ORDER[b.phase] || 99))
+              .map((phase: ProjectPhase) => {
                 const phaseFee = phase.phase_fee || 0;
                 const phaseInvoiced = phase.total_invoiced || 0;
+                const phasePaid = phase.total_paid || 0;
                 const percentageInvoiced = phaseFee > 0 ? (phaseInvoiced / phaseFee) * 100 : 0;
                 const colorClass = getInvoicingColor(percentageInvoiced);
 
@@ -474,7 +477,7 @@ function ProjectHierarchyDisplay({
                     {/* Invoices under this phase */}
                     {phase.invoices && phase.invoices.length > 0 && (
                       <div className="ml-6 space-y-2">
-                        {phase.invoices.map((invoice: any) => (
+                        {phase.invoices.map((invoice: PhaseInvoice) => (
                           <div
                             key={invoice.invoice_id}
                             className="flex items-center justify-between rounded-lg border border-slate-200 bg-white p-3"

@@ -130,7 +130,7 @@ export function MilestonesWidget() {
               const daysUntil = dueDate
                 ? differenceInDays(dueDate, new Date())
                 : null;
-              const isOverdue = (deliverable as any)._isOverdue || (daysUntil !== null && daysUntil < 0);
+              const isOverdue = Boolean(deliverable.is_overdue) || (daysUntil !== null && daysUntil < 0);
 
               const getUrgencyColor = () => {
                 if (isOverdue) return "bg-red-50 border-red-200";

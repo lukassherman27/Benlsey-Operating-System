@@ -50,6 +50,11 @@ import {
   ProjectHierarchy,
   ValidationSuggestion,
   MyDayResponse,
+  TopOutstandingInvoice,
+  FilteredOutstandingInvoice,
+  Project,
+  ApiPhaseBreakdown,
+  ApiProjectInvoice,
 } from "./types";
 
 const API_BASE_URL =
@@ -653,12 +658,12 @@ export const api = {
     ),
 
   getTopOutstandingInvoices: () =>
-    request<{ success: boolean; invoices: any[] }>(
+    request<{ success: boolean; invoices: TopOutstandingInvoice[] }>(
       `/api/invoices/top-outstanding`
     ),
 
   getOutstandingInvoicesFiltered: (params?: { project_code?: string; min_days?: number; max_days?: number }) =>
-    request<{ success: boolean; invoices: any[]; total_outstanding: number; count: number }>(
+    request<{ success: boolean; invoices: FilteredOutstandingInvoice[]; total_outstanding: number; count: number }>(
       `/api/invoices/outstanding-filtered${params ? `?${buildQuery(params)}` : ''}`
     ),
 
@@ -1087,9 +1092,9 @@ export const api = {
   // Load existing project data
   getProjectData: async (project_code: string) => {
     const [project, phases, invoices] = await Promise.all([
-      request<{ project: any }>(`/api/projects/${project_code}`),
-      request<{ breakdowns: any[] }>(`/api/projects/${project_code}/fee-breakdown`),
-      request<{ invoices: any[] }>(`/api/invoices/by-project/${project_code}`),
+      request<{ project: Project }>(`/api/projects/${project_code}`),
+      request<{ breakdowns: ApiPhaseBreakdown[] }>(`/api/projects/${project_code}/fee-breakdown`),
+      request<{ invoices: ApiProjectInvoice[] }>(`/api/invoices/by-project/${project_code}`),
     ]);
     return {
       project: project.project || {},

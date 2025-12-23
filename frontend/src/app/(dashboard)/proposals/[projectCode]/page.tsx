@@ -32,6 +32,23 @@ import { BallInCourt } from "@/components/proposals/ball-in-court";
 import { HealthPanel, calculateRisks, calculateHealthScore } from "@/components/proposals/health-panel";
 import { ActionSuggestions, generateActionSuggestions } from "@/components/proposals/action-suggestions";
 
+// Email type for combined timeline and direct emails
+interface CombinedEmail {
+  email_id?: number;
+  id?: number;
+  subject?: string;
+  title?: string;
+  sender_email?: string;
+  from?: string;
+  date?: string;
+  date_normalized?: string;
+  snippet?: string;
+  ai_summary?: string;
+  type?: string;
+  has_attachments?: boolean | number;
+  category?: string;
+}
+
 // Calculate health score from days since contact
 function getHealthInfo(daysSinceContact: number | null | undefined): {
   score: "healthy" | "ok" | "attention" | "at_risk";
@@ -113,7 +130,7 @@ export default function ProjectDetailPage() {
   const directEmails = timeline?.emails ?? [];
   const allEmails = [...directEmails, ...timelineEmails];
   const seenIds = new Set<number>();
-  const uniqueEmails = allEmails.filter((e: any) => {
+  const uniqueEmails = allEmails.filter((e: CombinedEmail) => {
     const id = e.email_id || e.id;
     if (!id || seenIds.has(id)) return false;
     seenIds.add(id);
@@ -122,7 +139,7 @@ export default function ProjectDetailPage() {
 
   // Filter emails by search
   const filteredEmails = emailSearch.trim()
-    ? uniqueEmails.filter((e: any) => {
+    ? uniqueEmails.filter((e: CombinedEmail) => {
         const subject = (e.subject || e.title || "").toLowerCase();
         const sender = (e.sender_email || e.from || "").toLowerCase();
         const snippet = (e.snippet || e.ai_summary || "").toLowerCase();
@@ -242,9 +259,8 @@ export default function ProjectDetailPage() {
                   Contract Value
                 </p>
                 <span className="text-2xl sm:text-3xl font-bold text-slate-800">
-                  {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-                  {(proposal as any)?.project_value
-                    ? formatCurrency((proposal as any).project_value, "USD")
+                  {proposal?.project_value
+                    ? formatCurrency(proposal.project_value, "USD")
                     : "TBD"}
                 </span>
                 <p className="text-xs text-muted-foreground mt-1">
@@ -260,8 +276,8 @@ export default function ProjectDetailPage() {
           {/* Ball in Court - Takes 2 columns on large */}
           <div className="lg:col-span-2">
             <BallInCourt
-              ballInCourt={(proposal as any)?.ball_in_court || "mutual"}
-              waitingFor={proposal?.waiting_for || (proposal as any)?.next_steps}
+              ballInCourt={proposal?.ball_in_court || "mutual"}
+              waitingFor={proposal?.waiting_for || proposal?.next_steps}
               daysSinceContact={proposal?.days_since_contact}
               lastContactDate={proposal?.last_contact_date}
             />
@@ -272,15 +288,15 @@ export default function ProjectDetailPage() {
             <HealthPanel
               healthScore={calculateHealthScore({
                 days_since_contact: proposal?.days_since_contact,
-                ball_in_court: (proposal as any)?.ball_in_court,
+                ball_in_court: proposal?.ball_in_court,
                 status: proposal?.status,
                 email_count: totalEmailCount,
               })}
-              winProbability={(proposal as any)?.win_probability ?? null}
+              winProbability={proposal?.win_probability ?? null}
               winProbabilityChange={null}
               risks={calculateRisks({
                 days_since_contact: proposal?.days_since_contact,
-                ball_in_court: (proposal as any)?.ball_in_court,
+                ball_in_court: proposal?.ball_in_court,
                 status: proposal?.status,
                 next_action: proposal?.next_action || proposal?.next_steps,
                 waiting_for: proposal?.waiting_for,
@@ -293,13 +309,13 @@ export default function ProjectDetailPage() {
         {(() => {
           const actions = generateActionSuggestions({
             project_code: projectCode,
-            ball_in_court: (proposal as any)?.ball_in_court,
+            ball_in_court: proposal?.ball_in_court,
             days_since_contact: proposal?.days_since_contact,
             waiting_for: proposal?.waiting_for,
             next_action: proposal?.next_action || proposal?.next_steps,
             status: proposal?.status,
-            primary_contact_name: (proposal as any)?.primary_contact_name,
-            primary_contact_email: (proposal as any)?.primary_contact_email,
+            primary_contact_name: proposal?.primary_contact_name,
+            primary_contact_email: proposal?.primary_contact_email,
           });
           return actions.length > 0 ? <ActionSuggestions actions={actions} /> : null;
         })()}
@@ -431,7 +447,7 @@ export default function ProjectDetailPage() {
                 </div>
               ) : filteredEmails.length > 0 ? (
                 <div className="space-y-2 max-h-[600px] overflow-y-auto">
-                  {filteredEmails.map((email: any) => {
+                  {filteredEmails.map((email: CombinedEmail) => {
                     const sender = email.sender_email || email.from || "";
                     const isOutbound = sender.toLowerCase().includes("@bensley.com");
                     const subject = email.subject || email.title || "(No subject)";

@@ -9,18 +9,11 @@ import { Badge } from '@/components/ui/badge'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { DollarSign } from 'lucide-react'
 
+import { FilteredOutstandingInvoice } from "@/lib/types";
+
 interface ProjectItem {
   project_code: string;
   project_title?: string;
-}
-
-interface InvoiceItem {
-  invoice_number: string;
-  days_outstanding: number;
-  outstanding_amount: number;
-  project_code: string;
-  project_name?: string;
-  aging_category: { color: string };
 }
 
 export function AllInvoicesList() {
@@ -89,12 +82,12 @@ export function AllInvoicesList() {
             ) : invoices.length === 0 ? (
               <p className="text-sm text-muted-foreground">No outstanding invoices found</p>
             ) : (
-              invoices.map((inv: InvoiceItem, i: number) => (
+              invoices.map((inv: FilteredOutstandingInvoice, i: number) => (
                 <div key={i} className="flex items-center justify-between p-3 rounded-lg border hover:bg-gray-50">
                   <div className="flex-1 min-w-0 space-y-1">
                     <div className="flex items-center gap-2">
                       <span className="font-semibold">{inv.invoice_number}</span>
-                      <Badge className={getAgingColor(inv.aging_category.color)} variant="outline">
+                      <Badge className={getAgingColor(inv.aging_category?.color || 'gray')} variant="outline">
                         {inv.days_outstanding} days
                       </Badge>
                     </div>
@@ -106,27 +99,27 @@ export function AllInvoicesList() {
                       {inv.phase}
                     </div>
                     <div className="text-xs text-gray-500">
-                      Invoice Date: {new Date(inv.invoice_date).toLocaleDateString()}
+                      Invoice Date: {inv.invoice_date ? new Date(inv.invoice_date).toLocaleDateString() : 'N/A'}
                     </div>
                   </div>
                   <div className="text-right ml-4 space-y-1">
                     <div className="text-sm text-muted-foreground">Invoiced</div>
                     <div className="font-semibold">
-                      ${inv.invoice_amount.toLocaleString()}
+                      ${(inv.invoice_amount ?? 0).toLocaleString()}
                     </div>
-                    {inv.payment_amount > 0 && (
+                    {(inv.payment_amount ?? 0) > 0 && (
                       <>
                         <div className="text-xs text-green-600">
-                          Paid: ${inv.payment_amount.toLocaleString()}
+                          Paid: ${(inv.payment_amount ?? 0).toLocaleString()}
                         </div>
                         <div className="text-sm font-bold text-orange-600">
-                          Due: ${inv.outstanding.toLocaleString()}
+                          Due: ${(inv.outstanding ?? 0).toLocaleString()}
                         </div>
                       </>
                     )}
-                    {inv.payment_amount === 0 && (
+                    {(inv.payment_amount ?? 0) === 0 && (
                       <div className="text-sm font-bold text-red-600">
-                        Outstanding: ${inv.outstanding.toLocaleString()}
+                        Outstanding: ${(inv.outstanding ?? 0).toLocaleString()}
                       </div>
                     )}
                   </div>

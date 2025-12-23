@@ -27,6 +27,17 @@ interface TranscriptViewerProps {
   compact?: boolean;
 }
 
+interface Participant {
+  name: string;
+  type?: string;
+}
+
+interface ActionItem {
+  task: string;
+  owner?: string;
+  deadline?: string;
+}
+
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
 
 export function TranscriptViewer({ transcriptId, compact = false }: TranscriptViewerProps) {
@@ -67,9 +78,9 @@ export function TranscriptViewer({ transcriptId, compact = false }: TranscriptVi
     );
   }
 
-  const keyPoints = safeParseJSON(transcript.key_points, []);
-  const actionItems = safeParseJSON(transcript.action_items, []);
-  const participants = safeParseJSON(transcript.participants, []);
+  const keyPoints = safeParseJSON(transcript.key_points, []) as string[];
+  const actionItems = safeParseJSON(transcript.action_items, []) as (ActionItem | string)[];
+  const participants = safeParseJSON(transcript.participants, []) as (Participant | string)[];
 
   return (
     <Card>
@@ -120,10 +131,10 @@ export function TranscriptViewer({ transcriptId, compact = false }: TranscriptVi
               Participants
             </h4>
             <div className="flex flex-wrap gap-2">
-              {participants.map((p: any, i: number) => (
+              {participants.map((p: Participant | string, i: number) => (
                 <Badge key={i} variant="outline">
                   {typeof p === "string" ? p : p.name}
-                  {p.type && <span className="ml-1 opacity-50">({p.type})</span>}
+                  {typeof p !== "string" && p.type && <span className="ml-1 opacity-50">({p.type})</span>}
                 </Badge>
               ))}
             </div>
@@ -150,7 +161,7 @@ export function TranscriptViewer({ transcriptId, compact = false }: TranscriptVi
               Action Items ({actionItems.length})
             </h4>
             <div className="space-y-2">
-              {actionItems.map((item: any, i: number) => (
+              {actionItems.map((item: ActionItem | string, i: number) => (
                 <div
                   key={i}
                   className="flex items-start gap-2 p-2 bg-orange-50 border border-orange-200 rounded"
@@ -211,7 +222,7 @@ export function TranscriptViewer({ transcriptId, compact = false }: TranscriptVi
 /**
  * Safe JSON parser that returns a default value on failure
  */
-function safeParseJSON(value: string | null | undefined, defaultValue: any[] = []): any[] {
+function safeParseJSON(value: string | null | undefined, defaultValue: unknown[] = []): unknown[] {
   if (!value) return defaultValue;
   if (typeof value !== "string") return value;
   try {

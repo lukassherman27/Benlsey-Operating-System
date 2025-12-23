@@ -971,6 +971,46 @@ export interface InvoiceAgingResponse {
   data: InvoiceAgingData;
 }
 
+export interface TopOutstandingInvoice {
+  project_code: string;
+  project_name: string;
+  outstanding: number;
+  days_outstanding?: number;
+  invoice_count?: number;
+  invoice_number?: string;
+}
+
+export interface FilteredOutstandingInvoice extends TopOutstandingInvoice {
+  invoice_date?: string;
+  due_date?: string;
+  status?: string;
+  invoice_amount?: number;
+  payment_amount?: number;
+  phase?: string;
+  aging_category?: {
+    color: string;
+  };
+}
+
+export interface ApiPhaseBreakdown {
+  breakdown_id: number;
+  discipline: string;
+  phase: string;
+  phase_fee_usd: number;
+  percentage_of_total?: number;
+}
+
+export interface ApiProjectInvoice {
+  invoice_id: number;
+  breakdown_id?: string;
+  invoice_number: string;
+  invoice_date: string;
+  invoice_amount: number;
+  payment_date?: string;
+  payment_amount?: number;
+  status: string;
+}
+
 // Project Types
 export interface Project {
   project_id: number;
@@ -978,6 +1018,7 @@ export interface Project {
   project_title: string;
   client_name?: string;
   contract_value?: number;
+  total_fee_usd?: number;
   status?: string;
   current_phase?: string;
   paid_to_date_usd?: number;
@@ -994,6 +1035,7 @@ export interface Project {
   project_type?: string;
   country?: string;
   city?: string;
+  scope_summary?: string;
   [key: string]: unknown; // Index signature for flexibility
 }
 

@@ -43,6 +43,30 @@ interface InvoiceEntry {
   status: string;
 }
 
+interface ApiPhaseData {
+  breakdown_id: number;
+  discipline: string;
+  phase: string;
+  phase_fee_usd: number;
+  percentage_of_total?: number;
+}
+
+interface ApiInvoiceData {
+  invoice_id: number;
+  breakdown_id?: string;
+  invoice_number: string;
+  invoice_date: string;
+  invoice_amount: number;
+  payment_date?: string;
+  payment_amount?: number;
+  status: string;
+}
+
+interface ProjectListItem {
+  code: string;
+  name: string;
+}
+
 // Loading skeleton for breakdowns
 function BreakdownsSkeleton() {
   return (
@@ -134,7 +158,7 @@ export default function FinancialEntryPage() {
       setCountry(projectData.project.country || "");
       setCity(projectData.project.city || "");
 
-      setPhases(projectData.phases.map((p: any) => ({
+      setPhases(projectData.phases.map((p: ApiPhaseData) => ({
         id: p.breakdown_id.toString(),
         discipline: p.discipline,
         phase: p.phase,
@@ -142,7 +166,7 @@ export default function FinancialEntryPage() {
         percentage_of_total: p.percentage_of_total || 0,
       })));
 
-      setInvoices(projectData.invoices.map((inv: any) => ({
+      setInvoices(projectData.invoices.map((inv: ApiInvoiceData) => ({
         id: inv.invoice_id.toString(),
         breakdown_id: inv.breakdown_id || "",
         invoice_number: inv.invoice_number,
@@ -441,7 +465,7 @@ export default function FinancialEntryPage() {
                 onChange={(e) => loadProject(e.target.value)}
               >
                 <option value="">-- Create New Project --</option>
-                {projectsList?.projects.map((p: any) => (
+                {projectsList?.projects.map((p: ProjectListItem) => (
                   <option key={p.code} value={p.code}>
                     {p.code} - {p.name}
                   </option>
