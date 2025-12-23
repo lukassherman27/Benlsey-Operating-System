@@ -429,7 +429,7 @@ export function InvoiceAgingWidgetEnhanced({ compact = false, showExport = true 
               count={breakdown.under_30.count}
               amount={breakdown.under_30.amount}
               color="green"
-              percentage={(breakdown.under_30.amount / totalOutstanding) * 100}
+              percentage={safePercentage(breakdown.under_30.amount, totalOutstanding)}
             />
             <EnhancedAgingBar
               label="30-90 Days"
@@ -437,7 +437,7 @@ export function InvoiceAgingWidgetEnhanced({ compact = false, showExport = true 
               count={breakdown["30_to_90"].count}
               amount={breakdown["30_to_90"].amount}
               color="yellow"
-              percentage={(breakdown["30_to_90"].amount / totalOutstanding) * 100}
+              percentage={safePercentage(breakdown["30_to_90"].amount, totalOutstanding)}
             />
             <EnhancedAgingBar
               label="> 90 Days"
@@ -445,7 +445,7 @@ export function InvoiceAgingWidgetEnhanced({ compact = false, showExport = true 
               count={breakdown.over_90.count}
               amount={breakdown.over_90.amount}
               color="red"
-              percentage={(breakdown.over_90.amount / totalOutstanding) * 100}
+              percentage={safePercentage(breakdown.over_90.amount, totalOutstanding)}
             />
           </div>
 
