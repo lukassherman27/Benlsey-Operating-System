@@ -276,6 +276,31 @@ export const api = {
       };
     }>(`/api/proposals/${encodeURIComponent(projectCode)}/story`),
 
+  proposalChat: (
+    projectCode: string,
+    question: string,
+    useAi: boolean = true,
+    history: Array<{ role: string; content: string }> = []
+  ) =>
+    request<{
+      success: boolean;
+      answer?: string;
+      detail?: string;
+      correction_created?: {
+        suggestion_id: number;
+        type: string;
+        title: string;
+        description: string;
+      };
+    }>(`/api/proposals/${encodeURIComponent(projectCode)}/chat`, {
+      method: "POST",
+      body: JSON.stringify({
+        question,
+        use_ai: useAi,
+        history,
+      }),
+    }),
+
   getDashboardAnalytics: () =>
     request<AnalyticsDashboard>("/api/analytics/dashboard"),
 
