@@ -13,6 +13,7 @@ import QueryPanel from "./query-panel";
 import RevenueBar from "../charts/revenue-bar";
 import { QueryWidget } from "./query-widget";
 import { MeetingsWidget } from "./meetings-widget";
+import { PortfolioExceptionsWidget } from "./portfolio-exceptions-widget";
 import { api } from "@/lib/api";
 import {
   BriefingAction,
@@ -785,6 +786,10 @@ export default function DashboardPage() {
         <section className="grid gap-6 lg:grid-cols-2">
           <MeetingsWidget />
           <RfiStatusCard rfiItems={rfiQueue} />
+        </section>
+
+        <section>
+          <PortfolioExceptionsWidget />
         </section>
 
         <section className="space-y-4">

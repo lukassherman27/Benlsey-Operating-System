@@ -1122,3 +1122,143 @@ async def get_action_items():
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+# ============================================================================
+# PORTFOLIO EXCEPTIONS - Projects needing attention
+# ============================================================================
+
+@router.get("/dashboard/portfolio-exceptions")
+async def get_portfolio_exceptions():
+    """Get all projects with exceptions (overdue invoices, stale, etc.)
+
+    Returns only projects that need attention - healthy projects are counted but not listed.
+    """
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+
+    try:
+        exceptions = []
+
+        # Get all active projects with their names (from proposals if available)
+        cursor.execute("""
+            SELECT
+                p.project_code,
+                p.project_title,
+                p.status,
+                p.current_phase,
+                COALESCE(pr.project_name, p.project_title, p.project_code) as display_name
+            FROM projects p
+            LEFT JOIN proposals pr ON p.project_code = pr.project_code
+            WHERE p.is_active_project = 1 OR p.status = 'Active'
+        """)
+        projects = cursor.fetchall()
+        total_count = len(projects)
+
+        for proj in projects:
+            project_code = proj['project_code']
+            project_name = proj['display_name'] or project_code
+            issues = []
+
+            # Check for overdue invoices
+            cursor.execute("""
+                SELECT COUNT(*) as cnt, SUM(invoice_amount - COALESCE(payment_amount, 0)) as amount
+                FROM invoices
+                WHERE project_id IN (SELECT project_id FROM projects WHERE project_code = ?)
+                AND status NOT IN ('paid', 'cancelled', 'void')
+                AND due_date < date('now')
+            """, (project_code,))
+            overdue = cursor.fetchone()
+            if overdue and overdue['cnt'] > 0:
+                issues.append({
+                    "type": "overdue_invoice",
+                    "label": f"{overdue['cnt']} overdue",
+                    "severity": "high" if overdue['cnt'] > 1 else "medium",
+                    "value": overdue['amount'] or 0
+                })
+
+            # Check for unpaid invoices (not overdue yet but outstanding)
+            cursor.execute("""
+                SELECT COUNT(*) as cnt, SUM(invoice_amount - COALESCE(payment_amount, 0)) as amount
+                FROM invoices
+                WHERE project_id IN (SELECT project_id FROM projects WHERE project_code = ?)
+                AND status NOT IN ('paid', 'cancelled', 'void')
+                AND (due_date >= date('now') OR due_date IS NULL)
+                AND invoice_amount > COALESCE(payment_amount, 0)
+            """, (project_code,))
+            unpaid = cursor.fetchone()
+            if unpaid and unpaid['cnt'] > 0 and (unpaid['amount'] or 0) > 50000:
+                issues.append({
+                    "type": "unpaid",
+                    "label": f"${int((unpaid['amount'] or 0)/1000)}K due",
+                    "severity": "low",
+                    "value": unpaid['amount'] or 0
+                })
+
+            # Check for overdue deliverables
+            cursor.execute("""
+                SELECT COUNT(*) as cnt
+                FROM deliverables
+                WHERE project_code = ?
+                AND status NOT IN ('delivered', 'approved', 'completed')
+                AND due_date < date('now')
+            """, (project_code,))
+            overdue_del = cursor.fetchone()
+            if overdue_del and overdue_del['cnt'] > 0:
+                issues.append({
+                    "type": "overdue_deliverable",
+                    "label": f"{overdue_del['cnt']} overdue",
+                    "severity": "high",
+                })
+
+            # Check for stale projects (no email activity in 30+ days)
+            cursor.execute("""
+                SELECT MAX(e.date_normalized) as last_email
+                FROM emails e
+                JOIN email_project_links epl ON e.email_id = epl.email_id
+                WHERE epl.project_code = ?
+            """, (project_code,))
+            last_email = cursor.fetchone()
+            if last_email and last_email['last_email']:
+                try:
+                    last_date = datetime.fromisoformat(last_email['last_email'].replace('Z', '+00:00'))
+                    days_since = (datetime.now(last_date.tzinfo) - last_date).days if last_date.tzinfo else (datetime.now() - last_date).days
+                    if days_since > 30:
+                        issues.append({
+                            "type": "stale",
+                            "label": f"{days_since}d no contact",
+                            "severity": "medium" if days_since < 60 else "high",
+                            "days": days_since
+                        })
+                except (ValueError, TypeError):
+                    pass
+
+            # Add to exceptions if any issues
+            if issues:
+                exceptions.append({
+                    "project_code": project_code,
+                    "project_name": project_name,
+                    "issues": issues
+                })
+
+        # Sort by severity (projects with high severity issues first)
+        def get_max_severity(proj):
+            severities = {"high": 0, "medium": 1, "low": 2}
+            return min(severities.get(i["severity"], 2) for i in proj["issues"])
+
+        exceptions.sort(key=get_max_severity)
+
+        healthy_count = total_count - len(exceptions)
+
+        return {
+            "success": True,
+            "exceptions": exceptions,
+            "healthy_count": healthy_count,
+            "total_count": total_count
+        }
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        conn.close()
