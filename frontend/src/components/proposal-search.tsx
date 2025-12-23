@@ -52,6 +52,7 @@ export default function ProposalSearch() {
       const response = await fetch(
         `${API_BASE_URL}/api/query/search?q=${encodeURIComponent(searchQuery)}`
       );
+      if (!response.ok) throw new Error("Search failed");
       const data = await response.json();
 
       if (data.success) {
@@ -70,6 +71,7 @@ export default function ProposalSearch() {
       const response = await fetch(
         `${API_BASE_URL}/api/query/proposal/${projectCode}/status`
       );
+      if (!response.ok) throw new Error("Failed to fetch proposal status");
       const data = await response.json();
 
       if (data.success) {
