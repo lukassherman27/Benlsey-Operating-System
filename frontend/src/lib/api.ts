@@ -547,11 +547,53 @@ export const api = {
   getDashboardMeetings: () =>
     request<{ meetings: Record<string, unknown>[] }>("/api/dashboard/meetings"),
 
+  // Meetings API - Full list for calendar page
+  getMeetings: () =>
+    request<{
+      meetings: Array<{
+        id: number;
+        title: string;
+        description?: string;
+        start_time: string;
+        end_time?: string;
+        location?: string;
+        meeting_type?: string;
+        project_code?: string;
+        attendees?: string[];
+        status?: string;
+        is_virtual?: boolean;
+        meeting_link?: string;
+        has_transcript?: boolean;
+        transcript_id?: number;
+        transcript_summary?: string;
+        transcript_key_points?: string;
+        transcript_action_items?: string;
+      }>;
+    }>("/api/meetings"),
+
   // RFIs API
   getRfis: (params: { status?: string } = {}) =>
-    request<{ rfis: Record<string, unknown>[] }>(
-      `/api/rfis${buildQuery({ status: params.status })}`
-    ),
+    request<{
+      rfis: Array<{
+        id: number;
+        rfi_number?: string;
+        subject: string;
+        description?: string;
+        project_code?: string;
+        project_name?: string;
+        status: string;
+        priority?: string;
+        requested_by?: string;
+        assigned_to?: string;
+        created_at: string;
+        due_date?: string;
+        responded_at?: string;
+        closed_at?: string;
+        response?: string;
+        days_open?: number;
+        is_overdue?: boolean;
+      }>;
+    }>(`/api/rfis${buildQuery({ status: params.status })}`),
 
   getProposalRfis: (proposalId: number) =>
     request<{ rfis: Record<string, unknown>[] }>(`/api/proposals/${proposalId}/rfis`),
@@ -2864,6 +2906,10 @@ export interface LearningStatsResponse {
   feedback: Record<string, number>;
   active_patterns: number;
   approval_rate: number;
+  // Additional optional fields for compatibility
+  total_suggestions?: number;
+  pending?: number;
+  patterns_learned?: number;
 }
 
 export interface RuleGenerationResponse {

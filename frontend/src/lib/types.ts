@@ -142,6 +142,24 @@ export interface AnalyticsDashboard {
     most_common_type: string;
   };
   timestamp: string;
+  // Pipeline metrics (optional - may not be returned by all endpoints)
+  total_pipeline_value?: number;
+  active_proposals?: number;
+  contracts_won?: number;
+  contracts_won_value?: number;
+  conversion_rate?: number;
+  avg_days_to_close?: number;
+  win_rate?: number;
+  projects_at_risk?: number;
+  avg_deal_size?: number;
+  outstanding_invoices?: number;
+  outstanding_value?: number;
+  overdue_value?: number;
+  revenue_this_month?: number;
+  revenue_change_percent?: number;
+  proposals_by_status?: Array<{ status: string; count: number; value: number }>;
+  revenue_by_month?: Array<{ month: string; revenue: number }>;
+  top_clients?: Array<{ client: string; value: number; count: number; projects?: number }>;
 }
 
 export interface DashboardStats {

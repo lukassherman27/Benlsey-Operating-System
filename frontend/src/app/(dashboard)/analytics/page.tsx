@@ -29,39 +29,8 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ds } from "@/lib/design-system";
-
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
-
-interface AnalyticsDashboard {
-  total_pipeline_value?: number;
-  total_proposals?: number;
-  active_proposals?: number;
-  contracts_won?: number;
-  contracts_won_value?: number;
-  conversion_rate?: number;
-  avg_deal_size?: number;
-  avg_days_to_close?: number;
-  revenue_this_month?: number;
-  revenue_last_month?: number;
-  revenue_change_percent?: number;
-  outstanding_invoices?: number;
-  outstanding_value?: number;
-  overdue_value?: number;
-  projects_by_status?: { status: string; count: number }[];
-  proposals_by_status?: { status: string; count: number; value: number }[];
-  revenue_by_month?: { month: string; revenue: number }[];
-  top_clients?: { client: string; revenue: number; projects: number }[];
-}
-
-// Fetch analytics
-async function fetchAnalytics(): Promise<AnalyticsDashboard> {
-  const response = await fetch(`${API_BASE_URL}/api/analytics/dashboard`);
-  if (!response.ok) {
-    // Return defaults if endpoint doesn't exist
-    return {};
-  }
-  return response.json();
-}
+import { api } from "@/lib/api";
+import { AnalyticsDashboard } from "@/lib/types";
 
 // Format currency
 function formatCurrency(value?: number): string {
@@ -301,7 +270,7 @@ export default function AnalyticsPage() {
   // Fetch analytics
   const { data: analytics, isLoading, error, refetch } = useQuery({
     queryKey: ["analytics", dateRange],
-    queryFn: fetchAnalytics,
+    queryFn: () => api.getDashboardAnalytics(),
     staleTime: 1000 * 60 * 5,
   });
 
@@ -513,11 +482,11 @@ export default function AnalyticsPage() {
                               {client.client}
                             </p>
                             <p className={cn(ds.typography.caption, ds.textColors.tertiary)}>
-                              {client.projects} project{client.projects !== 1 ? "s" : ""}
+                              {client.count} project{client.count !== 1 ? "s" : ""}
                             </p>
                           </div>
                           <p className={cn(ds.typography.bodyBold, "text-emerald-600")}>
-                            {formatCurrency(client.revenue)}
+                            {formatCurrency(client.value)}
                           </p>
                         </div>
                       </CardContent>

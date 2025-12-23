@@ -31,37 +31,9 @@ import {
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 import { ds } from "@/lib/design-system";
+import { api } from "@/lib/api";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
-
-interface Meeting {
-  id: number;
-  title: string;
-  description?: string;
-  start_time: string;
-  end_time?: string;
-  location?: string;
-  meeting_type?: string;
-  project_code?: string;
-  attendees?: string[];
-  status?: string;
-  is_virtual?: boolean;
-  meeting_link?: string;
-  // Transcript data
-  has_transcript?: boolean;
-  transcript_id?: number;
-  transcript_summary?: string;
-  transcript_key_points?: string;
-  transcript_action_items?: string;
-}
-
-// Fetch meetings
-async function fetchMeetings(): Promise<Meeting[]> {
-  const response = await fetch(`${API_BASE_URL}/api/meetings`);
-  if (!response.ok) throw new Error("Failed to fetch meetings");
-  const data = await response.json();
-  return data.meetings || data || [];
-}
+type Meeting = Awaited<ReturnType<typeof api.getMeetings>>["meetings"][number];
 
 // Get meeting type badge color
 function getMeetingTypeColor(type?: string): string {
@@ -509,11 +481,12 @@ export default function MeetingsPage() {
   const [selectedMeeting, setSelectedMeeting] = useState<Meeting | null>(null);
 
   // Fetch all meetings
-  const { data: meetings = [], isLoading, error, refetch } = useQuery({
+  const { data, isLoading, error, refetch } = useQuery({
     queryKey: ["meetings"],
-    queryFn: fetchMeetings,
+    queryFn: () => api.getMeetings(),
     staleTime: 1000 * 60 * 5,
   });
+  const meetings = data?.meetings ?? [];
 
   // Apply type filter
   const filteredMeetings = typeFilter === "all"

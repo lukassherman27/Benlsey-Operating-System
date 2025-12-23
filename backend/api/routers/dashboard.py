@@ -1141,22 +1141,40 @@ async def get_portfolio_exceptions():
     try:
         exceptions = []
 
-        # Get all active projects with their names (from proposals if available)
+        # Get all active projects AND active proposals (Bill's priority)
         cursor.execute("""
-            SELECT
-                p.project_code,
-                p.project_title,
-                p.status,
-                p.current_phase,
-                COALESCE(pr.project_name, p.project_title, p.project_code) as display_name
-            FROM projects p
-            LEFT JOIN proposals pr ON p.project_code = pr.project_code
-            WHERE p.is_active_project = 1 OR p.status = 'Active'
-        """)
-        projects = cursor.fetchall()
-        total_count = len(projects)
+            SELECT DISTINCT
+                project_code,
+                display_name,
+                source_type
+            FROM (
+                -- Active projects
+                SELECT
+                    p.project_code,
+                    COALESCE(pr.project_name, p.project_title, p.project_code) as display_name,
+                    'project' as source_type
+                FROM projects p
+                LEFT JOIN proposals pr ON p.project_code = pr.project_code
+                WHERE p.is_active_project = 1 OR p.status = 'Active'
 
-        for proj in projects:
+                UNION
+
+                -- Active proposals (not yet in projects or not marked active)
+                SELECT
+                    pr.project_code,
+                    COALESCE(pr.project_name, pr.project_code) as display_name,
+                    'proposal' as source_type
+                FROM proposals pr
+                WHERE pr.status IN ('Proposal Sent', 'In Discussion', 'Drafting', 'Negotiation', 'Active')
+                AND pr.project_code NOT IN (
+                    SELECT project_code FROM projects WHERE is_active_project = 1 OR status = 'Active'
+                )
+            )
+        """)
+        all_items = cursor.fetchall()
+        total_count = len(all_items)
+
+        for proj in all_items:
             project_code = proj['project_code']
             project_name = proj['display_name'] or project_code
             issues = []
@@ -1231,6 +1249,32 @@ async def get_portfolio_exceptions():
                             "severity": "medium" if days_since < 60 else "high",
                             "days": days_since
                         })
+                except (ValueError, TypeError):
+                    pass
+
+            # Check for overdue follow-up actions (ball in our court)
+            cursor.execute("""
+                SELECT next_action, next_action_date, ball_in_court
+                FROM proposals
+                WHERE project_code = ?
+                AND ball_in_court = 'us'
+                AND next_action_date IS NOT NULL
+                AND next_action_date < date('now')
+            """, (project_code,))
+            overdue_action = cursor.fetchone()
+            if overdue_action:
+                try:
+                    action_date = datetime.strptime(overdue_action['next_action_date'], '%Y-%m-%d')
+                    days_overdue = (datetime.now() - action_date).days
+                    action_text = overdue_action['next_action'] or 'Action needed'
+                    # Truncate action text for label
+                    short_action = action_text[:25] + '...' if len(action_text) > 25 else action_text
+                    issues.append({
+                        "type": "overdue_action",
+                        "label": f"{days_overdue}d overdue: {short_action}",
+                        "severity": "high" if days_overdue > 7 else "medium",
+                        "days": days_overdue
+                    })
                 except (ValueError, TypeError):
                     pass
 
