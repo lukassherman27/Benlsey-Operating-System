@@ -3,7 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Flag, Calendar, AlertTriangle, CheckCircle2 } from "lucide-react";
+import { Flag, Calendar, AlertTriangle } from "lucide-react";
 import { format, differenceInDays } from "date-fns";
 
 interface Deliverable {

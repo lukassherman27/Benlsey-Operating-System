@@ -79,7 +79,7 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { EnhancedReviewCard } from "@/components/suggestions";
-import { AIAnalysis, UserContext, SuggestionTag } from "@/lib/types";
+import { AIAnalysis, SuggestionTag } from "@/lib/types";
 
 type SuggestionType = "all" | "new_contact" | "project_alias" | "email_link" | "follow_up_needed" | "action_required" | "proposal_status_update";
 type ConfidenceFilter = "all" | "high" | "medium" | "low";
@@ -344,6 +344,7 @@ export default function SuggestionsPage() {
       proposalOptionsLength: proposalOptions.length,
       sampleProposal: proposalOptions[0],
     });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [proposalsQuery.status, proposalsQuery.data, proposalOptions]);
 
   // Enhanced reject with correction mutation
@@ -455,6 +456,7 @@ export default function SuggestionsPage() {
         })
         .finally(() => setLoadingEnhancedContext(false));
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [viewMode, enhancedSuggestion?.suggestion_id]);
 
   // Toggle group expansion
@@ -671,6 +673,7 @@ export default function SuggestionsPage() {
           break;
       }
     },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [suggestions, focusedIndex, editDialogOpen, rejectDialogOpen, approveMutation]
   );
 

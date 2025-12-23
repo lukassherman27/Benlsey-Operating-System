@@ -68,7 +68,7 @@ export function ProjectQuickEditDialog({
         late_payment_interest_rate: (project.late_payment_interest_rate as number) || 0,
       });
     }
-  }, [project?.project_code]);
+  }, [project]);
 
   const updateMutation = useMutation({
     mutationFn: (updates: Record<string, unknown>) => {

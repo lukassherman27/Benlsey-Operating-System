@@ -31,7 +31,6 @@ import {
   Mail,
   FileText,
   User,
-  Briefcase,
   Globe,
   Ban,
   Megaphone,
@@ -46,8 +45,6 @@ import {
 } from "lucide-react";
 import { SuggestionItem, api } from "@/lib/api";
 import { cn } from "@/lib/utils";
-import { Textarea } from "@/components/ui/textarea";
-import { ScrollArea } from "@/components/ui/scroll-area";
 
 // ========================================
 // Types
@@ -323,7 +320,7 @@ export function CorrectionDialog({
       setSchedulingPeople([]);
       setSchedulingNicknames([]);
     }
-  }, [open, suggestion?.suggestion_id]);
+  }, [open, suggestion]);
 
   // Check if scheduling UI should be shown
   const showSchedulingUI = selectedCategory === 'internal' && selectedSubcategory === 'scheduling';

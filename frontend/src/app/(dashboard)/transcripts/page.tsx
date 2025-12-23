@@ -72,12 +72,6 @@ interface MeetingGroup {
   has_summary: boolean;
 }
 
-interface TranscriptSegment {
-  timestamp: string;
-  speaker?: string;
-  text: string;
-}
-
 // Fetch transcripts
 async function fetchTranscripts(): Promise<Transcript[]> {
   const response = await fetch(`${API_BASE_URL}/api/meeting-transcripts`);
@@ -145,13 +139,6 @@ function groupByMeeting(transcripts: Transcript[]): MeetingGroup[] {
   return Array.from(groups.values()).sort((a, b) => {
     return new Date(b.meeting_date).getTime() - new Date(a.meeting_date).getTime();
   });
-}
-
-// Fetch single transcript
-async function fetchTranscript(id: number): Promise<Transcript | null> {
-  const response = await fetch(`${API_BASE_URL}/api/meeting-transcripts/${id}`);
-  if (!response.ok) return null;
-  return response.json();
 }
 
 // Format duration
@@ -224,66 +211,6 @@ function ErrorState({ onRetry }: { onRetry: () => void }) {
         <Button onClick={onRetry} variant="outline" className="border-red-200 text-red-700 hover:bg-red-100">
           Try Again
         </Button>
-      </CardContent>
-    </Card>
-  );
-}
-
-// Transcript card in list
-function TranscriptCard({
-  transcript,
-  isSelected,
-  onClick,
-}: {
-  transcript: Transcript;
-  isSelected: boolean;
-  onClick: () => void;
-}) {
-  return (
-    <Card
-      className={cn(
-        ds.borderRadius.card,
-        "border-slate-200 cursor-pointer transition-all",
-        isSelected
-          ? "border-teal-400 bg-teal-50/50 ring-1 ring-teal-400"
-          : "hover:border-slate-300 hover:bg-slate-50"
-      )}
-      onClick={onClick}
-    >
-      <CardContent className="p-4">
-        <div className="flex items-start justify-between gap-2">
-          <h3 className={cn(ds.typography.bodyBold, ds.textColors.primary, "line-clamp-2")}>
-            {transcript.title}
-          </h3>
-          <ChevronRight className={cn("h-4 w-4 flex-shrink-0", isSelected ? "text-teal-600" : "text-slate-400")} />
-        </div>
-
-        <div className="flex flex-wrap items-center gap-2 mt-2">
-          {transcript.project_code && (
-            <Badge variant="outline" className="text-xs">
-              {transcript.project_code}
-            </Badge>
-          )}
-          {transcript.has_ai_summary && (
-            <Badge variant="outline" className="text-xs bg-purple-50 text-purple-700 border-purple-200">
-              <Sparkles className="h-3 w-3 mr-1" />
-              AI Summary
-            </Badge>
-          )}
-        </div>
-
-        <div className="flex items-center gap-3 mt-3 text-sm text-slate-500">
-          <span className="flex items-center gap-1">
-            <Calendar className="h-3.5 w-3.5" />
-            {format(new Date(transcript.meeting_date || transcript.created_at), "MMM d, yyyy")}
-          </span>
-          {transcript.duration_minutes && (
-            <span className="flex items-center gap-1">
-              <Clock className="h-3.5 w-3.5" />
-              {formatDuration(transcript.duration_minutes)}
-            </span>
-          )}
-        </div>
       </CardContent>
     </Card>
   );
@@ -466,12 +393,10 @@ function TranscriptViewer({
 }
 
 export default function TranscriptsPage() {
-  const queryClient = useQueryClient();
   const [searchQuery, setSearchQuery] = useState("");
   const [projectFilter, setProjectFilter] = useState<string>("all");
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
-  const [viewMode, setViewMode] = useState<"grouped" | "list">("grouped");
   const [summaryModalOpen, setSummaryModalOpen] = useState(false);
 
   // Fetch transcripts

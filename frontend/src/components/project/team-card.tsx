@@ -6,7 +6,6 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { api } from "@/lib/api";
 import { Users, Mail, Star, Layers } from "lucide-react";
-import { format, parseISO, isValid } from "date-fns";
 import { cn } from "@/lib/utils";
 
 interface TeamCardProps {
@@ -21,17 +20,6 @@ interface TeamMember {
   email_count: number;
   is_primary: number;
 }
-
-const formatDate = (dateStr: string | null) => {
-  if (!dateStr) return "Never";
-  try {
-    const date = parseISO(dateStr);
-    if (!isValid(date)) return "Never";
-    return format(date, "MMM d, yyyy");
-  } catch {
-    return "Never";
-  }
-};
 
 // Icon for discipline
 const DISCIPLINE_ICONS: Record<string, { color: string; label: string }> = {

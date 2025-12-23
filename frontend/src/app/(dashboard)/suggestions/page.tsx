@@ -12,7 +12,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Progress } from "@/components/ui/progress";
 import {
   Select,
   SelectContent,
@@ -386,6 +385,7 @@ export default function SuggestionsPage() {
           break;
       }
     },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [suggestions, focusedIndex, editDialogOpen, rejectDialogOpen, approveMutation]
   );
 

@@ -12,7 +12,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
-import { AlertCircle, Clock, CheckCircle, AlertTriangle, X, User, FileText, Calendar, ChevronRight } from "lucide-react";
+import { AlertCircle, Clock, CheckCircle, AlertTriangle, User, FileText, Calendar, ChevronRight } from "lucide-react";
 import { differenceInDays, format } from "date-fns";
 
 interface RFI {

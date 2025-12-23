@@ -116,7 +116,7 @@ export function ProposalEmailIntelligence({ projectCode }: ProposalEmailIntellig
   // Approve category mutation
   const approveMutation = useMutation({
     mutationFn: (emailId: number) => api.approveEmailCategory(emailId),
-    onSuccess: (_, emailId) => {
+    onSuccess: () => {
       toast.success("Category approved", {
         description: "AI categorization confirmed. Training data logged.",
       });

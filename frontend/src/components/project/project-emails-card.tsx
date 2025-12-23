@@ -5,10 +5,9 @@ import { api } from "@/lib/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Mail, ChevronRight, Paperclip, Clock } from "lucide-react";
+import { Mail, ChevronRight, Paperclip } from "lucide-react";
 import { format, formatDistanceToNow } from "date-fns";
 import Link from "next/link";
-import { cn } from "@/lib/utils";
 import { ds } from "@/lib/design-system";
 
 interface ProjectEmailsCardProps {

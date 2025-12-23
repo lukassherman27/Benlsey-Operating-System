@@ -158,7 +158,7 @@ function ProposalTrackerContent() {
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const stats = statsData?.stats as any;
-  const proposals = proposalsData?.proposals || [];
+  const proposals = useMemo(() => proposalsData?.proposals || [], [proposalsData]);
 
   // Calculate totals for status breakdown visualization
   const statusTotals = useMemo(() => {

@@ -15,8 +15,6 @@ import {
   ChevronRight,
   ChevronLeft,
   Loader2,
-  Paperclip,
-  Calendar,
   User,
   Building2,
   Sparkles,
@@ -35,7 +33,6 @@ import {
   AIAnalysis,
   UserContext,
   SuggestionTag,
-  SuggestedAction,
 } from "@/lib/types";
 
 interface ProjectOption {

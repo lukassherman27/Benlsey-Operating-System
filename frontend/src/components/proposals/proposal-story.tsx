@@ -16,12 +16,9 @@ import {
   Search,
   Loader2,
   AlertCircle,
-  Users,
   Circle,
   CheckCircle2,
   ArrowRight,
-  Mail,
-  Calendar,
   Zap,
 } from "lucide-react";
 import { format, formatDistanceToNow } from "date-fns";

@@ -82,7 +82,7 @@ export function ProposalQuickEditDialog({
         last_email_date: proposal.last_email_date || "",
       });
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps, react-hooks/set-state-in-effect
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [proposal?.project_code]); // Only update when a different proposal is selected
 
   const updateMutation = useMutation({

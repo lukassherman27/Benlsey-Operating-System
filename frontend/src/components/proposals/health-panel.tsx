@@ -8,8 +8,6 @@ import {
   Minus,
   AlertTriangle,
   CheckCircle2,
-  Clock,
-  FileQuestion,
 } from "lucide-react";
 
 interface HealthPanelProps {

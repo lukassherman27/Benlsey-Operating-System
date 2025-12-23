@@ -70,15 +70,6 @@ interface InvoiceData {
   breakdown_id?: string;
 }
 
-interface ContactData {
-  contact_id: number;
-  name: string;
-  email?: string;
-  phone?: string;
-  company?: string;
-  role?: string;
-}
-
 export default function ProjectEditorPage() {
   const queryClient = useQueryClient();
   const [selectedProject, setSelectedProject] = useState<string | null>(null);

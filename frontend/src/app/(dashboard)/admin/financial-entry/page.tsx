@@ -23,7 +23,6 @@ import {
   FileText,
 } from "lucide-react";
 import { toast } from "sonner";
-import type { FeeBreakdown } from "@/lib/api";
 
 interface PhaseEntry {
   id: string;

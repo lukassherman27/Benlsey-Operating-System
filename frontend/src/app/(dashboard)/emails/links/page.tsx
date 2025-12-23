@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
@@ -52,13 +52,7 @@ export default function EmailLinksManagerPage() {
   const [proposalSearch, setProposalSearch] = useState("");
 
   // Fetch email links
-  useEffect(() => {
-    fetchLinks();
-    setSelectedLinks(new Set()); // Clear selection when page changes
-    setSelectAll(false);
-  }, [offset, selectedType, selectedConfidence]);
-
-  const fetchLinks = async () => {
+  const fetchLinks = useCallback(async () => {
     try {
       setLoading(true);
 
@@ -85,7 +79,13 @@ export default function EmailLinksManagerPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [offset, selectedType, selectedConfidence, limit]);
+
+  useEffect(() => {
+    fetchLinks();
+    setSelectedLinks(new Set()); // Clear selection when page changes
+    setSelectAll(false);
+  }, [fetchLinks]);
 
   const fetchProposals = async () => {
     try {

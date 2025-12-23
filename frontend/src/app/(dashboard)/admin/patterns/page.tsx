@@ -52,7 +52,6 @@ import {
   RefreshCw,
   Loader2,
   Check,
-  X,
   TrendingUp,
   Activity,
 } from "lucide-react";

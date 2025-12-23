@@ -11,7 +11,6 @@ import {
   Calendar,
   Tag,
   Sparkles,
-  Info,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { AIAnalysis, SuggestedAction } from "@/lib/types";

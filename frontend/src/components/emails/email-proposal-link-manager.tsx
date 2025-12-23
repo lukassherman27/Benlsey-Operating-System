@@ -47,7 +47,6 @@ import {
   Link as LinkIcon,
   Unlink,
   Check,
-  X,
   Mail,
   Calendar,
   User,
@@ -168,7 +167,7 @@ export default function EmailProposalLinkManager() {
     },
   });
 
-  const emails = queueData?.emails || [];
+  const emails = useMemo(() => queueData?.emails || [], [queueData]);
   const counts = queueData?.counts || {
     unlinked: 0,
     low_confidence: 0,

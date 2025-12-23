@@ -35,7 +35,6 @@ import {
   Loader2,
   FileText,
   CheckCircle2,
-  X,
 } from "lucide-react";
 import { format, parseISO, isPast, isFuture, isToday } from "date-fns";
 import { cn } from "@/lib/utils";

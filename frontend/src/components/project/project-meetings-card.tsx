@@ -4,10 +4,8 @@ import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import {
   Calendar,
-  FileText,
   ChevronDown,
   ChevronUp,
   CheckCircle2,
@@ -16,7 +14,6 @@ import {
 } from "lucide-react";
 import { format } from "date-fns";
 import { useState } from "react";
-import { cn } from "@/lib/utils";
 import { ds } from "@/lib/design-system";
 
 interface ProjectMeetingsCardProps {

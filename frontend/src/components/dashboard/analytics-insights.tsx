@@ -9,7 +9,6 @@ import {
   TrendingDown,
   Minus,
   Target,
-  DollarSign,
   BarChart3,
   Sparkles,
 } from "lucide-react";

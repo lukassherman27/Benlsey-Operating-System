@@ -9,20 +9,6 @@ interface FormattedSummaryProps {
  * Detects section headers, emoji bullets, tables, and other structure.
  */
 export function FormattedSummary({ content }: FormattedSummaryProps) {
-  // Patterns that indicate new lines/sections
-  const sectionPatterns = [
-    // Emoji section headers
-    /([📋📝✅🔧🏨📍🎯💰📊🗓️⏰📌🔑💡📞📧🏗️🎨👥💼📄🔗⚡️🌟🎉🚀⚠️❌❓])\s*/g,
-    // Common section headers
-    /(Date & Time|Platform|Attendees|Meeting Summary:|Key Points|Action Items|Next Steps|Immediate:|BENSLEY|PEARL RESORTS|Technical|Notes|Decisions)/g,
-    // Numbered items (1. 2. 3. or 1) 2) 3))
-    /(\d+[\.\)])\s/g,
-    // Project headers like "1. Queen's Hotel"
-    /(\d+\.\s+[A-Z][^\.]+(?:Hotel|Resort|Island|Project))/g,
-    // Table-like rows (# Item Status Notes format)
-    /(#\s+Item\s+Status)/g,
-  ];
-
   // Format the content with intelligent line breaks
   const formatContent = (text: string): string => {
     let formatted = text;

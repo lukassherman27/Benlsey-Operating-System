@@ -44,7 +44,6 @@ import {
   CreateEmailLinkRequest,
   InvoiceAgingResponse,
   InvoiceAgingData,
-  Project,
   ActiveProjectsResponse,
   ProjectEmailsResponse,
   ProjectEmailSummary,

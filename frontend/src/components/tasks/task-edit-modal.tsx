@@ -23,7 +23,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, CheckCircle2, AlertCircle, Trash2, Calendar, User } from "lucide-react";
+import { Loader2, CheckCircle2, AlertCircle, Calendar, User } from "lucide-react";
 import Link from "next/link";
 
 interface Task {

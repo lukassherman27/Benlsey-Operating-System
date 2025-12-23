@@ -173,7 +173,7 @@ export function PasteSummaryModal({
       next_meeting_date?: string;
       proposal_code?: string;
     }) => api.saveClaudeSummary(transcriptId, data),
-    onSuccess: (data) => {
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["transcripts"] });
       queryClient.invalidateQueries({ queryKey: ["tasks"] });
       onOpenChange(false);

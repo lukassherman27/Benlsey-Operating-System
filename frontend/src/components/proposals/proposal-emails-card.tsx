@@ -5,9 +5,8 @@ import { api } from "@/lib/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Mail, ChevronRight, Paperclip, ExternalLink, Send, Inbox } from "lucide-react";
+import { Mail, Paperclip, Send, Inbox } from "lucide-react";
 import { format, formatDistanceToNow } from "date-fns";
-import { cn } from "@/lib/utils";
 
 interface ProposalEmailsCardProps {
   projectCode: string;

@@ -55,35 +55,12 @@ interface Meeting {
   transcript_action_items?: string;
 }
 
-interface CalendarEvent {
-  id: number;
-  title: string;
-  date: string;
-  time?: string;
-  type: string;
-  project_code?: string;
-}
-
 // Fetch meetings
 async function fetchMeetings(): Promise<Meeting[]> {
   const response = await fetch(`${API_BASE_URL}/api/meetings`);
   if (!response.ok) throw new Error("Failed to fetch meetings");
   const data = await response.json();
   return data.meetings || data || [];
-}
-
-// Fetch calendar events for a date range
-async function fetchCalendarEvents(startDate: string, endDate: string): Promise<CalendarEvent[]> {
-  const response = await fetch(`${API_BASE_URL}/api/calendar/events?start=${startDate}&end=${endDate}`);
-  if (!response.ok) {
-    // Fallback - try upcoming endpoint
-    const upcomingResponse = await fetch(`${API_BASE_URL}/api/calendar/upcoming`);
-    if (!upcomingResponse.ok) return [];
-    const data = await upcomingResponse.json();
-    return data.events || [];
-  }
-  const data = await response.json();
-  return data.events || [];
 }
 
 // Get meeting type badge color
