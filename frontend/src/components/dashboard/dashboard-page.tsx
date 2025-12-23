@@ -63,171 +63,24 @@ import { ds } from "@/lib/design-system";
 const DEFAULT_OVERRIDE_AUTHOR =
   process.env.NEXT_PUBLIC_OVERRIDE_AUTHOR ?? "bill";
 
-// ⚠️ WARNING: DEMO DATA ONLY - Remove in Phase 2 cleanup
-// This fallback exists to prevent empty dashboard when API fails
-// TODO: Replace with proper empty states and error handling
-const FALLBACK_BRIEFING: DailyBriefing = {
+// Empty state defaults - shows proper empty UI instead of fake data
+const EMPTY_BRIEFING: DailyBriefing = {
   date: new Date().toISOString().slice(0, 10),
   business_health: {
-    status: "caution",
-    summary: "10 projects at risk, $4.6M outstanding",
+    status: "unknown",
+    summary: "Loading...",
   },
-  urgent: [
-    {
-      type: "no_contact",
-      priority: "high",
-      project_code: "BK-084",
-      project_name: "Amanpuri Villas",
-      action: "Call Zaher today",
-      context: "18 days no contact",
-      detail: "Discuss updated fee letter",
-    },
-    {
-      type: "no_contact",
-      priority: "high",
-      project_code: "BK-071",
-      project_name: "Saudi Royal Court",
-      action: "Ping Marcus & client",
-      context: "25 days no contact",
-      detail: "Send revised scope clarifications",
-    },
-    {
-      type: "payment",
-      priority: "high",
-      project_code: "BK-066",
-      project_name: "Shanghai Waterside",
-      action: "Escalate invoice",
-      context: "$420K overdue",
-      detail: "Payment now 32 days late",
-    },
-  ],
-  needs_attention: [
-    {
-      type: "follow_up",
-      project_code: "BK-029",
-      project_name: "Qinhu Resort China",
-      action: "Follow up: review drawings",
-      context: "9 days since last contact",
-      detail: "Client waiting for update",
-    },
-    {
-      type: "milestone",
-      project_code: "BK-051",
-      project_name: "Fenfushi Maldives",
-      action: "Confirm immersion workshop",
-      context: "Target Feb 24",
-      detail: "Lock attendee list",
-    },
-  ],
-  insights: [
-    "Email volume down 30% versus last week",
-    "$4.6M outstanding with 3 invoices overdue",
-    "Concept deck timeline slipping on two projects",
-  ],
-  wins: [
-    {
-      title: "Concept deck approved",
-      project_code: "BK-071",
-      project_name: "Saudi Royal Court",
-      description: "Royal Court signed off on schematic package",
-      amount_usd: 950000,
-      date: new Date().toISOString(),
-    },
-  ],
+  urgent: [],
+  needs_attention: [],
+  insights: [],
+  wins: [],
   metrics: {
-    total_projects: 39,
-    at_risk: 10,
-    revenue: 50175020,
-    outstanding: 4596578.75,
+    total_projects: 0,
+    at_risk: 0,
+    revenue: 0,
+    outstanding: 0,
   },
 };
-
-// ⚠️ WARNING: DEMO DATA ONLY - Remove in Phase 2 cleanup
-const FALLBACK_SUGGESTIONS: IntelligenceSuggestionGroup[] = [
-  {
-    bucket: "urgent",
-    label: "Urgent data fixes",
-    description: "High impact issues blocking reporting",
-    items: [
-      {
-        id: "sgg-fallback-1",
-        project_code: "BK-013",
-        project_name: "Sandstone Villas",
-        suggestion_type: "status_mismatch",
-        summary: "Mark BK-013 as archived",
-        proposed_fix: { status: "archived", is_active_project: 0 },
-        impact_type: "financial_risk",
-        impact_value_usd: 1200000,
-        impact_summary: "$1.2M stuck under active projects",
-        confidence: 0.84,
-        severity: "high",
-        bucket: "urgent",
-        pattern_id: "pattern-legacy",
-        pattern_label: "Legacy 2013 projects",
-        auto_apply_candidate: false,
-        created_at: new Date().toISOString(),
-        evidence: {
-          root_cause: "proposal_code implies 2013 but contact date still 2013",
-          signals: [
-            { label: "Last contact", value: "2013-04-12" },
-            { label: "Status", value: "active_project" },
-          ],
-          supporting_files: [{ type: "email", reference: "email_774" }],
-        },
-      },
-      {
-        id: "sgg-fallback-2",
-        project_code: "BK-084",
-        project_name: "Amanpuri Villas",
-        suggestion_type: "missing_pm",
-        summary: "Assign PM to Amanpuri",
-        proposed_fix: { pm: "Sophie Park" },
-        impact_type: "ops_risk",
-        impact_summary: "No PM assigned while in delivery phase",
-        confidence: 0.76,
-        severity: "medium",
-        bucket: "urgent",
-        pattern_id: "pattern-missing-pm",
-        pattern_label: "Unassigned leadership",
-        auto_apply_candidate: false,
-        created_at: new Date().toISOString(),
-        evidence: {
-          signals: [
-            { label: "Phase", value: "concept" },
-            { label: "PM", value: "NULL" },
-          ],
-        },
-      },
-    ],
-  },
-  {
-    bucket: "needs_attention",
-    label: "Needs review",
-    description: "Quality improvements that benefit forecasting",
-    items: [
-      {
-        id: "sgg-fallback-3",
-        project_code: "BK-029",
-        project_name: "Qinhu Resort China",
-        suggestion_type: "payment_alignment",
-        summary: "Log partial payment from Oct 4 wire",
-        proposed_fix: { paid_to_date_usd: 1625000 },
-        impact_type: "cash_flow",
-        impact_value_usd: 450000,
-        impact_summary: "Paid-to-date doesn't match bank record",
-        confidence: 0.71,
-        severity: "medium",
-        bucket: "needs_attention",
-        evidence: {
-          signals: [
-            { label: "Invoices", value: "2 issued" },
-            { label: "Bank ref", value: "Wire 8840" },
-          ],
-        },
-      },
-    ],
-  },
-];
 
 const SUGGESTION_GROUP_META: Array<{
   bucket: string;
@@ -250,13 +103,6 @@ const SUGGESTION_GROUP_META: Array<{
     description: "Context to monitor next",
   },
 ];
-
-const FALLBACK_SUGGESTION_MAP = FALLBACK_SUGGESTIONS.reduce<
-  Record<string, IntelligenceSuggestionGroup>
->((acc, group) => {
-  acc[group.bucket] = group;
-  return acc;
-}, {});
 
 const HEALTH_STYLES: Record<
   string,
@@ -418,23 +264,23 @@ export default function DashboardPage() {
     },
   });
 
-  const briefing = dailyBriefingQuery.data ?? FALLBACK_BRIEFING;
+  const briefing = dailyBriefingQuery.data ?? EMPTY_BRIEFING;
   const urgentItems =
     briefing.urgent && briefing.urgent.length > 0
       ? briefing.urgent
-      : FALLBACK_BRIEFING.urgent;
+      : EMPTY_BRIEFING.urgent;
   const attentionItems =
     briefing.needs_attention && briefing.needs_attention.length > 0
       ? briefing.needs_attention
-      : FALLBACK_BRIEFING.needs_attention;
+      : EMPTY_BRIEFING.needs_attention;
   const insights =
     briefing.insights && briefing.insights.length > 0
       ? briefing.insights
-      : FALLBACK_BRIEFING.insights;
+      : EMPTY_BRIEFING.insights;
   const wins =
     briefing.wins && briefing.wins.length > 0
       ? briefing.wins
-      : FALLBACK_BRIEFING.wins;
+      : EMPTY_BRIEFING.wins;
 
   const intelAnyLoading = intelSuggestionQueries.some(
     (query) => query.isLoading
@@ -443,20 +289,16 @@ export default function DashboardPage() {
 
   const suggestionGroups = SUGGESTION_GROUP_META.map((meta, index) => {
     const query = intelSuggestionQueries[index];
-    const useFallback = Boolean(query?.isError);
-    const fallbackGroup = FALLBACK_SUGGESTION_MAP[meta.bucket];
-    const items =
-      !useFallback && query?.data?.items
-        ? query.data.items
-        : fallbackGroup?.items ?? [];
+    const hasError = Boolean(query?.isError);
+    const items = query?.data?.items ?? [];
     return {
       bucket: meta.bucket,
-      label: meta.label ?? fallbackGroup?.label ?? meta.bucket,
-      description: meta.description ?? fallbackGroup?.description,
+      label: meta.label,
+      description: meta.description,
       items,
       isLoading: query?.isLoading,
-      isError: query?.isError,
-      readOnly: useFallback,
+      isError: hasError,
+      readOnly: hasError,
     };
   });
 

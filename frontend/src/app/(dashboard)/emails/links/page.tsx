@@ -7,6 +7,9 @@ import { Card } from "@/components/ui/card";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
 
+// TODO: Replace with actual authenticated user when auth is implemented
+const CURRENT_USER = process.env.NEXT_PUBLIC_DEFAULT_USER || "bill@bensley.com";
+
 interface EmailLink {
   link_id: number;
   email_id: number;
@@ -101,7 +104,7 @@ export default function EmailLinksManagerPage() {
     if (!confirm("Delete this email-proposal link? This will help train the AI not to make similar links.")) return;
 
     try {
-      await fetch(`${API_BASE_URL}/api/admin/email-links/${linkId}?user=bill@bensley.com`, {
+      await fetch(`${API_BASE_URL}/api/admin/email-links/${linkId}?user=${CURRENT_USER}`, {
         method: "DELETE"
       });
 
@@ -127,7 +130,7 @@ export default function EmailLinksManagerPage() {
         body: JSON.stringify({
           link_type: "approved",
           confidence_score: 1.0,
-          user: "bill@bensley.com"
+          user: CURRENT_USER
         })
       });
 
@@ -207,7 +210,7 @@ export default function EmailLinksManagerPage() {
 
     for (const linkId of selectedArray) {
       try {
-        await fetch(`${API_BASE_URL}/api/admin/email-links/${linkId}?user=bill@bensley.com`, {
+        await fetch(`${API_BASE_URL}/api/admin/email-links/${linkId}?user=${CURRENT_USER}`, {
           method: "DELETE"
         });
         successCount++;
@@ -241,7 +244,7 @@ export default function EmailLinksManagerPage() {
 
     try {
       // Delete old link
-      await fetch(`${API_BASE_URL}/api/admin/email-links/${editingLink.link_id}?user=bill@bensley.com`, {
+      await fetch(`${API_BASE_URL}/api/admin/email-links/${editingLink.link_id}?user=${CURRENT_USER}`, {
         method: "DELETE"
       });
 
@@ -252,7 +255,7 @@ export default function EmailLinksManagerPage() {
         body: JSON.stringify({
           email_id: editingLink.email_id,
           proposal_id: newProposalId,
-          user: "bill@bensley.com"
+          user: CURRENT_USER
         })
       });
 

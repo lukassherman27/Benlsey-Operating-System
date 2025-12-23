@@ -37,8 +37,7 @@ import { PasteSummaryModal } from "@/components/transcripts/paste-summary-modal"
 import { FormattedSummary } from "@/components/transcripts/formatted-summary";
 import { cn } from "@/lib/utils";
 import { ds } from "@/lib/design-system";
-
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
+import { api } from "@/lib/api";
 
 interface Transcript {
   id: number;
@@ -71,34 +70,29 @@ interface MeetingGroup {
   has_summary: boolean;
 }
 
-// Fetch transcripts
+// Fetch and transform transcripts
 async function fetchTranscripts(): Promise<Transcript[]> {
-  const response = await fetch(`${API_BASE_URL}/api/meeting-transcripts`);
-  if (!response.ok) {
-    // Return empty if endpoint doesn't exist yet
-    return [];
-  }
-  const data = await response.json();
-  const rawTranscripts = data.transcripts || data || [];
+  const data = await api.getMeetingTranscripts({});
+  const rawTranscripts = data.transcripts || [];
 
   // Map backend fields to frontend expected fields
-  return rawTranscripts.map((t: Record<string, unknown>) => ({
-    id: t.id as number,
-    title: (t.title as string) || (t.meeting_title as string) || (t.audio_filename as string) || 'Untitled Transcript',
-    meeting_title: t.meeting_title as string,
-    meeting_date: t.meeting_date as string || t.recorded_date as string || t.processed_date as string,
-    created_at: t.created_at as string || t.processed_date as string || new Date().toISOString(),
-    duration_minutes: t.duration_seconds ? Math.round((t.duration_seconds as number) / 60) : undefined,
-    project_code: t.detected_project_code as string,
-    project_id: t.project_id as number,
-    participants: t.participants as string[],
-    summary: t.summary as string,
-    key_points: t.key_points as string[],
-    action_items: t.action_items as string[],
-    content: t.transcript as string,
-    word_count: t.transcript ? (t.transcript as string).split(/\s+/).length : undefined,
-    has_ai_summary: !!(t.summary || t.final_summary),
-    final_summary: t.final_summary as string,
+  return rawTranscripts.map((t) => ({
+    id: t.id,
+    title: t.meeting_title || t.audio_filename || 'Untitled Transcript',
+    meeting_title: t.meeting_title ?? undefined,
+    meeting_date: t.meeting_date ?? undefined,
+    created_at: t.created_at || new Date().toISOString(),
+    duration_minutes: undefined,
+    project_code: undefined,
+    project_id: t.project_id ?? undefined,
+    participants: undefined,
+    summary: t.ai_summary ?? undefined,
+    key_points: undefined,
+    action_items: undefined,
+    content: t.transcript,
+    word_count: t.transcript ? t.transcript.split(/\s+/).length : undefined,
+    has_ai_summary: !!t.ai_summary,
+    final_summary: undefined,
   }));
 }
 

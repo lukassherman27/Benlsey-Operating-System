@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Calendar, Clock, Video, Phone, Users } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { api } from "@/lib/api"
 
 interface Meeting {
   email_id: number
@@ -18,23 +19,10 @@ interface Meeting {
   project_title: string | null
 }
 
-interface MeetingsResponse {
-  success: boolean
-  meetings: Meeting[]
-  count: number
-  type_breakdown: Record<string, number>
-}
-
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000"
-
 export function MeetingsWidget() {
-  const { data, isLoading, error } = useQuery<MeetingsResponse>({
+  const { data, isLoading, error } = useQuery({
     queryKey: ["dashboard-meetings"],
-    queryFn: async () => {
-      const res = await fetch(`${API_BASE_URL}/api/dashboard/meetings?limit=5`)
-      if (!res.ok) throw new Error("Failed to fetch meetings")
-      return res.json()
-    },
+    queryFn: () => api.getDashboardMeetings(),
     refetchInterval: 5 * 60 * 1000, // Refresh every 5 minutes
   })
 
@@ -114,7 +102,7 @@ export function MeetingsWidget() {
     )
   }
 
-  const meetings = data?.meetings || []
+  const meetings = (data?.meetings || []) as unknown as Meeting[]
 
   return (
     <Card>
@@ -192,11 +180,11 @@ export function MeetingsWidget() {
         )}
 
         {/* Type breakdown */}
-        {data?.type_breakdown && Object.keys(data.type_breakdown).length > 0 && (
+        {(data as { type_breakdown?: Record<string, number> })?.type_breakdown && Object.keys((data as { type_breakdown?: Record<string, number> }).type_breakdown!).length > 0 && (
           <div className="mt-4 pt-4 border-t">
             <p className="text-xs text-muted-foreground mb-2">By Type</p>
             <div className="flex flex-wrap gap-2">
-              {Object.entries(data.type_breakdown).map(([type, count]) => (
+              {Object.entries((data as unknown as { type_breakdown: Record<string, number> }).type_breakdown).map(([type, count]) => (
                 <Badge
                   key={type}
                   variant="outline"

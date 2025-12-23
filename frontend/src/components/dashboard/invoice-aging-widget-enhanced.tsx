@@ -16,11 +16,60 @@ import {
   Circle
 } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
-import { InvoiceAgingData } from "@/lib/types";
+
+// The actual API response shape (backend returns aging buckets)
+interface AgingBucket {
+  count: number;
+  amount: number;
+}
+
+interface AgingApiResponse {
+  "0_to_10"?: AgingBucket;
+  "10_to_30"?: AgingBucket;
+  "30_to_90"?: AgingBucket;
+  over_90?: AgingBucket;
+}
+
+interface PaidInvoice {
+  invoice_id?: number;
+  invoice_number: string;
+  project_code: string;
+  project_name?: string;
+  payment_amount: number;
+  payment_date: string;
+}
+
+interface OutstandingInvoice {
+  invoice_id?: number;
+  invoice_number: string;
+  project_code: string;
+  project_title?: string;
+  invoice_amount: number;
+  days_overdue: number;
+  discipline?: string;
+  scope?: string;
+  phase?: string;
+  description?: string;
+}
 
 interface InvoiceAgingWidgetProps {
   compact?: boolean;
   showExport?: boolean;
+}
+
+// Transformed aging data shape for the widget
+interface TransformedAgingData {
+  aging_breakdown: {
+    under_30: AgingBucket;
+    "30_to_90": AgingBucket;
+    over_90: AgingBucket;
+  };
+  summary: {
+    total_outstanding_amount: number;
+    total_outstanding_count: number;
+  };
+  recent_paid?: PaidInvoice[];
+  largest_outstanding?: OutstandingInvoice[];
 }
 
 export function InvoiceAgingWidgetEnhanced({ compact = false, showExport = true }: InvoiceAgingWidgetProps) {
@@ -30,7 +79,32 @@ export function InvoiceAgingWidgetEnhanced({ compact = false, showExport = true 
     refetchInterval: 1000 * 60 * 5,
   });
 
-  const agingData: InvoiceAgingData | undefined = data?.data;
+  // Transform API response to widget format
+  // API returns: { data: { aging: { "0_to_10", "10_to_30", "30_to_90", "over_90" } }, aging: {...} }
+  // Widget expects: { aging_breakdown: { under_30, "30_to_90", over_90 }, summary: {...} }
+  const apiData = data as unknown as { data?: { aging?: AgingApiResponse }; aging?: AgingApiResponse; recent_paid?: PaidInvoice[]; largest_outstanding?: OutstandingInvoice[] } | undefined;
+  const rawAging = apiData?.data?.aging || apiData?.aging;
+  const agingData: TransformedAgingData | null = rawAging ? (() => {
+    const under30Amt = (rawAging["0_to_10"]?.amount || 0) + (rawAging["10_to_30"]?.amount || 0);
+    const under30Cnt = (rawAging["0_to_10"]?.count || 0) + (rawAging["10_to_30"]?.count || 0);
+    const mid90Amt = rawAging["30_to_90"]?.amount || 0;
+    const mid90Cnt = rawAging["30_to_90"]?.count || 0;
+    const over90Amt = rawAging["over_90"]?.amount || 0;
+    const over90Cnt = rawAging["over_90"]?.count || 0;
+    return {
+      aging_breakdown: {
+        under_30: { count: under30Cnt, amount: under30Amt },
+        "30_to_90": { count: mid90Cnt, amount: mid90Amt },
+        over_90: { count: over90Cnt, amount: over90Amt },
+      },
+      summary: {
+        total_outstanding_amount: under30Amt + mid90Amt + over90Amt,
+        total_outstanding_count: under30Cnt + mid90Cnt + over90Cnt,
+      },
+      recent_paid: apiData?.recent_paid,
+      largest_outstanding: apiData?.largest_outstanding,
+    };
+  })() : null;
 
   // Loading skeleton with smooth animations
   if (isLoading) {
@@ -106,15 +180,15 @@ export function InvoiceAgingWidgetEnhanced({ compact = false, showExport = true 
             <div className="flex h-2 w-full overflow-hidden rounded-full bg-gray-200">
               <div
                 className="bg-green-500 transition-all duration-500"
-                style={{ width: `${(breakdown.under_30.amount / totalOutstanding) * 100}%` }}
+                style={{ width: `${totalOutstanding > 0 ? (breakdown.under_30.amount / totalOutstanding) * 100 : 0}%` }}
               />
               <div
                 className="bg-yellow-500 transition-all duration-500"
-                style={{ width: `${(breakdown["30_to_90"].amount / totalOutstanding) * 100}%` }}
+                style={{ width: `${totalOutstanding > 0 ? (breakdown["30_to_90"].amount / totalOutstanding) * 100 : 0}%` }}
               />
               <div
                 className="bg-red-500 transition-all duration-500"
-                style={{ width: `${(breakdown.over_90.amount / totalOutstanding) * 100}%` }}
+                style={{ width: `${totalOutstanding > 0 ? (breakdown.over_90.amount / totalOutstanding) * 100 : 0}%` }}
               />
             </div>
           </div>
@@ -209,7 +283,7 @@ export function InvoiceAgingWidgetEnhanced({ compact = false, showExport = true 
           </div>
 
           <div className="space-y-2">
-            {agingData.recent_paid.slice(0, 5).map((invoice, idx) => (
+            {(agingData.recent_paid || []).slice(0, 5).map((invoice, idx) => (
               <div
                 key={invoice.invoice_number}
                 className="group relative flex justify-between items-center p-3.5 bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-lg hover:shadow-md hover:border-green-300 transition-all duration-200 cursor-pointer"
@@ -252,7 +326,7 @@ export function InvoiceAgingWidgetEnhanced({ compact = false, showExport = true 
           </div>
 
           <div className="space-y-2">
-            {agingData.largest_outstanding.slice(0, 10).map((invoice, idx) => {
+            {(agingData.largest_outstanding || []).slice(0, 10).map((invoice, idx) => {
               const isOverdue = invoice.days_overdue > 0;
               const isExtremelyCritical = invoice.days_overdue > 600; // 600+ days - RED bold
               const isVeryCritical = invoice.days_overdue > 365 && invoice.days_overdue <= 600; // 365-600 days
@@ -561,6 +635,7 @@ function EnhancedAgingCard({
 // Utility functions
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function calculateHealthScore(breakdown: any, total: number): number {
+  if (!total || total === 0) return 100; // No outstanding = healthy
   const under30Percentage = (breakdown.under_30.amount / total) * 100;
   const over90Percentage = (breakdown.over_90.amount / total) * 100;
 
@@ -571,11 +646,17 @@ function calculateHealthScore(breakdown: any, total: number): number {
   return Math.max(0, Math.min(100, score));
 }
 
-function exportToCSV(data: InvoiceAgingData) {
+// Safe percentage calculation to avoid NaN
+function safePercentage(value: number, total: number): number {
+  if (!total || total === 0) return 0;
+  return (value / total) * 100;
+}
+
+function exportToCSV(data: TransformedAgingData) {
   // Create CSV content
   let csv = "Invoice Number,Amount,Status,Days Overdue,Project Code\n";
 
-  data.largest_outstanding.forEach((inv) => {
+  (data.largest_outstanding || []).forEach((inv: OutstandingInvoice) => {
     csv += `${inv.invoice_number},${inv.invoice_amount},Outstanding,${inv.days_overdue},${inv.project_code || "N/A"}\n`;
   });
 

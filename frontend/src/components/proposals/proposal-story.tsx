@@ -1,6 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
+import { api } from "@/lib/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -114,13 +115,7 @@ export function ProposalStory({ projectCode }: ProposalStoryProps) {
 
   const { data, isLoading, error } = useQuery<StoryData>({
     queryKey: ["proposal-story", projectCode],
-    queryFn: async () => {
-      const res = await fetch(
-        `http://localhost:8000/api/proposals/${encodeURIComponent(projectCode)}/story`
-      );
-      if (!res.ok) throw new Error("Failed to fetch story");
-      return res.json();
-    },
+    queryFn: () => api.getProposalStory(projectCode) as unknown as Promise<StoryData>,
     enabled: !!projectCode,
   });
 
@@ -143,16 +138,12 @@ export function ProposalStory({ projectCode }: ProposalStoryProps) {
     setChatHistory(newHistory);
 
     try {
-      const res = await fetch(`http://localhost:8000/api/proposals/${projectCode}/chat`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          question: userQuestion,
-          use_ai: true,
-          history: chatHistory
-        }),
-      });
-      const result = await res.json();
+      const result = await api.proposalChat(
+        projectCode,
+        userQuestion,
+        true,
+        chatHistory.map(m => ({ role: m.role, content: m.content }))
+      );
       const answer = result.success && result.answer
         ? result.answer
         : result.detail

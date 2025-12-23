@@ -73,10 +73,7 @@ export function ProposalTasks({ projectCode }: ProposalTasksProps) {
   });
 
   const completeMutation = useMutation({
-    mutationFn: (taskId: number) =>
-      fetch(`http://localhost:8000/api/tasks/${taskId}/complete`, {
-        method: "PUT",
-      }).then((res) => res.json()),
+    mutationFn: (taskId: number) => api.completeTask(taskId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["project-tasks", projectCode] });
     },

@@ -37,6 +37,7 @@ export function TopOutstandingInvoicesWidget() {
     )
   }
 
+  // API returns invoices array
   const invoices = data?.invoices || []
 
   return (
@@ -49,27 +50,34 @@ export function TopOutstandingInvoicesWidget() {
       </CardHeader>
       <CardContent>
         <div className="space-y-3">
-          {invoices.map((inv: TopOutstandingInvoice, i: number) => (
-            <div key={i} className="flex items-center justify-between p-3 rounded-lg border hover:bg-gray-50">
-              <div className="flex-1 min-w-0">
-                <div className="font-semibold text-lg">{inv.project_name}</div>
-                <div className="mt-1">
-                  <span className="text-sm text-red-600">
-                    ${inv.outstanding.toLocaleString()} overdue
-                    {inv.days_outstanding && ` • ${inv.days_outstanding} days`}
-                  </span>
+          {invoices.map((inv: TopOutstandingInvoice, i: number) => {
+            // Handle both old and new field naming
+            const projectName = inv.project_name || inv.project_title || inv.project_code;
+            const outstanding = inv.outstanding ?? inv.invoice_amount ?? 0;
+            const daysOutstanding = inv.days_outstanding ?? inv.days_overdue;
+
+            return (
+              <div key={i} className="flex items-center justify-between p-3 rounded-lg border hover:bg-gray-50">
+                <div className="flex-1 min-w-0">
+                  <div className="font-semibold text-lg">{projectName}</div>
+                  <div className="mt-1">
+                    <span className="text-sm text-red-600">
+                      ${outstanding.toLocaleString()} overdue
+                      {daysOutstanding && ` • ${daysOutstanding} days`}
+                    </span>
+                  </div>
+                  <div className="text-xs text-gray-400">
+                    {inv.project_code} • Invoice {inv.invoice_number}
+                  </div>
                 </div>
-                <div className="text-xs text-gray-400">
-                  {inv.project_code} • Invoice {inv.invoice_number}
+                <div className="text-right ml-4">
+                  <div className="font-bold text-lg">
+                    ${(outstanding / 1000).toFixed(1)}K
+                  </div>
                 </div>
               </div>
-              <div className="text-right ml-4">
-                <div className="font-bold text-lg">
-                  ${(inv.outstanding / 1000).toFixed(1)}K
-                </div>
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </CardContent>
     </Card>

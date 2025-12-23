@@ -276,6 +276,31 @@ export const api = {
       };
     }>(`/api/proposals/${encodeURIComponent(projectCode)}/story`),
 
+  proposalChat: (
+    projectCode: string,
+    question: string,
+    useAi: boolean = true,
+    history: Array<{ role: string; content: string }> = []
+  ) =>
+    request<{
+      success: boolean;
+      answer?: string;
+      detail?: string;
+      correction_created?: {
+        suggestion_id: number;
+        type: string;
+        title: string;
+        description: string;
+      };
+    }>(`/api/proposals/${encodeURIComponent(projectCode)}/chat`, {
+      method: "POST",
+      body: JSON.stringify({
+        question,
+        use_ai: useAi,
+        history,
+      }),
+    }),
+
   getDashboardAnalytics: () =>
     request<AnalyticsDashboard>("/api/analytics/dashboard"),
 
@@ -547,11 +572,53 @@ export const api = {
   getDashboardMeetings: () =>
     request<{ meetings: Record<string, unknown>[] }>("/api/dashboard/meetings"),
 
+  // Meetings API - Full list for calendar page
+  getMeetings: () =>
+    request<{
+      meetings: Array<{
+        id: number;
+        title: string;
+        description?: string;
+        start_time: string;
+        end_time?: string;
+        location?: string;
+        meeting_type?: string;
+        project_code?: string;
+        attendees?: string[];
+        status?: string;
+        is_virtual?: boolean;
+        meeting_link?: string;
+        has_transcript?: boolean;
+        transcript_id?: number;
+        transcript_summary?: string;
+        transcript_key_points?: string;
+        transcript_action_items?: string;
+      }>;
+    }>("/api/meetings"),
+
   // RFIs API
   getRfis: (params: { status?: string } = {}) =>
-    request<{ rfis: Record<string, unknown>[] }>(
-      `/api/rfis${buildQuery({ status: params.status })}`
-    ),
+    request<{
+      rfis: Array<{
+        id: number;
+        rfi_number?: string;
+        subject: string;
+        description?: string;
+        project_code?: string;
+        project_name?: string;
+        status: string;
+        priority?: string;
+        requested_by?: string;
+        assigned_to?: string;
+        created_at: string;
+        due_date?: string;
+        responded_at?: string;
+        closed_at?: string;
+        response?: string;
+        days_open?: number;
+        is_overdue?: boolean;
+      }>;
+    }>(`/api/rfis${buildQuery({ status: params.status })}`),
 
   getProposalRfis: (proposalId: number) =>
     request<{ rfis: Record<string, unknown>[] }>(`/api/proposals/${proposalId}/rfis`),
@@ -1270,6 +1337,33 @@ export const api = {
 
   getLifecyclePhases: () =>
     request<LifecyclePhasesResponse>("/api/lifecycle-phases"),
+
+  // System Admin API
+  getSystemStats: () =>
+    request<{
+      database: { size_mb: number; tables: number; total_records: number };
+      emails: { total: number; processed: number; unprocessed: number; percent_complete: number; categories: Record<string, number> };
+      email_links: { total: number; auto: number; manual: number; approved: number; low_confidence: number };
+      proposals: { total: number; active: number; proposal: number; lost: number };
+      projects: { total: number; active: number };
+      financials: { total_invoices: number; total_contracts: number; total_revenue_usd: number };
+      api_health: { status: string; uptime: string; timestamp: string };
+    }>("/api/admin/system-stats"),
+
+  getAuditLogs: (params: { action?: string; entity_type?: string; limit?: number; offset?: number } = {}) =>
+    request<{
+      success: boolean;
+      logs: Array<{
+        id: number;
+        action: string;
+        entity_type: string;
+        entity_id: number;
+        details: Record<string, unknown>;
+        created_at: string;
+        user: string;
+      }>;
+      total: number;
+    }>(`/api/audit/logs${buildQuery(params)}`),
 
   // AI Learning API
   getLearningStats: () =>
@@ -2837,6 +2931,10 @@ export interface LearningStatsResponse {
   feedback: Record<string, number>;
   active_patterns: number;
   approval_rate: number;
+  // Additional optional fields for compatibility
+  total_suggestions?: number;
+  pending?: number;
+  patterns_learned?: number;
 }
 
 export interface RuleGenerationResponse {

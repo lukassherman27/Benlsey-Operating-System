@@ -46,8 +46,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ds } from "@/lib/design-system";
-
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
+import { api } from "@/lib/api";
 
 interface AuditLog {
   id: number;
@@ -68,45 +67,6 @@ interface AuditStats {
   logs_today: number;
   unique_users: number;
   by_action: { action: string; count: number }[];
-}
-
-// Fetch audit logs
-async function fetchAuditLogs(params?: {
-  action?: string;
-  entity_type?: string;
-  user_id?: string;
-  limit?: number;
-  offset?: number;
-}): Promise<{ logs: AuditLog[]; total: number }> {
-  const searchParams = new URLSearchParams();
-  if (params?.action) searchParams.append("action", params.action);
-  if (params?.entity_type) searchParams.append("entity_type", params.entity_type);
-  if (params?.user_id) searchParams.append("user_id", params.user_id);
-  if (params?.limit) searchParams.append("limit", params.limit.toString());
-  if (params?.offset) searchParams.append("offset", params.offset.toString());
-
-  const response = await fetch(`${API_BASE_URL}/api/audit/logs?${searchParams}`);
-  if (!response.ok) {
-    // Return empty if endpoint doesn't exist
-    return { logs: [], total: 0 };
-  }
-  return response.json();
-}
-
-// Fetch audit stats - uses learning stats endpoint
-async function fetchAuditStats(): Promise<AuditStats> {
-  const response = await fetch(`${API_BASE_URL}/api/learning/stats`);
-  if (!response.ok) {
-    return { total_logs: 0, logs_today: 0, unique_users: 0, by_action: [] };
-  }
-  const data = await response.json();
-  // Map learning stats to audit stats format
-  return {
-    total_logs: data.total_suggestions || 0,
-    logs_today: data.pending || 0,
-    unique_users: data.patterns_learned || 0,
-    by_action: [],
-  };
 }
 
 // Get action icon
@@ -235,7 +195,7 @@ export default function AuditLogPage() {
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ["audit-logs", actionFilter, entityFilter, page],
     queryFn: () =>
-      fetchAuditLogs({
+      api.getAuditLogs({
         action: actionFilter !== "all" ? actionFilter : undefined,
         entity_type: entityFilter !== "all" ? entityFilter : undefined,
         limit: ITEMS_PER_PAGE,
@@ -244,14 +204,35 @@ export default function AuditLogPage() {
     staleTime: 1000 * 30, // Refresh frequently
   });
 
-  // Fetch stats
-  const { data: stats } = useQuery({
+  // Fetch stats - use learning stats as a proxy for audit activity
+  const { data: statsData } = useQuery({
     queryKey: ["audit-stats"],
-    queryFn: fetchAuditStats,
+    queryFn: () => api.getLearningStats(),
     staleTime: 1000 * 60 * 5,
   });
+  // Map learning stats to audit stats format
+  const totalSuggestions = Object.values(statsData?.suggestions ?? {}).reduce((a, b) => a + b, 0);
+  const stats: AuditStats = {
+    total_logs: totalSuggestions,
+    logs_today: statsData?.suggestions?.pending ?? 0,
+    unique_users: statsData?.active_patterns ?? 0,
+    by_action: [],
+  };
 
-  const logs = data?.logs || [];
+  // Map API response logs to AuditLog format
+  const logs: AuditLog[] = (data?.logs || []).map((log) => ({
+    id: log.id,
+    action: log.action,
+    entity_type: log.entity_type,
+    entity_id: String(log.entity_id),
+    entity_name: undefined,
+    user_id: log.user,
+    user_name: log.user,
+    ip_address: undefined,
+    changes: undefined,
+    metadata: log.details,
+    created_at: log.created_at,
+  }));
   const totalLogs = data?.total || 0;
   const totalPages = Math.ceil(totalLogs / ITEMS_PER_PAGE);
 

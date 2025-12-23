@@ -50,9 +50,9 @@ import {
 import { cn } from "@/lib/utils";
 import { ds } from "@/lib/design-system";
 import { toast } from "sonner";
+import { api } from "@/lib/api";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
-
+// Define RFI type based on what the page expects
 interface RFI {
   id: number;
   rfi_number?: string;
@@ -71,46 +71,6 @@ interface RFI {
   response?: string;
   days_open?: number;
   is_overdue?: boolean;
-}
-
-interface RFIStats {
-  total: number;
-  pending: number;
-  responded: number;
-  closed: number;
-  overdue: number;
-  avg_response_days?: number;
-}
-
-// Fetch RFIs
-async function fetchRFIs(params?: { status?: string; project_code?: string }): Promise<{ rfis: RFI[]; total: number }> {
-  const searchParams = new URLSearchParams();
-  if (params?.status) searchParams.append("status", params.status);
-  if (params?.project_code) searchParams.append("project_code", params.project_code);
-
-  const response = await fetch(`${API_BASE_URL}/api/rfis?${searchParams}`);
-  if (!response.ok) throw new Error("Failed to fetch RFIs");
-  return response.json();
-}
-
-// Fetch RFI stats
-async function fetchRFIStats(): Promise<RFIStats> {
-  const response = await fetch(`${API_BASE_URL}/api/rfis/stats`);
-  if (!response.ok) {
-    // Fallback if stats endpoint doesn't exist
-    return { total: 0, pending: 0, responded: 0, closed: 0, overdue: 0 };
-  }
-  return response.json();
-}
-
-// Respond to RFI
-async function respondToRFI(rfiId: number, response: string): Promise<void> {
-  const res = await fetch(`${API_BASE_URL}/api/rfis/${rfiId}/respond`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ response }),
-  });
-  if (!res.ok) throw new Error("Failed to respond to RFI");
 }
 
 // Get status badge
@@ -352,21 +312,22 @@ export default function RFIsPage() {
   // Fetch RFIs
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ["rfis", activeTab],
-    queryFn: () => fetchRFIs({ status: activeTab === "all" ? undefined : activeTab }),
+    queryFn: () => api.getRfis({ status: activeTab === "all" ? undefined : activeTab }),
     staleTime: 1000 * 60 * 2,
   });
 
   // Fetch stats
-  const { data: stats } = useQuery({
+  const { data: statsData } = useQuery({
     queryKey: ["rfi-stats"],
-    queryFn: fetchRFIStats,
+    queryFn: () => api.getRfiStats(),
     staleTime: 1000 * 60 * 5,
   });
+  const stats = statsData?.stats;
 
   // Respond mutation
   const respondMutation = useMutation({
     mutationFn: ({ rfiId, response }: { rfiId: number; response: string }) =>
-      respondToRFI(rfiId, response),
+      api.respondToRfi(rfiId, response),
     onSuccess: () => {
       toast.success("Response submitted successfully");
       queryClient.invalidateQueries({ queryKey: ["rfis"] });
@@ -440,7 +401,7 @@ export default function RFIsPage() {
               <div>
                 <p className={cn(ds.typography.caption, "text-amber-700")}>Pending</p>
                 <p className={cn(ds.typography.heading2, "text-amber-800")}>
-                  {stats?.pending ?? "—"}
+                  {stats?.open ?? "—"}
                 </p>
               </div>
             </div>
@@ -472,7 +433,7 @@ export default function RFIsPage() {
               <div>
                 <p className={cn(ds.typography.caption, "text-teal-700")}>Responded</p>
                 <p className={cn(ds.typography.heading2, "text-teal-800")}>
-                  {stats?.responded ?? "—"}
+                  {stats ? (stats.total - stats.open - stats.closed) : "—"}
                 </p>
               </div>
             </div>

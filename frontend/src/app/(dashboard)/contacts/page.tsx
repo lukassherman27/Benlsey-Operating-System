@@ -35,96 +35,10 @@ import {
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { ds } from "@/lib/design-system";
+import { api } from "@/lib/api";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
-
-interface Contact {
-  contact_id: number;
-  name: string | null;
-  email: string | null;
-  company: string | null;
-  role: string | null;
-  position: string | null;
-  phone: string | null;
-  context_notes: string | null;
-  source: string | null;
-  first_seen_date: string | null;
-  notes: string | null;
-  client_id: number | null;
-}
-
-interface ContactDetail extends Contact {
-  client_name?: string | null;
-  linked_projects?: {
-    project_id: number;
-    project_code: string;
-    project_title: string;
-    status: string;
-    email_count: number;
-  }[];
-  recent_emails?: {
-    email_id: number;
-    subject: string;
-    date: string;
-    snippet: string;
-  }[];
-}
-
-interface ContactsResponse {
-  success: boolean;
-  contacts: Contact[];
-  total: number;
-  limit: number;
-  offset: number;
-}
-
-interface ContactsStatsResponse {
-  success: boolean;
-  data: {
-    total: number;
-    unique_companies: number;
-    with_email: number;
-    with_phone: number;
-    top_companies: { company: string; count: number }[];
-  };
-}
-
-// Fetch contacts
-async function fetchContacts(params: {
-  search?: string;
-  company?: string;
-  limit?: number;
-  offset?: number;
-}): Promise<ContactsResponse> {
-  const searchParams = new URLSearchParams();
-  if (params.search) searchParams.set("search", params.search);
-  if (params.company && params.company !== "all") searchParams.set("company", params.company);
-  searchParams.set("limit", String(params.limit ?? 50));
-  searchParams.set("offset", String(params.offset ?? 0));
-
-  const response = await fetch(`${API_BASE_URL}/api/contacts?${searchParams}`);
-  if (!response.ok) {
-    throw new Error("Failed to fetch contacts");
-  }
-  return response.json();
-}
-
-// Fetch contact stats
-async function fetchContactStats(): Promise<ContactsStatsResponse> {
-  const response = await fetch(`${API_BASE_URL}/api/contacts/stats`);
-  if (!response.ok) {
-    return { success: false, data: { total: 0, unique_companies: 0, with_email: 0, with_phone: 0, top_companies: [] } };
-  }
-  return response.json();
-}
-
-// Fetch contact detail
-async function fetchContactDetail(contactId: number): Promise<ContactDetail | null> {
-  const response = await fetch(`${API_BASE_URL}/api/contacts/${contactId}`);
-  if (!response.ok) return null;
-  const data = await response.json();
-  return data.data || data;
-}
+type Contact = Awaited<ReturnType<typeof api.getContacts>>["contacts"][number];
+type ContactDetail = Awaited<ReturnType<typeof api.getContact>>["contact"];
 
 // Loading skeleton
 function ContactsSkeleton() {
@@ -248,12 +162,13 @@ function ContactDetailModal({
   isOpen: boolean;
   onClose: () => void;
 }) {
-  const { data: contact, isLoading } = useQuery({
+  const { data: contactData, isLoading } = useQuery({
     queryKey: ["contact", contactId],
-    queryFn: () => (contactId ? fetchContactDetail(contactId) : null),
+    queryFn: () => (contactId ? api.getContact(contactId) : null),
     enabled: !!contactId && isOpen,
     staleTime: 1000 * 60 * 5,
   });
+  const contact = contactData?.contact;
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
@@ -347,20 +262,12 @@ function ContactDetailModal({
                   <div className="space-y-2">
                     {contact.linked_projects.map((project) => (
                       <div
-                        key={project.project_id}
+                        key={project.project_code}
                         className="flex items-center justify-between p-3 bg-slate-50 rounded-lg"
                       >
                         <div>
                           <p className={cn(ds.typography.bodyBold)}>{project.project_code}</p>
                           <p className={cn(ds.typography.caption)}>{project.project_title}</p>
-                        </div>
-                        <div className="text-right">
-                          <Badge variant="outline" className="text-xs">
-                            {project.status}
-                          </Badge>
-                          <p className={cn(ds.typography.caption, "mt-1")}>
-                            {project.email_count} emails
-                          </p>
                         </div>
                       </div>
                     ))}
@@ -413,9 +320,9 @@ export default function ContactsPage() {
   // Fetch contacts with pagination
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ["contacts", searchQuery, companyFilter, page],
-    queryFn: () => fetchContacts({
+    queryFn: () => api.getContacts({
       search: searchQuery,
-      company: companyFilter,
+      company: companyFilter !== "all" ? companyFilter : undefined,
       limit: pageSize,
       offset: page * pageSize,
     }),
@@ -436,14 +343,18 @@ export default function ContactsPage() {
   // Fetch stats
   const { data: statsData } = useQuery({
     queryKey: ["contacts-stats"],
-    queryFn: fetchContactStats,
+    queryFn: () => api.getContactStats(),
     staleTime: 1000 * 60 * 10,
   });
 
   const contacts = data?.contacts ?? [];
   const total = data?.total ?? 0;
-  const stats = statsData?.data;
-  const topCompanies = stats?.top_companies ?? [];
+  const stats = statsData?.stats;
+  // Convert by_company Record to array of {company, count}
+  const topCompanies = Object.entries(stats?.by_company ?? {})
+    .map(([company, count]) => ({ company, count }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 20);
   const totalPages = Math.ceil(total / pageSize);
   const startIndex = page * pageSize + 1;
   const endIndex = Math.min((page + 1) * pageSize, total);
@@ -489,7 +400,7 @@ export default function ContactsPage() {
               <div>
                 <p className={cn(ds.typography.caption)}>Companies</p>
                 <p className={cn(ds.typography.heading2, ds.textColors.primary)}>
-                  {stats?.unique_companies ?? "—"}
+                  {stats?.by_company ? Object.keys(stats.by_company).length : "—"}
                 </p>
               </div>
             </div>

@@ -3,7 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { AlertTriangle, Clock, DollarSign, FileWarning, CheckCircle2 } from "lucide-react";
+import { AlertTriangle, Clock, DollarSign, FileWarning, CheckCircle2, ClipboardList } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 
@@ -13,7 +13,7 @@ interface ProjectException {
   project_code: string;
   project_name: string;
   issues: {
-    type: "overdue_invoice" | "overdue_deliverable" | "stale" | "unpaid";
+    type: "overdue_invoice" | "overdue_deliverable" | "stale" | "unpaid" | "overdue_action";
     label: string;
     severity: "high" | "medium" | "low";
     value?: number;
@@ -88,6 +88,8 @@ export function PortfolioExceptionsWidget() {
         return <FileWarning className="h-3.5 w-3.5" />;
       case "stale":
         return <Clock className="h-3.5 w-3.5" />;
+      case "overdue_action":
+        return <ClipboardList className="h-3.5 w-3.5" />;
       default:
         return <AlertTriangle className="h-3.5 w-3.5" />;
     }
