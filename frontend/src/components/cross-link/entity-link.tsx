@@ -12,11 +12,8 @@ import {
   User,
   Mail,
   Calendar,
-  Loader2,
-  ExternalLink,
   Target,
   Clock,
-  DollarSign,
   AlertCircle,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";

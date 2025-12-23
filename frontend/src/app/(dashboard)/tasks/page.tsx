@@ -15,7 +15,6 @@ import {
   RefreshCw,
   ListTodo,
   AlertCircle,
-  ExternalLink,
   Calendar,
   CheckSquare,
   Bell,
@@ -23,7 +22,6 @@ import {
   User,
   Pencil,
   FolderTree,
-  Filter,
   Tag,
 } from 'lucide-react'
 import React, { useState } from 'react'

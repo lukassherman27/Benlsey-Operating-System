@@ -10,15 +10,13 @@ import {
   CheckCircle2,
   Clock,
   Calendar,
-  FileText,
-  Target,
   TrendingUp,
   ChevronRight,
   Sparkles,
 } from "lucide-react";
 import { api } from "@/lib/api";
 import { format } from "date-fns";
-import { ProposalLink, ProjectLink } from "@/components/cross-link/entity-link";
+import { ProposalLink } from "@/components/cross-link/entity-link";
 
 interface DailyBriefingProps {
   userName?: string;

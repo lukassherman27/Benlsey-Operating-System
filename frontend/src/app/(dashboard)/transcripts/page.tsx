@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { format, formatDistanceToNow } from "date-fns";
+import { format } from "date-fns";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -26,7 +26,6 @@ import {
   ChevronRight,
   ChevronDown,
   AlertCircle,
-  Play,
   Download,
   MessageSquare,
   Calendar,
@@ -36,8 +35,7 @@ import {
 } from "lucide-react";
 import { PasteSummaryModal } from "@/components/transcripts/paste-summary-modal";
 import { FormattedSummary } from "@/components/transcripts/formatted-summary";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { toast } from "sonner";
+import { useQueryClient } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
 import { ds } from "@/lib/design-system";
 

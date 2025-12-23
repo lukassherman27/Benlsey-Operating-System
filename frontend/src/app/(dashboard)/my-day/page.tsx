@@ -20,7 +20,6 @@ import {
   Users,
   Target,
   ArrowRight,
-  ExternalLink,
   AlertCircle,
   Sun,
   Sunrise,
@@ -31,7 +30,6 @@ import { ds } from '@/lib/design-system'
 import Link from 'next/link'
 import { api } from '@/lib/api'
 import {
-  MyDayResponse,
   MyDayTask,
   MyDayMeeting,
   MyDayProposal,

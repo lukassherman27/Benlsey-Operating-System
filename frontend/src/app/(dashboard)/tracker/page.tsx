@@ -24,7 +24,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
 import {
   Search,
   Filter,
@@ -33,13 +32,10 @@ import {
   Download,
   Pencil,
   TrendingUp,
-  TrendingDown,
   Clock,
   AlertTriangle,
   CheckCircle2,
   XCircle,
-  DollarSign,
-  Calendar,
   ArrowUpDown,
   ArrowUp,
   ArrowDown,
@@ -49,7 +45,7 @@ import {
 } from "lucide-react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { formatCurrency, getStatusColor, cn } from "@/lib/utils";
+import { formatCurrency, cn } from "@/lib/utils";
 import { ds, bensleyVoice } from "@/lib/design-system";
 import { type ProposalStatus } from "@/lib/constants";
 import { Skeleton } from "@/components/ui/skeleton";

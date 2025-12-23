@@ -12,14 +12,11 @@ import {
   ChevronDown,
   ChevronUp,
   DollarSign,
-  Calendar,
   Mail,
   CheckCircle2,
   Clock,
-  ExternalLink,
 } from "lucide-react";
-import { api } from "@/lib/api";
-import { format, formatDistanceToNow } from "date-fns";
+import { format } from "date-fns";
 
 interface PersonalProject {
   id: string;

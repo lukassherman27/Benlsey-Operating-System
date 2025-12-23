@@ -29,12 +29,6 @@ import {
   Eye,
   Edit,
   Plus,
-  Trash2,
-  Mail,
-  Phone,
-  User,
-  Calendar,
-  MapPin,
   Briefcase,
 } from "lucide-react";
 import { toast } from "sonner";

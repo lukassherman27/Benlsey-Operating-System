@@ -17,7 +17,6 @@ import {
   XCircle,
   Sparkles,
   TrendingUp,
-  Zap,
   RefreshCw,
   ExternalLink,
 } from "lucide-react";
