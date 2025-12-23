@@ -1,90 +1,20 @@
 "use client";
 
-import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { useQuery } from "@tanstack/react-query";
+import { api } from "@/lib/api";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
-
-interface SystemStats {
-  database: {
-    size_mb: number;
-    tables: number;
-    total_records: number;
-  };
-  emails: {
-    total: number;
-    processed: number;
-    unprocessed: number;
-    percent_complete: number;
-    categories: Record<string, number>;
-  };
-  email_links: {
-    total: number;
-    auto: number;
-    manual: number;
-    approved: number;
-    low_confidence: number;
-  };
-  proposals: {
-    total: number;
-    active: number;
-    proposal: number;
-    lost: number;
-  };
-  projects: {
-    total: number;
-    active: number;
-  };
-  financials: {
-    total_invoices: number;
-    total_contracts: number;
-    total_revenue_usd: number;
-  };
-  api_health: {
-    status: string;
-    uptime: string;
-    timestamp: string;
-  };
-}
+type SystemStats = Awaited<ReturnType<typeof api.getSystemStats>>;
 
 export default function SystemStatusPage() {
-  const [stats, setStats] = useState<SystemStats | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
+  const { data: stats, isLoading, error, refetch, dataUpdatedAt } = useQuery({
+    queryKey: ["system-stats"],
+    queryFn: () => api.getSystemStats(),
+    refetchInterval: 30000, // Auto-refresh every 30 seconds
+  });
 
-  useEffect(() => {
-    fetchStats();
-    // Auto-refresh every 30 seconds
-    const interval = setInterval(fetchStats, 30000);
-    return () => clearInterval(interval);
-  }, []);
-
-  const fetchStats = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-
-      const response = await fetch(`${API_BASE_URL}/api/admin/system-stats`);
-
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-      }
-
-      const data = await response.json();
-      setStats(data);
-      setLastRefresh(new Date());
-
-    } catch (err) {
-      console.error("Failed to fetch system stats:", err);
-      setError(err instanceof Error ? err.message : "Unknown error");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  if (loading && !stats) {
+  if (isLoading) {
     return (
       <div className="container mx-auto p-6">
         <Card className="p-12 text-center">
@@ -94,13 +24,13 @@ export default function SystemStatusPage() {
     );
   }
 
-  if (error && !stats) {
+  if (error) {
     return (
       <div className="container mx-auto p-6">
         <Card className="p-12 text-center bg-red-50 border-red-200">
           <div className="text-lg text-red-900">Failed to load system stats</div>
-          <div className="text-sm text-red-600 mt-2">{error}</div>
-          <Button onClick={fetchStats} className="mt-4">Retry</Button>
+          <div className="text-sm text-red-600 mt-2">{error instanceof Error ? error.message : "Unknown error"}</div>
+          <Button onClick={() => refetch()} className="mt-4">Retry</Button>
         </Card>
       </div>
     );
@@ -118,12 +48,12 @@ export default function SystemStatusPage() {
             Real-time monitoring of Bensley Intelligence Platform
           </p>
           <p className="text-xs text-gray-500 mt-1">
-            Last updated: {lastRefresh.toLocaleTimeString()}
+            Last updated: {new Date(dataUpdatedAt).toLocaleTimeString()}
           </p>
         </div>
 
-        <Button onClick={fetchStats} variant="outline">
-          🔄 Refresh
+        <Button onClick={() => refetch()} variant="outline">
+          Refresh
         </Button>
       </div>
 
@@ -139,7 +69,7 @@ export default function SystemStatusPage() {
             <div className={`text-2xl font-bold ${
               stats.api_health.status === 'healthy' ? 'text-green-600' : 'text-red-600'
             }`}>
-              {stats.api_health.status === 'healthy' ? '✓ Healthy' : '✗ Unhealthy'}
+              {stats.api_health.status === 'healthy' ? 'Healthy' : 'Unhealthy'}
             </div>
           </div>
           <div className="text-right">
@@ -289,16 +219,16 @@ export default function SystemStatusPage() {
         <h2 className="text-xl font-bold mb-4">Quick Actions</h2>
         <div className="flex gap-3 flex-wrap">
           <Button onClick={() => window.location.href = '/admin/email-links'}>
-            📧 Email Links Manager
+            Email Links Manager
           </Button>
           <Button onClick={() => window.location.href = '/'} variant="outline">
-            📊 Dashboard
+            Dashboard
           </Button>
           <Button onClick={() => window.location.href = '/proposals'} variant="outline">
-            📋 Proposals
+            Proposals
           </Button>
           <Button onClick={() => window.location.href = '/tracker'} variant="outline">
-            📍 Tracker
+            Tracker
           </Button>
         </div>
       </Card>

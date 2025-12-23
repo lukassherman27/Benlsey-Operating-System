@@ -1271,6 +1271,33 @@ export const api = {
   getLifecyclePhases: () =>
     request<LifecyclePhasesResponse>("/api/lifecycle-phases"),
 
+  // System Admin API
+  getSystemStats: () =>
+    request<{
+      database: { size_mb: number; tables: number; total_records: number };
+      emails: { total: number; processed: number; unprocessed: number; percent_complete: number; categories: Record<string, number> };
+      email_links: { total: number; auto: number; manual: number; approved: number; low_confidence: number };
+      proposals: { total: number; active: number; proposal: number; lost: number };
+      projects: { total: number; active: number };
+      financials: { total_invoices: number; total_contracts: number; total_revenue_usd: number };
+      api_health: { status: string; uptime: string; timestamp: string };
+    }>("/api/admin/system-stats"),
+
+  getAuditLogs: (params: { action?: string; entity_type?: string; limit?: number; offset?: number } = {}) =>
+    request<{
+      success: boolean;
+      logs: Array<{
+        id: number;
+        action: string;
+        entity_type: string;
+        entity_id: number;
+        details: Record<string, unknown>;
+        created_at: string;
+        user: string;
+      }>;
+      total: number;
+    }>(`/api/audit/logs${buildQuery(params)}`),
+
   // AI Learning API
   getLearningStats: () =>
     request<LearningStatsResponse>("/api/learning/stats"),
