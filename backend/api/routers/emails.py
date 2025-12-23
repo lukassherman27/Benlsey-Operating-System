@@ -221,7 +221,7 @@ async def bulk_approve_emails(
     Returns summary of successes and failures.
     """
     try:
-        from services.ai_learning_service import AILearningService
+        from backend.services.ai_learning_service import AILearningService
 
         ai_service = AILearningService(DB_PATH)
 
@@ -317,7 +317,7 @@ async def quick_approve_email(
     Returns info about pattern learning for UI feedback.
     """
     try:
-        from services.ai_learning_service import AILearningService
+        from backend.services.ai_learning_service import AILearningService
 
         ai_service = AILearningService(DB_PATH)
 
@@ -610,7 +610,7 @@ async def extract_scheduling_data(email_id: int):
     Used by the adaptive suggestions UI when category is "Internal > Scheduling".
     """
     try:
-        from services.scheduling_email_parser import SchedulingEmailParser
+        from backend.services.scheduling_email_parser import SchedulingEmailParser
         from api.dependencies import DB_PATH
 
         parser = SchedulingEmailParser(db_path=DB_PATH)
@@ -792,7 +792,7 @@ async def process_sent_emails(
     Returns summary of auto-linked, needs_review, and unmatched emails.
     """
     try:
-        from services.sent_email_linker import SentEmailLinker
+        from backend.services.sent_email_linker import SentEmailLinker
 
         linker = SentEmailLinker(DB_PATH)
         results = linker.process_unlinked_sent_emails(days_back=days_back, limit=limit)

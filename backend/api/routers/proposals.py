@@ -506,7 +506,7 @@ async def get_proposal_versions(project_code: str):
     Example: GET /api/proposals/25%20BK-087/versions
     """
     try:
-        from services.proposal_version_service import ProposalVersionService
+        from backend.services.proposal_version_service import ProposalVersionService
 
         svc = ProposalVersionService(DB_PATH)
         result = svc.get_proposal_versions(project_code)
@@ -529,7 +529,7 @@ async def get_proposal_fee_history(project_code: str):
     Returns list of fee changes with dates, from initial to current.
     """
     try:
-        from services.proposal_version_service import ProposalVersionService
+        from backend.services.proposal_version_service import ProposalVersionService
 
         svc = ProposalVersionService(DB_PATH)
         history = svc.get_fee_history(project_code)
@@ -557,7 +557,7 @@ async def search_proposals_by_client(
     Example: GET /api/proposals/search/by-client?client=Vahine&include_versions=true
     """
     try:
-        from services.proposal_version_service import ProposalVersionService
+        from backend.services.proposal_version_service import ProposalVersionService
 
         svc = ProposalVersionService(DB_PATH)
 
