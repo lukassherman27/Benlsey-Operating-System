@@ -31,6 +31,9 @@ import { Loader2, Edit, History, Mail } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ds } from "@/lib/design-system";
 
+// Configurable current user - will be replaced with auth system
+const CURRENT_USER = process.env.NEXT_PUBLIC_DEFAULT_USER || "bill@bensley.com";
+
 interface ProposalQuickEditDialogProps {
   proposal: ProposalTrackerItem | null;
   open: boolean;
@@ -161,7 +164,7 @@ export function ProposalQuickEditDialog({
     }
 
     // Add provenance tracking metadata
-    updates.updated_by = "Dashboard User"; // TODO: Replace with actual user from auth system
+    updates.updated_by = CURRENT_USER;
     updates.source_type = "manual";
     updates.change_reason = "Updated via dashboard";
 
