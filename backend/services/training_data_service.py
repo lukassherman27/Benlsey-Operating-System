@@ -30,7 +30,8 @@ class TrainingDataService(BaseService):
         feedback_text: Optional[str] = None,
         expected_value: Optional[str] = None,
         current_value: Optional[str] = None,
-        context: Optional[Dict[str, Any]] = None
+        context: Optional[Dict[str, Any]] = None,
+        user_id: str = "bill"
     ) -> Dict[str, Any]:
         """
         Log user feedback with context for RLHF training
@@ -44,6 +45,7 @@ class TrainingDataService(BaseService):
             expected_value: What user expected to see
             current_value: What system actually shows
             context: Additional context data (will be JSON-ified)
+            user_id: User providing feedback (default: bill)
 
         Returns:
             Dict with training_id and success status
@@ -68,7 +70,7 @@ class TrainingDataService(BaseService):
                     created_at
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (
-                'bill',  # TODO: Get from auth context
+                user_id,
                 feature_type,
                 feature_id,
                 1 if helpful else 0,
