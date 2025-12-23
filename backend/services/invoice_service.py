@@ -5,8 +5,8 @@ Handles actual invoices sent and payments received.
 Separate from contract values which are future/potential revenue.
 """
 
-from typing import Optional, List, Dict, Any
-from datetime import datetime, date, timedelta
+from typing import List, Dict, Any
+from datetime import date
 import sqlite3
 
 
@@ -24,13 +24,10 @@ class InvoiceService:
         return conn
 
     def _ensure_table_exists(self):
-        """Verify invoices table exists (table should already exist in OneDrive DB)"""
-        # Table already exists in OneDrive database with correct schema
-        # No need to create - just verify it exists
+        """Verify invoices table exists"""
         conn = self._get_connection()
         cursor = conn.cursor()
 
-        # Verify table exists
         cursor.execute("""
             SELECT name FROM sqlite_master
             WHERE type='table' AND name='invoices'
@@ -86,31 +83,6 @@ class InvoiceService:
 
         return invoice_id
 
-    def record_payment(self, invoice_number: str, payment_data: Dict[str, Any]) -> bool:
-        """Record a payment for an invoice"""
-        conn = self._get_connection()
-        cursor = conn.cursor()
-
-        cursor.execute("""
-            UPDATE invoices
-            SET status = 'paid',
-                payment_date = ?,
-                payment_amount = ?,
-                notes = COALESCE(notes || ' | ', '') || ?
-            WHERE invoice_number = ?
-        """, (
-            payment_data['payment_date'],
-            payment_data['amount'],
-            payment_data.get('payment_method', 'Payment recorded'),
-            invoice_number
-        ))
-
-        success = cursor.rowcount > 0
-        conn.commit()
-        conn.close()
-
-        return success
-
     def get_outstanding_invoices(self) -> List[Dict[str, Any]]:
         """Get all unpaid invoices"""
         conn = self._get_connection()
@@ -136,101 +108,6 @@ class InvoiceService:
 
         invoices = [dict(row) for row in cursor.fetchall()]
         conn.commit()
-        conn.close()
-
-        return invoices
-
-    def get_recent_payments(self, limit: int = 5) -> List[Dict[str, Any]]:
-        """Get recently paid invoices"""
-        conn = self._get_connection()
-        cursor = conn.cursor()
-
-        cursor.execute("""
-            SELECT i.*, p.project_code, p.project_title
-            FROM invoices i
-            LEFT JOIN projects p ON i.project_id = p.project_id
-            WHERE i.status = 'paid'
-            AND i.payment_date IS NOT NULL
-            ORDER BY i.payment_date DESC
-            LIMIT ?
-        """, (limit,))
-
-        payments = [dict(row) for row in cursor.fetchall()]
-        conn.close()
-
-        return payments
-
-    def get_revenue_stats(self) -> Dict[str, Any]:
-        """Get revenue statistics (actual payments received)"""
-        conn = self._get_connection()
-        cursor = conn.cursor()
-
-        # Total invoiced
-        cursor.execute("""
-            SELECT
-                COUNT(*) as total_invoices,
-                SUM(invoice_amount) as total_invoiced
-            FROM invoices
-        """)
-        invoice_stats = dict(cursor.fetchone())
-
-        # Total paid (actual revenue)
-        cursor.execute("""
-            SELECT
-                COUNT(*) as paid_count,
-                SUM(payment_amount) as total_revenue
-            FROM invoices
-            WHERE status = 'paid'
-        """)
-        payment_stats = dict(cursor.fetchone())
-
-        # Outstanding
-        cursor.execute("""
-            SELECT
-                COUNT(*) as outstanding_count,
-                SUM(invoice_amount) as total_outstanding
-            FROM invoices
-            WHERE status IN ('sent', 'overdue')
-        """)
-        outstanding_stats = dict(cursor.fetchone())
-
-        # Overdue
-        cursor.execute("""
-            SELECT
-                COUNT(*) as overdue_count,
-                SUM(invoice_amount) as total_overdue
-            FROM invoices
-            WHERE status = 'overdue'
-        """)
-        overdue_stats = dict(cursor.fetchone())
-
-        conn.close()
-
-        return {
-            'total_invoices': invoice_stats['total_invoices'] or 0,
-            'total_invoiced': invoice_stats['total_invoiced'] or 0.0,
-            'paid_invoices': payment_stats['paid_count'] or 0,
-            'actual_revenue': payment_stats['total_revenue'] or 0.0,  # This is REAL revenue
-            'outstanding_invoices': outstanding_stats['outstanding_count'] or 0,
-            'total_outstanding': outstanding_stats['total_outstanding'] or 0.0,
-            'overdue_invoices': overdue_stats['overdue_count'] or 0,
-            'total_overdue': overdue_stats['total_overdue'] or 0.0,
-        }
-
-    def get_invoices_by_project(self, project_code: str) -> List[Dict[str, Any]]:
-        """Get all invoices for a specific project"""
-        conn = self._get_connection()
-        cursor = conn.cursor()
-
-        cursor.execute("""
-            SELECT i.*, p.project_code, p.project_title
-            FROM invoices i
-            JOIN projects p ON i.project_id = p.project_id
-            WHERE p.project_code = ?
-            ORDER BY i.invoice_date DESC
-        """, (project_code,))
-
-        invoices = [dict(row) for row in cursor.fetchall()]
         conn.close()
 
         return invoices
@@ -338,7 +215,7 @@ class InvoiceService:
         rows = cursor.fetchall()
         conn.close()
 
-        # Initialize with zeros - new buckets
+        # Initialize with zeros
         breakdown = {
             '0_to_10': {'count': 0, 'amount': 0.0},
             '10_to_30': {'count': 0, 'amount': 0.0},
@@ -355,25 +232,3 @@ class InvoiceService:
             }
 
         return breakdown
-
-    def get_invoice_aging_data(self) -> Dict[str, Any]:
-        """
-        Get complete invoice aging data for the widget
-        Combines recent paid, largest outstanding, and aging breakdown
-        """
-        aging_breakdown = self.get_aging_breakdown()
-        return {
-            'recent_paid': self.get_recent_paid_invoices(5),
-            'largest_outstanding': self.get_largest_outstanding_invoices(10),
-            'aging_breakdown': aging_breakdown,
-            'summary': {
-                'total_outstanding_count': sum(
-                    aging_breakdown[cat]['count']
-                    for cat in ['0_to_10', '10_to_30', '30_to_90', 'over_90']
-                ),
-                'total_outstanding_amount': sum(
-                    aging_breakdown[cat]['amount']
-                    for cat in ['0_to_10', '10_to_30', '30_to_90', 'over_90']
-                )
-            }
-        }
