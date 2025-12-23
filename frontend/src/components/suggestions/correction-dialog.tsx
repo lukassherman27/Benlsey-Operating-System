@@ -413,11 +413,6 @@ export function CorrectionDialog({
     [allOptions, projectSearch]
   );
 
-  // Check if this is a link-type suggestion
-  const isLinkSuggestion = suggestion?.suggestion_type === 'email_link' ||
-                            suggestion?.suggestion_type === 'contact_link' ||
-                            suggestion?.suggestion_type === 'transcript_link';
-
   // Get current category details
   const currentCategoryDetails = selectedCategory
     ? CATEGORIES.find(c => c.id === selectedCategory)

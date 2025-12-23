@@ -107,7 +107,7 @@ export default function PatternsPage() {
   const [editConfidence, setEditConfidence] = useState(0.8);
   const [newPatternType, setNewPatternType] = useState("sender_to_project");
   const [newPatternKey, setNewPatternKey] = useState("");
-  const [newTargetType, setNewTargetType] = useState("project");
+  const [, setNewTargetType] = useState("project");
   const [newTargetCode, setNewTargetCode] = useState("");
   const [newNotes, setNewNotes] = useState("");
 

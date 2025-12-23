@@ -635,7 +635,6 @@ export default function SuggestionsPage() {
             ) : (
               <div className="space-y-3" ref={listContainerRef}>
                 {suggestions.map((suggestion, index) => {
-                  const parsed = parseSuggestedValue(suggestion);
                   const isContact = suggestion.suggestion_type === "new_contact";
                   const isSelected = selectedIds.has(suggestion.suggestion_id);
                   const isFocused = index === focusedIndex;

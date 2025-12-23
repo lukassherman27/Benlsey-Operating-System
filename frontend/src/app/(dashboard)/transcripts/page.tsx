@@ -35,7 +35,6 @@ import {
 } from "lucide-react";
 import { PasteSummaryModal } from "@/components/transcripts/paste-summary-modal";
 import { FormattedSummary } from "@/components/transcripts/formatted-summary";
-import { useQueryClient } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
 import { ds } from "@/lib/design-system";
 

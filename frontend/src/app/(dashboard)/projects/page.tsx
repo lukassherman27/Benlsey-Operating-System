@@ -617,7 +617,7 @@ function ProjectRow({
   const totalProjectFee: number = projectContractFee > 0
     ? projectContractFee
     : (Number(project.contract_value) || Number(project.total_fee_usd) || 0);
-  const projectTotalRemaining = totalProjectFee - projectTotalInvoiced;
+  // projectTotalRemaining can be calculated as: totalProjectFee - projectTotalInvoiced
 
   // Group invoices by phase within each discipline
   const getInvoicesByPhase = (disciplineInvoices: Record<string, unknown>[]) => {

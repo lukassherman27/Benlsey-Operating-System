@@ -106,7 +106,6 @@ export default function FinancialEntryPage() {
   const {
     data: existingBreakdowns,
     isLoading: breakdownsLoading,
-    refetch: refetchBreakdowns
   } = useQuery({
     queryKey: ["project-breakdowns", selectedProjectCode],
     queryFn: () => selectedProjectCode ? api.getProjectFeeBreakdowns(selectedProjectCode) : null,
@@ -330,7 +329,7 @@ export default function FinancialEntryPage() {
           }
         }
       } else {
-        const projectResponse = await api.createProject({
+        await api.createProject({
           project_code: projectCode,
           project_title: projectTitle,
           total_fee_usd: parseFloat(totalFee),

@@ -75,16 +75,6 @@ export default function DeliverablesPage() {
     queryFn: () => api.getPMList(),
   })
 
-  // Status update mutation
-  const updateStatus = useMutation({
-    mutationFn: ({ id, status }: { id: number; status: string }) =>
-      api.updateDeliverableStatus(id, { status }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['deliverables'] })
-      queryClient.invalidateQueries({ queryKey: ['pm-workload'] })
-    },
-  })
-
   // Create deliverable mutation
   const createDeliverableMutation = useMutation({
     mutationFn: (data: {

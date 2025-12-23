@@ -21,7 +21,7 @@ import {
   ArrowRight,
   Zap,
 } from "lucide-react";
-import { format, formatDistanceToNow } from "date-fns";
+import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
 
@@ -130,15 +130,6 @@ export function ProposalStory({ projectCode }: ProposalStoryProps) {
       return format(new Date(dateStr), "MMM d, yyyy");
     } catch {
       return dateStr.slice(0, 10);
-    }
-  };
-
-  const formatRelativeDate = (dateStr: string | null) => {
-    if (!dateStr) return "";
-    try {
-      return formatDistanceToNow(new Date(dateStr), { addSuffix: true });
-    } catch {
-      return "";
     }
   };
 

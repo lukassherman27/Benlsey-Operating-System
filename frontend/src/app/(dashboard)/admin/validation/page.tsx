@@ -62,7 +62,7 @@ function EmptyState({ status }: { status: string }) {
 }
 
 export default function ValidationPage() {
-  const [statusFilter, setStatusFilter] = useState<string>("pending");
+  const [statusFilter] = useState<string>("pending");
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const queryClient = useQueryClient();
 
@@ -77,10 +77,6 @@ export default function ValidationPage() {
   const allSelected = useMemo(() => {
     const pendingItems = suggestions.filter((s: ValidationSuggestion) => s.status === "pending");
     return pendingItems.length > 0 && pendingItems.every((s: ValidationSuggestion) => selectedIds.has(s.suggestion_id));
-  }, [suggestions, selectedIds]);
-
-  const someSelected = useMemo(() => {
-    return suggestions.some((s: ValidationSuggestion) => selectedIds.has(s.suggestion_id));
   }, [suggestions, selectedIds]);
 
   const toggleSelectAll = () => {

@@ -9,6 +9,20 @@ import { Badge } from '@/components/ui/badge'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { DollarSign } from 'lucide-react'
 
+interface ProjectItem {
+  project_code: string;
+  project_title?: string;
+}
+
+interface InvoiceItem {
+  invoice_number: string;
+  days_outstanding: number;
+  outstanding_amount: number;
+  project_code: string;
+  project_name?: string;
+  aging_category: { color: string };
+}
+
 export function AllInvoicesList() {
   const [selectedProject, setSelectedProject] = useState<string | null>(null)
 
@@ -57,7 +71,7 @@ export function AllInvoicesList() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Projects</SelectItem>
-                {projects?.data?.map((p: any) => (
+                {projects?.data?.map((p: ProjectItem) => (
                   <SelectItem key={p.project_code} value={p.project_code}>
                     {p.project_code} - {p.project_title?.substring(0, 30)}...
                   </SelectItem>
@@ -75,7 +89,7 @@ export function AllInvoicesList() {
             ) : invoices.length === 0 ? (
               <p className="text-sm text-muted-foreground">No outstanding invoices found</p>
             ) : (
-              invoices.map((inv: any, i: number) => (
+              invoices.map((inv: InvoiceItem, i: number) => (
                 <div key={i} className="flex items-center justify-between p-3 rounded-lg border hover:bg-gray-50">
                   <div className="flex-1 min-w-0 space-y-1">
                     <div className="flex items-center gap-2">

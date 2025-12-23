@@ -106,6 +106,7 @@ export function AnalyticsInsights({ className }: AnalyticsInsightsProps) {
             </p>
             <div className="flex items-end gap-2">
               <span className="text-2xl font-bold text-slate-800">
+                {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
                 ${((stats as any)?.pipeline_value ?? 0 / 1000000).toFixed(1)}M
               </span>
               <TrendIndicator value={pipelineGrowth} />

@@ -111,7 +111,7 @@ function ProposalTrackerContent() {
   const [selectedProposal, setSelectedProposal] = useState<ProposalTrackerItem | null>(null);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [activeMetric, setActiveMetric] = useState<string | null>(null);
-  const [highlightedCode, setHighlightedCode] = useState<string | null>(null);
+  const [, setHighlightedCode] = useState<string | null>(null);
   const [sortField, setSortField] = useState<"value" | "date" | "status" | "days" | null>(null);
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
   const [followUpDialogOpen, setFollowUpDialogOpen] = useState(false);

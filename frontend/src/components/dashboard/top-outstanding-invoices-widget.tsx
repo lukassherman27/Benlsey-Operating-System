@@ -3,7 +3,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
 import { DollarSign } from 'lucide-react'
 
 export function TopOutstandingInvoicesWidget() {
@@ -38,20 +37,6 @@ export function TopOutstandingInvoicesWidget() {
   }
 
   const invoices = data?.invoices || []
-
-  const getAgingBadge = (aging: any) => {
-    const colorMap: Record<string, string> = {
-      green: 'bg-green-100 text-green-800 border-green-300',
-      yellow: 'bg-yellow-100 text-yellow-800 border-yellow-300',
-      orange: 'bg-orange-100 text-orange-800 border-orange-300',
-      red: 'bg-red-100 text-red-800 border-red-300'
-    }
-    return (
-      <Badge className={colorMap[aging.color]} variant="outline">
-        {aging.bucket}
-      </Badge>
-    )
-  }
 
   return (
     <Card>

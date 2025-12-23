@@ -93,12 +93,6 @@ export function ProjectHealthDashboard({ projectCode }: ProjectHealthDashboardPr
     return "text-red-700 bg-red-50 border-red-200";
   };
 
-  const getHealthIcon = (status: string) => {
-    if (status === "healthy") return "bg-green-500";
-    if (status === "warning") return "bg-amber-500";
-    return "bg-red-500";
-  };
-
   const getTrendIcon = (trend: string) => {
     if (trend === "improving") return <TrendingUp className="h-4 w-4 text-green-600" />;
     if (trend === "declining") return <TrendingDown className="h-4 w-4 text-red-600" />;

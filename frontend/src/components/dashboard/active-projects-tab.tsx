@@ -432,9 +432,7 @@ function ProjectHierarchyDisplay({
               .map((phase: any) => {
                 const phaseFee = phase.phase_fee || 0;
                 const phaseInvoiced = phase.total_invoiced || 0;
-                const phasePaid = phase.total_paid || 0;
                 const percentageInvoiced = phaseFee > 0 ? (phaseInvoiced / phaseFee) * 100 : 0;
-                const percentagePaid = phaseFee > 0 ? (phasePaid / phaseFee) * 100 : 0;
                 const colorClass = getInvoicingColor(percentageInvoiced);
 
                 return (
