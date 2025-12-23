@@ -30,7 +30,8 @@ export function InvoiceAgingWidgetEnhanced({ compact = false, showExport = true 
     refetchInterval: 1000 * 60 * 5,
   });
 
-  const agingData: InvoiceAgingData | undefined = data?.data;
+  // API returns: { success: true, data: { aging_breakdown: {...}, summary: {...}, ... } }
+  const agingData = data?.data;
 
   // Loading skeleton with smooth animations
   if (isLoading) {
@@ -106,15 +107,15 @@ export function InvoiceAgingWidgetEnhanced({ compact = false, showExport = true 
             <div className="flex h-2 w-full overflow-hidden rounded-full bg-gray-200">
               <div
                 className="bg-green-500 transition-all duration-500"
-                style={{ width: `${(breakdown.under_30.amount / totalOutstanding) * 100}%` }}
+                style={{ width: `${totalOutstanding > 0 ? (breakdown.under_30.amount / totalOutstanding) * 100 : 0}%` }}
               />
               <div
                 className="bg-yellow-500 transition-all duration-500"
-                style={{ width: `${(breakdown["30_to_90"].amount / totalOutstanding) * 100}%` }}
+                style={{ width: `${totalOutstanding > 0 ? (breakdown["30_to_90"].amount / totalOutstanding) * 100 : 0}%` }}
               />
               <div
                 className="bg-red-500 transition-all duration-500"
-                style={{ width: `${(breakdown.over_90.amount / totalOutstanding) * 100}%` }}
+                style={{ width: `${totalOutstanding > 0 ? (breakdown.over_90.amount / totalOutstanding) * 100 : 0}%` }}
               />
             </div>
           </div>

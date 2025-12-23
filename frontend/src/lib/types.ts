@@ -991,9 +991,12 @@ export interface InvoiceAgingResponse {
 
 export interface TopOutstandingInvoice {
   project_code: string;
-  project_name: string;
-  outstanding: number;
+  project_name?: string;
+  project_title?: string;  // API sometimes uses this
+  outstanding?: number;
+  invoice_amount?: number;  // API uses this
   days_outstanding?: number;
+  days_overdue?: number;  // API uses this
   invoice_count?: number;
   invoice_number?: string;
 }
