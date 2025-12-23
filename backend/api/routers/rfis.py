@@ -111,9 +111,7 @@ async def list_rfis(
             else:
                 rfi['is_overdue'] = False
 
-        response = list_response(rfis, len(rfis))
-        response["rfis"] = rfis  # Backward compat
-        return response
+        return list_response(rfis, len(rfis))
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to get RFIs: {str(e)}")
 
@@ -123,10 +121,7 @@ async def get_overdue_rfis():
     """Get all RFIs that are past their 48-hour SLA"""
     try:
         overdue = rfi_service.get_overdue_rfis()
-        response = list_response(overdue, len(overdue))
-        response["rfis"] = overdue  # Backward compat
-        response["alert"] = f"{len(overdue)} RFI(s) overdue!" if overdue else None
-        return response
+        return list_response(overdue, len(overdue))
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to get overdue RFIs: {str(e)}")
 
