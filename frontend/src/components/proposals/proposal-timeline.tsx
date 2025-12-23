@@ -91,7 +91,7 @@ const formatDate = (dateStr: string) => {
 
 export function ProposalTimeline({
   projectCode,
-  compact = false,
+  compact: _compact = false,
 }: ProposalTimelineProps) {
   const { data, isLoading, error } = useQuery({
     queryKey: ["proposalHistory", projectCode],

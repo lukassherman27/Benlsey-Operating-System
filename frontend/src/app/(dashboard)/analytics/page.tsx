@@ -260,7 +260,7 @@ function ProposalFunnel({ data }: { data: { status: string; count: number; value
 
   return (
     <div className="space-y-4">
-      {sortedData.map((item, i) => {
+      {sortedData.map((item, _i) => {
         const width = maxCount > 0 ? (item.count / maxCount) * 100 : 0;
 
         return (

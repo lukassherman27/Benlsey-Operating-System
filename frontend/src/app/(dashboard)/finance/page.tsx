@@ -256,7 +256,7 @@ function RevenueTrendsChart() {
       </CardHeader>
       <CardContent>
         <div className="space-y-3">
-          {trends.slice(-6).map((month, idx) => (
+          {trends.slice(-6).map((month, _idx) => (
             <div key={month.month} className="space-y-1">
               <div className="flex justify-between text-xs">
                 <span className="font-medium">{formatMonth(month.month)}</span>

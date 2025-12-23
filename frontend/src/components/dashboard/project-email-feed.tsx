@@ -17,7 +17,7 @@ interface ProjectEmailFeedProps {
 export function ProjectEmailFeed({
   projectCode,
   limit = 20,
-  compact = false
+  compact: _compact = false
 }: ProjectEmailFeedProps) {
   const [expandedEmailId, setExpandedEmailId] = useState<number | null>(null);
 

@@ -12,7 +12,7 @@ interface InvoiceAgingWidgetProps {
   compact?: boolean
 }
 
-export function InvoiceAgingWidget({ compact = false }: InvoiceAgingWidgetProps) {
+export function InvoiceAgingWidget({ compact: _compact = false }: InvoiceAgingWidgetProps) {
   const { data, isLoading, error } = useQuery({
     queryKey: ["invoice-aging"],
     queryFn: api.getInvoiceAging,

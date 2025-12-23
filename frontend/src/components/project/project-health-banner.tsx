@@ -98,7 +98,7 @@ const severityColors: Record<Issue["severity"], string> = {
 export function ProjectHealthBanner({
   status,
   issues,
-  projectName,
+  projectName: _projectName,
   className,
 }: ProjectHealthBannerProps) {
   const [expanded, setExpanded] = useState(status !== "healthy");

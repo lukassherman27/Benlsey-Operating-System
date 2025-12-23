@@ -401,7 +401,7 @@ function getInvoicingColor(percentage: number): string {
 
 function ProjectHierarchyDisplay({
   disciplines,
-  projectTitle,
+  projectTitle: _projectTitle,
 }: {
   disciplines: Record<string, any>;
   projectTitle: string;

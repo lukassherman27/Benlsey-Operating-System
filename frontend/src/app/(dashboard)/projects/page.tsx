@@ -535,7 +535,7 @@ function ProjectRow({
   isExpanded,
   expandedDisciplines,
   expandedPhaseInvoices,
-  onToggle,
+  onToggle: _onToggle,
   onToggleDiscipline,
   onTogglePhaseInvoices,
   onEdit,
