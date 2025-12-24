@@ -41,9 +41,7 @@ async def get_invoice_aging():
     """Get invoice aging breakdown. Returns standardized response."""
     try:
         aging = invoice_service.get_aging_breakdown()
-        response = item_response({"aging": aging})
-        response["aging"] = aging  # Backward compat
-        return response
+        return item_response({"aging": aging})
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -53,9 +51,7 @@ async def get_detailed_aging_breakdown():
     """Get detailed invoice aging breakdown with amounts. Returns standardized response."""
     try:
         breakdown = financial_service.get_invoice_aging_summary()
-        response = item_response({"breakdown": breakdown})
-        response["breakdown"] = breakdown  # Backward compat
-        return response
+        return item_response({"breakdown": breakdown})
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -82,10 +78,7 @@ async def get_recent_invoices(limit: int = Query(20, ge=1, le=100)):
         invoices = [dict(row) for row in cursor.fetchall()]
         conn.close()
 
-        response = list_response(invoices, len(invoices))
-        response["invoices"] = invoices  # Backward compat
-        response["count"] = len(invoices)  # Backward compat
-        return response
+        return list_response(invoices, len(invoices))
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

@@ -122,10 +122,7 @@ async def get_recent_emails(limit: int = Query(20, ge=1, le=100)):
     """Get most recent emails. Returns standardized list response."""
     try:
         emails = email_service.get_recent_emails(limit=limit)
-        response = list_response(emails, len(emails))
-        response["emails"] = emails  # Backward compat
-        response["count"] = len(emails)  # Backward compat
-        return response
+        return list_response(emails, len(emails))
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -135,9 +132,7 @@ async def get_email_categories():
     """Get all email categories with counts. Returns standardized list response."""
     try:
         categories = email_service.get_categories()
-        response = list_response(categories, len(categories))
-        response["categories"] = categories  # Backward compat
-        return response
+        return list_response(categories, len(categories))
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
