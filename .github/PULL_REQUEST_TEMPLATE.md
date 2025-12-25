@@ -4,6 +4,13 @@
 ## Related Issues
 Closes #
 
+## Impacts Other Issues
+<!-- List any OTHER open issues that might be affected by this change -->
+<!-- After merge, comment on these issues to notify future agents -->
+- [ ] No other issues impacted
+- [ ] Impacts: #___ (will comment after merge)
+- [ ] Impacts: #___ (will comment after merge)
+
 ## Agent
 - [ ] Agent 1 - Data Processing
 - [ ] Agent 2 - Database Schema

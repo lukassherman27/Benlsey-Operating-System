@@ -1,0 +1,37 @@
+# CODEOWNERS - Defines ownership areas for the BDS Platform
+# When a PR touches these files, GitHub shows which area is affected
+# This helps Claude agents understand what they're impacting
+
+# Backend Services - Core Logic
+/backend/services/pattern*.py           @email-team
+/backend/services/email*.py             @email-team
+/backend/services/learning*.py          @email-team
+/backend/services/suggestion*.py        @email-team
+/backend/services/*invoice*.py          @finance-team
+/backend/services/*proposal*.py         @proposals-team
+/backend/services/*project*.py          @projects-team
+
+# API Routers
+/backend/api/routers/emails*.py         @email-team
+/backend/api/routers/proposals*.py      @proposals-team
+/backend/api/routers/projects*.py       @projects-team
+/backend/api/routers/invoices*.py       @finance-team
+/backend/api/routers/dashboard*.py      @dashboard-team
+
+# Frontend Components
+/frontend/src/components/proposals/     @proposals-team
+/frontend/src/components/projects/      @projects-team
+/frontend/src/components/dashboard/     @dashboard-team
+/frontend/src/components/emails/        @email-team
+
+# Database
+/database/migrations/                   @database-team
+
+# Scripts
+/scripts/core/                          @automation-team
+
+# Documentation - Everyone should be aware
+/CLAUDE.md                              @all-agents
+/.claude/STATUS.md                      @all-agents
+/.claude/HANDOFF.md                     @all-agents
+/docs/                                  @all-agents

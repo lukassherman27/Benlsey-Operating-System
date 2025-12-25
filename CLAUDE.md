@@ -78,6 +78,25 @@ When multiple Claude agents work on the same codebase:
 3. **Push before ending** - Don't leave uncommitted work
 4. **Don't touch files another agent owns** - Check `git log --oneline -5 FILE`
 5. **Create PRs, don't merge directly** - Let human review
+6. **Notify related issues after merge** - Comment on other open issues your changes affect
+
+### Cross-Issue Notification (MANDATORY)
+
+After merging a PR, check if your changes impact other open issues:
+
+```bash
+# 1. List open issues
+gh issue list --state open --limit 20
+
+# 2. For each issue that shares area/* labels or touches same files:
+gh issue comment ISSUE_NUMBER --body "FYI: PR #XX modified [what]. This may affect this issue because [why]."
+```
+
+**Examples:**
+- PR changes `pattern_first_linker.py` → Comment on #7 (email learning loop), #17 (email review queue)
+- PR changes proposal API → Comment on #13 (email thread view), #14 (PM dashboard)
+
+**Check `.github/CODEOWNERS`** to understand which areas your changes touch.
 
 ---
 
