@@ -70,6 +70,38 @@ class ProposalTrackerService(BaseService):
             """)
             stats['needs_followup'] = cursor.fetchone()['needs_followup']
 
+            # Issue #113: Add actionable insight stats
+            # At risk proposals (health < 50)
+            cursor.execute("""
+                SELECT COUNT(*) as at_risk
+                FROM proposals
+                WHERE health_score IS NOT NULL AND health_score < 50
+                AND status NOT IN ('Contract Signed', 'Lost', 'Declined', 'Dormant')
+            """)
+            stats['at_risk_count'] = cursor.fetchone()['at_risk']
+
+            # Proposals with action items by owner
+            cursor.execute("""
+                SELECT
+                    action_owner,
+                    COUNT(*) as count
+                FROM proposals
+                WHERE action_owner IS NOT NULL
+                AND status IN ('First Contact', 'Proposal Sent', 'Negotiation', 'On Hold', 'Proposal Prep')
+                GROUP BY action_owner
+            """)
+            stats['action_by_owner'] = {row['action_owner']: row['count'] for row in cursor.fetchall()}
+
+            # Ball in their court + stalled (needs nudge)
+            cursor.execute("""
+                SELECT COUNT(*) as waiting_on_client
+                FROM proposals
+                WHERE ball_in_court = 'them'
+                AND days_since_contact > 7
+                AND status IN ('First Contact', 'Proposal Sent', 'Negotiation')
+            """)
+            stats['waiting_on_client'] = cursor.fetchone()['waiting_on_client']
+
             # COMPREHENSIVE STATS from proposals table
             # Total proposals (all time, all statuses)
             cursor.execute("""
@@ -259,7 +291,12 @@ class ProposalTrackerService(BaseService):
                     p.last_contact_date,
                     p.days_since_contact,
                     COALESCE(p.ball_in_court, '') as ball_in_court,
-                    COALESCE(p.waiting_for, '') as waiting_for
+                    COALESCE(p.waiting_for, '') as waiting_for,
+                    -- Issue #113: Add insight fields
+                    COALESCE(p.health_score, 50) as health_score,
+                    COALESCE(p.action_needed, '') as action_needed,
+                    COALESCE(p.last_sentiment, '') as last_sentiment,
+                    COALESCE(p.correspondence_summary, '') as correspondence_summary
                 FROM proposals p
                 LEFT JOIN (
                     SELECT

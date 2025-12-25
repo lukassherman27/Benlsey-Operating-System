@@ -693,8 +693,11 @@ function ProposalTrackerContent() {
                         Days {getSortIcon("days")}
                       </span>
                     </TableHead>
-                    <TableHead className={cn("min-w-[150px] max-w-[250px]", ds.typography.captionBold)}>
-                      Remark
+                    <TableHead className={cn("text-center w-[60px] min-w-[60px]", ds.typography.captionBold)}>
+                      Health
+                    </TableHead>
+                    <TableHead className={cn("min-w-[180px] max-w-[300px]", ds.typography.captionBold)}>
+                      Action Needed
                     </TableHead>
                     <TableHead className={cn("w-[80px] text-center", ds.typography.captionBold)}>
                       Actions
@@ -803,10 +806,44 @@ function ProposalTrackerContent() {
                             {proposal.days_in_current_status}d
                           </div>
                         </TableCell>
-                        <TableCell className={cn("max-w-[250px]", ds.typography.caption, ds.textColors.tertiary)}>
-                          <span className="block truncate" title={proposal.current_remark || undefined}>
-                            {proposal.current_remark || "—"}
-                          </span>
+                        <TableCell className="text-center">
+                          {/* Health Score Visual */}
+                          {proposal.health_score != null ? (
+                            <div
+                              className={cn(
+                                "inline-flex items-center justify-center w-8 h-8 rounded-full text-xs font-bold",
+                                proposal.health_score >= 70 ? "bg-emerald-100 text-emerald-700" :
+                                proposal.health_score >= 50 ? "bg-amber-100 text-amber-700" :
+                                "bg-red-100 text-red-700"
+                              )}
+                              title={`Health: ${proposal.health_score}/100`}
+                            >
+                              {proposal.health_score}
+                            </div>
+                          ) : (
+                            <span className="text-slate-400">—</span>
+                          )}
+                        </TableCell>
+                        <TableCell className={cn("max-w-[300px]", ds.typography.caption)}>
+                          {proposal.action_needed ? (
+                            <span
+                              className={cn(
+                                "block truncate",
+                                proposal.health_score && proposal.health_score < 50
+                                  ? "text-red-700 font-medium"
+                                  : ds.textColors.secondary
+                              )}
+                              title={proposal.action_needed}
+                            >
+                              {proposal.action_needed}
+                            </span>
+                          ) : proposal.current_remark ? (
+                            <span className={cn("block truncate", ds.textColors.tertiary)} title={proposal.current_remark}>
+                              {proposal.current_remark}
+                            </span>
+                          ) : (
+                            <span className="text-slate-400">—</span>
+                          )}
                         </TableCell>
                         <TableCell className="text-center">
                           <div className="flex items-center justify-center gap-1">
