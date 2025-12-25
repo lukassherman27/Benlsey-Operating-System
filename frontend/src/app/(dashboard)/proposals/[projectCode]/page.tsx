@@ -26,6 +26,8 @@ import { BallInCourt } from "@/components/proposals/ball-in-court";
 import { HealthPanel, calculateRisks, calculateHealthScore } from "@/components/proposals/health-panel";
 import { ActionSuggestions, generateActionSuggestions } from "@/components/proposals/action-suggestions";
 import { ConversationView } from "@/components/proposals/conversation-view";
+import { NextActionCard } from "@/components/proposals/next-action-card";
+import { HorizontalTimeline } from "@/components/proposals/horizontal-timeline";
 
 // Email type for combined timeline and direct emails
 interface CombinedEmail {
@@ -273,6 +275,27 @@ export default function ProjectDetailPage() {
           });
           return actions.length > 0 ? <ActionSuggestions actions={actions} /> : null;
         })()}
+
+        {/* Next Action Card - Prominent CTA */}
+        <NextActionCard
+          actionNeeded={proposal?.action_needed || proposal?.next_action || null}
+          actionDue={proposal?.action_due || null}
+          actionOwner={proposal?.action_owner || null}
+          projectCode={projectCode}
+          primaryContactEmail={proposal?.primary_contact_email}
+        />
+
+        {/* Horizontal Timeline - Visual proposal journey */}
+        <Card className="border-slate-200">
+          <CardContent className="py-4">
+            <HorizontalTimeline
+              currentStatus={proposal?.status || "First Contact"}
+              firstContactDate={proposal?.first_contact_date}
+              proposalSentDate={proposal?.proposal_sent_date}
+              contractSignedDate={proposal?.contract_signed_date}
+            />
+          </CardContent>
+        </Card>
       </div>
 
       {/* Main Content Tabs - Simplified: Story | Team | Documents | Archive */}

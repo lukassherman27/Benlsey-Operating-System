@@ -6,6 +6,7 @@ import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { ProposalTrackerItem, DisciplineFilter } from "@/lib/types";
 import { ProposalQuickEditDialog } from "@/components/proposal-quick-edit-dialog";
+import { PriorityBanner } from "@/components/proposals/priority-banner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -42,6 +43,7 @@ import {
   Mail,
   Copy,
   X,
+  User,
 } from "lucide-react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -102,6 +104,7 @@ function ProposalTrackerContent() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<ProposalStatus | "all">("all");
   const [disciplineFilter, setDisciplineFilter] = useState<DisciplineFilter>("all");
+  const [ownerFilter, setOwnerFilter] = useState<string>("all");
   const [page, setPage] = useState(1);
   const [selectedProposal, setSelectedProposal] = useState<ProposalTrackerItem | null>(null);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
@@ -287,9 +290,14 @@ function ProposalTrackerContent() {
     }
   };
 
-  // Client-side filtering for "Needs Follow-up" (>14 days stalled) and sorting
+  // Client-side filtering for owner, follow-up, overdue, and sorting
   const filteredProposals = useMemo(() => {
     let result = proposals;
+
+    // Apply owner filter
+    if (ownerFilter !== "all") {
+      result = result.filter(p => p.action_owner === ownerFilter);
+    }
 
     // Apply follow-up filter
     if (activeMetric === "followup") {
@@ -298,6 +306,16 @@ function ProposalTrackerContent() {
         p.current_status !== "On Hold" &&
         p.current_status !== "Contract Signed"
       );
+    }
+
+    // Apply overdue filter
+    if (activeMetric === "overdue") {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      result = result.filter(p => {
+        if (!p.action_due) return false;
+        return new Date(p.action_due) < today;
+      });
     }
 
     // Apply sorting
@@ -327,7 +345,7 @@ function ProposalTrackerContent() {
     }
 
     return result;
-  }, [proposals, activeMetric, sortField, sortDirection]);
+  }, [proposals, ownerFilter, activeMetric, sortField, sortDirection]);
 
   // Toggle sort on column click
   const handleSort = (field: "value" | "date" | "status" | "days") => {
@@ -391,6 +409,15 @@ function ProposalTrackerContent() {
           </Button>
         </div>
       </div>
+
+      {/* Priority Banner - shows overdue and "your move" items */}
+      {proposals.length > 0 && (
+        <PriorityBanner
+          proposals={proposals}
+          onFilterOverdue={() => setActiveMetric("overdue")}
+          onFilterMyMove={() => setOwnerFilter("bill")}
+        />
+      )}
 
       {/* YEAR OVERVIEW - 4 summary cards */}
       {stats && (
@@ -590,6 +617,27 @@ function ProposalTrackerContent() {
                 <SelectItem value="Dormant">Dormant</SelectItem>
               </SelectContent>
             </Select>
+
+            {/* Owner Filter */}
+            <Select
+              value={ownerFilter}
+              onValueChange={(value) => {
+                setOwnerFilter(value);
+                setPage(1);
+              }}
+            >
+              <SelectTrigger className={cn("w-[140px]", ds.borderRadius.input)} aria-label="Filter by owner">
+                <User className={cn("h-4 w-4 mr-2", ds.textColors.tertiary)} aria-hidden="true" />
+                <SelectValue placeholder="Owner" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Owners</SelectItem>
+                <SelectItem value="bill">Bill</SelectItem>
+                <SelectItem value="brian">Brian</SelectItem>
+                <SelectItem value="lukas">Lukas</SelectItem>
+                <SelectItem value="mink">Mink</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
         </CardContent>
       </Card>
@@ -673,6 +721,9 @@ function ProposalTrackerContent() {
                     <TableHead className={cn("text-center w-[60px] min-w-[60px]", ds.typography.captionBold)}>
                       Ball
                     </TableHead>
+                    <TableHead className={cn("text-center w-[50px] min-w-[50px]", ds.typography.captionBold)}>
+                      Owner
+                    </TableHead>
                     <TableHead
                       className={cn("text-center w-[80px] min-w-[80px] cursor-pointer hover:bg-slate-50 select-none", ds.typography.captionBold)}
                       onClick={() => handleSort("days")}
@@ -683,6 +734,12 @@ function ProposalTrackerContent() {
                     </TableHead>
                     <TableHead className={cn("text-center w-[60px] min-w-[60px]", ds.typography.captionBold)}>
                       Health
+                    </TableHead>
+                    <TableHead className={cn("text-center w-[50px] min-w-[50px]", ds.typography.captionBold)}>
+                      Win%
+                    </TableHead>
+                    <TableHead className={cn("text-center w-[50px] min-w-[50px]", ds.typography.captionBold)}>
+                      Mood
                     </TableHead>
                     <TableHead className={cn("min-w-[180px] max-w-[300px]", ds.typography.captionBold)}>
                       Action Needed
@@ -695,10 +752,21 @@ function ProposalTrackerContent() {
                 <TableBody>
                   {filteredProposals.map((proposal) => {
                     const activityColor = getActivityColor(proposal.days_in_current_status);
+                    const today = new Date();
+                    today.setHours(0, 0, 0, 0);
+                    const isOverdue = proposal.action_due && new Date(proposal.action_due) < today &&
+                      !["Contract Signed", "Lost", "Declined", "Dormant"].includes(proposal.current_status);
+                    const isOurMove = proposal.ball_in_court === 'us' &&
+                      !["Contract Signed", "Lost", "Declined", "Dormant"].includes(proposal.current_status);
                     return (
                       <TableRow
                         key={proposal.id}
-                        className={cn("cursor-pointer", ds.hover.subtle)}
+                        className={cn(
+                          "cursor-pointer",
+                          ds.hover.subtle,
+                          isOverdue && "bg-red-50/50",
+                          !isOverdue && isOurMove && "bg-amber-50/30"
+                        )}
                         onClick={() => {
                           router.push(`/proposals/${encodeURIComponent(proposal.project_code)}`);
                         }}
@@ -785,6 +853,25 @@ function ProposalTrackerContent() {
                           )}
                         </TableCell>
                         <TableCell className="text-center">
+                          {/* Owner Avatar */}
+                          {proposal.action_owner ? (
+                            <div
+                              className={cn(
+                                "inline-flex items-center justify-center w-7 h-7 rounded-full text-xs font-semibold",
+                                proposal.action_owner === 'bill' && "bg-blue-100 text-blue-700",
+                                proposal.action_owner === 'brian' && "bg-purple-100 text-purple-700",
+                                proposal.action_owner === 'lukas' && "bg-green-100 text-green-700",
+                                proposal.action_owner === 'mink' && "bg-amber-100 text-amber-700",
+                              )}
+                              title={proposal.action_owner.charAt(0).toUpperCase() + proposal.action_owner.slice(1)}
+                            >
+                              {proposal.action_owner === 'brian' ? 'Br' : proposal.action_owner.charAt(0).toUpperCase()}
+                            </div>
+                          ) : (
+                            <span className="text-slate-400">—</span>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-center">
                           <div className={cn(
                             "inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium whitespace-nowrap",
                             activityColor.bg,
@@ -808,6 +895,39 @@ function ProposalTrackerContent() {
                             >
                               {proposal.health_score}
                             </div>
+                          ) : (
+                            <span className="text-slate-400">—</span>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-center">
+                          {/* Win Probability */}
+                          {proposal.win_probability != null ? (
+                            <div
+                              className={cn(
+                                "inline-flex items-center justify-center text-xs font-semibold",
+                                proposal.win_probability >= 60 ? "text-emerald-600" :
+                                proposal.win_probability >= 30 ? "text-amber-600" :
+                                "text-slate-400"
+                              )}
+                              title={`Win probability: ${proposal.win_probability}%`}
+                            >
+                              {proposal.win_probability}%
+                            </div>
+                          ) : (
+                            <span className="text-slate-400">—</span>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-center">
+                          {/* Sentiment Emoji */}
+                          {proposal.last_sentiment ? (
+                            <span
+                              className="text-lg"
+                              title={`Last sentiment: ${proposal.last_sentiment}`}
+                            >
+                              {proposal.last_sentiment === 'positive' ? '😊' :
+                               proposal.last_sentiment === 'concerned' ? '😟' :
+                               proposal.last_sentiment === 'negative' ? '😠' : '😐'}
+                            </span>
                           ) : (
                             <span className="text-slate-400">—</span>
                           )}

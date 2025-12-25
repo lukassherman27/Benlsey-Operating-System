@@ -41,6 +41,14 @@ export interface ProposalDetail extends ProposalSummary {
   project_value?: number | null;
   primary_contact_name?: string | null;
   primary_contact_email?: string | null;
+  // Action tracking (Phase 3 UI additions)
+  action_needed?: string | null;
+  action_due?: string | null;
+  action_owner?: 'bill' | 'brian' | 'lukas' | 'mink' | string | null;
+  // Timeline dates
+  first_contact_date?: string | null;
+  proposal_sent_date?: string | null;
+  contract_signed_date?: string | null;
 }
 
 export interface ProposalHealth {
@@ -810,6 +818,7 @@ export interface ProposalTrackerItem {
   action_due?: string | null;  // Issue #127
   action_owner?: 'bill' | 'brian' | 'lukas' | 'mink' | null;
   last_sentiment?: 'positive' | 'neutral' | 'concerned' | 'negative' | null;
+  win_probability?: number | null;  // Issue #125
   correspondence_summary?: string | null;
 }
 
