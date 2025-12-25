@@ -3,6 +3,7 @@
 Calculate proposal health scores, action items, and insights from email data.
 Issue #113: Fix empty insight fields on proposals.
 Issue #127: Add action_due calculation.
+Issue #125: Add win_probability calculation.
 
 This script:
 1. Calculates health_score (0-100) based on activity, status, and email patterns
@@ -10,6 +11,7 @@ This script:
 3. Calculates action_due date based on status and last contact
 4. Assigns action_owner based on proposal characteristics
 5. Analyzes sentiment from recent client emails
+6. Calculates win_probability (0-100%) based on status and engagement
 """
 
 import sqlite3
@@ -227,6 +229,52 @@ def calculate_action_due(proposal: Dict[str, Any]) -> Optional[str]:
     return due_date.strftime('%Y-%m-%d')
 
 
+def calculate_win_probability(proposal: Dict[str, Any], health_score: int) -> Optional[int]:
+    """
+    Calculate win probability (0-100%) based on:
+    - Status progression (biggest factor)
+    - Health score (secondary factor)
+    - Days in status (staleness penalty)
+
+    Issue #125: This field was completely unused.
+    """
+    status = proposal.get('status', '')
+    days = proposal.get('days_since_contact') or 0
+
+    # Closed proposals have fixed probabilities
+    if status in CLOSED_WON:
+        return 100  # Won = 100%
+    if status in CLOSED_LOST:
+        return 0    # Lost = 0%
+
+    # Base probability by status (reflects typical conversion rates)
+    status_base = {
+        'First Contact': 20,      # Many leads don't convert
+        'Proposal Prep': 35,      # Actively working on it
+        'Proposal Sent': 50,      # Sent and waiting
+        'Negotiation': 75,        # In final stages
+        'On Hold': 15,            # Stalled, lower chance
+    }
+
+    base = status_base.get(status, 30)
+
+    # Adjust based on health score (max +/- 15%)
+    health_adjustment = (health_score - 50) * 0.3  # -15 to +15
+
+    # Staleness penalty (max -20% for very stale proposals)
+    if days > 60:
+        stale_penalty = -20
+    elif days > 30:
+        stale_penalty = -10
+    elif days > 14:
+        stale_penalty = -5
+    else:
+        stale_penalty = 0
+
+    probability = base + health_adjustment + stale_penalty
+    return max(0, min(100, int(probability)))
+
+
 def get_email_stats(conn, proposal_id: int) -> Dict[str, Any]:
     """Get email statistics for a proposal"""
     cursor = conn.cursor()
@@ -352,12 +400,14 @@ def run_calculations():
         new_owner = assign_action_owner(proposal)
         new_sentiment = analyze_last_sentiment(email_stats)
         new_action_due = calculate_action_due(proposal)
+        new_win_prob = calculate_win_probability(proposal, new_health)
 
         # Build update dict
         updates = {
             'health_score': new_health,
             'action_needed': new_action,
             'action_due': new_action_due,
+            'win_probability': new_win_prob,
         }
 
         # Only set owner if not already set or if it's a pipeline proposal
