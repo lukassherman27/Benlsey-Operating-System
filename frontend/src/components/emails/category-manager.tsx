@@ -45,75 +45,30 @@ import { Loader2, RefreshCw, Eye, Mail, Calendar, User, Link as LinkIcon } from 
 import { cn } from "@/lib/utils";
 import Link from "next/link";
 
-// Email categories matching backend schema
-const EMAIL_CATEGORIES = [
-  { value: "contract", label: "Contract" },
-  { value: "invoice", label: "Invoice" },
-  { value: "proposal", label: "Proposal" },
-  { value: "design_document", label: "Design Document" },
-  { value: "correspondence", label: "Correspondence" },
-  { value: "internal", label: "Internal" },
-  { value: "financial", label: "Financial" },
-  { value: "rfi", label: "RFI/Submittal" },
-  { value: "presentation", label: "Presentation" },
-];
+// Category type from unified system
+type CategoryCode = {
+  code: string;
+  domain: string;
+  display_name: string;
+  description?: string;
+  count: number;
+  sort_order: number;
+};
 
-// Fallback categories for filters (includes more common ones)
+// Fallback categories if API fails
 const BASE_CATEGORIES = [
-  "general",
-  "proposal",
-  "project_update",
-  "design",
-  "contract",
-  "invoice",
-  "rfi",
-  "schedule",
-  "meeting",
-  "project_admin",
-  "vendor",
-  "internal",
+  "PROPOSAL",
+  "PROJECT",
+  "INTERNAL",
+  "SCHEDULING",
+  "LEGAL",
+  "FINANCE",
+  "HR",
+  "PR",
+  "SM",
+  "PERSONAL",
+  "SKIP",
 ];
-
-const SUBCATEGORY_OPTIONS: Record<string, { value: string; label: string }[]> =
-  {
-    contract: [
-      { value: "proposal", label: "Proposal" },
-      { value: "mou", label: "MOU" },
-      { value: "nda", label: "NDA" },
-      { value: "service", label: "Service Agreement" },
-      { value: "amendment", label: "Amendment" },
-    ],
-    invoice: [
-      { value: "initial", label: "Initial" },
-      { value: "milestone", label: "Milestone" },
-      { value: "final", label: "Final" },
-      { value: "expense", label: "Expense" },
-    ],
-    design: [
-      { value: "concept", label: "Concept" },
-      { value: "schematic", label: "Schematic" },
-      { value: "detail", label: "Detail Design" },
-      { value: "revision", label: "Revision" },
-      { value: "approval", label: "Approval" },
-    ],
-    design_document: [
-      { value: "concept", label: "Concept" },
-      { value: "schematic", label: "Schematic" },
-      { value: "detail", label: "Detail Design" },
-      { value: "revision", label: "Revision" },
-    ],
-    meeting: [
-      { value: "kickoff", label: "Kickoff" },
-      { value: "review", label: "Review" },
-      { value: "client", label: "Client" },
-      { value: "internal", label: "Internal" },
-    ],
-    project_update: [
-      { value: "status", label: "Status" },
-      { value: "milestone", label: "Milestone" },
-      { value: "issue", label: "Issue/Risk" },
-    ],
-  };
 
 type Draft = {
   category?: string;
@@ -230,32 +185,8 @@ export default function EmailCategoryManager() {
   const getEffectiveCategory = (email: EmailSummary, draft?: Draft) =>
     draft?.category ?? email.category ?? "";
 
-  const getEffectiveSubcategory = (email: EmailSummary, draft?: Draft) =>
-    draft?.subcategory ?? email.subcategory ?? "";
-
   const handleCategorySelect = (email: EmailSummary, nextValue: string) => {
-    const normalized = nextValue || undefined;
-    const requiresActive = normalized === "rfi";
-    if (requiresActive && email.is_active_project !== 1) {
-      toast.error("RFIs only apply to active projects.");
-      return;
-    }
-
-    handleDraftChange(email.email_id, "category", normalized);
-
-    const options = SUBCATEGORY_OPTIONS[normalized ?? ""] ?? [];
-    if (!options.length) {
-      handleDraftChange(email.email_id, "subcategory", undefined);
-      return;
-    }
-
-    const currentSubcategory = getEffectiveSubcategory(
-      email,
-      drafts[email.email_id]
-    );
-    if (!options.some((opt) => opt.value === currentSubcategory)) {
-      handleDraftChange(email.email_id, "subcategory", undefined);
-    }
+    handleDraftChange(email.email_id, "category", nextValue || undefined);
   };
 
   const updateDraft = (emailId: number, partial: Partial<Draft>) => {
@@ -295,18 +226,10 @@ export default function EmailCategoryManager() {
       return;
     }
 
-    const subcategoryOptions = SUBCATEGORY_OPTIONS[finalCategory] ?? [];
-    const finalSubcategory = subcategoryOptions.length
-      ? getEffectiveSubcategory(email, draft)
-      : undefined;
-
     mutation.mutate({
       emailId,
       category: finalCategory,
-      subcategory:
-        finalSubcategory && finalSubcategory.length > 0
-          ? finalSubcategory
-          : null,
+      subcategory: null,
       feedback: draft?.feedback,
     });
   };
@@ -499,8 +422,7 @@ export default function EmailCategoryManager() {
                   <TableRow>
                     <TableHead className="w-[35%]">Email</TableHead>
                     <TableHead className="w-[15%]">Current</TableHead>
-                    <TableHead className="w-[20%]">Correct Category</TableHead>
-                    <TableHead className="w-[15%]">Subcategory</TableHead>
+                    <TableHead className="w-[25%]">Correct Category</TableHead>
                     <TableHead className="w-[15%] text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -508,12 +430,6 @@ export default function EmailCategoryManager() {
                   {emails.map((email) => {
                     const draft = drafts[email.email_id];
                     const categoryValue = getEffectiveCategory(email, draft);
-                    const subcategoryValue = getEffectiveSubcategory(
-                      email,
-                      draft
-                    );
-                    const subcategoryOptions =
-                      SUBCATEGORY_OPTIONS[categoryValue] ?? [];
                     const linkedProject = email.project_code;
                     const isActive = email.is_active_project === 1;
 
@@ -568,14 +484,9 @@ export default function EmailCategoryManager() {
                           </div>
                         </TableCell>
                         <TableCell className="align-top">
-                          <Badge variant="secondary" className="capitalize">
+                          <Badge variant="secondary">
                             {email.category ?? "uncategorized"}
                           </Badge>
-                          {email.subcategory && (
-                            <p className="text-xs text-muted-foreground mt-1">
-                              {email.subcategory}
-                            </p>
-                          )}
                         </TableCell>
                         <TableCell className="align-top">
                           <Select
@@ -594,64 +505,16 @@ export default function EmailCategoryManager() {
                               <SelectItem value="uncategorized">
                                 Select...
                               </SelectItem>
-                              {EMAIL_CATEGORIES.map((item) => {
-                                const disabled =
-                                  item.value === "rfi" && !isActive;
-                                return (
-                                  <SelectItem
-                                    key={item.value}
-                                    value={item.value}
-                                    disabled={disabled}
-                                    title={
-                                      disabled
-                                        ? "RFIs require an active project."
-                                        : undefined
-                                    }
-                                  >
-                                    {item.label}
-                                    {disabled ? " (active only)" : ""}
-                                  </SelectItem>
-                                );
-                              })}
-                            </SelectContent>
-                          </Select>
-                        </TableCell>
-                        <TableCell className="align-top">
-                          <Select
-                            value={
-                              subcategoryOptions.length
-                                ? subcategoryValue || "none"
-                                : "none"
-                            }
-                            disabled={!subcategoryOptions.length}
-                            onValueChange={(newValue) =>
-                              handleDraftChange(
-                                email.email_id,
-                                "subcategory",
-                                newValue === "none" ? undefined : newValue
-                              )
-                            }
-                          >
-                            <SelectTrigger>
-                              <SelectValue placeholder="Subcategory" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="none">None</SelectItem>
-                              {subcategoryOptions.map((option) => (
+                              {mappedCategories.map((item) => (
                                 <SelectItem
-                                  key={option.value}
-                                  value={option.value}
+                                  key={item.value}
+                                  value={item.value}
                                 >
-                                  {option.label}
+                                  {item.label}
                                 </SelectItem>
                               ))}
                             </SelectContent>
                           </Select>
-                          {!subcategoryOptions.length && (
-                            <p className="text-[10px] text-muted-foreground mt-1">
-                              N/A
-                            </p>
-                          )}
                         </TableCell>
                         <TableCell className="align-top text-right">
                           <div className="flex flex-col items-end gap-2">
@@ -793,99 +656,37 @@ export default function EmailCategoryManager() {
                 <div className="border-t pt-6 space-y-4">
                   <h3 className="font-semibold text-lg">Correct This Email</h3>
 
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="preview-category">Correct Category *</Label>
-                      <Select
-                        value={
-                          getEffectiveCategory(
-                            previewEmail,
-                            drafts[previewEmail.email_id]
-                          ) || "uncategorized"
-                        }
-                        onValueChange={(newValue) =>
-                          handleCategorySelect(
-                            previewEmail,
-                            newValue === "uncategorized" ? "" : newValue
-                          )
-                        }
-                      >
-                        <SelectTrigger id="preview-category">
-                          <SelectValue placeholder="Pick category" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="uncategorized">Select...</SelectItem>
-                          {EMAIL_CATEGORIES.map((item) => {
-                            const disabled =
-                              item.value === "rfi" &&
-                              previewEmail.is_active_project !== 1;
-                            return (
-                              <SelectItem
-                                key={item.value}
-                                value={item.value}
-                                disabled={disabled}
-                              >
-                                {item.label}
-                                {disabled ? " (active only)" : ""}
-                              </SelectItem>
-                            );
-                          })}
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="preview-subcategory">Subcategory</Label>
-                      <Select
-                        value={
-                          SUBCATEGORY_OPTIONS[
-                            getEffectiveCategory(
-                              previewEmail,
-                              drafts[previewEmail.email_id]
-                            )
-                          ]?.length
-                            ? getEffectiveSubcategory(
-                                previewEmail,
-                                drafts[previewEmail.email_id]
-                              ) || "none"
-                            : "none"
-                        }
-                        disabled={
-                          !SUBCATEGORY_OPTIONS[
-                            getEffectiveCategory(
-                              previewEmail,
-                              drafts[previewEmail.email_id]
-                            )
-                          ]?.length
-                        }
-                        onValueChange={(newValue) =>
-                          handleDraftChange(
-                            previewEmail.email_id,
-                            "subcategory",
-                            newValue === "none" ? undefined : newValue
-                          )
-                        }
-                      >
-                        <SelectTrigger id="preview-subcategory">
-                          <SelectValue placeholder="Subcategory" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="none">None</SelectItem>
-                          {(
-                            SUBCATEGORY_OPTIONS[
-                              getEffectiveCategory(
-                                previewEmail,
-                                drafts[previewEmail.email_id]
-                              )
-                            ] ?? []
-                          ).map((option) => (
-                            <SelectItem key={option.value} value={option.value}>
-                              {option.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="preview-category">Correct Category *</Label>
+                    <Select
+                      value={
+                        getEffectiveCategory(
+                          previewEmail,
+                          drafts[previewEmail.email_id]
+                        ) || "uncategorized"
+                      }
+                      onValueChange={(newValue) =>
+                        handleCategorySelect(
+                          previewEmail,
+                          newValue === "uncategorized" ? "" : newValue
+                        )
+                      }
+                    >
+                      <SelectTrigger id="preview-category">
+                        <SelectValue placeholder="Pick category" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="uncategorized">Select...</SelectItem>
+                        {mappedCategories.map((item) => (
+                          <SelectItem
+                            key={item.value}
+                            value={item.value}
+                          >
+                            {item.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
 
                   <div className="space-y-2">

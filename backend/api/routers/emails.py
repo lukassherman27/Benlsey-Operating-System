@@ -459,17 +459,17 @@ async def get_email_details(email_id: int):
 # ============================================================================
 
 @router.post("/emails/{email_id}/category")
-async def update_email_category(email_id: int, request: EmailCategoryRequest):
-    """Update email category"""
+async def update_email_category_endpoint(email_id: int, request: EmailCategoryRequest):
+    """Update email category using the unified category system"""
     try:
-        result = email_service.update_category(
+        result = email_service.update_email_category(
             email_id,
-            category=request.category,
+            new_category=request.category,
             subcategory=request.subcategory,
-            project_code=request.project_code
+            feedback=None
         )
-        if not result.get('success'):
-            raise HTTPException(status_code=400, detail=result.get('message'))
+        if not result:
+            raise HTTPException(status_code=404, detail="Email not found")
         return action_response(True, message="Category updated")
     except HTTPException:
         raise
