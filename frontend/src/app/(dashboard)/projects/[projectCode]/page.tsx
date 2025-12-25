@@ -26,6 +26,8 @@ import { ProjectMeetingsCard } from "@/components/project/project-meetings-card"
 import { ProjectEmailsCard } from "@/components/project/project-emails-card";
 import { ProjectHealthBanner, calculateProjectHealth } from "@/components/project/project-health-banner";
 import { RFIDeliverablesPanel } from "@/components/project/rfi-deliverables-panel";
+import { PhaseProgressDashboard } from "@/components/project/phase-progress-dashboard";
+import { TodaysTeamWidget } from "@/components/project/todays-team-widget";
 import { ds } from "@/lib/design-system";
 import { cn } from "@/lib/utils";
 
@@ -254,6 +256,19 @@ export default function ProjectDetailPage({
               projectCode={projectCode}
               className="mb-6"
             />
+
+            {/* Phase Progress & Team Activity */}
+            <section className="mb-8">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-lg font-semibold text-slate-900">Project Progress</h2>
+              </div>
+              <div className="grid gap-6 lg:grid-cols-3">
+                <div className="lg:col-span-2">
+                  <PhaseProgressDashboard projectCode={projectCode} />
+                </div>
+                <TodaysTeamWidget projectCode={projectCode} />
+              </div>
+            </section>
 
             {/* Main Dashboard Cards - 3 column layout */}
             <section className="mb-8">

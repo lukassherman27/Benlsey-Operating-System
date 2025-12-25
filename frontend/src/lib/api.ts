@@ -2560,6 +2560,63 @@ export const api = {
       count: number;
     }>(`/api/projects/${encodeURIComponent(projectCode)}/team`),
 
+  getProjectSchedule: (projectCode: string, days: number = 30) =>
+    request<{
+      success: boolean;
+      project_code: string;
+      entries: Array<{
+        entry_id: number;
+        work_date: string;
+        discipline: string | null;
+        phase: string | null;
+        task_description: string | null;
+        staff_id: number | null;
+        staff_name: string | null;
+        department: string | null;
+        role: string | null;
+      }>;
+      staff_summary: Array<{
+        name: string;
+        staff_id: number | null;
+        department: string | null;
+        role: string | null;
+        days_worked: number;
+        phases: string[];
+        disciplines: string[];
+      }>;
+      total_entries: number;
+      unique_staff: number;
+    }>(`/api/projects/${encodeURIComponent(projectCode)}/schedule?days=${days}`),
+
+  getProjectMilestones: (projectCode: string) =>
+    request<{
+      success: boolean;
+      project_code: string;
+      milestones: Array<{
+        milestone_id: number;
+        phase: string | null;
+        milestone_name: string;
+        milestone_type: string | null;
+        planned_date: string | null;
+        actual_date: string | null;
+        status: string;
+        notes: string | null;
+        is_overdue: number;
+        days_until: number | null;
+      }>;
+      by_phase: Record<string, Array<{
+        milestone_id: number;
+        milestone_name: string;
+        milestone_type: string | null;
+        planned_date: string | null;
+        actual_date: string | null;
+        status: string;
+        is_overdue: number;
+        days_until: number | null;
+      }>>;
+      total: number;
+    }>(`/api/projects/${encodeURIComponent(projectCode)}/milestones`),
+
   // ==========================================================================
   // PREVIEW API - Lightweight entity previews for hover cards
   // ==========================================================================
