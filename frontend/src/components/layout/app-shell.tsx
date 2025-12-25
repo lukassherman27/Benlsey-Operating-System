@@ -18,6 +18,7 @@ import {
   Menu,
   Sun,
   Brain,
+  Mail,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ds } from "@/lib/design-system";
@@ -53,6 +54,7 @@ const navItems: NavItem[] = [
     label: "Admin",
     icon: Settings,
     subItems: [
+      { href: "/emails/review", label: "Email Review", icon: Mail },
       { href: "/admin/suggestions", label: "AI Review", icon: Sparkles },
       { href: "/admin/patterns", label: "Patterns", icon: Brain },
       { href: "/system", label: "System", icon: Settings },
