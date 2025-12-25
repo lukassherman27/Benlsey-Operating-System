@@ -20,6 +20,7 @@ import {
   Brain,
   Mail,
   Mic,
+  LayoutDashboard,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ds } from "@/lib/design-system";
@@ -45,7 +46,15 @@ type NavItem = {
 const navItems: NavItem[] = [
   { href: "/my-day", label: "My Day", icon: Sun },
   { href: "/", label: "Overview", icon: Home },
-  { href: "/tracker", label: "Proposals", icon: ListChecks },
+  {
+    href: "/tracker",
+    label: "Proposals",
+    icon: ListChecks,
+    subItems: [
+      { href: "/tracker", label: "Pipeline Tracker", icon: ListChecks },
+      { href: "/overview", label: "Dashboard", icon: LayoutDashboard },
+    ]
+  },
   { href: "/projects", label: "Projects", icon: FileText },
   { href: "/tasks", label: "Tasks", icon: CheckSquare },
   { href: "/meetings", label: "Meetings", icon: Calendar },
