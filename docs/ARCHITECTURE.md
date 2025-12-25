@@ -1,6 +1,6 @@
 # Architecture
 
-**Updated:** 2025-12-11
+**Updated:** 2025-12-26
 
 ---
 
@@ -181,18 +181,20 @@ EMAIL_PASSWORD_2=xxx
 ### Core Tables
 | Table | Records | Purpose |
 |-------|---------|---------|
-| emails | 3,742 | All imported emails |
-| proposals | 102 | Pre-contract opportunities |
-| projects | 60 | Active contracts |
-| contacts | 546 | All contacts |
+| emails | 3,879 | All imported emails |
+| proposals | 108 | Pre-contract opportunities |
+| projects | 67 | Active contracts |
+| contacts | 467 | All contacts |
 | meeting_transcripts | 12 | Voice recordings |
-| invoices | 420 | Invoice tracking |
-| team_members | 98 | Staff directory |
+| invoices | 436 | Invoice tracking |
+| staff | 100 | Staff directory (95 Design, 5 Leadership) |
+| contract_phases | 15 | Project phases with fees |
+| schedule_entries | 1,120 | Daily staff assignments |
 
 ### Link Tables
 | Table | Records | Purpose |
 |-------|---------|---------|
-| email_proposal_links | 1,916 | Email → Proposal |
+| email_proposal_links | 2,095 | Email → Proposal |
 | email_project_links | 519 | Email → Project |
 | contact_project_mappings | 150 | Contact → Project + Role |
 
@@ -200,8 +202,43 @@ EMAIL_PASSWORD_2=xxx
 | Table | Purpose |
 |-------|---------|
 | ai_suggestions | Pending/processed suggestions |
-| email_learned_patterns | Sender→project patterns |
+| email_learned_patterns | Sender→project patterns (153 patterns) |
 | category_patterns | Category-specific patterns |
+
+### Project Management Tables (New - Dec 2025)
+| Table | Purpose |
+|-------|---------|
+| project_pm_history | Track PM assignment changes on projects |
+| daily_work | Staff daily work for Bill/Brian review |
+| client_submissions | Track deliverables sent to clients |
+
+```sql
+-- PM assignment on projects
+projects.pm_staff_id INTEGER REFERENCES staff(staff_id)
+
+-- PM history tracking
+project_pm_history (
+    history_id, project_id, pm_staff_id,
+    assigned_date, removed_date, notes
+)
+
+-- Daily work for Bill/Brian review
+daily_work (
+    staff_id, project_code, work_date,
+    description, task_type, discipline, phase,
+    hours_spent, attachments,
+    reviewer_id, review_status, review_comments
+)
+
+-- Client submissions tracking
+client_submissions (
+    project_code, phase_id, discipline, phase_name,
+    submission_type, title, revision_number,
+    submitted_date, files, status,
+    client_feedback, feedback_date,
+    linked_invoice_id
+)
+```
 
 ---
 
@@ -277,11 +314,17 @@ backend/
 | Router | Purpose |
 |--------|---------|
 | proposals.py | Bill's #1 priority |
-| projects.py | Active contracts |
+| projects.py | Active contracts + phase management |
 | emails.py | Search, scan, review queue |
 | suggestions.py | AI suggestions |
 | admin.py | Run pipelines |
 | learning.py | AI learning |
+
+### Project Management Endpoints (New)
+| Endpoint | Purpose |
+|----------|---------|
+| `GET /projects/{code}/phases` | Phase status for progress visualization |
+| `GET /proposals/{code}/conversation` | iMessage-style email thread |
 
 ### Email Review Queue (Learning Loop)
 | Endpoint | Purpose |
@@ -312,6 +355,9 @@ Frontend: `/emails/review` - UI for bulk selection and approval
 | `components/dashboard/` | Dashboard widgets |
 | `components/suggestions/` | Suggestion UI |
 | `components/project/` | Project views |
+| `components/project/phase-progress-bar.tsx` | Visual Concept→SD→DD→CD→CA pipeline |
+| `components/project/project-card.tsx` | Project list card with phase progress |
+| `components/proposals/conversation-view.tsx` | iMessage-style email display |
 
 ---
 
