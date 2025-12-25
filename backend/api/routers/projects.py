@@ -382,73 +382,69 @@ async def get_project_phases(project_code: str):
     """
     Get project phases with status for phase progress visualization.
 
-    Returns phases grouped by discipline with completion status.
+    Uses project_fee_breakdown table (447 records) instead of contract_phases (15 orphan records).
+    The contract_phases table has project_id=3564 but projects start at 3593.
     """
     try:
         conn = sqlite3.connect(DB_PATH)
         conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
 
-        # Get project_id
-        cursor.execute("SELECT project_id FROM projects WHERE project_code = ?", (project_code,))
+        # Verify project exists
+        cursor.execute("SELECT project_code FROM projects WHERE project_code = ?", (project_code,))
         project = cursor.fetchone()
         if not project:
             conn.close()
             raise HTTPException(status_code=404, detail=f"Project {project_code} not found")
 
-        project_id = project['project_id']
-
-        # Get all phases for this project with invoice totals
+        # Get phases from project_fee_breakdown (actual data - 447 records)
         cursor.execute("""
             SELECT
-                cp.phase_id,
-                cp.discipline,
-                cp.phase_name,
-                cp.phase_order,
-                cp.phase_fee_usd,
-                cp.invoiced_amount_usd,
-                cp.paid_amount_usd,
-                cp.status,
-                cp.start_date,
-                cp.expected_completion_date,
-                cp.actual_completion_date,
-                -- Calculate totals from invoices if not in phase record
-                COALESCE(cp.invoiced_amount_usd,
-                    (SELECT COALESCE(SUM(i.invoice_amount), 0)
-                     FROM invoices i
-                     WHERE i.project_id = cp.project_id
-                       AND i.discipline = cp.discipline
-                       AND i.phase = cp.phase_name)
-                ) as total_invoiced,
-                COALESCE(cp.paid_amount_usd,
-                    (SELECT COALESCE(SUM(i.amount_paid), 0)
-                     FROM invoices i
-                     WHERE i.project_id = cp.project_id
-                       AND i.discipline = cp.discipline
-                       AND i.phase = cp.phase_name)
-                ) as total_paid
-            FROM contract_phases cp
-            WHERE cp.project_id = ?
-            ORDER BY cp.discipline, cp.phase_order
-        """, (project_id,))
+                breakdown_id,
+                discipline,
+                phase as phase_name,
+                phase_fee_usd,
+                total_invoiced,
+                percentage_invoiced,
+                total_paid,
+                percentage_paid,
+                payment_status as status,
+                scope
+            FROM project_fee_breakdown
+            WHERE project_code = ?
+            ORDER BY discipline,
+                CASE phase
+                    WHEN 'Mobilization' THEN 1
+                    WHEN 'Concept Design' THEN 2
+                    WHEN 'Schematic Design' THEN 3
+                    WHEN 'Design Development' THEN 4
+                    WHEN 'Construction Documents' THEN 5
+                    WHEN 'Contract Administration' THEN 6
+                    ELSE 7
+                END
+        """, (project_code,))
+
+        phase_order_map = {
+            'Mobilization': 1, 'Concept Design': 2, 'Schematic Design': 3,
+            'Design Development': 4, 'Construction Documents': 5, 'Contract Administration': 6
+        }
 
         phases = []
         for row in cursor.fetchall():
             phase_dict = dict(row)
+            total_invoiced = phase_dict.get('total_invoiced', 0) or 0
+            total_paid = phase_dict.get('total_paid', 0) or 0
+            phase_fee = phase_dict.get('phase_fee_usd', 0) or 0
 
-            # Determine status based on invoicing if not explicitly set
-            if phase_dict['status'] in ('pending', None):
-                total_invoiced = phase_dict.get('total_invoiced', 0) or 0
-                total_paid = phase_dict.get('total_paid', 0) or 0
-                phase_fee = phase_dict.get('phase_fee_usd', 0) or 0
+            # Determine status based on payment progress
+            if phase_fee > 0 and total_paid >= phase_fee * 0.95:
+                phase_dict['status'] = 'completed'
+            elif total_invoiced > 0:
+                phase_dict['status'] = 'in_progress'
+            else:
+                phase_dict['status'] = 'pending'
 
-                if phase_fee > 0 and total_paid >= phase_fee:
-                    phase_dict['status'] = 'completed'
-                elif total_invoiced > 0:
-                    phase_dict['status'] = 'in_progress'
-                else:
-                    phase_dict['status'] = 'pending'
-
+            phase_dict['phase_order'] = phase_order_map.get(phase_dict.get('phase_name'), 99)
             phases.append(phase_dict)
 
         conn.close()
@@ -456,7 +452,7 @@ async def get_project_phases(project_code: str):
         # Group by discipline
         by_discipline = {}
         for phase in phases:
-            disc = phase.get('discipline', 'Unknown')
+            disc = phase.get('discipline') or 'Unknown'
             if disc not in by_discipline:
                 by_discipline[disc] = []
             by_discipline[disc].append(phase)
@@ -1139,3 +1135,99 @@ async def get_project_team(project_code: str):
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to get project team: {str(e)}")
+
+
+@router.get("/projects/{project_code}/schedule")
+async def get_project_schedule(project_code: str, days: int = 30):
+    """Get schedule entries for a project - who's working on what."""
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+
+        cursor.execute("""
+            SELECT
+                se.entry_id, se.work_date, se.discipline, se.phase, se.task_description,
+                s.staff_id, s.first_name || COALESCE(' ' || s.last_name, '') as staff_name,
+                s.department, s.role
+            FROM schedule_entries se
+            LEFT JOIN staff s ON se.member_id = s.staff_id
+            WHERE se.project_code = ?
+              AND se.work_date >= date('now', '-' || ? || ' days')
+              AND se.is_on_leave = 0
+            ORDER BY se.work_date DESC, s.first_name
+        """, (project_code, days))
+
+        entries = [dict(row) for row in cursor.fetchall()]
+
+        # Group by staff for summary
+        staff_summary = {}
+        for entry in entries:
+            name = entry.get('staff_name') or 'Unknown'
+            if name not in staff_summary:
+                staff_summary[name] = {
+                    'name': name, 'staff_id': entry.get('staff_id'),
+                    'department': entry.get('department'), 'role': entry.get('role'),
+                    'days_worked': 0, 'phases': set(), 'disciplines': set()
+                }
+            staff_summary[name]['days_worked'] += 1
+            if entry.get('phase'):
+                staff_summary[name]['phases'].add(entry['phase'])
+            if entry.get('discipline'):
+                staff_summary[name]['disciplines'].add(entry['discipline'])
+
+        summary_list = []
+        for staff in staff_summary.values():
+            staff['phases'] = list(staff['phases'])
+            staff['disciplines'] = list(staff['disciplines'])
+            summary_list.append(staff)
+        summary_list.sort(key=lambda x: x['days_worked'], reverse=True)
+
+        conn.close()
+        return {
+            "success": True, "project_code": project_code,
+            "entries": entries, "staff_summary": summary_list,
+            "total_entries": len(entries), "unique_staff": len(summary_list)
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to get project schedule: {str(e)}")
+
+
+@router.get("/projects/{project_code}/milestones")
+async def get_project_milestones(project_code: str):
+    """Get project milestones - key dates and deadlines."""
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+
+        cursor.execute("""
+            SELECT
+                milestone_id, phase, milestone_name, milestone_type,
+                planned_date, actual_date, status, notes,
+                CASE WHEN status = 'completed' THEN 0
+                     WHEN planned_date < date('now') AND status != 'completed' THEN 1
+                     ELSE 0 END as is_overdue,
+                CAST(julianday(planned_date) - julianday('now') AS INTEGER) as days_until
+            FROM project_milestones
+            WHERE project_code = ?
+            ORDER BY CASE status WHEN 'pending' THEN 1 WHEN 'in_progress' THEN 2
+                     WHEN 'completed' THEN 3 ELSE 4 END, planned_date
+        """, (project_code,))
+
+        milestones = [dict(row) for row in cursor.fetchall()]
+
+        by_phase = {}
+        for m in milestones:
+            phase = m.get('phase') or 'General'
+            if phase not in by_phase:
+                by_phase[phase] = []
+            by_phase[phase].append(m)
+
+        conn.close()
+        return {
+            "success": True, "project_code": project_code,
+            "milestones": milestones, "by_phase": by_phase, "total": len(milestones)
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to get project milestones: {str(e)}")

@@ -26,6 +26,8 @@ import { ProjectMeetingsCard } from "@/components/project/project-meetings-card"
 import { ProjectEmailsCard } from "@/components/project/project-emails-card";
 import { ProjectHealthBanner, calculateProjectHealth } from "@/components/project/project-health-banner";
 import { RFIDeliverablesPanel } from "@/components/project/rfi-deliverables-panel";
+import { ScheduleCard } from "@/components/project/schedule-card";
+import { MilestonesCard } from "@/components/project/milestones-card";
 import { ds } from "@/lib/design-system";
 import { cn } from "@/lib/utils";
 
@@ -330,12 +332,21 @@ export default function ProjectDetailPage({
               </div>
             </section>
 
-            {/* Team & Contacts */}
+            {/* Milestones Section */}
             <section className="mb-8">
               <div className="flex items-center justify-between mb-4">
-                <h2 className="text-lg font-semibold text-slate-900">People</h2>
+                <h2 className="text-lg font-semibold text-slate-900">Project Milestones</h2>
               </div>
-              <div className="grid gap-6 lg:grid-cols-2">
+              <MilestonesCard projectCode={projectCode} />
+            </section>
+
+            {/* Team, Schedule & Contacts */}
+            <section className="mb-8">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-lg font-semibold text-slate-900">People & Schedule</h2>
+              </div>
+              <div className="grid gap-6 lg:grid-cols-3">
+                <ScheduleCard projectCode={projectCode} days={90} />
                 <TeamCard projectCode={projectCode} />
                 <ProjectContactsCard projectCode={projectCode} />
               </div>
