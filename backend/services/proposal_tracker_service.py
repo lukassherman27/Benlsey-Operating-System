@@ -245,6 +245,8 @@ class ProposalTrackerService(BaseService):
                     '' as latest_email_context,
                     COALESCE(p.waiting_for, '') as waiting_on,
                     COALESCE(p.next_action, '') as next_steps,
+                    p.action_owner,
+                    p.next_action_date,
                     COALESCE(email_stats.last_email_date, '') as last_email_date,
                     COALESCE(email_stats.email_count, 0) as email_count,
                     COALESCE(email_stats.first_email_date, '') as first_email_date,
@@ -381,6 +383,8 @@ class ProposalTrackerService(BaseService):
                     '' as latest_email_context,
                     COALESCE(p.waiting_for, '') as waiting_on,
                     COALESCE(p.next_action, '') as next_steps,
+                    p.action_owner,
+                    p.next_action_date,
                     COALESCE(email_stats.last_email_date, '') as last_email_date,
                     COALESCE(email_stats.email_count, 0) as email_count,
                     COALESCE(email_stats.first_email_date, '') as first_email_date,
@@ -440,6 +444,8 @@ class ProposalTrackerService(BaseService):
             'proposal_sent_date', 'first_contact_date',
             'contact_person', 'contact_email', 'contact_phone',
             'ball_in_court', 'waiting_for', 'remarks', 'status',
+            # Action tracking (Issue #95)
+            'action_owner', 'action_source', 'next_action', 'next_action_date',
         }
 
         # Filter to allowed fields
