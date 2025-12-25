@@ -1,8 +1,8 @@
 # System Status
 
-**Updated:** 2025-12-25 (End of Session)
+**Updated:** 2025-12-26
 **Backend:** localhost:8000 | **Frontend:** localhost:3002
-**Phase:** Operations - Proposals & Email Linking
+**Phase:** Operations - Project Management Redesign
 
 ---
 
@@ -18,6 +18,9 @@
 | Contacts | 467 |
 | Invoices | 436 |
 | Patterns | 153 |
+| Staff | 100 |
+| Contract Phases | 15 |
+| Schedule Entries | 1,120 |
 
 ### Email Linking Stats
 
@@ -26,7 +29,6 @@
 | Linked emails | 2,095 (54%) |
 | Unlinked (linkable) | 515 |
 | Unlinked (standalone) | 1,269 (correctly not linked) |
-| Pending suggestions | 0 |
 
 ### Pipeline Summary
 
@@ -39,36 +41,127 @@
 
 ---
 
-## Session Work (Dec 25)
+## Session Work (Dec 26)
 
-### Issues Fixed Today
-| Issue | PR | Description |
-|-------|-----|-------------|
-| #93 | - | sender_category (already existed) |
-| #94 | #97 | Auto ball_in_court trigger |
-| #95 | #106 | Action owner tracking |
-| #99 | #104 | Pattern feedback loop |
-| #102 | #105 | Skill category filtering |
-| #81 | - | Closed as duplicate |
-| #17, #13, #18, #15, #39 | #92 | Nav fixes, data quality |
+### Major Work: Project Management Redesign (#107)
 
-### Key Improvements
-1. **Pattern Learning Loop** - Now records times_correct/times_rejected
-2. **Action Owner Tracking** - action_owner field on proposals
-3. **Ball In Court Trigger** - Auto-updates on email link
-4. **Correct Unlinked Count** - 515 actual (not 1,784)
-5. **Cross-Agent Coordination** - CODEOWNERS, PR template
+**Problem:** Projects page was 95% finance metrics, 5% project management. No visibility into:
+- Where project is in lifecycle (Concept → SD → DD → CD → CA)
+- Who's working on it (PM, team, schedule)
+- What we sent to client (submissions, feedback)
+- Daily work (Bill/Brian review)
+
+**Solution:** Complete redesign with new tables and components.
+
+### Database Migrations Created
+
+| Migration | Purpose |
+|-----------|---------|
+| 095 | Add `pm_staff_id` to projects + PM history table |
+| 096 | Create `daily_work` table (Bill/Brian review workflow) |
+| 097 | Create `client_submissions` table (track what we send) |
+
+### New Tables
+
+```sql
+-- PM on projects
+projects.pm_staff_id INTEGER REFERENCES staff(staff_id)
+project_pm_history (track PM assignment changes)
+
+-- Daily work for Bill/Brian review
+daily_work (
+  staff_id, project_code, work_date,
+  description, task_type, attachments,
+  reviewer_id, review_status, review_comments
+)
+
+-- Client submissions tracking
+client_submissions (
+  project_code, discipline, phase_name,
+  submission_type, title, revision_number,
+  submitted_date, files, client_feedback, status,
+  linked_invoice_id
+)
+```
+
+### Components Built
+
+| Component | Purpose |
+|-----------|---------|
+| `PhaseProgressBar` | Visual Concept→SD→DD→CD→CA pipeline |
+| `PhaseProgressCompact` | Compact version for list view |
+| `ProjectCard` | New card for project list with phase progress |
+| `ConversationView` | iMessage-style email view for proposals |
+
+### API Endpoints Added
+
+| Endpoint | Purpose |
+|----------|---------|
+| `GET /projects/{code}/phases` | Phase status for progress bar |
+| `GET /proposals/{code}/conversation` | Emails for iMessage view |
+
+### Issues Completed
+
+| Issue | Description |
+|-------|-------------|
+| #98 | Conversation view for proposals (PR #103 merged) |
+| #107 | Project management redesign (in progress) |
+| #108 | Missing getProposalConversation API (PR #112) |
+| #109 | POST /api/proposals wrong table (PR #112) |
+| #110 | Typo project_coder in query service (PR #112) |
+| #111 | Wrong column names in queries (PR #112) |
 
 ---
 
-## Open Issues (9)
+## Branch Status
+
+| Branch | Purpose | Status |
+|--------|---------|--------|
+| `feat/project-management-107` | Project redesign | In progress |
+| `main` | Production | Up to date |
+
+---
+
+## What's Working
+
+| Feature | Status | Notes |
+|---------|--------|-------|
+| Proposal Tracker | Live | action_owner, ball_in_court tracking |
+| Proposal Conversation | New | iMessage-style email view |
+| Email Linking | Live | 54% linked, 515 to process |
+| Pattern Learning | Live | 153 patterns, feedback working |
+| Project Phases | New | Phase progress visualization |
+| Finance Dashboard | Live | |
+| Meeting Transcripts | Live | |
+
+---
+
+## What's Next
+
+### Immediate (Issue #107)
+- [ ] Redesign projects list page with phase progress
+- [ ] Build daily work review UI for Bill/Brian
+- [ ] Add PM assignments to projects
+- [ ] Build submissions timeline component
+
+### Upcoming
+- [ ] #14: PM dashboard view
+- [ ] #7: Claude CLI email workflow
+- [ ] #20: Follow-up email drafting
+
+---
+
+## Open Issues (6)
+
+### Project Management
+- #107: Project management redesign (in progress)
+- #14: PM dashboard (depends on #107)
 
 ### Data Cleanup
 - #100: Legacy category column
 - #101: Normalize match_method values
 
 ### Features
-- #14: PM dashboard (blocked - needs PM data)
 - #7: Claude CLI email workflow
 
 ### Automation (Phase 2)
@@ -84,31 +177,22 @@
 
 ---
 
-## What's Working
+## Database Schema Highlights
 
-| Feature | Status | Notes |
-|---------|--------|-------|
-| Proposal Tracker | Live | action_owner tracking added |
-| Email Linking | Live | 54% linked, 515 to process |
-| Pattern Learning | Live | 153 patterns, feedback working |
-| Ball In Court | Live | Auto-updates via trigger |
-| Project Pages | Live | |
-| Finance Dashboard | Live | |
-| Meeting Transcripts | Live | |
+### Staff (100 people)
+- 95 Design, 5 Leadership
+- Owner: Bill, Principal: Brian, Director: Lukas
+- No PM roles defined yet (need to identify PMs)
 
----
+### Contract Phases (15 phases)
+- Disciplines: Architecture, Interior, Landscape
+- Phases: Mobilization, Concept, SD, DD, CD, CA
+- Fee tracking per phase
 
-## Database Changes Today
-
-```sql
--- Migration 093: Auto ball_in_court trigger
-CREATE TRIGGER trg_auto_ball_in_court
-AFTER INSERT ON email_proposal_links ...
-
--- Migration 094: Action owner tracking
-ALTER TABLE proposals ADD COLUMN action_owner TEXT;
-ALTER TABLE proposals ADD COLUMN action_source TEXT;
-```
+### Schedule Entries (1,120 entries)
+- Who works on what project each day
+- Discipline, phase, task description
+- Ready for daily work integration
 
 ---
 
@@ -116,14 +200,19 @@ ALTER TABLE proposals ADD COLUMN action_source TEXT;
 
 ```bash
 # Start servers
-cd backend && uvicorn api.main:app --reload --port 8000
+cd backend && python3 -m uvicorn api.main:app --reload --port 8000
 cd frontend && npm run dev
 
 # Email sync
 python scripts/core/scheduled_email_sync.py
 
 # Check stats
-sqlite3 database/bensley_master.db "SELECT 'emails', COUNT(*) FROM emails;"
+sqlite3 database/bensley_master.db "
+SELECT 'emails', COUNT(*) FROM emails
+UNION SELECT 'proposals', COUNT(*) FROM proposals
+UNION SELECT 'projects', COUNT(*) FROM projects
+UNION SELECT 'staff', COUNT(*) FROM staff;
+"
 ```
 
 ---
