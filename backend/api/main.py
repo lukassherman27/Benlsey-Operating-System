@@ -61,6 +61,7 @@ from api.routers import (
     previews,
     activities,
     story,
+    weekly_report,
 )
 
 # Initialize logger
@@ -197,6 +198,9 @@ app.include_router(activities.router)
 
 # Story Builder (Issue #141)
 app.include_router(story.router)
+
+# Weekly Report (Issue #142)
+app.include_router(weekly_report.router)
 
 # ============================================================================
 # GLOBAL EXCEPTION HANDLERS
