@@ -2,12 +2,14 @@
 """
 Calculate proposal health scores, action items, and insights from email data.
 Issue #113: Fix empty insight fields on proposals.
+Issue #127: Add action_due calculation.
 
 This script:
 1. Calculates health_score (0-100) based on activity, status, and email patterns
 2. Populates action_needed with concrete next steps
-3. Assigns action_owner based on proposal characteristics
-4. Analyzes sentiment from recent client emails
+3. Calculates action_due date based on status and last contact
+4. Assigns action_owner based on proposal characteristics
+5. Analyzes sentiment from recent client emails
 """
 
 import sqlite3
@@ -175,6 +177,56 @@ def assign_action_owner(proposal: Dict[str, Any]) -> Optional[str]:
     return 'lukas'
 
 
+def calculate_action_due(proposal: Dict[str, Any]) -> Optional[str]:
+    """
+    Calculate when the next action is due based on status and last contact.
+    Issue #127: This field was 0% populated.
+
+    Returns ISO date string (YYYY-MM-DD) for when action is due.
+    """
+    status = proposal.get('status', '')
+    days = proposal.get('days_since_contact') or 0
+    ball = proposal.get('ball_in_court', 'us')
+    last_contact = proposal.get('last_contact_date')
+
+    # Closed proposals don't need action due dates
+    if status in CLOSED_WON + CLOSED_LOST:
+        return None
+
+    # Calculate base date (last contact or today)
+    if last_contact:
+        try:
+            base_date = datetime.strptime(last_contact[:10], '%Y-%m-%d')
+        except (ValueError, TypeError):
+            base_date = datetime.now()
+    else:
+        base_date = datetime.now()
+
+    # Determine follow-up window based on status and ball in court
+    if status == 'Negotiation':
+        # Negotiation = urgent, short window
+        if ball == 'us':
+            follow_up_days = 3  # We need to respond quickly
+        else:
+            follow_up_days = 7  # Follow up after 1 week
+    elif status == 'Proposal Sent':
+        if ball == 'us':
+            follow_up_days = 2  # We have questions to answer
+        else:
+            follow_up_days = 7  # Standard follow-up window
+    elif status == 'First Contact':
+        follow_up_days = 7  # Week to schedule intro call
+    elif status == 'Proposal Prep':
+        follow_up_days = 5  # Should send proposal within 5 days
+    elif status == 'On Hold':
+        follow_up_days = 30  # Monthly check-in
+    else:
+        follow_up_days = 14  # Default 2-week window
+
+    due_date = base_date + timedelta(days=follow_up_days)
+    return due_date.strftime('%Y-%m-%d')
+
+
 def get_email_stats(conn, proposal_id: int) -> Dict[str, Any]:
     """Get email statistics for a proposal"""
     cursor = conn.cursor()
@@ -278,7 +330,8 @@ def run_calculations():
         SELECT
             proposal_id, project_code, project_name, status,
             ball_in_court, days_since_contact, project_value,
-            waiting_for, health_score, action_needed, action_owner
+            waiting_for, health_score, action_needed, action_owner,
+            last_contact_date
         FROM proposals
     """)
     proposals = [dict(row) for row in cursor.fetchall()]
@@ -298,11 +351,13 @@ def run_calculations():
         new_action = determine_action_needed(proposal, email_stats)
         new_owner = assign_action_owner(proposal)
         new_sentiment = analyze_last_sentiment(email_stats)
+        new_action_due = calculate_action_due(proposal)
 
         # Build update dict
         updates = {
             'health_score': new_health,
             'action_needed': new_action,
+            'action_due': new_action_due,
         }
 
         # Only set owner if not already set or if it's a pipeline proposal
@@ -332,10 +387,10 @@ def run_calculations():
     print("\nRun this query to see results:")
     print("""
 sqlite3 database/bensley_master.db "
-SELECT project_code, status, health_score, action_owner, action_needed
+SELECT project_code, status, health_score, action_due, action_owner, action_needed
 FROM proposals
 WHERE status IN ('First Contact', 'Proposal Sent', 'Negotiation', 'On Hold')
-ORDER BY health_score ASC
+ORDER BY action_due ASC
 LIMIT 20;
 "
     """)

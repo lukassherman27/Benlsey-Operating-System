@@ -102,6 +102,16 @@ class ProposalTrackerService(BaseService):
             """)
             stats['waiting_on_client'] = cursor.fetchone()['waiting_on_client']
 
+            # Issue #127: Overdue proposals (action_due in the past)
+            cursor.execute("""
+                SELECT COUNT(*) as overdue
+                FROM proposals
+                WHERE action_due IS NOT NULL
+                AND action_due < date('now')
+                AND status IN ('First Contact', 'Proposal Sent', 'Negotiation', 'On Hold', 'Proposal Prep')
+            """)
+            stats['overdue_count'] = cursor.fetchone()['overdue']
+
             # COMPREHENSIVE STATS from proposals table
             # Total proposals (all time, all statuses)
             cursor.execute("""
@@ -295,6 +305,7 @@ class ProposalTrackerService(BaseService):
                     -- Issue #113: Add insight fields
                     COALESCE(p.health_score, 50) as health_score,
                     COALESCE(p.action_needed, '') as action_needed,
+                    COALESCE(p.action_due, '') as action_due,
                     COALESCE(p.last_sentiment, '') as last_sentiment,
                     COALESCE(p.correspondence_summary, '') as correspondence_summary
                 FROM proposals p

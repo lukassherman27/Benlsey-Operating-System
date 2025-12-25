@@ -455,8 +455,14 @@ function ProposalTrackerContent() {
             <div className="flex items-center justify-between">
               <CardTitle className="text-sm font-medium text-slate-600">Pipeline Stages</CardTitle>
               <div className="flex items-center gap-4 text-xs text-slate-500">
+                {(stats.overdue_count ?? 0) > 0 && (
+                  <span className="flex items-center gap-1 text-red-600 font-semibold">
+                    <AlertTriangle className="h-3 w-3" />
+                    {stats.overdue_count} overdue
+                  </span>
+                )}
                 <span className="flex items-center gap-1">
-                  <AlertTriangle className="h-3 w-3 text-amber-500" />
+                  <Clock className="h-3 w-3 text-amber-500" />
                   {stats.needs_followup} need follow-up
                 </span>
               </div>
@@ -826,17 +832,34 @@ function ProposalTrackerContent() {
                         </TableCell>
                         <TableCell className={cn("max-w-[300px]", ds.typography.caption)}>
                           {proposal.action_needed ? (
-                            <span
-                              className={cn(
-                                "block truncate",
-                                proposal.health_score && proposal.health_score < 50
-                                  ? "text-red-700 font-medium"
-                                  : ds.textColors.secondary
+                            <div className="flex flex-col gap-0.5">
+                              <span
+                                className={cn(
+                                  "block truncate",
+                                  proposal.action_due && new Date(proposal.action_due) < new Date()
+                                    ? "text-red-700 font-medium"
+                                    : proposal.health_score && proposal.health_score < 50
+                                      ? "text-amber-700"
+                                      : ds.textColors.secondary
+                                )}
+                                title={proposal.action_needed}
+                              >
+                                {proposal.action_needed}
+                              </span>
+                              {proposal.action_due && (
+                                <span
+                                  className={cn(
+                                    "text-[10px]",
+                                    new Date(proposal.action_due) < new Date()
+                                      ? "text-red-600 font-semibold"
+                                      : "text-slate-400"
+                                  )}
+                                >
+                                  {new Date(proposal.action_due) < new Date() ? "OVERDUE: " : "Due: "}
+                                  {new Date(proposal.action_due).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                                </span>
                               )}
-                              title={proposal.action_needed}
-                            >
-                              {proposal.action_needed}
-                            </span>
+                            </div>
                           ) : proposal.current_remark ? (
                             <span className={cn("block truncate", ds.textColors.tertiary)} title={proposal.current_remark}>
                               {proposal.current_remark}

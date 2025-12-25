@@ -804,6 +804,7 @@ export interface ProposalTrackerItem {
   // Issue #113: Insight fields
   health_score?: number | null;
   action_needed?: string | null;
+  action_due?: string | null;  // Issue #127
   action_owner?: 'bill' | 'brian' | 'lukas' | 'mink' | null;
   last_sentiment?: 'positive' | 'neutral' | 'concerned' | 'negative' | null;
   correspondence_summary?: string | null;
@@ -823,6 +824,7 @@ export interface ProposalTrackerStats {
   at_risk_count?: number;
   waiting_on_client?: number;
   action_by_owner?: Record<string, number>;
+  overdue_count?: number;  // Issue #127
 }
 
 export interface ProposalTrackerListResponse {
