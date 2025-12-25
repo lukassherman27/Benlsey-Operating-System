@@ -59,6 +59,7 @@ from api.routers import (
     tasks,
     my_day,
     previews,
+    activities,
 )
 
 # Initialize logger
@@ -189,6 +190,9 @@ app.include_router(my_day.router)
 
 # Preview API (lightweight hover cards)
 app.include_router(previews.router)
+
+# Activity Tracking (Issue #140)
+app.include_router(activities.router)
 
 # ============================================================================
 # GLOBAL EXCEPTION HANDLERS
