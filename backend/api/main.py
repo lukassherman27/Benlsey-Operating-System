@@ -60,6 +60,7 @@ from api.routers import (
     my_day,
     previews,
     activities,
+    story,
 )
 
 # Initialize logger
@@ -193,6 +194,9 @@ app.include_router(previews.router)
 
 # Activity Tracking (Issue #140)
 app.include_router(activities.router)
+
+# Story Builder (Issue #141)
+app.include_router(story.router)
 
 # ============================================================================
 # GLOBAL EXCEPTION HANDLERS
