@@ -596,6 +596,27 @@ export const api = {
       total: number;
     }>(`/api/projects/${encodeURIComponent(projectCode)}/phases`),
 
+  getProjectSchedule: (projectCode: string, days: number = 30) =>
+    request<{
+      success: boolean;
+      project_code: string;
+      days: number;
+      entries: Array<{
+        entry_id: number;
+        schedule_date: string;
+        staff_name: string | null;
+        discipline: string | null;
+        phase: string | null;
+        activity_type: string | null;
+        hours_worked: number | null;
+      }>;
+      summary: {
+        total_entries: number;
+        staff_involved: string[];
+        phases_worked: string[];
+      };
+    }>(`/api/projects/${encodeURIComponent(projectCode)}/schedule?days=${days}`),
+
   // Invoices API
   getInvoiceStats: () =>
     request<Record<string, unknown>>("/api/invoices/stats"),

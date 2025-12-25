@@ -1120,22 +1120,105 @@ async def get_project_team(project_code: str):
         """, (project_code,))
         
         team_members = []
+        by_discipline = {}
+
         for row in cursor.fetchall():
             member = dict(row)
             # Clean up the data
             member['name'] = member.get('name') or 'Unknown'
             member['role'] = member.get('role') or 'Team Member'
-            member['discipline'] = member.get('discipline') or 'General'
+            discipline = member.get('discipline') or 'General'
+            member['discipline'] = discipline
+
+            # Remap contact fields for frontend compatibility
+            member['contact_id'] = member.get('contact_id')
+            member['email'] = member.get('contact_email')
+            member['email_count'] = member.get('email_count') or 0
+            member['is_primary'] = member.get('is_primary_contact') or 0
+
             team_members.append(member)
-        
+
+            # Group by discipline for frontend
+            if discipline not in by_discipline:
+                by_discipline[discipline] = []
+            by_discipline[discipline].append(member)
+
         conn.close()
-        
+
         return {
             "success": True,
             "project_code": project_code,
             "team": team_members,
+            "by_discipline": by_discipline,
             "count": len(team_members)
         }
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to get project team: {str(e)}")
+
+
+@router.get("/projects/{project_code}/schedule")
+async def get_project_schedule(project_code: str, days: int = 30):
+    """
+    Get schedule entries for a project showing who worked when.
+
+    Returns schedule entries from schedule_entries table with staff names.
+    Useful for tracking actual work days per phase.
+
+    Example: GET /api/projects/25%20BK-033/schedule?days=365
+    """
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+
+        # Get schedule entries for this project
+        cursor.execute("""
+            SELECT
+                se.entry_id,
+                se.work_date as schedule_date,
+                tm.full_name as staff_name,
+                tm.nickname,
+                se.discipline,
+                se.phase,
+                se.task_description as activity_type,
+                1 as hours_worked
+            FROM schedule_entries se
+            LEFT JOIN team_members tm ON se.member_id = tm.member_id
+            WHERE se.project_code LIKE ?
+              AND se.work_date >= date('now', '-' || ? || ' days')
+              AND se.is_on_leave = 0
+              AND se.is_unassigned = 0
+            ORDER BY se.work_date DESC
+        """, (f"%{project_code}%", days))
+
+        entries = []
+        staff_set = set()
+        phases_set = set()
+
+        for row in cursor.fetchall():
+            entry = dict(row)
+            # Use nickname or full name
+            entry['staff_name'] = entry.get('nickname') or entry.get('staff_name') or 'Unknown'
+            entries.append(entry)
+            if entry.get('staff_name'):
+                staff_set.add(entry['staff_name'])
+            if entry.get('phase'):
+                phases_set.add(entry['phase'])
+
+        conn.close()
+
+        return {
+            "success": True,
+            "project_code": project_code,
+            "days": days,
+            "entries": entries,
+            "summary": {
+                "total_entries": len(entries),
+                "staff_involved": list(staff_set),
+                "phases_worked": list(phases_set)
+            }
+        }
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to get project schedule: {str(e)}")

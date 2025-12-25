@@ -26,6 +26,7 @@ import { ProjectMeetingsCard } from "@/components/project/project-meetings-card"
 import { ProjectEmailsCard } from "@/components/project/project-emails-card";
 import { ProjectHealthBanner, calculateProjectHealth } from "@/components/project/project-health-banner";
 import { RFIDeliverablesPanel } from "@/components/project/rfi-deliverables-panel";
+import { WorkVsInvoiceWidget } from "@/components/project/work-vs-invoice-widget";
 import { ds } from "@/lib/design-system";
 import { cn } from "@/lib/utils";
 
@@ -328,6 +329,11 @@ export default function ProjectDetailPage({
                 {/* Pending Tasks Card */}
                 <ProjectTasksCard projectCode={projectCode} maxItems={4} />
               </div>
+            </section>
+
+            {/* Work vs Invoice Progress */}
+            <section className="mb-8">
+              <WorkVsInvoiceWidget projectCode={projectCode} />
             </section>
 
             {/* Team & Contacts */}
