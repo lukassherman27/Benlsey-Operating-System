@@ -4,11 +4,27 @@ When user says "review unlinked emails" or runs /review-unlinked-emails:
 
 ## 1. Get Current State
 
+**IMPORTANT**: Only process emails in LINKABLE categories. Emails in PERSONAL, SKIP, INTERNAL, SM, etc. should NOT be linked to proposals.
+
 ```sql
--- Total unlinked emails
+-- Linkable categories (should connect to proposals/projects)
+-- PROPOSAL, PROJECT, PROJECT-CONTRACT, PROJECT-DESIGN, PROJECT-FINANCIAL, SCHEDULING
+
+-- Total unlinked emails IN LINKABLE CATEGORIES ONLY
 SELECT COUNT(*) as unlinked_count
 FROM emails
-WHERE email_id NOT IN (SELECT email_id FROM email_proposal_links);
+WHERE email_id NOT IN (SELECT email_id FROM email_proposal_links)
+AND primary_category IN ('PROPOSAL', 'PROJECT', 'PROJECT-CONTRACT', 'PROJECT-DESIGN', 'PROJECT-FINANCIAL', 'SCHEDULING');
+
+-- Breakdown by category
+SELECT
+    primary_category,
+    COUNT(*) as unlinked_count
+FROM emails
+WHERE email_id NOT IN (SELECT email_id FROM email_proposal_links)
+AND primary_category IN ('PROPOSAL', 'PROJECT', 'PROJECT-CONTRACT', 'PROJECT-DESIGN', 'PROJECT-FINANCIAL', 'SCHEDULING')
+GROUP BY primary_category
+ORDER BY unlinked_count DESC;
 
 -- Breakdown by age
 SELECT
@@ -20,28 +36,38 @@ SELECT
     COUNT(*) as count
 FROM emails
 WHERE email_id NOT IN (SELECT email_id FROM email_proposal_links)
+AND primary_category IN ('PROPOSAL', 'PROJECT', 'PROJECT-CONTRACT', 'PROJECT-DESIGN', 'PROJECT-FINANCIAL', 'SCHEDULING')
 GROUP BY age_bucket;
 ```
 
 ## 2. Present Summary
 
 ```
-📧 UNLINKED EMAILS REVIEW
-━━━━━━━━━━━━━━━━━━━━━━━━
+📧 UNLINKED EMAILS REVIEW (Linkable Categories Only)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-Total unlinked: XX emails
+Total unlinked (linkable): XX emails
+By category:
+- PROPOSAL: XX
+- SCHEDULING: XX
+- PROJECT-*: XX
+
+By age:
 - Last 7 days: XX
 - Last 30 days: XX
 - Older: XX
 
 Learned patterns: XX (used XX times)
+
+Note: PERSONAL, SKIP, INTERNAL, SM, PR, HR emails are NOT processed
+(they should remain unlinked)
 ```
 
 ## 3. Process in Batches
 
 For each batch of 10-20 emails, I will:
 
-### A. Query the email with context
+### A. Query the email with context (LINKABLE CATEGORIES ONLY)
 ```sql
 SELECT
     e.email_id,
@@ -51,6 +77,7 @@ SELECT
     e.date,
     e.snippet,
     e.primary_category,
+    e.sender_category,
     -- Check if sender is known
     c.contact_id,
     c.company,
@@ -62,6 +89,7 @@ SELECT
 FROM emails e
 LEFT JOIN contacts c ON e.sender_email = c.email
 WHERE e.email_id NOT IN (SELECT email_id FROM email_proposal_links)
+AND e.primary_category IN ('PROPOSAL', 'PROJECT', 'PROJECT-CONTRACT', 'PROJECT-DESIGN', 'PROJECT-FINANCIAL', 'SCHEDULING')
 ORDER BY e.date DESC
 LIMIT 20;
 ```
