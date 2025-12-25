@@ -699,6 +699,18 @@ class LearningService:
 
         conn = self._get_connection()
         cursor = conn.cursor()
+
+        # UPDATE EXISTING PATTERN FEEDBACK if a pattern was used to generate this suggestion
+        pattern_matched = suggested_data.get('pattern_matched')
+        if pattern_matched:
+            cursor.execute("""
+                UPDATE email_learned_patterns
+                SET times_correct = times_correct + 1,
+                    confidence = MIN(confidence + 0.02, 0.99),
+                    last_used_at = datetime('now')
+                WHERE pattern_id = ?
+            """, (pattern_matched,))
+            logger.info(f"Updated times_correct for pattern {pattern_matched} (suggestion {suggestion_id} approved)")
         cursor.execute("""
             SELECT email_id, sender_email, sender_name, subject
             FROM emails
@@ -866,6 +878,18 @@ class LearningService:
 
         conn = self._get_connection()
         cursor = conn.cursor()
+
+        # UPDATE EXISTING PATTERN FEEDBACK if a pattern was used to generate this suggestion
+        pattern_matched = suggested_data.get('pattern_matched')
+        if pattern_matched:
+            cursor.execute("""
+                UPDATE email_learned_patterns
+                SET times_rejected = times_rejected + 1,
+                    confidence = MAX(confidence - 0.1, 0.1)
+                WHERE pattern_id = ?
+            """, (pattern_matched,))
+            logger.info(f"Updated times_rejected for pattern {pattern_matched} (suggestion {suggestion_id} rejected)")
+
         cursor.execute("""
             SELECT email_id, sender_email, sender_name, subject
             FROM emails
