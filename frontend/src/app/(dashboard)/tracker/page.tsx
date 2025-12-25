@@ -58,10 +58,9 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 
-// Status colors for the pipeline visualization
+// Status colors for the pipeline visualization (matches database values)
 const STATUS_COLORS: Record<string, { bg: string; fill: string; text: string }> = {
   "First Contact": { bg: "bg-blue-50", fill: "bg-blue-400", text: "text-blue-700" },
-  "Meeting Held": { bg: "bg-cyan-50", fill: "bg-cyan-500", text: "text-cyan-700" },
   "Proposal Prep": { bg: "bg-yellow-50", fill: "bg-yellow-500", text: "text-yellow-700" },
   "Proposal Sent": { bg: "bg-amber-50", fill: "bg-amber-500", text: "text-amber-700" },
   "Negotiation": { bg: "bg-purple-50", fill: "bg-purple-500", text: "text-purple-700" },
@@ -70,7 +69,6 @@ const STATUS_COLORS: Record<string, { bg: string; fill: string; text: string }> 
   "Lost": { bg: "bg-red-50", fill: "bg-red-400", text: "text-red-600" },
   "Declined": { bg: "bg-rose-50", fill: "bg-rose-400", text: "text-rose-600" },
   "Dormant": { bg: "bg-slate-100", fill: "bg-slate-400", text: "text-slate-500" },
-  "Cancelled": { bg: "bg-stone-100", fill: "bg-stone-400", text: "text-stone-500" },
 };
 
 // Activity color based on days since last activity
@@ -80,10 +78,9 @@ function getActivityColor(days: number): { bg: string; text: string; label: stri
   return { bg: "bg-red-100", text: "text-red-700", label: "Stalled" };
 }
 
-// All valid proposal statuses for the dropdown
+// All valid proposal statuses for the dropdown (matches database values)
 const ALL_STATUSES = [
   "First Contact",
-  "Meeting Held",
   "Proposal Prep",
   "Proposal Sent",
   "Negotiation",
@@ -92,7 +89,6 @@ const ALL_STATUSES = [
   "Lost",
   "Declined",
   "Dormant",
-  "Cancelled",
 ] as const;
 
 function ProposalTrackerContent() {
@@ -106,7 +102,6 @@ function ProposalTrackerContent() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<ProposalStatus | "all">("all");
   const [disciplineFilter, setDisciplineFilter] = useState<DisciplineFilter>("all");
-  const [yearFilter, setYearFilter] = useState<string>("all");
   const [page, setPage] = useState(1);
   const [selectedProposal, setSelectedProposal] = useState<ProposalTrackerItem | null>(null);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
@@ -145,7 +140,7 @@ function ProposalTrackerContent() {
 
   // Fetch proposals list
   const { data: proposalsData, isLoading } = useQuery({
-    queryKey: ["proposalTrackerList", statusFilter, disciplineFilter, yearFilter, search, page],
+    queryKey: ["proposalTrackerList", statusFilter, disciplineFilter, search, page],
     queryFn: () =>
       api.getProposalTrackerList({
         status: statusFilter !== "all" ? statusFilter : undefined,
@@ -579,27 +574,14 @@ function ProposalTrackerContent() {
               <SelectContent>
                 <SelectItem value="all">All Statuses</SelectItem>
                 <SelectItem value="First Contact">First Contact</SelectItem>
-                <SelectItem value="Drafting">Drafting</SelectItem>
+                <SelectItem value="Proposal Prep">Proposal Prep</SelectItem>
                 <SelectItem value="Proposal Sent">Proposal Sent</SelectItem>
+                <SelectItem value="Negotiation">Negotiation</SelectItem>
                 <SelectItem value="On Hold">On Hold</SelectItem>
                 <SelectItem value="Contract Signed">Contract Signed</SelectItem>
-                <SelectItem value="Archived">Archived</SelectItem>
-              </SelectContent>
-            </Select>
-            <Select
-              value={yearFilter}
-              onValueChange={(value) => {
-                setYearFilter(value);
-                setPage(1);
-              }}
-            >
-              <SelectTrigger className={cn("w-[140px]", ds.borderRadius.input)} aria-label="Filter by year">
-                <SelectValue placeholder="Year" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Years</SelectItem>
-                <SelectItem value="2025">2025</SelectItem>
-                <SelectItem value="2024">2024</SelectItem>
+                <SelectItem value="Lost">Lost</SelectItem>
+                <SelectItem value="Declined">Declined</SelectItem>
+                <SelectItem value="Dormant">Dormant</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -630,7 +612,7 @@ function ProposalTrackerContent() {
                 {bensleyVoice.emptyStates.proposals}
               </p>
               <p className={cn(ds.typography.body, ds.textColors.tertiary, "mt-2")}>
-                {search || statusFilter !== "all" || yearFilter !== "all" || activeMetric
+                {search || statusFilter !== "all" || activeMetric
                   ? bensleyVoice.emptyStates.search
                   : "Proposals will appear here once created"}
               </p>

@@ -763,14 +763,17 @@ export interface ProposalWeeklyChanges {
   won_proposals: WeeklyChangeWonProposal[];
 }
 
-// Proposal Tracker Types
+// Proposal Tracker Types - matches database values exactly
 export type ProposalStatus =
   | "First Contact"
-  | "Drafting"
+  | "Proposal Prep"
   | "Proposal Sent"
+  | "Negotiation"
   | "On Hold"
-  | "Archived"
-  | "Contract Signed";
+  | "Contract Signed"
+  | "Lost"
+  | "Declined"
+  | "Dormant";
 
 export interface ProposalTrackerItem {
   id: number;
