@@ -711,6 +711,83 @@ async def get_proposal_timeline(
         raise HTTPException(status_code=500, detail=f"Failed to get proposal timeline: {str(e)}")
 
 
+@router.get("/proposals/{project_code}/conversation")
+async def get_proposal_conversation(project_code: str):
+    """
+    Get conversation view for a proposal - emails formatted for iMessage-style display.
+
+    Returns emails with sender_category (bill/brian/lukas/mink/client) and
+    body content for conversation threading. Excludes internal emails.
+
+    Example: GET /api/proposals/25%20BK-033/conversation
+    """
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+
+        # Get proposal_id from project_code
+        cursor.execute("SELECT proposal_id FROM proposals WHERE project_code = ?", (project_code,))
+        proposal_row = cursor.fetchone()
+
+        if not proposal_row:
+            conn.close()
+            raise HTTPException(status_code=404, detail=f"Proposal {project_code} not found")
+
+        proposal_id = proposal_row['proposal_id']
+
+        # Get emails with sender_category for conversation view
+        # Exclude internal-to-internal emails to show only external correspondence
+        cursor.execute("""
+            SELECT
+                e.email_id,
+                e.date,
+                e.subject,
+                e.sender_email,
+                COALESCE(e.sender_category,
+                    CASE
+                        WHEN e.sender_email LIKE '%bill@bensley%' THEN 'bill'
+                        WHEN e.sender_email LIKE '%bsherman@bensley%' THEN 'brian'
+                        WHEN e.sender_email LIKE '%lukas@bensley%' THEN 'lukas'
+                        WHEN e.sender_email LIKE '%mink@bensley%' THEN 'mink'
+                        WHEN e.sender_email LIKE '%@bensley.com%' THEN 'bensley_other'
+                        ELSE 'client'
+                    END
+                ) as sender_category,
+                COALESCE(e.snippet, SUBSTR(e.body_full, 1, 300)) as body_preview,
+                e.body_full,
+                e.has_attachments,
+                e.email_direction
+            FROM emails e
+            JOIN email_proposal_links epl ON e.email_id = epl.email_id
+            WHERE epl.proposal_id = ?
+              AND (e.email_direction IS NULL
+                   OR e.email_direction NOT IN ('internal_to_internal', 'INTERNAL'))
+            ORDER BY e.date ASC
+        """, (proposal_id,))
+
+        emails = []
+        for row in cursor.fetchall():
+            email_dict = dict(row)
+            # Convert has_attachments to boolean
+            email_dict['has_attachments'] = bool(email_dict.get('has_attachments'))
+            emails.append(email_dict)
+
+        conn.close()
+
+        return {
+            "success": True,
+            "project_code": project_code,
+            "emails": emails,
+            "total": len(emails)
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to get proposal conversation: {str(e)}")
+
+
 @router.get("/proposals/{project_code}/stakeholders")
 async def get_proposal_stakeholders(project_code: str):
     """
