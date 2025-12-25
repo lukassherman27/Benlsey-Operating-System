@@ -11,7 +11,6 @@ import {
   Users,
   FileText,
   AlertTriangle,
-  Calendar,
   DollarSign,
 } from "lucide-react";
 import { PhaseProgressCompact, getCurrentPhaseSummary } from "./phase-progress-bar";
