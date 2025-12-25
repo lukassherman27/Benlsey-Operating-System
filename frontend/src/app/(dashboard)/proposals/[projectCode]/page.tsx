@@ -9,21 +9,15 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Input } from "@/components/ui/input";
 import {
   ArrowLeft,
   FileText,
   Heart,
   AlertTriangle,
-  Search,
   Archive,
-  Send,
-  Inbox,
-  Paperclip,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { format, formatDistanceToNow } from "date-fns";
-import { useState } from "react";
+import { format } from "date-fns";
 import { ProposalStory } from "@/components/proposals/proposal-story";
 import { ProposalTasks } from "@/components/proposals/proposal-tasks";
 import { ProposalMeetings } from "@/components/proposals/proposal-meetings";
@@ -31,6 +25,7 @@ import { StakeholdersCard } from "@/components/proposal/stakeholders-card";
 import { BallInCourt } from "@/components/proposals/ball-in-court";
 import { HealthPanel, calculateRisks, calculateHealthScore } from "@/components/proposals/health-panel";
 import { ActionSuggestions, generateActionSuggestions } from "@/components/proposals/action-suggestions";
+import { ConversationView } from "@/components/proposals/conversation-view";
 
 // Email type for combined timeline and direct emails
 interface CombinedEmail {
@@ -71,7 +66,6 @@ function getHealthInfo(daysSinceContact: number | null | undefined): {
 export default function ProjectDetailPage() {
   const params = useParams();
   const router = useRouter();
-  const [emailSearch, setEmailSearch] = useState("");
 
   // Decode the project code in case it's URL-encoded (e.g., "24%20BK-015" -> "24 BK-015")
   const rawProjectCode = params?.projectCode as string;
@@ -108,47 +102,7 @@ export default function ProjectDetailPage() {
     }).format(value);
   };
 
-  const formatRelativeDate = (dateStr: string | null | undefined) => {
-    if (!dateStr) return "";
-    try {
-      const date = new Date(dateStr);
-      const now = new Date();
-      const diffDays = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24));
-      if (diffDays < 7) {
-        return formatDistanceToNow(date, { addSuffix: true });
-      }
-      return format(date, "MMM d");
-    } catch {
-      return String(dateStr);
-    }
-  };
-
-  // Extract and filter emails for archive search
-  const timelineEmails = (timeline?.timeline ?? []).filter(
-    (item: { type?: string }) => item.type === "email"
-  );
-  const directEmails = timeline?.emails ?? [];
-  const allEmails = [...directEmails, ...timelineEmails];
-  const seenIds = new Set<number>();
-  const uniqueEmails = allEmails.filter((e: CombinedEmail) => {
-    const id = e.email_id || e.id;
-    if (!id || seenIds.has(id)) return false;
-    seenIds.add(id);
-    return true;
-  });
-
-  // Filter emails by search
-  const filteredEmails = emailSearch.trim()
-    ? uniqueEmails.filter((e: CombinedEmail) => {
-        const subject = (e.subject || e.title || "").toLowerCase();
-        const sender = (e.sender_email || e.from || "").toLowerCase();
-        const snippet = (e.snippet || e.ai_summary || "").toLowerCase();
-        const search = emailSearch.toLowerCase();
-        return subject.includes(search) || sender.includes(search) || snippet.includes(search);
-      })
-    : uniqueEmails;
-
-  const totalEmailCount = timeline?.stats?.total_emails ?? uniqueEmails.length;
+  const totalEmailCount = timeline?.stats?.total_emails ?? 0;
 
   if (proposalQuery.isError) {
     return (
@@ -414,107 +368,9 @@ export default function ProjectDetailPage() {
           </Card>
         </TabsContent>
 
-        {/* Archive Tab - Searchable Email List */}
+        {/* Archive Tab - Conversation View */}
         <TabsContent value="archive">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Archive className="h-5 w-5" />
-                Email Archive
-              </CardTitle>
-              <CardDescription>
-                Search through all {totalEmailCount} communications related to this proposal
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {/* Search */}
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                <Input
-                  placeholder="Search by subject, sender, or content..."
-                  value={emailSearch}
-                  onChange={(e) => setEmailSearch(e.target.value)}
-                  className="pl-10"
-                />
-              </div>
-
-              {/* Results */}
-              {timelineQuery.isLoading ? (
-                <div className="space-y-2">
-                  {[1, 2, 3].map((i) => (
-                    <Skeleton key={i} className="h-16 w-full" />
-                  ))}
-                </div>
-              ) : filteredEmails.length > 0 ? (
-                <div className="space-y-2 max-h-[600px] overflow-y-auto">
-                  {filteredEmails.map((email: CombinedEmail) => {
-                    const sender = email.sender_email || email.from || "";
-                    const isOutbound = sender.toLowerCase().includes("@bensley.com");
-                    const subject = email.subject || email.title || "(No subject)";
-                    const date = email.date_normalized || email.date;
-                    const snippet = email.ai_summary || email.snippet;
-
-                    // Extract sender name
-                    const nameMatch = sender.match(/^([^<]+)</);
-                    const emailMatch = sender.match(/([^@]+)@/);
-                    const senderName = nameMatch ? nameMatch[1].trim() : emailMatch ? emailMatch[1] : sender;
-
-                    return (
-                      <div
-                        key={email.email_id || email.id}
-                        className="p-3 rounded-lg border hover:bg-slate-50 transition-colors"
-                      >
-                        <div className="flex items-start gap-3">
-                          <div className="mt-1">
-                            {isOutbound ? (
-                              <Send className="h-4 w-4 text-blue-500" />
-                            ) : (
-                              <Inbox className="h-4 w-4 text-green-500" />
-                            )}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <span className="font-medium text-sm">{senderName}</span>
-                              <span className="text-xs text-slate-400">
-                                {formatRelativeDate(date)}
-                              </span>
-                              {email.has_attachments === 1 && (
-                                <Paperclip className="h-3 w-3 text-slate-400" />
-                              )}
-                              {email.category && (
-                                <Badge variant="outline" className="text-xs">
-                                  {email.category}
-                                </Badge>
-                              )}
-                            </div>
-                            <p className="text-sm text-slate-700 truncate mt-1">{subject}</p>
-                            {snippet && (
-                              <p className="text-xs text-slate-500 mt-1 line-clamp-2">{snippet}</p>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              ) : emailSearch.trim() ? (
-                <p className="text-center py-8 text-muted-foreground">
-                  No emails match your search &ldquo;{emailSearch}&rdquo;
-                </p>
-              ) : (
-                <p className="text-center py-8 text-muted-foreground">
-                  No emails found for this project
-                </p>
-              )}
-
-              {/* Results count */}
-              {filteredEmails.length > 0 && (
-                <p className="text-xs text-slate-400 text-center">
-                  Showing {filteredEmails.length} of {totalEmailCount} communications
-                </p>
-              )}
-            </CardContent>
-          </Card>
+          <ConversationView projectCode={projectCode} />
         </TabsContent>
       </Tabs>
     </div>
