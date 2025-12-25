@@ -502,7 +502,7 @@ class PatternFirstLinker(BaseService):
 
     def apply_link(self, email_id: int, target_type: str, target_id: int,
                    confidence: float, match_type: str, pattern_id: int = None) -> bool:
-        """Apply a link to the database and update pattern usage stats"""
+        """Apply a link to the database, set category, and update pattern usage stats"""
         try:
             if target_type == "proposal":
                 self.execute_update("""
@@ -510,6 +510,11 @@ class PatternFirstLinker(BaseService):
                     (email_id, proposal_id, confidence_score, match_method, created_at)
                     VALUES (?, ?, ?, ?, datetime('now'))
                 """, (email_id, target_id, confidence, match_type))
+                # Set category to PROPOSAL for linked emails
+                self.execute_update("""
+                    UPDATE emails SET primary_category = 'PROPOSAL'
+                    WHERE email_id = ? AND (primary_category IS NULL OR primary_category = '')
+                """, (email_id,))
             elif target_type == "project":
                 # email_project_links uses different column names: confidence, link_method
                 self.execute_update("""
@@ -517,6 +522,17 @@ class PatternFirstLinker(BaseService):
                     (email_id, project_id, confidence, link_method, created_at)
                     VALUES (?, ?, ?, ?, datetime('now'))
                 """, (email_id, target_id, confidence, match_type))
+                # Set category to PROJECT for linked emails
+                self.execute_update("""
+                    UPDATE emails SET primary_category = 'PROJECT'
+                    WHERE email_id = ? AND (primary_category IS NULL OR primary_category = '')
+                """, (email_id,))
+            elif target_type == "internal":
+                # Set category to INTERNAL for internal emails
+                self.execute_update("""
+                    UPDATE emails SET primary_category = 'INTERNAL'
+                    WHERE email_id = ? AND (primary_category IS NULL OR primary_category = '')
+                """, (email_id,))
 
             # Update pattern usage tracking if pattern was used
             if pattern_id:
