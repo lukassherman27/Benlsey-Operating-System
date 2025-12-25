@@ -80,10 +80,10 @@ function getActivityColor(days: number): { bg: string; text: string; label: stri
   return { bg: "bg-red-100", text: "text-red-700", label: "Stalled" };
 }
 
-// All valid proposal statuses for the dropdown
+// All valid proposal statuses for the dropdown (synced with database)
+// Issue #119: Removed "Meeting Held" and "Cancelled" - not in database
 const ALL_STATUSES = [
   "First Contact",
-  "Meeting Held",
   "Proposal Prep",
   "Proposal Sent",
   "Negotiation",
@@ -92,7 +92,6 @@ const ALL_STATUSES = [
   "Lost",
   "Declined",
   "Dormant",
-  "Cancelled",
 ] as const;
 
 function ProposalTrackerContent() {
