@@ -26,8 +26,8 @@ import { ProjectMeetingsCard } from "@/components/project/project-meetings-card"
 import { ProjectEmailsCard } from "@/components/project/project-emails-card";
 import { ProjectHealthBanner, calculateProjectHealth } from "@/components/project/project-health-banner";
 import { RFIDeliverablesPanel } from "@/components/project/rfi-deliverables-panel";
-import { ScheduleCard } from "@/components/project/schedule-card";
-import { MilestonesCard } from "@/components/project/milestones-card";
+import { PhaseProgressDashboard } from "@/components/project/phase-progress-dashboard";
+import { TodaysTeamWidget } from "@/components/project/todays-team-widget";
 import { ds } from "@/lib/design-system";
 import { cn } from "@/lib/utils";
 
@@ -257,6 +257,19 @@ export default function ProjectDetailPage({
               className="mb-6"
             />
 
+            {/* Phase Progress & Team Activity */}
+            <section className="mb-8">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-lg font-semibold text-slate-900">Project Progress</h2>
+              </div>
+              <div className="grid gap-6 lg:grid-cols-3">
+                <div className="lg:col-span-2">
+                  <PhaseProgressDashboard projectCode={projectCode} />
+                </div>
+                <TodaysTeamWidget projectCode={projectCode} />
+              </div>
+            </section>
+
             {/* Main Dashboard Cards - 3 column layout */}
             <section className="mb-8">
               <div className="grid gap-6 lg:grid-cols-3">
@@ -332,21 +345,12 @@ export default function ProjectDetailPage({
               </div>
             </section>
 
-            {/* Milestones Section */}
+            {/* Team & Contacts */}
             <section className="mb-8">
               <div className="flex items-center justify-between mb-4">
-                <h2 className="text-lg font-semibold text-slate-900">Project Milestones</h2>
+                <h2 className="text-lg font-semibold text-slate-900">People</h2>
               </div>
-              <MilestonesCard projectCode={projectCode} />
-            </section>
-
-            {/* Team, Schedule & Contacts */}
-            <section className="mb-8">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-lg font-semibold text-slate-900">People & Schedule</h2>
-              </div>
-              <div className="grid gap-6 lg:grid-cols-3">
-                <ScheduleCard projectCode={projectCode} days={90} />
+              <div className="grid gap-6 lg:grid-cols-2">
                 <TeamCard projectCode={projectCode} />
                 <ProjectContactsCard projectCode={projectCode} />
               </div>
