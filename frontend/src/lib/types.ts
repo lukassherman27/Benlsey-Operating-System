@@ -801,6 +801,12 @@ export interface ProposalTrackerItem {
   contact_email?: string | null;
   contact_phone?: string | null;
   project_summary?: string | null;
+  // Issue #113: Insight fields
+  health_score?: number | null;
+  action_needed?: string | null;
+  action_owner?: 'bill' | 'brian' | 'lukas' | 'mink' | null;
+  last_sentiment?: 'positive' | 'neutral' | 'concerned' | 'negative' | null;
+  correspondence_summary?: string | null;
 }
 
 export interface ProposalTrackerStats {
@@ -813,6 +819,10 @@ export interface ProposalTrackerStats {
     total_value: number;
   }[];
   needs_followup: number;
+  // Issue #113: Insight stats
+  at_risk_count?: number;
+  waiting_on_client?: number;
+  action_by_owner?: Record<string, number>;
 }
 
 export interface ProposalTrackerListResponse {
