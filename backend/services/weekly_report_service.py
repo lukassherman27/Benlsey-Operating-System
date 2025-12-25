@@ -1,0 +1,451 @@
+"""
+Weekly Report Service - Visual summary for Bill (#142)
+
+Generates comprehensive weekly reports with:
+- Week in Review: new proposals, won/lost, status changes
+- Attention Required: overdue, stale, at-risk
+- Pipeline Outlook: totals, weighted values, trends
+- Activity Summary: emails, meetings, actions
+- Financial Connection: expected revenue, cash flow
+
+Used by:
+- Web Dashboard at /overview/weekly
+- Automated Monday morning email
+"""
+
+import json
+from datetime import datetime, timedelta
+from typing import Dict, List, Any, Optional
+from .base_service import BaseService
+
+import logging
+logger = logging.getLogger(__name__)
+
+
+class WeeklyReportService(BaseService):
+    """Generate weekly proposal reports for Bill."""
+
+    def generate_report(
+        self,
+        start_date: Optional[str] = None,
+        end_date: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """
+        Generate complete weekly report.
+
+        Args:
+            start_date: Start of report period (defaults to last Monday)
+            end_date: End of report period (defaults to today)
+
+        Returns:
+            Complete report with all sections
+        """
+        # Default to last week (Monday to Sunday)
+        today = datetime.now()
+        if not end_date:
+            end_date = today.strftime('%Y-%m-%d')
+        if not start_date:
+            # Last Monday
+            days_since_monday = today.weekday()
+            if days_since_monday == 0:  # Today is Monday
+                days_since_monday = 7  # Go back to last Monday
+            last_monday = today - timedelta(days=days_since_monday)
+            start_date = last_monday.strftime('%Y-%m-%d')
+
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+
+            report = {
+                'period': {
+                    'start': start_date,
+                    'end': end_date,
+                    'generated_at': today.isoformat()
+                },
+                'week_in_review': self._get_week_in_review(cursor, start_date, end_date),
+                'attention_required': self._get_attention_required(cursor),
+                'pipeline_outlook': self._get_pipeline_outlook(cursor),
+                'activity_summary': self._get_activity_summary(cursor, start_date, end_date),
+                'top_opportunities': self._get_top_opportunities(cursor),
+                'stalled_proposals': self._get_stalled_proposals(cursor)
+            }
+
+            return report
+
+    def _get_week_in_review(
+        self,
+        cursor,
+        start_date: str,
+        end_date: str
+    ) -> Dict[str, Any]:
+        """Get what happened this week."""
+        # New proposals
+        cursor.execute("""
+            SELECT COUNT(*), COALESCE(SUM(project_value), 0)
+            FROM proposals
+            WHERE first_contact_date >= ? AND first_contact_date <= ?
+        """, (start_date, end_date))
+        new_count, new_value = cursor.fetchone()
+
+        # Won proposals
+        cursor.execute("""
+            SELECT COUNT(*), COALESCE(SUM(project_value), 0)
+            FROM proposals
+            WHERE contract_signed_date >= ? AND contract_signed_date <= ?
+        """, (start_date, end_date))
+        won_count, won_value = cursor.fetchone()
+
+        # Lost proposals
+        cursor.execute("""
+            SELECT COUNT(*), COALESCE(SUM(project_value), 0)
+            FROM proposals
+            WHERE status = 'Lost'
+            AND updated_at >= ? AND updated_at <= ?
+        """, (start_date, end_date))
+        lost_count, lost_value = cursor.fetchone()
+
+        # Status changes (milestones created this week)
+        cursor.execute("""
+            SELECT
+                pm.milestone_type,
+                COUNT(*) as cnt,
+                p.project_code,
+                p.project_name
+            FROM proposal_milestones pm
+            JOIN proposals p ON pm.proposal_id = p.proposal_id
+            WHERE pm.created_at >= ? AND pm.created_at <= ?
+            GROUP BY pm.milestone_type
+            ORDER BY cnt DESC
+        """, (start_date, end_date))
+        status_changes = [dict(row) for row in cursor.fetchall()]
+
+        # Key proposals that advanced
+        cursor.execute("""
+            SELECT DISTINCT
+                p.project_code,
+                p.project_name,
+                p.status,
+                p.project_value,
+                pm.milestone_type
+            FROM proposal_milestones pm
+            JOIN proposals p ON pm.proposal_id = p.proposal_id
+            WHERE pm.created_at >= ? AND pm.created_at <= ?
+            ORDER BY p.project_value DESC
+            LIMIT 5
+        """, (start_date, end_date))
+        advanced_proposals = [dict(row) for row in cursor.fetchall()]
+
+        return {
+            'new_proposals': {
+                'count': new_count or 0,
+                'value': new_value or 0
+            },
+            'won': {
+                'count': won_count or 0,
+                'value': won_value or 0
+            },
+            'lost': {
+                'count': lost_count or 0,
+                'value': lost_value or 0
+            },
+            'status_changes': status_changes,
+            'advanced_proposals': advanced_proposals
+        }
+
+    def _get_attention_required(self, cursor) -> Dict[str, Any]:
+        """Get items needing attention."""
+        today = datetime.now().strftime('%Y-%m-%d')
+
+        # Overdue follow-ups
+        cursor.execute("""
+            SELECT
+                project_code,
+                project_name,
+                project_value,
+                action_needed,
+                action_due,
+                action_owner,
+                julianday(?) - julianday(action_due) as days_overdue
+            FROM proposals
+            WHERE action_due < ?
+            AND status NOT IN ('Contract Signed', 'Lost', 'Declined', 'On Hold')
+            ORDER BY project_value DESC
+            LIMIT 10
+        """, (today, today))
+        overdue = [dict(row) for row in cursor.fetchall()]
+
+        # Stale proposals (14+ days no activity)
+        cursor.execute("""
+            SELECT
+                project_code,
+                project_name,
+                project_value,
+                status,
+                days_since_contact,
+                last_contact_date
+            FROM proposals
+            WHERE days_since_contact >= 14
+            AND status NOT IN ('Contract Signed', 'Lost', 'Declined', 'On Hold')
+            ORDER BY days_since_contact DESC
+            LIMIT 10
+        """)
+        stale = [dict(row) for row in cursor.fetchall()]
+
+        # At-risk (health score < 50 or declining sentiment)
+        cursor.execute("""
+            SELECT
+                project_code,
+                project_name,
+                project_value,
+                status,
+                health_score,
+                last_sentiment,
+                ball_in_court
+            FROM proposals
+            WHERE (health_score < 50 OR last_sentiment = 'concerned')
+            AND status NOT IN ('Contract Signed', 'Lost', 'Declined', 'On Hold')
+            ORDER BY project_value DESC
+            LIMIT 10
+        """)
+        at_risk = [dict(row) for row in cursor.fetchall()]
+
+        return {
+            'overdue': overdue,
+            'overdue_count': len(overdue),
+            'overdue_value': sum(p.get('project_value', 0) or 0 for p in overdue),
+            'stale': stale,
+            'stale_count': len(stale),
+            'at_risk': at_risk,
+            'at_risk_count': len(at_risk),
+            'at_risk_value': sum(p.get('project_value', 0) or 0 for p in at_risk)
+        }
+
+    def _get_pipeline_outlook(self, cursor) -> Dict[str, Any]:
+        """Get pipeline metrics and trends."""
+        # Active pipeline
+        cursor.execute("""
+            SELECT
+                COUNT(*) as count,
+                COALESCE(SUM(project_value), 0) as total_value,
+                COALESCE(SUM(project_value * COALESCE(win_probability, 50) / 100), 0) as weighted_value
+            FROM proposals
+            WHERE status NOT IN ('Contract Signed', 'Lost', 'Declined')
+        """)
+        pipeline = dict(cursor.fetchone())
+
+        # By status
+        cursor.execute("""
+            SELECT
+                status,
+                COUNT(*) as count,
+                COALESCE(SUM(project_value), 0) as value
+            FROM proposals
+            WHERE status NOT IN ('Contract Signed', 'Lost', 'Declined')
+            GROUP BY status
+            ORDER BY COUNT(*) DESC
+        """)
+        by_status = [dict(row) for row in cursor.fetchall()]
+
+        # Win rate (last 3 months)
+        cursor.execute("""
+            SELECT
+                (SELECT COUNT(*) FROM proposals
+                 WHERE contract_signed_date >= date('now', '-3 months')) as won,
+                (SELECT COUNT(*) FROM proposals
+                 WHERE (contract_signed_date >= date('now', '-3 months')
+                    OR (status = 'Lost' AND updated_at >= date('now', '-3 months')))) as total
+        """)
+        win_data = dict(cursor.fetchone())
+        win_rate = (win_data['won'] / win_data['total'] * 100) if win_data['total'] > 0 else 0
+
+        # Previous 3 months win rate for comparison
+        cursor.execute("""
+            SELECT
+                (SELECT COUNT(*) FROM proposals
+                 WHERE contract_signed_date >= date('now', '-6 months')
+                   AND contract_signed_date < date('now', '-3 months')) as won,
+                (SELECT COUNT(*) FROM proposals
+                 WHERE ((contract_signed_date >= date('now', '-6 months') AND contract_signed_date < date('now', '-3 months'))
+                    OR (status = 'Lost' AND updated_at >= date('now', '-6 months') AND updated_at < date('now', '-3 months')))) as total
+        """)
+        prev_data = dict(cursor.fetchone())
+        prev_win_rate = (prev_data['won'] / prev_data['total'] * 100) if prev_data['total'] > 0 else 0
+
+        # Ball in court breakdown
+        cursor.execute("""
+            SELECT
+                ball_in_court,
+                COUNT(*) as count,
+                COALESCE(SUM(project_value), 0) as value
+            FROM proposals
+            WHERE status NOT IN ('Contract Signed', 'Lost', 'Declined')
+            GROUP BY ball_in_court
+        """)
+        by_ball = [dict(row) for row in cursor.fetchall()]
+
+        return {
+            'total_pipeline': pipeline['total_value'],
+            'weighted_pipeline': pipeline['weighted_value'],
+            'proposal_count': pipeline['count'],
+            'by_status': by_status,
+            'by_ball': by_ball,
+            'win_rate': {
+                'current': round(win_rate, 1),
+                'previous': round(prev_win_rate, 1),
+                'trend': 'up' if win_rate > prev_win_rate else ('down' if win_rate < prev_win_rate else 'stable')
+            }
+        }
+
+    def _get_activity_summary(
+        self,
+        cursor,
+        start_date: str,
+        end_date: str
+    ) -> Dict[str, Any]:
+        """Get activity metrics for the period."""
+        # Email activity
+        cursor.execute("""
+            SELECT
+                activity_type,
+                COUNT(*) as count
+            FROM proposal_activities
+            WHERE activity_date >= ? AND activity_date <= ?
+            GROUP BY activity_type
+        """, (start_date, end_date))
+        by_type = {row[0]: row[1] for row in cursor.fetchall()}
+
+        # Top proposals by activity
+        cursor.execute("""
+            SELECT
+                p.project_code,
+                p.project_name,
+                COUNT(*) as activity_count
+            FROM proposal_activities pa
+            JOIN proposals p ON pa.proposal_id = p.proposal_id
+            WHERE pa.activity_date >= ? AND pa.activity_date <= ?
+            GROUP BY pa.proposal_id
+            ORDER BY activity_count DESC
+            LIMIT 5
+        """, (start_date, end_date))
+        most_active = [dict(row) for row in cursor.fetchall()]
+
+        # Action items
+        cursor.execute("""
+            SELECT COUNT(*) FROM proposal_action_items
+            WHERE created_at >= ? AND created_at <= ?
+        """, (start_date, end_date))
+        items_created = cursor.fetchone()[0]
+
+        cursor.execute("""
+            SELECT COUNT(*) FROM proposal_action_items
+            WHERE completed_at >= ? AND completed_at <= ?
+        """, (start_date, end_date))
+        items_completed = cursor.fetchone()[0]
+
+        return {
+            'emails_sent': by_type.get('email_sent', 0),
+            'emails_received': by_type.get('email_received', 0),
+            'meetings': by_type.get('meeting', 0),
+            'total_activities': sum(by_type.values()),
+            'most_active_proposals': most_active,
+            'action_items': {
+                'created': items_created,
+                'completed': items_completed
+            }
+        }
+
+    def _get_top_opportunities(self, cursor, limit: int = 5) -> List[Dict]:
+        """Get top opportunities by value and probability."""
+        cursor.execute("""
+            SELECT
+                project_code,
+                project_name,
+                project_value,
+                status,
+                win_probability,
+                health_score,
+                ball_in_court,
+                action_needed
+            FROM proposals
+            WHERE status NOT IN ('Contract Signed', 'Lost', 'Declined', 'On Hold')
+            AND project_value IS NOT NULL
+            ORDER BY project_value * COALESCE(win_probability, 50) / 100 DESC
+            LIMIT ?
+        """, (limit,))
+        return [dict(row) for row in cursor.fetchall()]
+
+    def _get_stalled_proposals(self, cursor, days: int = 14, limit: int = 5) -> List[Dict]:
+        """Get proposals with no activity for X days."""
+        cursor.execute("""
+            SELECT
+                project_code,
+                project_name,
+                project_value,
+                status,
+                days_since_contact,
+                last_contact_date,
+                ball_in_court
+            FROM proposals
+            WHERE days_since_contact >= ?
+            AND status NOT IN ('Contract Signed', 'Lost', 'Declined', 'On Hold')
+            ORDER BY project_value DESC
+            LIMIT ?
+        """, (days, limit))
+        return [dict(row) for row in cursor.fetchall()]
+
+    def get_quick_stats(self) -> Dict[str, Any]:
+        """Get quick stats for dashboard card."""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+
+            # Active pipeline
+            cursor.execute("""
+                SELECT
+                    COUNT(*) as count,
+                    COALESCE(SUM(project_value), 0) as value
+                FROM proposals
+                WHERE status NOT IN ('Contract Signed', 'Lost', 'Declined')
+            """)
+            pipeline = dict(cursor.fetchone())
+
+            # Overdue
+            cursor.execute("""
+                SELECT COUNT(*)
+                FROM proposals
+                WHERE action_due < date('now')
+                AND status NOT IN ('Contract Signed', 'Lost', 'Declined', 'On Hold')
+            """)
+            overdue = cursor.fetchone()[0]
+
+            # Our move
+            cursor.execute("""
+                SELECT COUNT(*)
+                FROM proposals
+                WHERE ball_in_court = 'us'
+                AND status NOT IN ('Contract Signed', 'Lost', 'Declined', 'On Hold')
+            """)
+            our_move = cursor.fetchone()[0]
+
+            return {
+                'pipeline_value': pipeline['value'],
+                'pipeline_count': pipeline['count'],
+                'overdue_count': overdue,
+                'our_move_count': our_move
+            }
+
+
+def main():
+    """CLI entry point for testing."""
+    import sys
+
+    service = WeeklyReportService()
+
+    if len(sys.argv) > 1 and sys.argv[1] == '--quick':
+        result = service.get_quick_stats()
+    else:
+        result = service.generate_report()
+
+    print(json.dumps(result, indent=2, default=str))
+
+
+if __name__ == "__main__":
+    main()
