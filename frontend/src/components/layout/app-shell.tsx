@@ -19,6 +19,7 @@ import {
   Sun,
   Brain,
   Mail,
+  Mic,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ds } from "@/lib/design-system";
@@ -40,7 +41,7 @@ type NavItem = {
 };
 
 // Simplified navigation - context lives in proposal/project detail pages
-// Dec 17, 2025: Deliverables, Transcripts, RFIs, Contacts accessed from detail pages (not separate nav)
+// Dec 25, 2025: Added Transcripts to nav. Deliverables, RFIs, Contacts accessed from detail pages
 const navItems: NavItem[] = [
   { href: "/my-day", label: "My Day", icon: Sun },
   { href: "/", label: "Overview", icon: Home },
@@ -48,6 +49,7 @@ const navItems: NavItem[] = [
   { href: "/projects", label: "Projects", icon: FileText },
   { href: "/tasks", label: "Tasks", icon: CheckSquare },
   { href: "/meetings", label: "Meetings", icon: Calendar },
+  { href: "/transcripts", label: "Transcripts", icon: Mic },
   { href: "/finance", label: "Finance", icon: DollarSign },
   {
     href: "/admin",
