@@ -2,10 +2,9 @@
 Email Orchestrator - Coordinates existing email services
 
 This is a THIN WRAPPER that calls existing services:
-- PatternFirstLinker: Auto-link emails via pattern matching (NEW - Dec 2025)
-- EmailCategoryService: Email categorization
+- PatternFirstLinker: Auto-link emails via pattern matching + auto-categorize
 - AILearningService: Suggestion generation
-- EmailIntelligenceService: Timeline, validation queue
+- MeetingSummaryParser: Extract tasks from meeting summaries
 
 Does NOT duplicate functionality - just coordinates.
 """
@@ -16,7 +15,6 @@ from typing import Optional, List, Dict, Any
 
 from .base_service import BaseService
 from .ai_learning_service import AILearningService
-from .email_category_service import EmailCategoryService
 from .pattern_first_linker import get_pattern_linker
 from .meeting_summary_parser import MeetingSummaryParser
 
@@ -38,7 +36,6 @@ class EmailOrchestrator(BaseService):
         # Enable GPT-powered context-aware suggestions by default
         # This uses ContextAwareSuggestionService which has full Bensley business context
         self.ai_learning = AILearningService(db_path, use_context_aware=use_context_aware)
-        self.category_service = EmailCategoryService(db_path)
         self.pattern_linker = get_pattern_linker(db_path)
         self.meeting_parser = MeetingSummaryParser(db_path)
 
@@ -46,9 +43,9 @@ class EmailOrchestrator(BaseService):
         """
         Full email processing pipeline.
 
-        0. Auto-link emails via pattern matching (NEW - added Dec 2025)
-        1. Categorize uncategorized emails (uses EmailCategoryService.batch_categorize)
-        2. Generate suggestions (uses AILearningService.process_recent_emails_for_suggestions)
+        0. Auto-link emails via pattern matching (sets category automatically)
+        1. Process meeting summary emails → extract tasks
+        2. Generate AI suggestions for review
 
         NEVER auto-applies anything - all changes go through suggestion approval.
 
@@ -63,7 +60,6 @@ class EmailOrchestrator(BaseService):
             "success": True,
             "pattern_linking": {},
             "meeting_summaries": {},
-            "categorization": {},
             "suggestions": {},
             "errors": []
         }
@@ -101,16 +97,7 @@ class EmailOrchestrator(BaseService):
             result["errors"].append(f"Meeting summaries: {str(e)}")
             result["meeting_summaries"] = {"error": str(e)}
 
-        # Step 1: Categorize uncategorized emails
-        try:
-            cat_result = self.category_service.batch_categorize(limit=limit)
-            result["categorization"] = cat_result
-        except Exception as e:
-            logger.error(f"Categorization error: {e}")
-            result["errors"].append(f"Categorization: {str(e)}")
-            result["categorization"] = {"error": str(e)}
-
-        # Step 2: Generate suggestions for recent emails
+        # Step 1: Generate suggestions for recent emails
         try:
             sugg_result = self.ai_learning.process_recent_emails_for_suggestions(
                 hours=hours,

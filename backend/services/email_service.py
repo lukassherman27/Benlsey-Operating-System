@@ -173,90 +173,55 @@ class EmailService(BaseService):
 
     def get_categories_list(self) -> Dict[str, List[Dict[str, Any]]]:
         """
-        Get structured list of all email categories with metadata including subcategories
+        Get structured list of all email categories from the unified category system.
 
         Returns:
-            Dict with 'categories' list containing {value, label, count, subcategories, constraints}
+            Dict with 'categories' list containing {value, label, domain, count, subcategories}
         """
         sql = """
             SELECT
-                category,
-                COUNT(*) as count
-            FROM email_content
-            WHERE category IS NOT NULL
-            GROUP BY category
-            ORDER BY category ASC
+                c.code,
+                c.domain,
+                c.display_name,
+                c.description,
+                c.sort_order,
+                COALESCE(e.count, 0) as count
+            FROM email_category_codes c
+            LEFT JOIN (
+                SELECT primary_category, COUNT(*) as count
+                FROM emails
+                WHERE primary_category IS NOT NULL
+                GROUP BY primary_category
+            ) e ON c.code = e.primary_category
+            WHERE c.is_active = 1
+            ORDER BY c.sort_order, c.code
         """
         results = self.execute_query(sql)
 
-        # Convert category codes to display labels
-        label_map = {
-            'contract': 'Contract',
-            'invoice': 'Invoice',
-            'design': 'Design',
-            'rfi': 'RFI / Question',
-            'schedule': 'Schedule',
-            'meeting': 'Meeting',
-            'general': 'General',
-            'proposal': 'Proposal',
-            'project_update': 'Project Update'
-        }
-
-        # Define subcategories for each category
-        subcategories_map = {
-            'contract': [
-                {'value': 'proposal', 'label': 'Proposal Contract'},
-                {'value': 'mou', 'label': 'Memorandum of Understanding'},
-                {'value': 'nda', 'label': 'Non-Disclosure Agreement'},
-                {'value': 'service', 'label': 'Service Agreement'},
-                {'value': 'amendment', 'label': 'Contract Amendment'}
-            ],
-            'invoice': [
-                {'value': 'initial', 'label': 'Initial Payment'},
-                {'value': 'milestone', 'label': 'Milestone Payment'},
-                {'value': 'final', 'label': 'Final Payment'},
-                {'value': 'expense', 'label': 'Expense Reimbursement'}
-            ],
-            'design': [
-                {'value': 'concept', 'label': 'Concept Design'},
-                {'value': 'schematic', 'label': 'Schematic Design'},
-                {'value': 'detail', 'label': 'Detail Design'},
-                {'value': 'revision', 'label': 'Design Revision'},
-                {'value': 'approval', 'label': 'Design Approval'}
-            ],
-            'meeting': [
-                {'value': 'kickoff', 'label': 'Project Kickoff'},
-                {'value': 'review', 'label': 'Design Review'},
-                {'value': 'client', 'label': 'Client Meeting'},
-                {'value': 'internal', 'label': 'Internal Team Meeting'}
-            ]
-        }
-
-        # Define constraints for specific categories
-        constraints_map = {
-            'rfi': {
-                'active_projects_only': True,
-                'description': 'RFIs can only be assigned to emails linked to active projects'
-            }
-        }
-
-        categories = []
+        # Group by domain for hierarchical structure
+        domains = {}
         for row in results:
-            category_value = row['category']
-            category_data = {
-                'value': category_value,
-                'label': label_map.get(category_value, category_value.title()),
-                'count': row['count'],
-                'subcategories': subcategories_map.get(category_value, [])
-            }
+            domain = row['domain']
+            if domain not in domains:
+                domains[domain] = {
+                    'value': domain,
+                    'label': domain.title(),
+                    'count': 0,
+                    'subcategories': []
+                }
 
-            # Add constraints if they exist for this category
-            if category_value in constraints_map:
-                category_data['constraints'] = constraints_map[category_value]
+            # Add to domain count
+            domains[domain]['count'] += row['count']
 
-            categories.append(category_data)
+            # If this is a subcategory (has hyphen), add to subcategories list
+            if '-' in row['code']:
+                domains[domain]['subcategories'].append({
+                    'value': row['code'],
+                    'label': row['display_name'],
+                    'count': row['count']
+                })
 
-        return {'categories': categories}
+        return {'categories': list(domains.values())}
 
     def get_emails_for_proposal(self, project_code: str) -> List[Dict[str, Any]]:
         """Get all emails linked to a proposal"""
@@ -334,17 +299,27 @@ class EmailService(BaseService):
         return stats
 
     def get_categories(self) -> List[Dict[str, Any]]:
-        """Get all email categories with counts"""
+        """Get all email categories with counts from the unified category system"""
         with self.get_connection() as conn:
             cursor = conn.cursor()
+            # Get category codes with email counts
             cursor.execute("""
                 SELECT
-                    category,
-                    COUNT(*) as count
-                FROM email_content
-                WHERE category IS NOT NULL
-                GROUP BY category
-                ORDER BY count DESC
+                    c.code,
+                    c.domain,
+                    c.display_name,
+                    c.description,
+                    c.sort_order,
+                    COALESCE(e.count, 0) as count
+                FROM email_category_codes c
+                LEFT JOIN (
+                    SELECT primary_category, COUNT(*) as count
+                    FROM emails
+                    WHERE primary_category IS NOT NULL
+                    GROUP BY primary_category
+                ) e ON c.code = e.primary_category
+                WHERE c.is_active = 1
+                ORDER BY c.sort_order, c.code
             """)
             return [dict(row) for row in cursor.fetchall()]
 
@@ -356,11 +331,12 @@ class EmailService(BaseService):
         subcategory: Optional[str] = None
     ) -> Optional[Dict[str, Any]]:
         """
-        Update the category for an email and log human feedback
+        Update the category for an email using the unified category system.
+        Updates emails.primary_category directly.
 
         Args:
             email_id: Target email ID
-            new_category: Correct category label
+            new_category: Category code (e.g., 'PROPOSAL', 'LEGAL-INDIA', 'SCHEDULING')
             feedback: Optional reviewer comment
 
         Returns:
@@ -369,18 +345,17 @@ class EmailService(BaseService):
         with self.get_connection() as conn:
             cursor = conn.cursor()
 
+            # Get current email data
             cursor.execute("""
                 SELECT
-                    e.email_id,
-                    e.subject,
-                    e.sender_email,
-                    e.snippet,
-                    e.body_full,
-                    ec.clean_body,
-                    ec.category AS previous_category
-                FROM emails e
-                LEFT JOIN email_content ec ON e.email_id = ec.email_id
-                WHERE e.email_id = ?
+                    email_id,
+                    subject,
+                    sender_email,
+                    snippet,
+                    body_full,
+                    primary_category AS previous_category
+                FROM emails
+                WHERE email_id = ?
             """, (email_id,))
             row = cursor.fetchone()
 
@@ -389,34 +364,14 @@ class EmailService(BaseService):
 
             previous_category = row["previous_category"]
 
-            # Ensure email_content row exists
+            # Update the unified category field
             cursor.execute(
-                "SELECT content_id FROM email_content WHERE email_id = ?",
-                (email_id,)
+                "UPDATE emails SET primary_category = ? WHERE email_id = ?",
+                (new_category, email_id)
             )
-            content_row = cursor.fetchone()
-
-            if content_row:
-                cursor.execute(
-                    "UPDATE email_content SET category = ?, subcategory = ? WHERE email_id = ?",
-                    (new_category, subcategory, email_id)
-                )
-            else:
-                cursor.execute(
-                    """
-                    INSERT INTO email_content (
-                        email_id,
-                        category,
-                        subcategory,
-                        importance_score,
-                        ai_summary
-                    ) VALUES (?, ?, ?, 0.5, '')
-                    """,
-                    (email_id, new_category, subcategory)
-                )
 
             # Insert into training_data for future fine-tuning
-            body_text = row["clean_body"] or row["body_full"] or row["snippet"] or ""
+            body_text = row["body_full"] or row["snippet"] or ""
             input_payload = (
                 f"Subject: {row['subject'] or ''}\n"
                 f"Sender: {row['sender_email'] or ''}\n"
@@ -453,7 +408,6 @@ class EmailService(BaseService):
                 "subject": row["subject"],
                 "sender_email": row["sender_email"],
                 "category": new_category,
-                "subcategory": subcategory,
                 "previous_category": previous_category,
                 "feedback": feedback
             }

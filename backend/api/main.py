@@ -57,7 +57,6 @@ from api.routers import (
     agent,
     contacts,
     tasks,
-    email_categories,
     my_day,
     previews,
 )
@@ -165,7 +164,6 @@ app.include_router(suggestions.router)
 app.include_router(dashboard.router)
 app.include_router(query.router)
 app.include_router(intelligence.router)
-app.include_router(email_categories.router)
 
 # Context & Admin
 app.include_router(context.router)
