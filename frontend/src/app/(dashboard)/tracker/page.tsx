@@ -735,6 +735,12 @@ function ProposalTrackerContent() {
                     <TableHead className={cn("text-center w-[60px] min-w-[60px]", ds.typography.captionBold)}>
                       Health
                     </TableHead>
+                    <TableHead className={cn("text-center w-[50px] min-w-[50px]", ds.typography.captionBold)}>
+                      Win%
+                    </TableHead>
+                    <TableHead className={cn("text-center w-[50px] min-w-[50px]", ds.typography.captionBold)}>
+                      Mood
+                    </TableHead>
                     <TableHead className={cn("min-w-[180px] max-w-[300px]", ds.typography.captionBold)}>
                       Action Needed
                     </TableHead>
@@ -889,6 +895,39 @@ function ProposalTrackerContent() {
                             >
                               {proposal.health_score}
                             </div>
+                          ) : (
+                            <span className="text-slate-400">—</span>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-center">
+                          {/* Win Probability */}
+                          {proposal.win_probability != null ? (
+                            <div
+                              className={cn(
+                                "inline-flex items-center justify-center text-xs font-semibold",
+                                proposal.win_probability >= 60 ? "text-emerald-600" :
+                                proposal.win_probability >= 30 ? "text-amber-600" :
+                                "text-slate-400"
+                              )}
+                              title={`Win probability: ${proposal.win_probability}%`}
+                            >
+                              {proposal.win_probability}%
+                            </div>
+                          ) : (
+                            <span className="text-slate-400">—</span>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-center">
+                          {/* Sentiment Emoji */}
+                          {proposal.last_sentiment ? (
+                            <span
+                              className="text-lg"
+                              title={`Last sentiment: ${proposal.last_sentiment}`}
+                            >
+                              {proposal.last_sentiment === 'positive' ? '😊' :
+                               proposal.last_sentiment === 'concerned' ? '😟' :
+                               proposal.last_sentiment === 'negative' ? '😠' : '😐'}
+                            </span>
                           ) : (
                             <span className="text-slate-400">—</span>
                           )}

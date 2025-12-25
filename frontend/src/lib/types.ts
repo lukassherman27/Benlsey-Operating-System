@@ -810,6 +810,7 @@ export interface ProposalTrackerItem {
   action_due?: string | null;  // Issue #127
   action_owner?: 'bill' | 'brian' | 'lukas' | 'mink' | null;
   last_sentiment?: 'positive' | 'neutral' | 'concerned' | 'negative' | null;
+  win_probability?: number | null;  // Issue #125
   correspondence_summary?: string | null;
 }
 
