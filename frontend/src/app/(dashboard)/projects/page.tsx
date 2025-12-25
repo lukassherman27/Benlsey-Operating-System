@@ -29,6 +29,7 @@ import { cn } from "@/lib/utils";
 import { Edit, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ProjectQuickEditDialog } from "@/components/project-quick-edit-dialog";
+import { PhaseProgressCompact, getCurrentPhaseSummary } from "@/components/project/phase-progress-bar";
 import { ds, bensleyVoice } from "@/lib/design-system";
 
 const formatCurrency = (value?: number | null) => {
@@ -448,6 +449,7 @@ export default function ProjectsPage() {
                   <thead className={ds.tables.header}>
                     <tr>
                       <th className={ds.tables.headerCell}>Project</th>
+                      <th className={cn(ds.tables.headerCell, "min-w-[200px]")}>Phase Progress</th>
                       <th className={ds.tables.headerCellRight}>Contract Value</th>
                       <th className={ds.tables.headerCellRight}>Paid</th>
                       <th className={ds.tables.headerCellRight}>Outstanding</th>
@@ -461,6 +463,7 @@ export default function ProjectsPage() {
                         {[1, 2, 3, 4, 5].map((i) => (
                           <tr key={i} className="animate-pulse">
                             <td className="py-4"><div className="h-4 w-48 bg-slate-200 rounded" /></td>
+                            <td className="py-4"><div className="h-8 w-full bg-slate-200 rounded" /></td>
                             <td className="py-4 text-right"><div className="h-4 w-20 bg-slate-200 rounded ml-auto" /></td>
                             <td className="py-4 text-right"><div className="h-4 w-16 bg-slate-200 rounded ml-auto" /></td>
                             <td className="py-4 text-right"><div className="h-4 w-16 bg-slate-200 rounded ml-auto" /></td>
@@ -471,7 +474,7 @@ export default function ProjectsPage() {
                       </>
                     ) : activeProjects.length === 0 ? (
                       <tr>
-                        <td colSpan={6} className="py-16 text-center">
+                        <td colSpan={7} className="py-16 text-center">
                           <FolderOpen className="mx-auto h-16 w-16 text-slate-300 mb-4" />
                           <p className={ds.typography.cardHeader}>{bensleyVoice.emptyStates.projects}</p>
                           <p className={cn(ds.typography.caption, "mt-2")}>Projects will appear here once contracts are signed</p>
@@ -565,8 +568,25 @@ function ProjectRow({
     staleTime: 1000 * 60 * 5,
   });
 
+  // Fetch phases for progress visualization
+  const phasesQuery = useQuery({
+    queryKey: ["project-phases", projectCode],
+    queryFn: () => api.getProjectPhases(projectCode),
+    staleTime: 1000 * 60 * 5,
+  });
+
   const invoices = invoicesQuery.data?.invoices ?? [];
   const feeBreakdowns = feeBreakdownQuery.data?.breakdowns ?? [];
+  const phases = phasesQuery.data?.phases ?? [];
+  const currentPhase = getCurrentPhaseSummary(
+    phases.map((p: { phase_name: string; status: string; phase_fee_usd?: number | null; invoiced_amount_usd?: number | null; paid_amount_usd?: number | null }) => ({
+      phase_name: p.phase_name,
+      status: p.status,
+      phase_fee_usd: p.phase_fee_usd ?? undefined,
+      invoiced_amount_usd: p.invoiced_amount_usd ?? undefined,
+      paid_amount_usd: p.paid_amount_usd ?? undefined,
+    }))
+  );
 
   // Normalize discipline names to the main categories
   const normalizeDiscipline = (discipline: string | null | undefined): string | null => {
@@ -657,6 +677,31 @@ function ProjectRow({
             </div>
           </div>
         </td>
+        {/* Phase Progress */}
+        <td className="py-4">
+          {phasesQuery.isLoading ? (
+            <div className="h-8 w-full bg-slate-100 rounded animate-pulse" />
+          ) : phases.length > 0 ? (
+            <div className="space-y-1">
+              <PhaseProgressCompact
+                phases={phases.map((p: { phase_name: string; status: string; phase_fee_usd?: number | null; invoiced_amount_usd?: number | null; paid_amount_usd?: number | null }) => ({
+                  phase_name: p.phase_name,
+                  status: p.status,
+                  phase_fee_usd: p.phase_fee_usd ?? undefined,
+                  invoiced_amount_usd: p.invoiced_amount_usd ?? undefined,
+                  paid_amount_usd: p.paid_amount_usd ?? undefined,
+                }))}
+              />
+              <div className="text-xs text-teal-600 font-medium text-center">
+                {currentPhase}
+              </div>
+            </div>
+          ) : (
+            <div className="text-xs text-slate-400 text-center">
+              No phases
+            </div>
+          )}
+        </td>
         {/* Contract Value */}
         <td className="py-4">
           <div className="text-right">
@@ -709,7 +754,7 @@ function ProjectRow({
 
       {isExpanded && (
         <tr>
-          <td colSpan={6} className="bg-slate-50 p-0">
+          <td colSpan={7} className="bg-slate-50 p-0">
             <div className="p-6">
               {invoicesQuery.isLoading ? (
                 <div className="py-4 text-center text-sm text-slate-500">

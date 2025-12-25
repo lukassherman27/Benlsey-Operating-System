@@ -377,6 +377,104 @@ async def get_project_fee_breakdown(project_code: str):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.get("/projects/{project_code}/phases")
+async def get_project_phases(project_code: str):
+    """
+    Get project phases with status for phase progress visualization.
+
+    Returns phases grouped by discipline with completion status.
+    """
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+
+        # Get project_id
+        cursor.execute("SELECT project_id FROM projects WHERE project_code = ?", (project_code,))
+        project = cursor.fetchone()
+        if not project:
+            conn.close()
+            raise HTTPException(status_code=404, detail=f"Project {project_code} not found")
+
+        project_id = project['project_id']
+
+        # Get all phases for this project with invoice totals
+        cursor.execute("""
+            SELECT
+                cp.phase_id,
+                cp.discipline,
+                cp.phase_name,
+                cp.phase_order,
+                cp.phase_fee_usd,
+                cp.invoiced_amount_usd,
+                cp.paid_amount_usd,
+                cp.status,
+                cp.start_date,
+                cp.expected_completion_date,
+                cp.actual_completion_date,
+                -- Calculate totals from invoices if not in phase record
+                COALESCE(cp.invoiced_amount_usd,
+                    (SELECT COALESCE(SUM(i.invoice_amount), 0)
+                     FROM invoices i
+                     WHERE i.project_id = cp.project_id
+                       AND i.discipline = cp.discipline
+                       AND i.phase = cp.phase_name)
+                ) as total_invoiced,
+                COALESCE(cp.paid_amount_usd,
+                    (SELECT COALESCE(SUM(i.amount_paid), 0)
+                     FROM invoices i
+                     WHERE i.project_id = cp.project_id
+                       AND i.discipline = cp.discipline
+                       AND i.phase = cp.phase_name)
+                ) as total_paid
+            FROM contract_phases cp
+            WHERE cp.project_id = ?
+            ORDER BY cp.discipline, cp.phase_order
+        """, (project_id,))
+
+        phases = []
+        for row in cursor.fetchall():
+            phase_dict = dict(row)
+
+            # Determine status based on invoicing if not explicitly set
+            if phase_dict['status'] in ('pending', None):
+                total_invoiced = phase_dict.get('total_invoiced', 0) or 0
+                total_paid = phase_dict.get('total_paid', 0) or 0
+                phase_fee = phase_dict.get('phase_fee_usd', 0) or 0
+
+                if phase_fee > 0 and total_paid >= phase_fee:
+                    phase_dict['status'] = 'completed'
+                elif total_invoiced > 0:
+                    phase_dict['status'] = 'in_progress'
+                else:
+                    phase_dict['status'] = 'pending'
+
+            phases.append(phase_dict)
+
+        conn.close()
+
+        # Group by discipline
+        by_discipline = {}
+        for phase in phases:
+            disc = phase.get('discipline', 'Unknown')
+            if disc not in by_discipline:
+                by_discipline[disc] = []
+            by_discipline[disc].append(phase)
+
+        return {
+            "success": True,
+            "project_code": project_code,
+            "phases": phases,
+            "by_discipline": by_discipline,
+            "total": len(phases)
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to get project phases: {str(e)}")
+
+
 @router.get("/projects/{project_code}/timeline")
 async def get_project_timeline(project_code: str):
     """Get project timeline - key dates and milestones. Returns standardized list response."""

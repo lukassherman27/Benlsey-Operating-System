@@ -240,7 +240,6 @@ export const api = {
   getProposalBriefing: (projectCode: string) =>
     request<ProposalBriefing>(`/api/proposals/${encodeURIComponent(projectCode)}/briefing`).catch(() => ({} as ProposalBriefing)),
 
-  // Issue #108: Add missing conversation API method
   getProposalConversation: (projectCode: string) =>
     request<{
       success: boolean;
@@ -570,6 +569,32 @@ export const api = {
 
   getProjectTimeline: (projectCode: string) =>
     request<Record<string, unknown>>(`/api/projects/${encodeURIComponent(projectCode)}/timeline`),
+
+  getProjectPhases: (projectCode: string) =>
+    request<{
+      success: boolean;
+      project_code: string;
+      phases: Array<{
+        phase_id: number;
+        discipline: string;
+        phase_name: string;
+        phase_order: number;
+        phase_fee_usd: number | null;
+        invoiced_amount_usd: number | null;
+        paid_amount_usd: number | null;
+        status: "pending" | "in_progress" | "completed";
+        start_date: string | null;
+        expected_completion_date: string | null;
+        actual_completion_date: string | null;
+      }>;
+      by_discipline: Record<string, Array<{
+        phase_id: number;
+        discipline: string;
+        phase_name: string;
+        status: "pending" | "in_progress" | "completed";
+      }>>;
+      total: number;
+    }>(`/api/projects/${encodeURIComponent(projectCode)}/phases`),
 
   // Invoices API
   getInvoiceStats: () =>
