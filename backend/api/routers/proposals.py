@@ -314,16 +314,17 @@ async def create_proposal(request: CreateProposalRequest):
         with proposal_service.get_connection() as conn:
             cursor = conn.cursor()
 
-            # Check if project_code already exists
-            cursor.execute("SELECT proposal_id FROM projects WHERE project_code = ?", (request.project_code,))
+            # Issue #109: Check proposals table, not projects
+            cursor.execute("SELECT proposal_id FROM proposals WHERE project_code = ?", (request.project_code,))
             if cursor.fetchone():
                 raise HTTPException(status_code=400, detail=f"Project code '{request.project_code}' already exists")
 
+            # Issue #109: Insert into proposals table with correct column names
             cursor.execute("""
-                INSERT INTO projects (
-                    project_code, project_title, total_fee_usd,
-                    proposal_submitted_date, decision_expected_date, win_probability,
-                    status, is_active_project, client_name, description,
+                INSERT INTO proposals (
+                    project_code, project_name, project_value,
+                    proposal_sent_date, next_action_date, win_probability,
+                    status, is_active_project, client_company, internal_notes,
                     created_at, updated_at
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
             """, (
@@ -343,11 +344,11 @@ async def create_proposal(request: CreateProposalRequest):
             conn.commit()
 
             cursor.execute("""
-                SELECT proposal_id, project_code, project_title, status,
-                       total_fee_usd, win_probability, is_active_project,
-                       proposal_submitted_date, decision_expected_date,
-                       client_name, description, created_at
-                FROM projects WHERE proposal_id = ?
+                SELECT proposal_id, project_code, project_name, status,
+                       project_value, win_probability, is_active_project,
+                       proposal_sent_date, next_action_date,
+                       client_company, internal_notes, created_at
+                FROM proposals WHERE proposal_id = ?
             """, (proposal_id,))
 
             row = cursor.fetchone()

@@ -240,6 +240,25 @@ export const api = {
   getProposalBriefing: (projectCode: string) =>
     request<ProposalBriefing>(`/api/proposals/${encodeURIComponent(projectCode)}/briefing`).catch(() => ({} as ProposalBriefing)),
 
+  // Issue #108: Add missing conversation API method
+  getProposalConversation: (projectCode: string) =>
+    request<{
+      success: boolean;
+      project_code: string;
+      emails: Array<{
+        email_id: string;
+        date: string;
+        subject: string;
+        sender_email: string;
+        sender_category: 'bill' | 'brian' | 'lukas' | 'mink' | 'bensley_other' | 'client';
+        body_preview: string;
+        body_full: string | null;
+        has_attachments: boolean;
+        email_direction: string | null;
+      }>;
+      total: number;
+    }>(`/api/proposals/${encodeURIComponent(projectCode)}/conversation`),
+
   getProposalStory: (projectCode: string) =>
     request<{
       success: boolean;

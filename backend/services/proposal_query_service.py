@@ -30,15 +30,16 @@ class ProposalQueryService:
         results = []
 
         # Search proposals first
+        # Issue #111: Fixed column names to match proposals table schema
         if code_match:
             code = code_match.group().replace(' ', '')
             cursor.execute("""
                 SELECT
                     'proposal' as source,
-                    p.project_id as id,
+                    p.proposal_id as id,
                     p.project_code,
-                    p.project_title,
-                    COALESCE(pr.client_company, 'Unknown'),
+                    p.project_name as project_title,
+                    COALESCE(p.client_company, 'Unknown') as client_company,
                     p.contact_person,
                     p.contact_email,
                     p.project_value,
@@ -56,15 +57,16 @@ class ProposalQueryService:
             results.extend([dict(row) for row in cursor.fetchall()])
 
         # Also search by name/client
+        # Issue #111: Fixed column names to match proposals table schema
         if not results or not code_match:
             search_term = f'%{query_text}%'
             cursor.execute("""
                 SELECT
                     'proposal' as source,
-                    p.project_id as id,
+                    p.proposal_id as id,
                     p.project_code,
-                    p.project_title,
-                    COALESCE(pr.client_company, 'Unknown'),
+                    p.project_name as project_title,
+                    COALESCE(p.client_company, 'Unknown') as client_company,
                     p.contact_person,
                     p.contact_email,
                     p.project_value,
@@ -77,38 +79,39 @@ class ProposalQueryService:
                     p.win_probability,
                     p.health_score
                 FROM proposals p
-                WHERE p.project_title LIKE ?
-                   OR COALESCE(pr.client_company, 'Unknown') LIKE ?
+                WHERE p.project_name LIKE ?
+                   OR COALESCE(p.client_company, 'Unknown') LIKE ?
                    OR p.project_code LIKE ?
                 LIMIT 10
             """, (search_term, search_term, search_term))
             results.extend([dict(row) for row in cursor.fetchall()])
 
         # Also search active projects table
+        # Issue #110: Fixed typo project_coder -> project_code
+        # Issue #111: Fixed query to properly use projects table columns
         if code_match:
             code = code_match.group().replace(' ', '')
             cursor.execute("""
                 SELECT
                     'project' as source,
-                    pr.project_id as id,
-                    pr.project_code,
-                    pr.project_title as project_title,
+                    p.project_id as id,
+                    p.project_code,
+                    p.project_title as project_title,
                     c.company_name as client_company,
                     NULL as contact_person,
                     NULL as contact_email,
-                    pr.total_fee_usd as project_value,
-                    pr.status,
-                    pr.date_created as created_at,
+                    p.total_fee_usd as project_value,
+                    p.status,
+                    p.date_created as created_at,
                     NULL as last_contact_date,
                     0 as on_hold,
                     NULL as on_hold_reason,
-                    pr.notes as internal_notes,
+                    p.notes as internal_notes,
                     NULL as win_probability,
                     NULL as health_score
                 FROM projects p
-            LEFT JOIN proposals pr ON p.project_code = pr.project_coder
-                LEFT JOIN clients c ON pr.client_id = c.client_id
-                WHERE pr.project_code LIKE ?
+                LEFT JOIN clients c ON p.client_id = c.client_id
+                WHERE p.project_code LIKE ?
             """, (f'%{code}%',))
             results.extend([dict(row) for row in cursor.fetchall()])
 
