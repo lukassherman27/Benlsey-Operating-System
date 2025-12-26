@@ -44,6 +44,8 @@ import {
   Copy,
   X,
   User,
+  CheckCheck,
+  ArrowLeftRight,
 } from "lucide-react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -216,6 +218,37 @@ function ProposalTrackerContent() {
     },
     onError: (error: unknown) => {
       toast.error(error instanceof Error ? error.message : "Failed to draft follow-up");
+    },
+  });
+
+  // Quick action: Mark as followed up (ball to them)
+  const markFollowedUpMutation = useMutation({
+    mutationFn: ({ projectCode }: { projectCode: string }) =>
+      api.updateProposalTracker(projectCode, { ball_in_court: 'them' }),
+    onSuccess: (_, variables) => {
+      toast.success(`Marked as followed up - ball now with client`);
+      queryClient.invalidateQueries({ queryKey: ["proposalTrackerList"] });
+      queryClient.invalidateQueries({ queryKey: ["proposalTrackerStats"] });
+    },
+    onError: (error: unknown) => {
+      toast.error(error instanceof Error ? error.message : "Failed to update");
+    },
+  });
+
+  // Quick action: Flip ball in court
+  const flipBallMutation = useMutation({
+    mutationFn: ({ projectCode, currentBall }: { projectCode: string; currentBall: string }) =>
+      api.updateProposalTracker(projectCode, {
+        ball_in_court: currentBall === 'us' ? 'them' : 'us'
+      }),
+    onSuccess: (_, variables) => {
+      const newBall = variables.currentBall === 'us' ? 'client' : 'us';
+      toast.success(`Ball now with ${newBall}`);
+      queryClient.invalidateQueries({ queryKey: ["proposalTrackerList"] });
+      queryClient.invalidateQueries({ queryKey: ["proposalTrackerStats"] });
+    },
+    onError: (error: unknown) => {
+      toast.error(error instanceof Error ? error.message : "Failed to update");
     },
   });
 
@@ -995,6 +1028,49 @@ function ProposalTrackerContent() {
                                 )}
                               </Button>
                             )}
+                            {/* Mark Followed Up - quick action to flip ball to them */}
+                            {proposal.ball_in_court === 'us' && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  markFollowedUpMutation.mutate({
+                                    projectCode: proposal.project_code,
+                                  });
+                                }}
+                                disabled={markFollowedUpMutation.isPending}
+                                className="h-8 w-8 p-0 text-green-600 hover:text-green-700 hover:bg-green-50"
+                                title="Mark as followed up (ball to client)"
+                              >
+                                {markFollowedUpMutation.isPending ? (
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                  <CheckCheck className="h-4 w-4" />
+                                )}
+                              </Button>
+                            )}
+                            {/* Flip Ball - toggle between us/them */}
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                flipBallMutation.mutate({
+                                  projectCode: proposal.project_code,
+                                  currentBall: proposal.ball_in_court || 'them',
+                                });
+                              }}
+                              disabled={flipBallMutation.isPending}
+                              className="h-8 w-8 p-0 text-slate-500 hover:text-slate-700 hover:bg-slate-50"
+                              title={`Flip ball (currently: ${proposal.ball_in_court || 'unknown'})`}
+                            >
+                              {flipBallMutation.isPending ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <ArrowLeftRight className="h-4 w-4" />
+                              )}
+                            </Button>
                             <Button
                               variant="ghost"
                               size="sm"
