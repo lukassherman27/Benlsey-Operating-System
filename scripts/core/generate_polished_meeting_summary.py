@@ -32,6 +32,23 @@ from pathlib import Path
 from dotenv import load_dotenv
 load_dotenv()
 
+# Add backend to path for imports
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'backend'))
+
+# Try to import meeting templates
+try:
+    from services.meeting_templates import (
+        detect_meeting_type,
+        get_template,
+        get_template_instructions,
+        build_prompt_with_template,
+        get_meeting_types
+    )
+    TEMPLATES_AVAILABLE = True
+except ImportError:
+    TEMPLATES_AVAILABLE = False
+    print("Note: meeting_templates module not found, using built-in templates")
+
 DB_PATH = os.getenv('DATABASE_PATH', 'database/bensley_master.db')
 
 
@@ -144,6 +161,11 @@ class PolishedMeetingSummaryGenerator:
 
     def detect_meeting_type(self, transcript: str, title: str = None) -> str:
         """Detect meeting type from content."""
+        # Use imported templates if available
+        if TEMPLATES_AVAILABLE:
+            return detect_meeting_type(transcript, title)
+
+        # Fallback to built-in detection
         text = f"{title or ''} {transcript[:3000]}".lower()
         scores = {}
         for mtype, keywords in self.MEETING_TYPE_INDICATORS.items():
@@ -152,12 +174,35 @@ class PolishedMeetingSummaryGenerator:
                 scores[mtype] = score
         return max(scores, key=scores.get) if scores else 'client_call'
 
+    def _format_participants(self, participants) -> str:
+        """Format participants for display."""
+        if isinstance(participants, str):
+            try:
+                participants = json.loads(participants)
+            except:
+                return participants
+
+        if isinstance(participants, list) and participants:
+            if isinstance(participants[0], dict):
+                return ", ".join([
+                    f"{p.get('name', 'Unknown')} ({p.get('role', p.get('type', ''))})"
+                    for p in participants
+                ])
+            else:
+                return ", ".join(str(p) for p in participants)
+        return "See transcript"
+
     # =========================================================================
     # PROMPT BUILDING
     # =========================================================================
 
-    def build_prompt(self, transcript_id: int) -> str:
-        """Build the complete prompt with all context."""
+    def build_prompt(self, transcript_id: int, force_type: str = None) -> str:
+        """Build the complete prompt with all context.
+
+        Args:
+            transcript_id: ID of the transcript to process
+            force_type: Optional meeting type to use instead of auto-detection
+        """
         transcript = self.get_transcript(transcript_id)
         if not transcript:
             return f"ERROR: Transcript {transcript_id} not found"
@@ -169,7 +214,28 @@ class PolishedMeetingSummaryGenerator:
         contacts = self.get_contact_context(proposal.get('client_company')) if proposal else []
         emails = self.get_recent_emails(project_code=project_code, proposal_id=proposal_id)
         previous = self.get_previous_meetings(project_code, proposal_id, transcript_id)
-        meeting_type = self.detect_meeting_type(transcript.get('transcript', ''), transcript.get('meeting_title'))
+
+        # Use forced type or auto-detect
+        if force_type:
+            meeting_type = force_type
+        else:
+            meeting_type = self.detect_meeting_type(transcript.get('transcript', ''), transcript.get('meeting_title'))
+
+        # If templates module is available, use it for better type-specific prompts
+        if TEMPLATES_AVAILABLE:
+            context = {
+                'proposal': proposal,
+                'contacts': contacts,
+                'emails': emails,
+                'previous_meetings': previous,
+                'title': transcript.get('meeting_title', 'Meeting'),
+                'date': transcript.get('meeting_date') or transcript.get('recorded_date', 'Unknown'),
+                'participants': self._format_participants(transcript.get('participants')),
+            }
+            full_transcript = transcript.get('transcript', '')
+            if len(full_transcript) > 50000:
+                full_transcript = full_transcript[:50000] + "\n\n[TRANSCRIPT TRUNCATED]"
+            return build_prompt_with_template(meeting_type, context, full_transcript)
 
         # Parse participants
         participants = transcript.get('participants')
