@@ -1,8 +1,8 @@
 # System Status
 
-**Updated:** 2025-12-26 (evening)
+**Updated:** 2025-12-26 (late evening)
 **Backend:** localhost:8000 | **Frontend:** localhost:3002
-**Phase:** Operations - Proposals UI Overhaul
+**Phase:** Operations - Proposals UI Complete
 
 ---
 
@@ -61,9 +61,32 @@ CAST(JULIANDAY('now') - JULIANDAY(COALESCE(last_contact_date, created_at)) AS IN
 
 Fixed in: `proposal_tracker_service.py`, `proposal_service.py`, `weekly_report_service.py`
 
-### In Progress: Proposals UI Overhaul Plan
+---
 
-Plan file: `.claude/plans/jiggly-swinging-lovelace.md`
+## Session Work (Dec 26 Late Evening)
+
+### Completed: Quick Actions (#134) + Analytics Dashboard (#143)
+
+**Quick Actions (PR #149):**
+- Added "Mark Followed Up" button (green checkmark) - flips ball to client
+- Added "Flip Ball" button (arrows) - toggles us/them
+- Both in Actions column with loading states
+- Allows Bill to manage proposals without leaving tracker
+
+**Analytics Dashboard (PR #150):**
+- New `/api/analytics/trends` endpoint with time-series data
+- Added "Analytics" tab to /overview page (4th tab)
+- Charts using Recharts:
+  - Pipeline Value Trend (12 month line chart)
+  - Win Rate Trend (12 month line chart)
+  - Pipeline by Status (horizontal bar)
+  - Win Rate by Deal Size (bar chart)
+- Summary metrics: Total/Weighted Pipeline, Avg Win Rate, Avg Days to Win
+- Stage duration cards showing avg time in each status
+
+**Also Closed:**
+- #124 (duplicate endpoints) - Investigation showed no issue
+- #126 (inconsistent responses) - Deferred to Q2 2026, documented
 
 ---
 
