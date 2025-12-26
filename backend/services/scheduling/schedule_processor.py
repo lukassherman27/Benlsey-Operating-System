@@ -381,7 +381,13 @@ class ScheduleProcessor:
 
                     # First column is name
                     nickname = row[0].strip() if row[0] else ""
-                    if not nickname or nickname.upper() in ['NAME', 'SICK', 'PERMIT', '']:
+                    # Skip headers, special rows, and invalid names
+                    skip_names = ['NAME', 'SICK', 'PERMIT', 'DATE', 'PROJECT', 'DEADLINE',
+                                  'CAPTAIN', 'DECEMBER', 'JANUARY', 'FEBRUARY', 'MARCH',
+                                  'APRIL', 'MAY', 'JUNE', 'JULY', 'AUGUST', 'SEPTEMBER',
+                                  'OCTOBER', 'NOVEMBER', 'MON', 'TUE', 'WED', 'THU', 'FRI',
+                                  'SAT', 'SUN', '']
+                    if not nickname or nickname.upper() in skip_names or nickname.isdigit():
                         continue
 
                     # Get member_id
