@@ -1,8 +1,8 @@
 # System Status
 
-**Updated:** 2025-12-26
+**Updated:** 2025-12-26 (evening)
 **Backend:** localhost:8000 | **Frontend:** localhost:3002
-**Phase:** Operations - Project Management Redesign
+**Phase:** Operations - Proposals UI Overhaul
 
 ---
 
@@ -16,32 +16,58 @@
 | Proposals | 108 |
 | Projects | 67 |
 | Contacts | 467 |
-| Invoices | 436 |
+| Linked Emails | 2,359 (61%) |
 | Patterns | 153 |
-| Staff | 100 |
-| Contract Phases | 15 |
-| Schedule Entries | 1,120 |
-
-### Email Linking Stats
-
-| Metric | Count |
-|--------|-------|
-| Linked emails | 2,095 (54%) |
-| Unlinked (linkable) | 515 |
-| Unlinked (standalone) | 1,269 (correctly not linked) |
 
 ### Pipeline Summary
 
 | Metric | Value |
 |--------|-------|
-| **Active Pipeline** | $41.97M (35 proposals) |
-| **Contract Signed** | $25.58M (18 proposals) |
-| **Declined/Lost** | 26 proposals |
-| **Dormant** | 24 proposals |
+| **Active Pipeline** | $77.5M (64 proposals) |
+| **Overdue Actions** | 34 proposals |
+| **Ball in Our Court** | 29 proposals |
+| **Stalled (14+ days)** | 15 proposals |
 
 ---
 
-## Session Work (Dec 26)
+## Session Work (Dec 26 Evening)
+
+### Completed: Activity Tracking (#140), Story Builder (#141), Weekly Report (#142)
+
+**New Backend Services:**
+- `activity_extractor.py` - Extract action items, dates, decisions from emails
+- `proposal_story_service.py` - Generate proposal narratives with timeline
+- `weekly_report_service.py` - Monday morning summary for Bill
+
+**New API Endpoints:**
+| Endpoint | Purpose |
+|----------|---------|
+| `GET /api/story/proposal/{id}` | Full proposal narrative |
+| `GET /api/story/timeline/{id}` | Activity timeline |
+| `GET /api/weekly-report` | Full weekly report |
+| `GET /api/weekly-report/quick` | Dashboard stats |
+| `GET /api/weekly-report/email-preview` | HTML email preview |
+
+### Fixed: days_since_contact Bug (PR #147)
+
+**Problem:** Siargao showed "1 day since contact" but it was actually 17 days.
+
+**Root Cause:** `days_since_contact` was stored statically and never updated.
+
+**Fix:** Dynamic calculation using SQLite:
+```sql
+CAST(JULIANDAY('now') - JULIANDAY(COALESCE(last_contact_date, created_at)) AS INTEGER)
+```
+
+Fixed in: `proposal_tracker_service.py`, `proposal_service.py`, `weekly_report_service.py`
+
+### In Progress: Proposals UI Overhaul Plan
+
+Plan file: `.claude/plans/jiggly-swinging-lovelace.md`
+
+---
+
+## Previous Session (Dec 26 Morning)
 
 ### Major Work: Project Management Redesign (#107)
 
@@ -138,42 +164,45 @@ client_submissions (
 
 ## What's Next
 
-### Immediate (Issue #107)
-- [ ] Redesign projects list page with phase progress
-- [ ] Build daily work review UI for Bill/Brian
-- [ ] Add PM assignments to projects
-- [ ] Build submissions timeline component
+### Immediate: Proposals UI Overhaul (Plan file active)
 
-### Upcoming
-- [ ] #14: PM dashboard view
-- [ ] #7: Claude CLI email workflow
-- [ ] #20: Follow-up email drafting
+1. **Tracker Priority Banner** - Show overdue/action items at top
+2. **Tracker Owner Column** - See who owns what at a glance
+3. **Overview Dashboard** - Executive metrics + Action Board + Weekly tabs
+4. **Detail Next Action Card** - Clear CTA on detail page
+5. **Detail Horizontal Timeline** - Visual proposal journey
+
+### Then
+- [ ] #107: Project management redesign
+- [ ] #117: Refactor /story endpoint (1,150 lines)
 
 ---
 
-## Open Issues (6)
+## Open Issues (15)
+
+### P0 - Critical
+- #115: Comprehensive proposals audit (in progress)
+- #117: /story endpoint 1,150 lines - unmaintainable
+
+### Proposals Enhancements
+- #134: Quick Actions in Tracker
+- #137: Saved Filter Views
+- #143: Analytics Dashboard
+
+### Cleanup
+- #124: Duplicate proposal list endpoints
+- #126: Inconsistent API response formats
 
 ### Project Management
-- #107: Project management redesign (in progress)
-- #14: PM dashboard (depends on #107)
+- #107: Project management redesign
 
-### Data Cleanup
+### Data
 - #100: Legacy category column
 - #101: Normalize match_method values
 
-### Features
-- #7: Claude CLI email workflow
-
-### Automation (Phase 2)
-- #19: Contact research
-- #20: Follow-up drafting
-
 ### Business Decisions
 - #60: $0.9M invoices >90 days
-- #61: Empty tables (Phase 2)
-
-### Infrastructure
-- #22: OneDrive cleanup
+- #61: Empty tables
 
 ---
 
