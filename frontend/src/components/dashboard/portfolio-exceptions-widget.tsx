@@ -6,8 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { AlertTriangle, Clock, DollarSign, FileWarning, CheckCircle2, ClipboardList } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
-
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
+import { api } from "@/lib/api";
 
 interface ProjectException {
   project_code: string;
@@ -31,11 +30,7 @@ interface ExceptionsResponse {
 export function PortfolioExceptionsWidget() {
   const { data, isLoading, error } = useQuery<ExceptionsResponse>({
     queryKey: ["portfolio-exceptions"],
-    queryFn: async () => {
-      const res = await fetch(`${API_BASE_URL}/api/dashboard/portfolio-exceptions`);
-      if (!res.ok) throw new Error("Failed to fetch");
-      return res.json();
-    },
+    queryFn: () => api.getPortfolioExceptions(),
     refetchInterval: 5 * 60 * 1000,
   });
 

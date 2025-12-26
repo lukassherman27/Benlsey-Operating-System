@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Flag, Calendar, AlertTriangle } from "lucide-react";
 import { format, differenceInDays } from "date-fns";
+import { api } from "@/lib/api";
 
 interface Deliverable {
   deliverable_id: number;
@@ -35,28 +36,18 @@ interface OverdueResponse {
   count: number;
 }
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
-
 export function MilestonesWidget() {
   // Fetch upcoming deliverables (next 14 days)
   const upcomingQuery = useQuery<UpcomingResponse>({
     queryKey: ["deliverables-upcoming"],
-    queryFn: async () => {
-      const res = await fetch(`${API_BASE_URL}/api/deliverables/upcoming?days=14`);
-      if (!res.ok) throw new Error("Failed to fetch upcoming deliverables");
-      return res.json();
-    },
+    queryFn: () => api.getUpcomingDeliverables(14),
     refetchInterval: 5 * 60 * 1000,
   });
 
   // Fetch overdue deliverables
   const overdueQuery = useQuery<OverdueResponse>({
     queryKey: ["deliverables-overdue"],
-    queryFn: async () => {
-      const res = await fetch(`${API_BASE_URL}/api/deliverables/overdue`);
-      if (!res.ok) throw new Error("Failed to fetch overdue deliverables");
-      return res.json();
-    },
+    queryFn: () => api.getOverdueDeliverables(),
     refetchInterval: 5 * 60 * 1000,
   });
 

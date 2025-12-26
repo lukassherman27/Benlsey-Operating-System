@@ -332,6 +332,29 @@ export const api = {
   getDashboardKPIs: (params?: { period?: string; start_date?: string; end_date?: string }) =>
     request<DashboardKPIs>(`/api/dashboard/kpis${buildQuery(params || {})}`),
 
+  getPortfolioExceptions: () =>
+    request<{
+      success: boolean;
+      exceptions: Array<{
+        type: string;
+        project_code: string;
+        project_name: string;
+        message: string;
+        severity: string;
+      }>;
+    }>("/api/dashboard/portfolio-exceptions"),
+
+  getEmailImportStats: () =>
+    request<{
+      success: boolean;
+      stats: {
+        total_emails: number;
+        linked: number;
+        unlinked: number;
+        last_import: string | null;
+      };
+    }>("/api/emails/import-stats"),
+
   // Action items - What needs attention
   getDashboardActions: () =>
     request<{
@@ -620,6 +643,12 @@ export const api = {
         phases_worked: string[];
       };
     }>(`/api/projects/${encodeURIComponent(projectCode)}/schedule?days=${days}`),
+
+  getProjectScheduleTeam: (projectCode: string) =>
+    request<{
+      team: Array<{ staff_name: string; role?: string }>;
+      schedule: Array<Record<string, unknown>>;
+    }>(`/api/projects/${encodeURIComponent(projectCode)}/schedule-team`),
 
   // Invoices API
   getInvoiceStats: () =>

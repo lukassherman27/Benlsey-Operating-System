@@ -7,6 +7,7 @@ import { ClipboardList, AlertTriangle, Clock, CheckCircle2, CalendarDays } from 
 import { format, parseISO, isValid, differenceInDays } from "date-fns";
 import { cn } from "@/lib/utils";
 import { ds } from "@/lib/design-system";
+import { api } from "@/lib/api";
 
 interface Deliverable {
   deliverable_id: number;
@@ -32,8 +33,6 @@ interface ProjectTasksCardProps {
   projectCode: string;
   maxItems?: number;
 }
-
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
 
 const formatDate = (dateStr?: string) => {
   if (!dateStr) return "No date";
@@ -79,13 +78,7 @@ const getUrgencyStyle = (dueDate?: string, status?: string) => {
 export function ProjectTasksCard({ projectCode, maxItems = 5 }: ProjectTasksCardProps) {
   const { data, isLoading, error } = useQuery<DeliverablesResponse>({
     queryKey: ["deliverables", projectCode],
-    queryFn: async () => {
-      const res = await fetch(
-        `${API_BASE_URL}/api/deliverables?project_code=${encodeURIComponent(projectCode)}`
-      );
-      if (!res.ok) throw new Error("Failed to fetch deliverables");
-      return res.json();
-    },
+    queryFn: () => api.getDeliverables({ project_code: projectCode }),
   });
 
   if (isLoading) {

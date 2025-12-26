@@ -40,11 +40,7 @@ export function ProjectKPICards({ projectCode }: ProjectKPICardsProps) {
 
   const projectTeamQuery = useQuery({
     queryKey: ["project-schedule-team", projectCode],
-    queryFn: async () => {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000'}/api/projects/${projectCode}/schedule-team`);
-      if (!res.ok) return { team: [], schedule: [] };
-      return res.json();
-    },
+    queryFn: () => api.getProjectScheduleTeam(projectCode!),
     staleTime: 1000 * 60 * 5,
     enabled: !!projectCode,
   });

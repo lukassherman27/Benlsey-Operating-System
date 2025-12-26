@@ -55,7 +55,7 @@ const navItems: NavItem[] = [
     ]
   },
   { href: "/projects", label: "Projects", icon: FolderKanban },
-  { href: "/meetings", label: "Meetings & Recordings", icon: Calendar },
+  { href: "/meetings", label: "Meetings", icon: Calendar },
   { href: "/finance", label: "Finance", icon: DollarSign },
   {
     href: "/admin",

@@ -15,8 +15,7 @@ import {
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
-
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
+import { api } from "@/lib/api";
 
 interface InvoiceAgingData {
   aging: {
@@ -38,21 +37,13 @@ export function InvoiceQuickActions() {
   // Fetch real aging data
   const { data: agingData, isLoading: agingLoading } = useQuery({
     queryKey: ["invoice-aging"],
-    queryFn: async () => {
-      const res = await fetch(`${API_BASE_URL}/api/invoices/aging`);
-      if (!res.ok) throw new Error("Failed to fetch aging data");
-      return res.json();
-    },
+    queryFn: () => api.getInvoiceAging(),
   });
 
   // Fetch outstanding invoices to get counts
   const { isLoading: outstandingLoading } = useQuery({
     queryKey: ["outstanding-invoices"],
-    queryFn: async () => {
-      const res = await fetch(`${API_BASE_URL}/api/invoices/outstanding?per_page=200`);
-      if (!res.ok) throw new Error("Failed to fetch outstanding invoices");
-      return res.json();
-    },
+    queryFn: () => api.getOutstandingInvoices(),
   });
 
   const isLoading = agingLoading || outstandingLoading;

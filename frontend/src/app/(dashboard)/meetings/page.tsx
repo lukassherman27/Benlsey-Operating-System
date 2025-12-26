@@ -7,7 +7,7 @@ import {
   format,
   isToday,
   isFuture,
-  parseISO,
+  isPast,
   startOfWeek,
   endOfWeek,
   startOfMonth,
@@ -30,18 +30,15 @@ import {
   AlertCircle,
   FileText,
   ArrowRight,
-  Sparkles,
   CalendarDays,
   ListFilter,
   ExternalLink,
-  Building2,
-  Mic,
-  MessageSquare,
   Search,
   ChevronLeft,
   ChevronRight,
   LayoutGrid,
   List,
+  Briefcase,
 } from "lucide-react";
 import {
   Dialog,
@@ -59,44 +56,6 @@ import { api } from "@/lib/api";
 
 type Meeting = Awaited<ReturnType<typeof api.getMeetings>>["meetings"][number];
 
-interface Transcript {
-  id: number;
-  audio_filename?: string;
-  meeting_title?: string;
-  meeting_date?: string;
-  recorded_date?: string;
-  created_at: string;
-  duration_seconds?: number;
-  detected_project_code?: string;
-  proposal_name?: string;
-  client_company?: string;
-  transcript?: string;
-  summary?: string;
-  polished_summary?: string;
-  key_points?: unknown[];
-  action_items?: unknown[];
-  participants?: unknown[];
-}
-
-// Unified item that can be either a meeting or transcript
-interface UnifiedItem {
-  type: "meeting" | "transcript";
-  id: string;
-  title: string;
-  date: Date;
-  dateStr: string;
-  projectCode?: string;
-  projectName?: string;
-  hasSummary: boolean;
-  hasPolishedSummary: boolean;
-  meetingType?: string;
-  location?: string;
-  isVirtual?: boolean;
-  duration?: number;
-  wordCount?: number;
-  original: Meeting | Transcript;
-}
-
 // ============================================================================
 // HELPERS
 // ============================================================================
@@ -107,7 +66,9 @@ const MEETING_TYPE_STYLES: Record<string, { bg: string; text: string; border: st
   internal: { bg: "bg-slate-50", text: "text-slate-600", border: "border-slate-200", dot: "bg-slate-400" },
   site_visit: { bg: "bg-emerald-50", text: "text-emerald-700", border: "border-emerald-200", dot: "bg-emerald-500" },
   design_review: { bg: "bg-violet-50", text: "text-violet-700", border: "border-violet-200", dot: "bg-violet-500" },
-  recording: { bg: "bg-purple-50", text: "text-purple-700", border: "border-purple-200", dot: "bg-purple-500" },
+  contract_negotiation: { bg: "bg-amber-50", text: "text-amber-700", border: "border-amber-200", dot: "bg-amber-500" },
+  kickoff: { bg: "bg-teal-50", text: "text-teal-700", border: "border-teal-200", dot: "bg-teal-500" },
+  proposal_discussion: { bg: "bg-rose-50", text: "text-rose-700", border: "border-rose-200", dot: "bg-rose-500" },
   default: { bg: "bg-slate-50", text: "text-slate-600", border: "border-slate-200", dot: "bg-slate-400" },
 };
 
@@ -119,88 +80,6 @@ function getMeetingTypeStyle(type?: string) {
 function formatMeetingType(type?: string): string {
   if (!type) return "Meeting";
   return type.split("_").map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
-}
-
-function formatDuration(seconds?: number): string {
-  if (!seconds) return "";
-  const mins = Math.floor(seconds / 60);
-  if (mins < 60) return `${mins} min`;
-  const hours = Math.floor(mins / 60);
-  const remainingMins = mins % 60;
-  return remainingMins > 0 ? `${hours}h ${remainingMins}m` : `${hours}h`;
-}
-
-function getTranscriptTitle(t: Transcript): string {
-  if (t.meeting_title) return t.meeting_title;
-  if (t.proposal_name) return `${t.detected_project_code} - ${t.proposal_name}`;
-  if (t.detected_project_code) return `Meeting - ${t.detected_project_code}`;
-  if (t.audio_filename) {
-    const match = t.audio_filename.match(/meeting_(\d{8})_(\d{6})/);
-    if (match) {
-      const dateStr = match[1];
-      const month = dateStr.substring(4, 6);
-      const day = dateStr.substring(6, 8);
-      return `Recording - ${month}/${day}`;
-    }
-    return t.audio_filename.replace(/\.(m4a|wav|mp3)$/, '');
-  }
-  return "Untitled Recording";
-}
-
-function unifyMeetingsAndTranscripts(meetings: Meeting[], transcripts: Transcript[]): UnifiedItem[] {
-  const items: UnifiedItem[] = [];
-
-  // Add meetings
-  for (const m of meetings) {
-    const date = new Date(m.start_time);
-    items.push({
-      type: "meeting",
-      id: `meeting-${m.id}`,
-      title: m.title,
-      date,
-      dateStr: m.start_time,
-      projectCode: m.project_code || undefined,
-      hasSummary: !!m.transcript_summary,
-      hasPolishedSummary: !!m.transcript_polished_summary,
-      meetingType: m.meeting_type || undefined,
-      location: m.location || undefined,
-      isVirtual: m.is_virtual,
-      original: m,
-    });
-  }
-
-  // Add transcripts
-  for (const t of transcripts) {
-    const dateStr = t.meeting_date || t.recorded_date || t.created_at;
-    let date: Date;
-    try {
-      date = parseISO(dateStr);
-    } catch {
-      date = new Date(dateStr);
-    }
-    const wordCount = t.transcript ? t.transcript.split(/\s+/).length : 0;
-
-    items.push({
-      type: "transcript",
-      id: `transcript-${t.id}`,
-      title: getTranscriptTitle(t),
-      date,
-      dateStr,
-      projectCode: t.detected_project_code || undefined,
-      projectName: t.proposal_name || undefined,
-      hasSummary: !!(t.summary || t.polished_summary),
-      hasPolishedSummary: !!t.polished_summary,
-      meetingType: "recording",
-      duration: t.duration_seconds,
-      wordCount,
-      original: t,
-    });
-  }
-
-  // Sort by date descending
-  items.sort((a, b) => b.date.getTime() - a.date.getTime());
-
-  return items;
 }
 
 // ============================================================================
@@ -221,9 +100,9 @@ function PageHeader() {
       <div className="relative">
         <div className="flex items-start justify-between">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">Meetings & Recordings</h1>
+            <h1 className="text-3xl font-bold tracking-tight">Meetings</h1>
             <p className="mt-2 text-slate-300 max-w-xl">
-              Your schedule, recordings, and meeting notes in one place.
+              Your schedule and meeting notes, linked to proposals and projects.
             </p>
           </div>
           <div className="text-right">
@@ -237,26 +116,25 @@ function PageHeader() {
   );
 }
 
-function StatsBar({
-  meetings,
-  transcripts,
-  isLoading
-}: {
-  meetings: Meeting[];
-  transcripts: Transcript[];
-  isLoading: boolean;
-}) {
+function StatsBar({ meetings, isLoading }: { meetings: Meeting[]; isLoading: boolean }) {
+  const now = new Date();
   const todayMeetings = meetings.filter(m => isToday(new Date(m.start_time))).length;
   const upcomingMeetings = meetings.filter(m => isFuture(new Date(m.start_time))).length;
-  const withNotes = meetings.filter(m => m.has_polished_summary || m.has_transcript).length +
-                    transcripts.filter(t => t.summary || t.polished_summary).length;
-  const totalRecordings = transcripts.length;
+  const withNotes = meetings.filter(m => m.has_polished_summary || m.has_transcript).length;
+  const linkedToProjects = meetings.filter(m => m.project_code).length;
+
+  const weekStart = startOfWeek(now, { weekStartsOn: 1 });
+  const weekEnd = endOfWeek(now, { weekStartsOn: 1 });
+  const thisWeekCount = meetings.filter(m => {
+    const d = new Date(m.start_time);
+    return d >= weekStart && d <= weekEnd;
+  }).length;
 
   const stats = [
     { label: "Today", value: todayMeetings, icon: CalendarDays, color: "text-teal-600" },
-    { label: "Upcoming", value: upcomingMeetings, icon: Calendar, color: "text-blue-600" },
-    { label: "Recordings", value: totalRecordings, icon: Mic, color: "text-purple-600" },
+    { label: "This Week", value: thisWeekCount, icon: Calendar, color: "text-blue-600" },
     { label: "With Notes", value: withNotes, icon: FileText, color: "text-emerald-600" },
+    { label: "Linked to Projects", value: linkedToProjects, icon: Briefcase, color: "text-purple-600" },
   ];
 
   return (
@@ -295,13 +173,13 @@ function FilterBar({
 }) {
   const filters = [
     { value: "all", label: "All" },
-    { value: "meetings", label: "Scheduled" },
-    { value: "recordings", label: "Recordings" },
+    { value: "upcoming", label: "Upcoming" },
+    { value: "past", label: "Past" },
     { value: "with_notes", label: "With Notes" },
   ];
 
   return (
-    <div className="flex flex-wrap items-center justify-between gap-4">
+    <div className="flex flex-wrap items-center gap-4">
       <div className="flex items-center gap-2">
         <ListFilter className="h-4 w-4 text-slate-400" />
         <div className="flex gap-1">
@@ -322,10 +200,10 @@ function FilterBar({
         </div>
       </div>
 
-      <div className="relative max-w-xs">
+      <div className="relative flex-1 max-w-xs">
         <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
         <Input
-          placeholder="Search..."
+          placeholder="Search meetings..."
           value={searchQuery}
           onChange={(e) => onSearchChange(e.target.value)}
           className="pl-10 h-9"
@@ -367,15 +245,15 @@ function ViewToggle({
 }
 
 function CalendarView({
-  items,
+  meetings,
   currentDate,
   onDateChange,
-  onItemClick,
+  onMeetingClick,
 }: {
-  items: UnifiedItem[];
+  meetings: Meeting[];
   currentDate: Date;
   onDateChange: (date: Date) => void;
-  onItemClick: (item: UnifiedItem) => void;
+  onMeetingClick: (meeting: Meeting) => void;
 }) {
   const monthStart = startOfMonth(currentDate);
   const monthEnd = endOfMonth(currentDate);
@@ -394,8 +272,8 @@ function CalendarView({
     weeks.push(days.slice(i, i + 7));
   }
 
-  const getItemsForDay = (date: Date) => {
-    return items.filter(item => isSameDay(item.date, date));
+  const getMeetingsForDay = (date: Date) => {
+    return meetings.filter(m => isSameDay(new Date(m.start_time), date));
   };
 
   return (
@@ -445,7 +323,7 @@ function CalendarView({
           {weeks.map((week, weekIndex) => (
             <div key={weekIndex} className="grid grid-cols-7 gap-1">
               {week.map((date) => {
-                const dayItems = getItemsForDay(date);
+                const dayMeetings = getMeetingsForDay(date);
                 const isCurrentDay = isToday(date);
                 const isCurrentMonth = isSameMonth(date, currentDate);
 
@@ -466,33 +344,28 @@ function CalendarView({
                       {format(date, "d")}
                     </div>
                     <div className="space-y-1">
-                      {dayItems.slice(0, 3).map((item) => {
-                        const style = getMeetingTypeStyle(item.meetingType);
+                      {dayMeetings.slice(0, 3).map((meeting) => {
+                        const style = getMeetingTypeStyle(meeting.meeting_type);
                         return (
                           <button
-                            key={item.id}
-                            onClick={() => onItemClick(item)}
+                            key={meeting.id}
+                            onClick={() => onMeetingClick(meeting)}
                             className={cn(
                               "w-full text-left p-1.5 rounded-md transition-all text-xs",
-                              item.type === "transcript" ? "bg-purple-50 text-purple-700" : cn(style.bg, style.text),
+                              style.bg, style.text,
                               "hover:ring-2 hover:ring-offset-1 hover:ring-slate-300"
                             )}
                           >
-                            <div className="font-medium truncate flex items-center gap-1">
-                              {item.type === "transcript" && <Mic className="h-3 w-3 flex-shrink-0" />}
-                              <span className="truncate">{item.title}</span>
+                            <div className="font-medium truncate">{meeting.title}</div>
+                            <div className="text-[10px] opacity-75 mt-0.5">
+                              {format(new Date(meeting.start_time), "h:mm a")}
                             </div>
-                            {item.type === "meeting" && (
-                              <div className="text-[10px] opacity-75 mt-0.5">
-                                {format(item.date, "h:mm a")}
-                              </div>
-                            )}
                           </button>
                         );
                       })}
-                      {dayItems.length > 3 && (
+                      {dayMeetings.length > 3 && (
                         <div className="text-xs text-slate-500 text-center font-medium">
-                          +{dayItems.length - 3} more
+                          +{dayMeetings.length - 3} more
                         </div>
                       )}
                     </div>
@@ -507,23 +380,23 @@ function CalendarView({
   );
 }
 
-function UnifiedCard({
-  item,
+function MeetingCard({
+  meeting,
   onClick,
 }: {
-  item: UnifiedItem;
+  meeting: Meeting;
   onClick: () => void;
 }) {
-  const isUpcoming = isFuture(item.date);
-  const isTodayItem = isToday(item.date);
-  const style = getMeetingTypeStyle(item.meetingType);
-  const isRecording = item.type === "transcript";
+  const startDate = new Date(meeting.start_time);
+  const isUpcoming = isFuture(startDate);
+  const isTodayMeeting = isToday(startDate);
+  const style = getMeetingTypeStyle(meeting.meeting_type);
 
   return (
     <Card
       className={cn(
         "border-slate-200 hover:border-slate-300 hover:shadow-md transition-all cursor-pointer group",
-        isTodayItem && "ring-2 ring-teal-500/20 border-teal-300"
+        isTodayMeeting && "ring-2 ring-teal-500/20 border-teal-300"
       )}
       onClick={onClick}
     >
@@ -532,20 +405,18 @@ function UnifiedCard({
           {/* Date sidebar */}
           <div className={cn(
             "flex flex-col items-center justify-center w-20 py-4 border-r",
-            isTodayItem
+            isTodayMeeting
               ? "bg-teal-600 text-white border-teal-600"
-              : isRecording
-                ? "bg-purple-50 text-purple-700 border-purple-100"
-                : "bg-slate-50 text-slate-600 border-slate-200"
+              : "bg-slate-50 text-slate-600 border-slate-200"
           )}>
             <span className="text-xs font-medium uppercase tracking-wider">
-              {format(item.date, "MMM")}
+              {format(startDate, "MMM")}
             </span>
             <span className="text-2xl font-bold">
-              {format(item.date, "d")}
+              {format(startDate, "d")}
             </span>
             <span className="text-xs opacity-75">
-              {format(item.date, "EEE")}
+              {format(startDate, "EEE")}
             </span>
           </div>
 
@@ -555,70 +426,46 @@ function UnifiedCard({
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
                   <h3 className="font-semibold text-slate-900 truncate">
-                    {item.title}
+                    {meeting.title}
                   </h3>
-                  {item.hasPolishedSummary ? (
+                  {(meeting.has_polished_summary || meeting.has_transcript) && (
                     <Badge className="bg-emerald-100 text-emerald-700 border-0 gap-1">
-                      <Sparkles className="h-3 w-3" />
-                      Full Notes
-                    </Badge>
-                  ) : item.hasSummary ? (
-                    <Badge className="bg-purple-100 text-purple-700 border-0 gap-1">
                       <FileText className="h-3 w-3" />
-                      Notes
+                      Summary
                     </Badge>
-                  ) : null}
+                  )}
                 </div>
 
                 <div className="flex items-center gap-4 mt-2 text-sm text-slate-500">
-                  {!isRecording && (
-                    <span className="flex items-center gap-1.5">
-                      <Clock className="h-3.5 w-3.5" />
-                      {format(item.date, "h:mm a")}
-                    </span>
-                  )}
+                  <span className="flex items-center gap-1.5">
+                    <Clock className="h-3.5 w-3.5" />
+                    {format(startDate, "h:mm a")}
+                  </span>
 
-                  {isRecording && item.duration && (
+                  {meeting.location && (
                     <span className="flex items-center gap-1.5">
-                      <Clock className="h-3.5 w-3.5" />
-                      {formatDuration(item.duration)}
-                    </span>
-                  )}
-
-                  {isRecording && item.wordCount && item.wordCount > 0 && (
-                    <span className="flex items-center gap-1.5">
-                      <MessageSquare className="h-3.5 w-3.5" />
-                      {item.wordCount.toLocaleString()} words
-                    </span>
-                  )}
-
-                  {!isRecording && item.location && (
-                    <span className="flex items-center gap-1.5">
-                      {item.isVirtual ? (
+                      {meeting.is_virtual ? (
                         <Video className="h-3.5 w-3.5" />
                       ) : (
                         <MapPin className="h-3.5 w-3.5" />
                       )}
                       <span className="truncate max-w-[150px]">
-                        {item.location}
+                        {meeting.location}
                       </span>
                     </span>
                   )}
                 </div>
 
-                {/* Project link */}
-                {item.projectCode && (
+                {/* Project/Proposal link */}
+                {meeting.project_code && (
                   <div className="mt-3">
                     <Link
-                      href={`/proposals/${item.projectCode}`}
+                      href={`/proposals/${meeting.project_code}`}
                       onClick={(e) => e.stopPropagation()}
                       className="inline-flex items-center gap-1.5 text-sm text-blue-600 hover:text-blue-700 hover:underline"
                     >
-                      <Building2 className="h-3.5 w-3.5" />
-                      <span className="font-mono">{item.projectCode}</span>
-                      {item.projectName && (
-                        <span className="text-slate-500">- {item.projectName}</span>
-                      )}
+                      <Briefcase className="h-3.5 w-3.5" />
+                      <span className="font-mono">{meeting.project_code}</span>
                       <ExternalLink className="h-3 w-3" />
                     </Link>
                   </div>
@@ -631,20 +478,14 @@ function UnifiedCard({
                   variant="outline"
                   className={cn("text-xs border", style.bg, style.text, style.border)}
                 >
-                  {isRecording ? (
-                    <Mic className="h-3 w-3 mr-1" />
-                  ) : (
-                    <span className={cn("w-1.5 h-1.5 rounded-full mr-1.5", style.dot)} />
-                  )}
-                  {isRecording ? "Recording" : formatMeetingType(item.meetingType)}
+                  <span className={cn("w-1.5 h-1.5 rounded-full mr-1.5", style.dot)} />
+                  {formatMeetingType(meeting.meeting_type)}
                 </Badge>
 
-                {!isRecording && (
-                  isUpcoming ? (
-                    <span className="text-xs text-amber-600 font-medium">Upcoming</span>
-                  ) : (
-                    <span className="text-xs text-slate-400">Completed</span>
-                  )
+                {isUpcoming ? (
+                  <span className="text-xs text-amber-600 font-medium">Upcoming</span>
+                ) : (
+                  <span className="text-xs text-slate-400">Completed</span>
                 )}
               </div>
             </div>
@@ -660,45 +501,28 @@ function UnifiedCard({
   );
 }
 
-function ItemDetailModal({
-  item,
+function MeetingDetailModal({
+  meeting,
   open,
   onClose,
 }: {
-  item: UnifiedItem | null;
+  meeting: Meeting | null;
   open: boolean;
   onClose: () => void;
 }) {
-  if (!item) return null;
+  if (!meeting) return null;
 
-  const isRecording = item.type === "transcript";
-  const style = getMeetingTypeStyle(item.meetingType);
+  const startDate = new Date(meeting.start_time);
+  const style = getMeetingTypeStyle(meeting.meeting_type);
 
-  // Get summary content
-  let summaryContent = "";
-  if (isRecording) {
-    const t = item.original as Transcript;
-    summaryContent = t.polished_summary || t.summary || "";
-  } else {
-    const m = item.original as Meeting;
-    summaryContent = m.transcript_polished_summary || m.transcript_summary || "";
-  }
-
-  // Get transcript content (for recordings)
-  const transcriptContent = isRecording ? (item.original as Transcript).transcript : null;
+  // Get summary content from the meeting
+  const summaryContent = meeting.transcript_polished_summary || meeting.transcript_summary || "";
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="max-w-3xl max-h-[90vh] p-0 overflow-hidden">
         {/* Header */}
-        <div className={cn(
-          "p-6 border-b",
-          item.hasPolishedSummary
-            ? "bg-gradient-to-r from-emerald-50 to-teal-50"
-            : isRecording
-              ? "bg-purple-50"
-              : "bg-slate-50"
-        )}>
+        <div className="p-6 border-b bg-gradient-to-r from-slate-50 to-slate-100">
           <DialogHeader>
             <div className="flex items-start justify-between gap-4">
               <div className="flex-1">
@@ -707,30 +531,26 @@ function ItemDetailModal({
                     variant="outline"
                     className={cn("text-xs border", style.bg, style.text, style.border)}
                   >
-                    {isRecording ? (
-                      <Mic className="h-3 w-3 mr-1" />
-                    ) : (
-                      <span className={cn("w-1.5 h-1.5 rounded-full mr-1.5", style.dot)} />
-                    )}
-                    {isRecording ? "Recording" : formatMeetingType(item.meetingType)}
+                    <span className={cn("w-1.5 h-1.5 rounded-full mr-1.5", style.dot)} />
+                    {formatMeetingType(meeting.meeting_type)}
                   </Badge>
-                  {item.hasPolishedSummary && (
+                  {(meeting.has_polished_summary || meeting.has_transcript) && (
                     <Badge className="bg-emerald-100 text-emerald-700 border-0 gap-1">
-                      <Sparkles className="h-3 w-3" />
-                      Full Notes
+                      <FileText className="h-3 w-3" />
+                      Summary
                     </Badge>
                   )}
                 </div>
                 <DialogTitle className="text-xl font-bold text-slate-900">
-                  {item.title}
+                  {meeting.title}
                 </DialogTitle>
               </div>
               <div className="text-right">
                 <div className="text-2xl font-bold text-slate-900">
-                  {format(item.date, "d")}
+                  {format(startDate, "d")}
                 </div>
                 <div className="text-sm text-slate-500">
-                  {format(item.date, "MMM yyyy")}
+                  {format(startDate, "MMM yyyy")}
                 </div>
               </div>
             </div>
@@ -740,27 +560,21 @@ function ItemDetailModal({
           <div className="flex flex-wrap gap-4 mt-4 text-sm">
             <div className="flex items-center gap-2 text-slate-600">
               <Clock className="h-4 w-4" />
-              {format(item.date, "EEEE, h:mm a")}
+              {format(startDate, "EEEE, h:mm a")}
             </div>
-            {item.duration && (
+            {meeting.location && (
               <div className="flex items-center gap-2 text-slate-600">
-                <Clock className="h-4 w-4" />
-                {formatDuration(item.duration)}
+                {meeting.is_virtual ? <Video className="h-4 w-4" /> : <MapPin className="h-4 w-4" />}
+                {meeting.location}
               </div>
             )}
-            {item.wordCount && item.wordCount > 0 && (
-              <div className="flex items-center gap-2 text-slate-600">
-                <MessageSquare className="h-4 w-4" />
-                {item.wordCount.toLocaleString()} words
-              </div>
-            )}
-            {item.projectCode && (
+            {meeting.project_code && (
               <Link
-                href={`/proposals/${item.projectCode}`}
+                href={`/proposals/${meeting.project_code}`}
                 className="flex items-center gap-2 text-blue-600 hover:text-blue-700 hover:underline"
               >
-                <Building2 className="h-4 w-4" />
-                <span className="font-mono">{item.projectCode}</span>
+                <Briefcase className="h-4 w-4" />
+                <span className="font-mono">{meeting.project_code}</span>
                 <ExternalLink className="h-3 w-3" />
               </Link>
             )}
@@ -770,25 +584,15 @@ function ItemDetailModal({
         {/* Content */}
         <ScrollArea className="max-h-[60vh]">
           <div className="p-6 space-y-6">
-            {/* Summary content */}
+            {/* Meeting Summary */}
             {summaryContent ? (
               <div className="space-y-4">
                 <div className="flex items-center gap-2">
-                  <FileText className={cn(
-                    "h-5 w-5",
-                    item.hasPolishedSummary ? "text-emerald-600" : "text-purple-600"
-                  )} />
-                  <h3 className="font-semibold text-slate-900">
-                    {item.hasPolishedSummary ? "Meeting Notes" : "Summary"}
-                  </h3>
+                  <FileText className="h-5 w-5 text-emerald-600" />
+                  <h3 className="font-semibold text-slate-900">Meeting Summary</h3>
                 </div>
 
-                <div className={cn(
-                  "rounded-xl p-5 border",
-                  item.hasPolishedSummary
-                    ? "bg-white border-slate-200"
-                    : "bg-purple-50 border-purple-100"
-                )}>
+                <div className="rounded-xl p-5 border bg-white border-slate-200">
                   <pre className="whitespace-pre-wrap font-sans text-sm text-slate-700 leading-relaxed bg-transparent p-0 m-0">
                     {summaryContent}
                   </pre>
@@ -796,25 +600,22 @@ function ItemDetailModal({
               </div>
             ) : null}
 
-            {/* Full Transcript (for recordings) */}
-            {transcriptContent && (
+            {/* Description if no summary */}
+            {!summaryContent && meeting.description && (
               <div className="space-y-3">
-                <h4 className="font-semibold text-slate-700 text-sm uppercase tracking-wider">
-                  Full Transcript
-                </h4>
-                <div className="rounded-lg border border-slate-200 bg-slate-50 p-4 max-h-[300px] overflow-auto">
-                  <pre className="whitespace-pre-wrap font-sans text-sm text-slate-600 leading-relaxed">
-                    {transcriptContent}
-                  </pre>
-                </div>
+                <h4 className="font-semibold text-slate-700">Description</h4>
+                <p className="text-sm text-slate-600">{meeting.description}</p>
               </div>
             )}
 
             {/* No content message */}
-            {!summaryContent && !transcriptContent && (
+            {!summaryContent && !meeting.description && (
               <div className="text-center py-8">
                 <FileText className="mx-auto h-12 w-12 text-slate-300 mb-3" />
                 <p className="text-slate-500">No notes available for this meeting.</p>
+                <p className="text-sm text-slate-400 mt-1">
+                  Record the meeting or add notes manually.
+                </p>
               </div>
             )}
           </div>
@@ -823,7 +624,7 @@ function ItemDetailModal({
         {/* Footer */}
         <div className="border-t bg-slate-50 px-6 py-4 flex items-center justify-between">
           <div className="text-xs text-slate-400">
-            {isRecording ? "Recording" : "Meeting"} ID: {item.id.split("-")[1]}
+            Meeting ID: {meeting.id}
           </div>
           <Button variant="outline" size="sm" onClick={onClose}>
             Close
@@ -878,49 +679,39 @@ function ErrorState({ onRetry }: { onRetry: () => void }) {
 export default function MeetingsPage() {
   const [filter, setFilter] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedItem, setSelectedItem] = useState<UnifiedItem | null>(null);
+  const [selectedMeeting, setSelectedMeeting] = useState<Meeting | null>(null);
   const [view, setView] = useState<"calendar" | "list">("list");
   const [calendarDate, setCalendarDate] = useState(new Date());
 
-  // Fetch both meetings and transcripts
-  const { data: meetingsData, isLoading: meetingsLoading, error: meetingsError, refetch: refetchMeetings } = useQuery({
+  // Fetch meetings only
+  const { data, isLoading, error, refetch } = useQuery({
     queryKey: ["meetings"],
     queryFn: () => api.getMeetings(),
     staleTime: 1000 * 60 * 5,
   });
 
-  const { data: transcriptsData, isLoading: transcriptsLoading, error: transcriptsError, refetch: refetchTranscripts } = useQuery({
-    queryKey: ["transcripts"],
-    queryFn: () => api.getMeetingTranscripts({}),
-    staleTime: 1000 * 60 * 5,
-  });
+  const meetings = data?.meetings ?? [];
 
-  const isLoading = meetingsLoading || transcriptsLoading;
-  const error = meetingsError || transcriptsError;
+  // Filter meetings
+  const filteredMeetings = meetings.filter((meeting) => {
+    const meetingDate = new Date(meeting.start_time);
 
-  const meetings = meetingsData?.meetings ?? [];
-  const transcripts: Transcript[] = transcriptsData?.transcripts ?? [];
-
-  // Unify and filter items
-  const allItems = unifyMeetingsAndTranscripts(meetings, transcripts);
-
-  const filteredItems = allItems.filter((item) => {
     // Filter by type
-    if (filter === "meetings" && item.type !== "meeting") return false;
-    if (filter === "recordings" && item.type !== "transcript") return false;
-    if (filter === "with_notes" && !item.hasSummary) return false;
+    if (filter === "upcoming" && !isFuture(meetingDate)) return false;
+    if (filter === "past" && !isPast(meetingDate)) return false;
+    if (filter === "with_notes" && !meeting.has_polished_summary && !meeting.has_transcript) return false;
 
     // Search filter
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
-      const matchesTitle = item.title.toLowerCase().includes(q);
-      const matchesProject = item.projectCode?.toLowerCase().includes(q);
-      const matchesProjectName = item.projectName?.toLowerCase().includes(q);
-      if (!matchesTitle && !matchesProject && !matchesProjectName) return false;
+      const matchesTitle = meeting.title.toLowerCase().includes(q);
+      const matchesProject = meeting.project_code?.toLowerCase().includes(q);
+      const matchesLocation = meeting.location?.toLowerCase().includes(q);
+      if (!matchesTitle && !matchesProject && !matchesLocation) return false;
     }
 
     return true;
-  });
+  }).sort((a, b) => new Date(b.start_time).getTime() - new Date(a.start_time).getTime());
 
   if (isLoading) {
     return (
@@ -934,7 +725,7 @@ export default function MeetingsPage() {
     return (
       <div className="space-y-6 w-full max-w-full">
         <PageHeader />
-        <ErrorState onRetry={() => { refetchMeetings(); refetchTranscripts(); }} />
+        <ErrorState onRetry={() => refetch()} />
       </div>
     );
   }
@@ -943,7 +734,7 @@ export default function MeetingsPage() {
     <div className="space-y-6 w-full max-w-full">
       <PageHeader />
 
-      <StatsBar meetings={meetings} transcripts={transcripts} isLoading={isLoading} />
+      <StatsBar meetings={meetings} isLoading={isLoading} />
 
       <div className="flex flex-wrap items-center justify-between gap-4">
         <FilterBar
@@ -958,34 +749,34 @@ export default function MeetingsPage() {
       {/* Calendar or List View */}
       {view === "calendar" ? (
         <CalendarView
-          items={filteredItems}
+          meetings={filteredMeetings}
           currentDate={calendarDate}
           onDateChange={setCalendarDate}
-          onItemClick={setSelectedItem}
+          onMeetingClick={setSelectedMeeting}
         />
       ) : (
         <>
-          {filteredItems.length === 0 ? (
+          {filteredMeetings.length === 0 ? (
             <Card className="border-slate-200">
               <CardContent className="py-16 text-center">
                 <CalendarDays className="mx-auto h-12 w-12 text-slate-300 mb-4" />
                 <p className="text-lg font-medium text-slate-900 mb-1">
-                  {allItems.length === 0 ? "No meetings or recordings yet" : "No matching items"}
+                  {meetings.length === 0 ? "No meetings yet" : "No matching meetings"}
                 </p>
                 <p className="text-sm text-slate-500">
-                  {allItems.length === 0
-                    ? "Scheduled meetings and recordings will appear here."
+                  {meetings.length === 0
+                    ? "Scheduled meetings will appear here."
                     : "Try adjusting your search or filters."}
                 </p>
               </CardContent>
             </Card>
           ) : (
             <div className="space-y-3">
-              {filteredItems.map((item) => (
-                <UnifiedCard
-                  key={item.id}
-                  item={item}
-                  onClick={() => setSelectedItem(item)}
+              {filteredMeetings.map((meeting) => (
+                <MeetingCard
+                  key={meeting.id}
+                  meeting={meeting}
+                  onClick={() => setSelectedMeeting(meeting)}
                 />
               ))}
             </div>
@@ -994,10 +785,10 @@ export default function MeetingsPage() {
       )}
 
       {/* Detail modal */}
-      <ItemDetailModal
-        item={selectedItem}
-        open={!!selectedItem}
-        onClose={() => setSelectedItem(null)}
+      <MeetingDetailModal
+        meeting={selectedMeeting}
+        open={!!selectedMeeting}
+        onClose={() => setSelectedMeeting(null)}
       />
     </div>
   );
