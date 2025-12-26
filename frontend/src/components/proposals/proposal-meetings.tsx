@@ -394,21 +394,29 @@ export function ProposalMeetings({ projectCode }: ProposalMeetingsProps) {
                   )}
                 </div>
 
-                {/* Transcript Summary */}
-                {selectedMeeting.transcript_summary && (
+                {/* Polished Summary (preferred) or Transcript Summary */}
+                {(selectedMeeting.transcript_polished_summary || selectedMeeting.transcript_summary) && (
                   <div className="space-y-3">
-                    <h3 className="text-sm font-semibold text-purple-800 flex items-center gap-2">
+                    <h3 className="text-sm font-semibold text-emerald-800 flex items-center gap-2">
                       <FileText className="h-4 w-4" />
-                      Meeting Summary
+                      {selectedMeeting.transcript_polished_summary ? "Meeting Notes" : "Meeting Summary"}
+                      {selectedMeeting.transcript_polished_summary && (
+                        <Badge className="bg-emerald-100 text-emerald-700 text-xs">Full Notes</Badge>
+                      )}
                     </h3>
-                    <div className="p-4 bg-purple-50 rounded-lg border border-purple-100">
-                      <p className="text-sm text-slate-700 whitespace-pre-wrap">
-                        {selectedMeeting.transcript_summary}
-                      </p>
+                    <div className={cn(
+                      "p-4 rounded-lg border",
+                      selectedMeeting.transcript_polished_summary
+                        ? "bg-slate-50 border-slate-200"
+                        : "bg-purple-50 border-purple-100"
+                    )}>
+                      <div className="text-sm text-slate-700 whitespace-pre-wrap font-mono leading-relaxed">
+                        {selectedMeeting.transcript_polished_summary || selectedMeeting.transcript_summary}
+                      </div>
                     </div>
 
-                    {/* Key Points */}
-                    {selectedMeeting.transcript_key_points && (
+                    {/* Key Points - only show if no polished summary */}
+                    {!selectedMeeting.transcript_polished_summary && selectedMeeting.transcript_key_points && (
                       <div>
                         <h4 className="text-xs font-semibold text-purple-700 uppercase mb-2">Key Points</h4>
                         <ul className="space-y-1">
@@ -422,8 +430,8 @@ export function ProposalMeetings({ projectCode }: ProposalMeetingsProps) {
                       </div>
                     )}
 
-                    {/* Action Items */}
-                    {selectedMeeting.transcript_action_items && (
+                    {/* Action Items - only show if no polished summary */}
+                    {!selectedMeeting.transcript_polished_summary && selectedMeeting.transcript_action_items && (
                       <div>
                         <h4 className="text-xs font-semibold text-purple-700 uppercase mb-2">Action Items</h4>
                         <ul className="space-y-1">
@@ -440,7 +448,7 @@ export function ProposalMeetings({ projectCode }: ProposalMeetingsProps) {
                 )}
 
                 {/* No transcript message */}
-                {!selectedMeeting.transcript_summary && isPast(parseISO(selectedMeeting.meeting_date)) && (
+                {!selectedMeeting.transcript_summary && !selectedMeeting.transcript_polished_summary && isPast(parseISO(selectedMeeting.meeting_date)) && (
                   <div className="p-4 bg-amber-50 rounded-lg border border-amber-100">
                     <p className="text-sm text-amber-700">
                       No meeting notes recorded yet. To add notes, go to the{" "}
