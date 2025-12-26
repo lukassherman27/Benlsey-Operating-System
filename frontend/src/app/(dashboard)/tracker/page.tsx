@@ -48,6 +48,9 @@ import {
   ArrowLeftRight,
   Trophy,
   Ban,
+  Bookmark,
+  BookmarkPlus,
+  Trash2,
 } from "lucide-react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -97,6 +100,39 @@ const ALL_STATUSES = [
   "Dormant",
 ] as const;
 
+// Saved filter views type
+interface SavedFilterView {
+  id: string;
+  name: string;
+  filters: {
+    search: string;
+    statusFilter: string;
+    disciplineFilter: string;
+    ownerFilter: string;
+    activeMetric: string | null;
+  };
+  createdAt: string;
+}
+
+const SAVED_VIEWS_KEY = "bensley-proposal-saved-views";
+
+// Load saved views from localStorage
+function loadSavedViews(): SavedFilterView[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const saved = localStorage.getItem(SAVED_VIEWS_KEY);
+    return saved ? JSON.parse(saved) : [];
+  } catch {
+    return [];
+  }
+}
+
+// Save views to localStorage
+function persistSavedViews(views: SavedFilterView[]) {
+  if (typeof window === "undefined") return;
+  localStorage.setItem(SAVED_VIEWS_KEY, JSON.stringify(views));
+}
+
 function ProposalTrackerContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -118,6 +154,63 @@ function ProposalTrackerContent() {
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
   const [followUpDialogOpen, setFollowUpDialogOpen] = useState(false);
   const [followUpEmail, setFollowUpEmail] = useState<{ subject: string; body: string; projectName: string } | null>(null);
+
+  // Saved filter views
+  const [savedViews, setSavedViews] = useState<SavedFilterView[]>([]);
+  const [saveViewDialogOpen, setSaveViewDialogOpen] = useState(false);
+  const [newViewName, setNewViewName] = useState("");
+
+  // Load saved views on mount
+  useEffect(() => {
+    setSavedViews(loadSavedViews());
+  }, []);
+
+  // Save current filters as a new view
+  const handleSaveView = () => {
+    if (!newViewName.trim()) {
+      toast.error("Please enter a name for the view");
+      return;
+    }
+
+    const newView: SavedFilterView = {
+      id: Date.now().toString(),
+      name: newViewName.trim(),
+      filters: {
+        search,
+        statusFilter,
+        disciplineFilter,
+        ownerFilter,
+        activeMetric,
+      },
+      createdAt: new Date().toISOString(),
+    };
+
+    const updatedViews = [...savedViews, newView];
+    setSavedViews(updatedViews);
+    persistSavedViews(updatedViews);
+    setNewViewName("");
+    setSaveViewDialogOpen(false);
+    toast.success(`Saved view "${newViewName}"`);
+  };
+
+  // Apply a saved view
+  const handleApplyView = (view: SavedFilterView) => {
+    setSearch(view.filters.search);
+    setStatusFilter(view.filters.statusFilter as ProposalStatus | "all");
+    setDisciplineFilter(view.filters.disciplineFilter as DisciplineFilter);
+    setOwnerFilter(view.filters.ownerFilter);
+    setActiveMetric(view.filters.activeMetric);
+    setPage(1);
+    toast.success(`Applied "${view.name}"`);
+  };
+
+  // Delete a saved view
+  const handleDeleteView = (viewId: string) => {
+    const updatedViews = savedViews.filter(v => v.id !== viewId);
+    setSavedViews(updatedViews);
+    persistSavedViews(updatedViews);
+    toast.success("View deleted");
+  };
 
   // Read URL params on mount - auto-search for code if provided
   useEffect(() => {
@@ -673,9 +766,112 @@ function ProposalTrackerContent() {
                 <SelectItem value="mink">Mink</SelectItem>
               </SelectContent>
             </Select>
+
+            {/* Divider */}
+            <div className="h-8 w-px bg-slate-200" />
+
+            {/* Saved Views Dropdown */}
+            {savedViews.length > 0 && (
+              <Select
+                value=""
+                onValueChange={(viewId) => {
+                  const view = savedViews.find(v => v.id === viewId);
+                  if (view) handleApplyView(view);
+                }}
+              >
+                <SelectTrigger className={cn("w-[160px]", ds.borderRadius.input)} aria-label="Load saved view">
+                  <Bookmark className={cn("h-4 w-4 mr-2", ds.textColors.tertiary)} aria-hidden="true" />
+                  <SelectValue placeholder="Saved Views" />
+                </SelectTrigger>
+                <SelectContent>
+                  {savedViews.map((view) => (
+                    <div key={view.id} className="flex items-center justify-between px-2 py-1.5 hover:bg-slate-100 rounded cursor-pointer group">
+                      <span
+                        className="text-sm flex-1"
+                        onClick={() => handleApplyView(view)}
+                      >
+                        {view.name}
+                      </span>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100 text-red-500 hover:text-red-600 hover:bg-red-50"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteView(view.id);
+                        }}
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+
+            {/* Save Current View Button */}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setSaveViewDialogOpen(true)}
+              className={cn(ds.borderRadius.button, "gap-2")}
+              title="Save current filters as a view"
+            >
+              <BookmarkPlus className="h-4 w-4" />
+              Save View
+            </Button>
           </div>
         </CardContent>
       </Card>
+
+      {/* Save View Dialog */}
+      <Dialog open={saveViewDialogOpen} onOpenChange={setSaveViewDialogOpen}>
+        <DialogContent className="sm:max-w-[400px]">
+          <DialogHeader>
+            <DialogTitle>Save Filter View</DialogTitle>
+            <DialogDescription>
+              Save your current filters as a reusable view.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <label htmlFor="view-name" className="text-sm font-medium text-slate-700">
+                View Name
+              </label>
+              <Input
+                id="view-name"
+                placeholder="e.g., My Hot Deals, Overdue Proposals"
+                value={newViewName}
+                onChange={(e) => setNewViewName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") handleSaveView();
+                }}
+              />
+            </div>
+            <div className="text-xs text-slate-500">
+              <p className="font-medium mb-1">Current filters:</p>
+              <ul className="space-y-0.5">
+                {search && <li>Search: &quot;{search}&quot;</li>}
+                {statusFilter !== "all" && <li>Status: {statusFilter}</li>}
+                {disciplineFilter !== "all" && <li>Discipline: {disciplineFilter}</li>}
+                {ownerFilter !== "all" && <li>Owner: {ownerFilter}</li>}
+                {activeMetric && <li>Metric: {activeMetric}</li>}
+                {!search && statusFilter === "all" && disciplineFilter === "all" && ownerFilter === "all" && !activeMetric && (
+                  <li className="text-amber-600">No filters applied - consider adding some filters first</li>
+                )}
+              </ul>
+            </div>
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setSaveViewDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleSaveView}>
+              Save View
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Proposals Table */}
       <Card className={cn(ds.borderRadius.card, "border-slate-200/70")}>
