@@ -44,6 +44,8 @@ import {
   Copy,
   X,
   User,
+  CheckCheck,
+  ArrowLeftRight,
 } from "lucide-react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -216,6 +218,37 @@ function ProposalTrackerContent() {
     },
     onError: (error: unknown) => {
       toast.error(error instanceof Error ? error.message : "Failed to draft follow-up");
+    },
+  });
+
+  // Quick action: Mark as followed up (ball to them)
+  const markFollowedUpMutation = useMutation({
+    mutationFn: ({ projectCode }: { projectCode: string }) =>
+      api.updateProposalTracker(projectCode, { ball_in_court: 'them' }),
+    onSuccess: (_, variables) => {
+      toast.success(`Marked as followed up - ball now with client`);
+      queryClient.invalidateQueries({ queryKey: ["proposalTrackerList"] });
+      queryClient.invalidateQueries({ queryKey: ["proposalTrackerStats"] });
+    },
+    onError: (error: unknown) => {
+      toast.error(error instanceof Error ? error.message : "Failed to update");
+    },
+  });
+
+  // Quick action: Flip ball in court
+  const flipBallMutation = useMutation({
+    mutationFn: ({ projectCode, currentBall }: { projectCode: string; currentBall: string }) =>
+      api.updateProposalTracker(projectCode, {
+        ball_in_court: currentBall === 'us' ? 'them' : 'us'
+      }),
+    onSuccess: (_, variables) => {
+      const newBall = variables.currentBall === 'us' ? 'client' : 'us';
+      toast.success(`Ball now with ${newBall}`);
+      queryClient.invalidateQueries({ queryKey: ["proposalTrackerList"] });
+      queryClient.invalidateQueries({ queryKey: ["proposalTrackerStats"] });
+    },
+    onError: (error: unknown) => {
+      toast.error(error instanceof Error ? error.message : "Failed to update");
     },
   });
 

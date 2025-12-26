@@ -20,7 +20,7 @@ import { use } from "react";
 import { UnifiedTimeline } from "@/components/project/unified-timeline";
 import { ProjectFeesCard } from "@/components/project/project-fees-card";
 import { ProjectTasksCard } from "@/components/project/project-tasks-card";
-import { TeamCard } from "@/components/project/team-card";
+import { BensleyTeamCard } from "@/components/project/bensley-team-card";
 import { ProjectContactsCard } from "@/components/project/project-contacts-card";
 import { ProjectMeetingsCard } from "@/components/project/project-meetings-card";
 import { ProjectEmailsCard } from "@/components/project/project-emails-card";
@@ -342,7 +342,7 @@ export default function ProjectDetailPage({
                 <h2 className="text-lg font-semibold text-slate-900">People</h2>
               </div>
               <div className="grid gap-6 lg:grid-cols-2">
-                <TeamCard projectCode={projectCode} />
+                <BensleyTeamCard projectCode={projectCode} />
                 <ProjectContactsCard projectCode={projectCode} />
               </div>
             </section>

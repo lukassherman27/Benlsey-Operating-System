@@ -925,6 +925,10 @@ export interface ProposalTrackerUpdateRequest {
   proposal_sent_date?: string;
   first_contact_date?: string;
   proposal_sent?: number;
+  // Quick action fields (#134)
+  ball_in_court?: 'us' | 'them' | 'mutual';
+  action_needed?: string;
+  action_owner?: string;
 }
 
 // Admin - Email Links types

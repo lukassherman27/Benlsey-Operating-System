@@ -1222,3 +1222,27 @@ async def get_project_schedule(project_code: str, days: int = 30):
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to get project schedule: {str(e)}")
+
+
+@router.get("/projects/{project_code}/schedule-team")
+async def get_project_schedule_team(project_code: str):
+    """Get Bensley staff assigned to project from schedule_entries (internal team, not clients)."""
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT tm.member_id, tm.full_name, tm.office, tm.discipline,
+                   se.phase, se.task_description, COUNT(*) as work_days,
+                   MAX(se.work_date) as last_work_date
+            FROM schedule_entries se
+            JOIN team_members tm ON se.member_id = tm.member_id
+            WHERE se.project_code = ? OR se.project_name LIKE ?
+            GROUP BY tm.member_id
+            ORDER BY work_days DESC, tm.full_name
+        """, (project_code, f"%{project_code.split()[1] if ' ' in project_code else project_code}%"))
+        team = [dict(row) for row in cursor.fetchall()]
+        conn.close()
+        return {"success": True, "project_code": project_code, "team": team, "count": len(team)}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to get schedule team: {str(e)}")
