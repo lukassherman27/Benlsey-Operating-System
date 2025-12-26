@@ -472,9 +472,10 @@ class ProposalService(BaseService):
         stats['healthy'] = count_proposals("health_score >= 70")
         stats['at_risk'] = count_proposals("health_score < 70 AND health_score >= 40")
         stats['critical'] = count_proposals("health_score < 40")
-        stats['active_last_week'] = count_proposals("days_since_contact <= 7")
+        # Use dynamic calculation instead of stored days_since_contact
+        stats['active_last_week'] = count_proposals("CAST(JULIANDAY('now') - JULIANDAY(COALESCE(last_contact_date, created_at)) AS INTEGER) <= 7")
         # Need followup = proposals with old contact dates (still in pipeline)
-        stats['need_followup'] = count_proposals("days_since_contact > 14")
+        stats['need_followup'] = count_proposals("CAST(JULIANDAY('now') - JULIANDAY(COALESCE(last_contact_date, created_at)) AS INTEGER) > 14")
         stats['needs_attention'] = stats['need_followup']
 
         avg_clause = combine_clause("health_score IS NOT NULL")
@@ -600,16 +601,17 @@ class ProposalService(BaseService):
         status_changes = self.execute_query(status_changes_sql, (start_date,))
 
         # Get stalled proposals (no contact in 21+ days, still active)
+        # Use dynamic calculation instead of stored days_since_contact
         stalled_sql = """
             SELECT
                 proposal_id,
                 project_code,
                 project_title,
                 client_company,
-                days_since_contact,
+                CAST(JULIANDAY('now') - JULIANDAY(COALESCE(last_contact_date, created_at)) AS INTEGER) as days_since_contact,
                 last_contact_date
             FROM proposals
-            WHERE days_since_contact >= 21
+            WHERE CAST(JULIANDAY('now') - JULIANDAY(COALESCE(last_contact_date, created_at)) AS INTEGER) >= 21
             AND is_active_project = 1
             AND status IN ('First Contact', 'Meeting Held', 'Proposal Prep', 'Proposal Sent', 'Negotiation', 'On Hold')
             ORDER BY days_since_contact DESC
