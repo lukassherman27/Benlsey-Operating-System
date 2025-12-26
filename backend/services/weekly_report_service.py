@@ -174,16 +174,17 @@ class WeeklyReportService(BaseService):
         overdue = [dict(row) for row in cursor.fetchall()]
 
         # Stale proposals (14+ days no activity)
+        # Use dynamic calculation instead of stored days_since_contact
         cursor.execute("""
             SELECT
                 project_code,
                 project_name,
                 project_value,
                 status,
-                days_since_contact,
+                CAST(JULIANDAY('now') - JULIANDAY(COALESCE(last_contact_date, created_at)) AS INTEGER) as days_since_contact,
                 last_contact_date
             FROM proposals
-            WHERE days_since_contact >= 14
+            WHERE CAST(JULIANDAY('now') - JULIANDAY(COALESCE(last_contact_date, created_at)) AS INTEGER) >= 14
             AND status NOT IN ('Contract Signed', 'Lost', 'Declined', 'On Hold')
             ORDER BY days_since_contact DESC
             LIMIT 10
@@ -375,17 +376,18 @@ class WeeklyReportService(BaseService):
 
     def _get_stalled_proposals(self, cursor, days: int = 14, limit: int = 5) -> List[Dict]:
         """Get proposals with no activity for X days."""
+        # Use dynamic calculation instead of stored days_since_contact
         cursor.execute("""
             SELECT
                 project_code,
                 project_name,
                 project_value,
                 status,
-                days_since_contact,
+                CAST(JULIANDAY('now') - JULIANDAY(COALESCE(last_contact_date, created_at)) AS INTEGER) as days_since_contact,
                 last_contact_date,
                 ball_in_court
             FROM proposals
-            WHERE days_since_contact >= ?
+            WHERE CAST(JULIANDAY('now') - JULIANDAY(COALESCE(last_contact_date, created_at)) AS INTEGER) >= ?
             AND status NOT IN ('Contract Signed', 'Lost', 'Declined', 'On Hold')
             ORDER BY project_value DESC
             LIMIT ?

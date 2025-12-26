@@ -97,7 +97,7 @@ class ProposalTrackerService(BaseService):
                 SELECT COUNT(*) as waiting_on_client
                 FROM proposals
                 WHERE ball_in_court = 'them'
-                AND days_since_contact > 7
+                AND CAST(JULIANDAY('now') - JULIANDAY(COALESCE(last_contact_date, created_at)) AS INTEGER) > 7
                 AND status IN ('First Contact', 'Proposal Sent', 'Negotiation')
             """)
             stats['waiting_on_client'] = cursor.fetchone()['waiting_on_client']
@@ -299,7 +299,8 @@ class ProposalTrackerService(BaseService):
                     p.client_company,
                     p.contact_person,
                     p.last_contact_date,
-                    p.days_since_contact,
+                    -- Calculate days_since_contact dynamically instead of using stored value
+                    CAST(JULIANDAY('now') - JULIANDAY(COALESCE(p.last_contact_date, p.created_at)) AS INTEGER) as days_since_contact,
                     COALESCE(p.ball_in_court, '') as ball_in_court,
                     COALESCE(p.waiting_for, '') as waiting_for,
                     -- Issue #113: Add insight fields
@@ -449,7 +450,8 @@ class ProposalTrackerService(BaseService):
                     p.contact_email,
                     p.contact_phone,
                     p.last_contact_date,
-                    p.days_since_contact,
+                    -- Calculate days_since_contact dynamically instead of using stored value
+                    CAST(JULIANDAY('now') - JULIANDAY(COALESCE(p.last_contact_date, p.created_at)) AS INTEGER) as days_since_contact,
                     p.health_score,
                     p.win_probability
                 FROM proposals p
