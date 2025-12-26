@@ -140,7 +140,19 @@ export default function ProjectsPage() {
   });
 
   const projects: Project[] = activeProjectsQuery.data?.data ?? [];
-  const tasks: Task[] = tasksQuery.data?.tasks ?? [];
+  const allTasks: Task[] = tasksQuery.data?.tasks ?? [];
+
+  // Get set of actual project codes for filtering
+  const projectCodes = useMemo(() =>
+    new Set(projects.map(p => p.project_code)),
+    [projects]
+  );
+
+  // Only show tasks that are linked to actual projects (not proposals)
+  const tasks = useMemo(() =>
+    allTasks.filter(t => t.project_code && projectCodes.has(t.project_code)),
+    [allTasks, projectCodes]
+  );
 
   // Get unique PMs and countries for filters
   const uniquePMs = useMemo(() =>
@@ -551,13 +563,31 @@ export default function ProjectsPage() {
           </Card>
         </TabsContent>
 
-        {/* Tasks Tab - Kanban Board */}
+        {/* Tasks Tab - Kanban Board (Project tasks only) */}
         <TabsContent value="tasks" className="space-y-4">
-          <TaskKanbanBoard
-            tasks={tasks}
-            categoryFilter={null}
-            onEditTask={handleEditTask}
-          />
+          {tasks.length === 0 ? (
+            <Card className="border-slate-200">
+              <CardContent className="py-12 text-center">
+                <ListTodo className="mx-auto h-16 w-16 text-slate-300 mb-4" />
+                <p className="text-lg font-medium text-slate-700 mb-2">
+                  No Project Tasks Yet
+                </p>
+                <p className="text-sm text-slate-500 max-w-md mx-auto mb-4">
+                  Tasks linked to proposals appear on proposal detail pages.
+                  This board shows only tasks linked to active projects.
+                </p>
+                <p className="text-xs text-slate-400">
+                  {allTasks.length} total tasks exist ({allTasks.length - tasks.length} linked to proposals)
+                </p>
+              </CardContent>
+            </Card>
+          ) : (
+            <TaskKanbanBoard
+              tasks={tasks}
+              categoryFilter={null}
+              onEditTask={handleEditTask}
+            />
+          )}
         </TabsContent>
 
         {/* Timeline Tab */}
