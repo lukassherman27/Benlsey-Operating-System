@@ -96,9 +96,11 @@ async def list_meetings(
                 'is_virtual': bool(m.get('meeting_link')),
                 'meeting_link': m.get('meeting_link'),
                 # Transcript data
-                'has_transcript': bool(m.get('transcript_id')),
+                'has_transcript': bool(m.get('transcript_id')) or bool(m.get('transcript_polished_summary')),
+                'has_polished_summary': bool(m.get('transcript_polished_summary')),
                 'transcript_id': m.get('transcript_id'),
                 'transcript_summary': m.get('transcript_summary'),
+                'transcript_polished_summary': m.get('transcript_polished_summary'),
                 'transcript_key_points': m.get('transcript_key_points'),
                 'transcript_action_items': m.get('transcript_action_items'),
             })

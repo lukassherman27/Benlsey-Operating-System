@@ -161,11 +161,15 @@ function MeetingCard({ meeting, onClick }: { meeting: Meeting; onClick?: () => v
                 <h3 className={cn(ds.typography.bodyBold, ds.textColors.primary, "truncate")}>
                   {meeting.title}
                 </h3>
-                {meeting.has_transcript && (
+                {meeting.has_polished_summary ? (
+                  <Badge className="bg-emerald-100 text-emerald-700 text-xs">
+                    <FileText className="h-3 w-3 mr-1" /> Full Notes
+                  </Badge>
+                ) : meeting.has_transcript ? (
                   <Badge className="bg-purple-100 text-purple-700 text-xs">
                     <FileText className="h-3 w-3 mr-1" /> Notes
                   </Badge>
-                )}
+                ) : null}
               </div>
               {getStatusBadge(isUpcoming ? "upcoming" : meeting.status)}
             </div>
@@ -689,11 +693,15 @@ export default function MeetingsPage() {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               {selectedMeeting?.title}
-              {selectedMeeting?.has_transcript && (
+              {selectedMeeting?.has_polished_summary ? (
+                <Badge className="bg-emerald-100 text-emerald-700">
+                  <FileText className="h-3 w-3 mr-1" /> Full Notes
+                </Badge>
+              ) : selectedMeeting?.has_transcript ? (
                 <Badge className="bg-purple-100 text-purple-700">
                   <FileText className="h-3 w-3 mr-1" /> Has Meeting Notes
                 </Badge>
-              )}
+              ) : null}
             </DialogTitle>
           </DialogHeader>
           <ScrollArea className="max-h-[60vh]">
@@ -741,21 +749,29 @@ export default function MeetingsPage() {
                   )}
                 </div>
 
-                {/* Transcript Summary */}
-                {selectedMeeting.transcript_summary && (
+                {/* Polished Summary (preferred) or Transcript Summary */}
+                {(selectedMeeting.transcript_polished_summary || selectedMeeting.transcript_summary) && (
                   <div className="space-y-3">
-                    <h3 className="text-sm font-semibold text-purple-800 flex items-center gap-2">
+                    <h3 className={cn(
+                      "text-sm font-semibold flex items-center gap-2",
+                      selectedMeeting.transcript_polished_summary ? "text-emerald-800" : "text-purple-800"
+                    )}>
                       <FileText className="h-4 w-4" />
-                      Meeting Summary
+                      {selectedMeeting.transcript_polished_summary ? "Meeting Notes" : "Meeting Summary"}
                     </h3>
-                    <div className="p-4 bg-purple-50 rounded-lg border border-purple-100">
-                      <p className="text-sm text-slate-700 whitespace-pre-wrap">
-                        {selectedMeeting.transcript_summary}
-                      </p>
+                    <div className={cn(
+                      "p-4 rounded-lg border",
+                      selectedMeeting.transcript_polished_summary
+                        ? "bg-slate-50 border-slate-200"
+                        : "bg-purple-50 border-purple-100"
+                    )}>
+                      <div className="text-sm text-slate-700 whitespace-pre-wrap font-mono leading-relaxed">
+                        {selectedMeeting.transcript_polished_summary || selectedMeeting.transcript_summary}
+                      </div>
                     </div>
 
-                    {/* Key Points */}
-                    {selectedMeeting.transcript_key_points && parseJsonField(selectedMeeting.transcript_key_points).length > 0 && (
+                    {/* Key Points - only show if no polished summary */}
+                    {!selectedMeeting.transcript_polished_summary && selectedMeeting.transcript_key_points && parseJsonField(selectedMeeting.transcript_key_points).length > 0 && (
                       <div>
                         <h4 className="text-xs font-semibold text-purple-700 uppercase mb-2">Key Points</h4>
                         <ul className="space-y-1">
@@ -769,8 +785,8 @@ export default function MeetingsPage() {
                       </div>
                     )}
 
-                    {/* Action Items */}
-                    {selectedMeeting.transcript_action_items && parseJsonField(selectedMeeting.transcript_action_items).length > 0 && (
+                    {/* Action Items - only show if no polished summary */}
+                    {!selectedMeeting.transcript_polished_summary && selectedMeeting.transcript_action_items && parseJsonField(selectedMeeting.transcript_action_items).length > 0 && (
                       <div>
                         <h4 className="text-xs font-semibold text-purple-700 uppercase mb-2">Action Items</h4>
                         <ul className="space-y-1">
@@ -787,7 +803,7 @@ export default function MeetingsPage() {
                 )}
 
                 {/* Description if no transcript */}
-                {!selectedMeeting.transcript_summary && selectedMeeting.description && (
+                {!selectedMeeting.transcript_summary && !selectedMeeting.transcript_polished_summary && selectedMeeting.description && (
                   <div className="p-4 bg-slate-50 rounded-lg">
                     <h3 className="text-xs font-semibold text-slate-500 uppercase mb-2">Description</h3>
                     <p className="text-sm text-slate-700">{selectedMeeting.description}</p>

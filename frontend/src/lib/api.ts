@@ -658,8 +658,10 @@ export const api = {
         is_virtual?: boolean;
         meeting_link?: string;
         has_transcript?: boolean;
+        has_polished_summary?: boolean;
         transcript_id?: number;
         transcript_summary?: string;
+        transcript_polished_summary?: string;
         transcript_key_points?: string;
         transcript_action_items?: string;
       }>;

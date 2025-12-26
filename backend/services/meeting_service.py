@@ -88,6 +88,7 @@ class MeetingService:
                 m.transcript_id,
                 p.project_name as linked_project_name,
                 t.summary as transcript_summary,
+                t.polished_summary as transcript_polished_summary,
                 t.key_points as transcript_key_points,
                 t.action_items as transcript_action_items
             FROM meetings m
