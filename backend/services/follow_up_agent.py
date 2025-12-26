@@ -342,18 +342,24 @@ class FollowUpAgent(BaseService):
         context_parts.append(f"Value: ${proposal.get('project_value', 0):,.0f}")
 
         # Stage-specific context (CRITICAL for correct email tone)
-        status = proposal.get('status', '')
+        # Use current_status (database field) falling back to status for compatibility
+        status = proposal.get('current_status') or proposal.get('status') or ''
         proposal_sent_date = proposal.get('proposal_sent_date')
         context_parts.append(f"Status: {status}")
 
-        # Add explicit stage guidance
-        if status == 'First Contact' or (not proposal_sent_date and status not in ['Contract Signed', 'Lost', 'Declined']):
+        # Add explicit stage guidance based on ACTUAL data
+        # Key rule: if no proposal_sent_date, we NEVER sent a proposal
+        if not proposal_sent_date and status not in ['Contract Signed', 'Lost', 'Declined', 'Proposal Sent', 'Negotiation']:
             context_parts.append("STAGE: Initial inquiry - NO PROPOSAL HAS BEEN SENT YET")
+            context_parts.append("GOAL: Schedule an introductory call or meeting to discuss the project")
+            context_parts.append("IMPORTANT: Do NOT reference 'our proposal' - no proposal exists yet!")
+        elif status == 'First Contact':
+            context_parts.append("STAGE: Initial inquiry - building relationship")
             context_parts.append("GOAL: Schedule an introductory call or meeting to discuss the project")
         elif status == 'Proposal Prep':
             context_parts.append("STAGE: Preparing proposal - working on it internally")
             context_parts.append("GOAL: Update client on progress or request additional information")
-        elif status == 'Proposal Sent':
+        elif status == 'Proposal Sent' or proposal_sent_date:
             context_parts.append(f"STAGE: Proposal was sent on {proposal_sent_date or 'unknown date'}")
             context_parts.append("GOAL: Follow up on the proposal, ask if they have questions")
         elif status == 'Negotiation':
@@ -362,6 +368,12 @@ class FollowUpAgent(BaseService):
         elif status == 'Dormant':
             context_parts.append("STAGE: Gone quiet - client not responding")
             context_parts.append("GOAL: Re-engage with fresh angle or check if still interested")
+        else:
+            # Unknown status - be safe, don't assume proposal was sent
+            context_parts.append(f"STAGE: Status is '{status}' - unclear where we are")
+            context_parts.append("GOAL: Check in and understand current situation")
+            if not proposal_sent_date:
+                context_parts.append("IMPORTANT: No proposal_sent_date found - do NOT reference 'our proposal'!")
 
         if proposal.get('days_since_contact'):
             context_parts.append(f"Days since last contact: {proposal['days_since_contact']}")

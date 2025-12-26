@@ -1,9 +1,12 @@
 "use client";
 
+import { useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { AlertTriangle, Clock, CheckCircle, Mail, ArrowRight } from "lucide-react";
+import { AlertTriangle, Clock, CheckCircle, Mail, ArrowRight, Loader2 } from "lucide-react";
+import { api } from "@/lib/api";
+import { toast } from "sonner";
 
 interface NextActionCardProps {
   actionNeeded: string | null;
@@ -11,6 +14,7 @@ interface NextActionCardProps {
   actionOwner: string | null;
   projectCode: string;
   primaryContactEmail?: string | null;
+  proposalId?: number | null;
 }
 
 export function NextActionCard({
@@ -18,7 +22,10 @@ export function NextActionCard({
   actionDue,
   actionOwner,
   primaryContactEmail,
+  proposalId,
 }: NextActionCardProps) {
+  const [isGeneratingDraft, setIsGeneratingDraft] = useState(false);
+
   if (!actionNeeded) {
     return null;
   }
@@ -40,8 +47,35 @@ export function NextActionCard({
     return `Due in ${diffDays} days`;
   };
 
-  const handleDraftEmail = () => {
-    if (primaryContactEmail) {
+  const handleDraftEmail = async () => {
+    if (!primaryContactEmail) return;
+
+    // If we have proposalId, try to generate an AI draft
+    if (proposalId) {
+      setIsGeneratingDraft(true);
+      try {
+        const result = await api.draftFollowUpEmail(proposalId);
+        if (result.success && result.subject && result.body) {
+          // Open mailto with AI-generated content
+          const mailtoUrl = `mailto:${primaryContactEmail}?subject=${encodeURIComponent(result.subject)}&body=${encodeURIComponent(result.body)}`;
+          window.location.href = mailtoUrl;
+          toast.success("Draft generated from correspondence history");
+        } else if (result.error) {
+          // AI failed, fall back to blank email
+          toast.error(`Draft generation failed: ${result.error}`);
+          window.location.href = `mailto:${primaryContactEmail}`;
+        } else {
+          window.location.href = `mailto:${primaryContactEmail}`;
+        }
+      } catch {
+        // On error, fall back to blank email
+        toast.error("Could not generate draft, opening blank email");
+        window.location.href = `mailto:${primaryContactEmail}`;
+      } finally {
+        setIsGeneratingDraft(false);
+      }
+    } else {
+      // No proposalId, just open blank email
       window.location.href = `mailto:${primaryContactEmail}`;
     }
   };
@@ -114,14 +148,19 @@ export function NextActionCard({
                 variant="outline"
                 size="sm"
                 onClick={handleDraftEmail}
+                disabled={isGeneratingDraft}
                 className={cn(
                   isOverdue ? "border-red-300 text-red-700 hover:bg-red-100" :
                   isDueSoon ? "border-amber-300 text-amber-700 hover:bg-amber-100" :
                   "border-blue-300 text-blue-700 hover:bg-blue-100"
                 )}
               >
-                <Mail className="h-4 w-4 mr-2" />
-                Draft Email
+                {isGeneratingDraft ? (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
+                  <Mail className="h-4 w-4 mr-2" />
+                )}
+                {isGeneratingDraft ? "Generating..." : "Draft Email"}
               </Button>
             )}
             <Button

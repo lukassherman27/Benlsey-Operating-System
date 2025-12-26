@@ -182,12 +182,13 @@ async def draft_follow_up_email(
     proposal_id: int,
     tone: str = Query("professional")
 ):
-    """Draft a follow-up email for a proposal"""
+    """Draft a follow-up email for a proposal based on actual correspondence and status"""
     try:
         conn = sqlite3.connect(DB_PATH)
         conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
 
+        # Get proposal details INCLUDING current_status and proposal_sent_date
         cursor.execute("""
             SELECT
                 p.project_code,
@@ -195,39 +196,77 @@ async def draft_follow_up_email(
                 p.client_company,
                 p.contact_person,
                 p.contact_email,
-                p.status,
-                p.last_contact_date
+                p.current_status,
+                p.proposal_sent_date,
+                p.last_contact_date,
+                p.action_needed
             FROM proposals p
             WHERE p.proposal_id = ?
         """, (proposal_id,))
 
         row = cursor.fetchone()
-        conn.close()
-
         if not row:
+            conn.close()
             raise HTTPException(status_code=404, detail="Proposal not found")
 
         proposal = dict(row)
 
-        # Generate a simple follow-up email template
+        # Get recent emails for context
+        cursor.execute("""
+            SELECT e.subject, e.sender_email, e.date, e.snippet
+            FROM emails e
+            JOIN email_proposal_links epl ON e.email_id = epl.email_id
+            WHERE epl.proposal_id = ?
+            ORDER BY e.date DESC
+            LIMIT 3
+        """, (proposal_id,))
+        recent_emails = [dict(r) for r in cursor.fetchall()]
+        conn.close()
+
         contact = proposal.get('contact_person') or 'there'
         project = proposal.get('project_title') or proposal.get('project_code')
+        company = proposal.get('client_company') or 'your team'
+        status = proposal.get('current_status') or ''
+        proposal_sent_date = proposal.get('proposal_sent_date')
 
-        subject = f"Following up on {project}"
-        body = f"""Dear {contact},
+        # CRITICAL: Determine the correct email type based on ACTUAL status
+        if proposal_sent_date or status in ['Proposal Sent', 'Negotiation']:
+            # Proposal WAS sent - can reference it
+            subject = f"Following up on {project}"
+            body = f"""Dear {contact},
 
 I hope this email finds you well. I wanted to follow up on our proposal for {project}.
 
-We remain very interested in working with {proposal.get('client_company', 'your team')} on this project and would welcome the opportunity to discuss any questions you may have or provide additional information.
+We remain very interested in working with {company} on this project and would welcome the opportunity to discuss any questions you may have or provide additional information.
 
 Please let me know if there's a convenient time for a quick call to discuss the next steps.
 
 Best regards"""
+        else:
+            # NO proposal sent - suggest scheduling a call
+            subject = f"Regarding {project} - Next Steps"
+            body = f"""Dear {contact},
+
+I hope this message finds you well. I wanted to reach out regarding {project}.
+
+We're very interested in exploring this opportunity with {company} and would love to schedule a call to discuss your vision and requirements in more detail.
+
+Would you have time for a brief call this week or next? Please let me know what works best for your schedule.
+
+Best regards"""
+
+        # Add context about last email if available
+        if recent_emails:
+            last_email = recent_emails[0]
+            last_subject = last_email.get('subject', '')
+            # Optionally enhance the draft with context
 
         return {
             "success": True,
             "subject": subject,
-            "body": body
+            "body": body,
+            "proposal_status": status,
+            "proposal_sent": bool(proposal_sent_date)
         }
     except HTTPException:
         raise

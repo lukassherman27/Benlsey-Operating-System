@@ -19,7 +19,7 @@ import {
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { ProposalStory } from "@/components/proposals/proposal-story";
-import { ProposalTasks } from "@/components/proposals/proposal-tasks";
+import { TaskMiniKanban } from "@/components/tasks/task-mini-kanban";
 import { ProposalMeetings } from "@/components/proposals/proposal-meetings";
 import { StakeholdersCard } from "@/components/proposal/stakeholders-card";
 import { BallInCourt } from "@/components/proposals/ball-in-court";
@@ -283,6 +283,7 @@ export default function ProjectDetailPage() {
           actionOwner={proposal?.action_owner || null}
           projectCode={projectCode}
           primaryContactEmail={proposal?.primary_contact_email}
+          proposalId={proposal?.proposal_id}
         />
 
         {/* Horizontal Timeline - Visual proposal journey */}
@@ -318,7 +319,7 @@ export default function ProjectDetailPage() {
         <TabsContent value="story" className="space-y-4">
           {/* Tasks and Meetings widgets */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <ProposalTasks projectCode={projectCode} />
+            <TaskMiniKanban projectCode={projectCode} />
             <ProposalMeetings projectCode={projectCode} />
           </div>
           {/* Main story component with Executive Summary, Action Items, Milestones */}
