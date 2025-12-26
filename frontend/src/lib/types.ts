@@ -170,6 +170,41 @@ export interface AnalyticsDashboard {
   top_clients?: Array<{ client: string; value: number; count: number; projects?: number }>;
 }
 
+// Analytics trends for charts (#143)
+export interface AnalyticsTrends {
+  success: boolean;
+  pipeline_by_month: Array<{ month: string; value: number }>;
+  win_rate_by_month: Array<{
+    month: string;
+    win_rate: number | null;
+    won: number;
+    lost: number;
+  }>;
+  pipeline_by_status: Array<{
+    status: string;
+    count: number;
+    value: number;
+  }>;
+  stage_durations: Array<{
+    status: string;
+    avg_days: number;
+    count: number;
+  }>;
+  win_rate_by_value: Array<{
+    bracket: string;
+    win_rate: number | null;
+    won: number;
+    lost: number;
+    total: number;
+  }>;
+  summary: {
+    active_proposals: number;
+    total_pipeline: number;
+    weighted_pipeline: number;
+    avg_days_to_win: number | null;
+  };
+}
+
 export interface DashboardStats {
   // Legacy stats (no role)
   proposals?: {
