@@ -216,6 +216,7 @@ export default function ProjectsPage() {
                     <TableHead className="min-w-[200px]">Project</TableHead>
                     <TableHead className="w-[100px]">PM</TableHead>
                     <TableHead className="w-[200px]">Phase Progress</TableHead>
+                    <TableHead className="w-[80px] text-center">Team</TableHead>
                     <TableHead className="text-right w-[120px]">Contract Value</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -247,7 +248,15 @@ function ProjectRow({ project, onClick }: { project: Project; onClick: () => voi
     staleTime: 1000 * 60 * 5,
   });
 
+  // Fetch team for this project
+  const teamQuery = useQuery({
+    queryKey: ["project-team", projectCode],
+    queryFn: () => api.getProjectTeam(projectCode),
+    staleTime: 1000 * 60 * 5,
+  });
+
   const phases = phasesQuery.data?.phases ?? [];
+  const teamCount = teamQuery.data?.count ?? 0;
   const currentPhase = getCurrentPhaseSummary(
     phases.map((p: { phase_name: string; status: string }) => ({
       phase_name: p.phase_name,
@@ -303,6 +312,18 @@ function ProjectRow({ project, onClick }: { project: Project; onClick: () => voi
           <p className={cn(ds.typography.caption, ds.textColors.tertiary, "text-center")}>
             No phases
           </p>
+        )}
+      </TableCell>
+      <TableCell className="text-center">
+        {teamQuery.isLoading ? (
+          <Skeleton className="h-5 w-8 mx-auto" />
+        ) : teamCount > 0 ? (
+          <div className="flex items-center justify-center gap-1">
+            <Users className="h-3.5 w-3.5 text-blue-500" />
+            <span className="text-sm font-medium text-slate-700">{teamCount}</span>
+          </div>
+        ) : (
+          <span className={cn(ds.typography.caption, ds.textColors.tertiary)}>—</span>
         )}
       </TableCell>
       <TableCell className="text-right">
