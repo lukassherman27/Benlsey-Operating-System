@@ -1028,6 +1028,49 @@ function ProposalTrackerContent() {
                                 )}
                               </Button>
                             )}
+                            {/* Mark Followed Up - quick action to flip ball to them */}
+                            {proposal.ball_in_court === 'us' && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  markFollowedUpMutation.mutate({
+                                    projectCode: proposal.project_code,
+                                  });
+                                }}
+                                disabled={markFollowedUpMutation.isPending}
+                                className="h-8 w-8 p-0 text-green-600 hover:text-green-700 hover:bg-green-50"
+                                title="Mark as followed up (ball to client)"
+                              >
+                                {markFollowedUpMutation.isPending ? (
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                  <CheckCheck className="h-4 w-4" />
+                                )}
+                              </Button>
+                            )}
+                            {/* Flip Ball - toggle between us/them */}
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                flipBallMutation.mutate({
+                                  projectCode: proposal.project_code,
+                                  currentBall: proposal.ball_in_court || 'them',
+                                });
+                              }}
+                              disabled={flipBallMutation.isPending}
+                              className="h-8 w-8 p-0 text-slate-500 hover:text-slate-700 hover:bg-slate-50"
+                              title={`Flip ball (currently: ${proposal.ball_in_court || 'unknown'})`}
+                            >
+                              {flipBallMutation.isPending ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <ArrowLeftRight className="h-4 w-4" />
+                              )}
+                            </Button>
                             <Button
                               variant="ghost"
                               size="sm"
