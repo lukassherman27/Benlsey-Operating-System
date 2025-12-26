@@ -58,17 +58,22 @@ async def get_quick_stats():
 @router.get("/email-preview", response_class=HTMLResponse)
 async def get_email_preview(
     start_date: Optional[str] = None,
-    end_date: Optional[str] = None
+    end_date: Optional[str] = None,
+    style: str = Query("modern", description="Style: 'modern' (new beautiful) or 'classic' (old)")
 ):
     """
     Get HTML preview of the weekly email report.
 
     This is what Bill would receive in his inbox.
+    Use ?style=modern for the new beautiful design.
     """
-    report = report_service.generate_report(start_date, end_date)
-
-    # Generate HTML
-    html = _generate_email_html(report)
+    if style == "modern":
+        # Use the new beautiful HTML generator
+        html = report_service.generate_html_report(start_date, end_date)
+    else:
+        # Use the old classic generator
+        report = report_service.generate_report(start_date, end_date)
+        html = _generate_email_html(report)
     return HTMLResponse(content=html)
 
 

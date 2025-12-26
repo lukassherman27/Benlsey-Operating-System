@@ -434,6 +434,239 @@ class WeeklyReportService(BaseService):
                 'our_move_count': our_move
             }
 
+    def generate_html_report(
+        self,
+        start_date: Optional[str] = None,
+        end_date: Optional[str] = None
+    ) -> str:
+        """
+        Generate beautiful HTML weekly report for Bill.
+
+        Returns:
+            Complete HTML document ready to send via email or save as file
+        """
+        # Get the data
+        report = self.generate_report(start_date, end_date)
+
+        # Format currency
+        def fmt_money(val):
+            if val is None:
+                return "$0"
+            if val >= 1000000:
+                return f"${val/1000000:.1f}M"
+            elif val >= 1000:
+                return f"${val/1000:.0f}K"
+            return f"${val:,.0f}"
+
+        # Format date
+        def fmt_date(d):
+            if not d:
+                return "—"
+            try:
+                return datetime.strptime(d, '%Y-%m-%d').strftime('%b %d')
+            except:
+                return d
+
+        # Build sections
+        period = report['period']
+        week_review = report['week_in_review']
+        attention = report['attention_required']
+        pipeline = report['pipeline_outlook']
+        top_opps = report['top_opportunities']
+        stalled = report['stalled_proposals']
+
+        # Calculate some insights
+        total_at_risk_value = attention.get('at_risk_value', 0) + attention.get('overdue_value', 0)
+        win_rate = pipeline.get('win_rate', {})
+        win_trend = win_rate.get('trend', 'stable')
+        win_emoji = "📈" if win_trend == 'up' else ("📉" if win_trend == 'down' else "➡️")
+
+        # Build top opportunities HTML
+        top_opps_html = ""
+        for i, opp in enumerate(top_opps[:5], 1):
+            prob = opp.get('win_probability') or 50
+            health = opp.get('health_score') or 50
+            health_color = "#22c55e" if health >= 70 else ("#f59e0b" if health >= 40 else "#ef4444")
+            top_opps_html += f"""
+            <tr>
+                <td style="padding: 12px; border-bottom: 1px solid #e2e8f0;">
+                    <strong>{opp.get('project_code', '')}</strong><br>
+                    <span style="color: #64748b; font-size: 13px;">{opp.get('project_name', '')[:40]}</span>
+                </td>
+                <td style="padding: 12px; border-bottom: 1px solid #e2e8f0; text-align: right;">
+                    <strong style="color: #0f172a;">{fmt_money(opp.get('project_value', 0))}</strong>
+                </td>
+                <td style="padding: 12px; border-bottom: 1px solid #e2e8f0; text-align: center;">
+                    <span style="background: #dbeafe; color: #1e40af; padding: 4px 8px; border-radius: 12px; font-size: 12px;">{prob}%</span>
+                </td>
+                <td style="padding: 12px; border-bottom: 1px solid #e2e8f0; text-align: center;">
+                    <span style="color: {health_color}; font-weight: 600;">{health}</span>
+                </td>
+            </tr>
+            """
+
+        # Build attention items HTML
+        attention_html = ""
+        for item in attention.get('overdue', [])[:5]:
+            days = int(item.get('days_overdue', 0))
+            attention_html += f"""
+            <tr style="background: #fef2f2;">
+                <td style="padding: 10px; border-bottom: 1px solid #fecaca;">
+                    <span style="background: #ef4444; color: white; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600;">OVERDUE {days}d</span>
+                </td>
+                <td style="padding: 10px; border-bottom: 1px solid #fecaca;">
+                    <strong>{item.get('project_code', '')}</strong> — {item.get('project_name', '')[:30]}
+                </td>
+                <td style="padding: 10px; border-bottom: 1px solid #fecaca; color: #64748b; font-size: 13px;">
+                    {item.get('action_needed', 'Follow up needed')[:40]}
+                </td>
+            </tr>
+            """
+
+        for item in attention.get('stale', [])[:3]:
+            days = int(item.get('days_since_contact', 0))
+            attention_html += f"""
+            <tr style="background: #fffbeb;">
+                <td style="padding: 10px; border-bottom: 1px solid #fde68a;">
+                    <span style="background: #f59e0b; color: white; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600;">STALE {days}d</span>
+                </td>
+                <td style="padding: 10px; border-bottom: 1px solid #fde68a;">
+                    <strong>{item.get('project_code', '')}</strong> — {item.get('project_name', '')[:30]}
+                </td>
+                <td style="padding: 10px; border-bottom: 1px solid #fde68a; color: #64748b; font-size: 13px;">
+                    Last contact: {fmt_date(item.get('last_contact_date'))}
+                </td>
+            </tr>
+            """
+
+        # Build pipeline by status
+        status_html = ""
+        for status in pipeline.get('by_status', []):
+            status_html += f"""
+            <div style="display: inline-block; margin: 8px; padding: 12px 16px; background: #f8fafc; border-radius: 8px; text-align: center; min-width: 100px;">
+                <div style="font-size: 24px; font-weight: 700; color: #0f172a;">{status.get('count', 0)}</div>
+                <div style="font-size: 12px; color: #64748b;">{status.get('status', 'Unknown')}</div>
+                <div style="font-size: 13px; color: #3b82f6; font-weight: 600;">{fmt_money(status.get('value', 0))}</div>
+            </div>
+            """
+
+        # Build the full HTML
+        html = f"""
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bensley Weekly Proposal Report</title>
+</head>
+<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background: #f1f5f9;">
+    <div style="max-width: 800px; margin: 0 auto; padding: 20px;">
+
+        <!-- Header -->
+        <div style="background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%); border-radius: 16px; padding: 32px; margin-bottom: 24px; color: white;">
+            <h1 style="margin: 0 0 8px 0; font-size: 28px; font-weight: 700;">Weekly Proposal Report</h1>
+            <p style="margin: 0; opacity: 0.9; font-size: 15px;">
+                {fmt_date(period['start'])} — {fmt_date(period['end'])} | Generated {datetime.now().strftime('%B %d, %Y at %I:%M %p')}
+            </p>
+        </div>
+
+        <!-- Key Metrics -->
+        <div style="display: flex; gap: 16px; margin-bottom: 24px; flex-wrap: wrap;">
+            <div style="flex: 1; min-width: 150px; background: white; border-radius: 12px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+                <div style="font-size: 32px; font-weight: 700; color: #0f172a;">{fmt_money(pipeline.get('total_pipeline', 0))}</div>
+                <div style="font-size: 14px; color: #64748b;">Active Pipeline</div>
+                <div style="font-size: 13px; color: #3b82f6; margin-top: 4px;">{pipeline.get('proposal_count', 0)} proposals</div>
+            </div>
+            <div style="flex: 1; min-width: 150px; background: white; border-radius: 12px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+                <div style="font-size: 32px; font-weight: 700; color: #22c55e;">{fmt_money(pipeline.get('weighted_pipeline', 0))}</div>
+                <div style="font-size: 14px; color: #64748b;">Weighted Pipeline</div>
+                <div style="font-size: 13px; color: #64748b; margin-top: 4px;">Value × Probability</div>
+            </div>
+            <div style="flex: 1; min-width: 150px; background: white; border-radius: 12px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+                <div style="font-size: 32px; font-weight: 700; color: #8b5cf6;">{win_rate.get('current', 0):.0f}%</div>
+                <div style="font-size: 14px; color: #64748b;">Win Rate (3mo)</div>
+                <div style="font-size: 13px; margin-top: 4px;">{win_emoji} {win_rate.get('trend', 'stable')}</div>
+            </div>
+        </div>
+
+        <!-- This Week -->
+        <div style="background: white; border-radius: 12px; padding: 24px; margin-bottom: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+            <h2 style="margin: 0 0 16px 0; font-size: 18px; color: #0f172a;">📅 This Week</h2>
+            <div style="display: flex; gap: 24px; flex-wrap: wrap;">
+                <div style="text-align: center; padding: 16px 24px; background: #f0fdf4; border-radius: 8px;">
+                    <div style="font-size: 28px; font-weight: 700; color: #16a34a;">+{week_review['new_proposals']['count']}</div>
+                    <div style="font-size: 13px; color: #64748b;">New Proposals</div>
+                    <div style="font-size: 14px; color: #16a34a; font-weight: 600;">{fmt_money(week_review['new_proposals']['value'])}</div>
+                </div>
+                <div style="text-align: center; padding: 16px 24px; background: #ecfdf5; border-radius: 8px;">
+                    <div style="font-size: 28px; font-weight: 700; color: #059669;">🎉 {week_review['won']['count']}</div>
+                    <div style="font-size: 13px; color: #64748b;">Won</div>
+                    <div style="font-size: 14px; color: #059669; font-weight: 600;">{fmt_money(week_review['won']['value'])}</div>
+                </div>
+                <div style="text-align: center; padding: 16px 24px; background: #fef2f2; border-radius: 8px;">
+                    <div style="font-size: 28px; font-weight: 700; color: #dc2626;">{week_review['lost']['count']}</div>
+                    <div style="font-size: 13px; color: #64748b;">Lost</div>
+                    <div style="font-size: 14px; color: #dc2626; font-weight: 600;">{fmt_money(week_review['lost']['value'])}</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Attention Required -->
+        {f'''
+        <div style="background: white; border-radius: 12px; padding: 24px; margin-bottom: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); border-left: 4px solid #ef4444;">
+            <h2 style="margin: 0 0 16px 0; font-size: 18px; color: #0f172a;">🚨 Attention Required</h2>
+            <p style="margin: 0 0 16px 0; color: #64748b; font-size: 14px;">
+                {attention.get('overdue_count', 0)} overdue ({fmt_money(attention.get('overdue_value', 0))}) •
+                {attention.get('stale_count', 0)} stale •
+                {attention.get('at_risk_count', 0)} at risk ({fmt_money(attention.get('at_risk_value', 0))})
+            </p>
+            <table style="width: 100%; border-collapse: collapse;">
+                {attention_html}
+            </table>
+        </div>
+        ''' if attention_html else ''}
+
+        <!-- Top Opportunities -->
+        <div style="background: white; border-radius: 12px; padding: 24px; margin-bottom: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+            <h2 style="margin: 0 0 16px 0; font-size: 18px; color: #0f172a;">🎯 Top Opportunities</h2>
+            <table style="width: 100%; border-collapse: collapse;">
+                <thead>
+                    <tr style="background: #f8fafc;">
+                        <th style="padding: 12px; text-align: left; font-size: 12px; color: #64748b; font-weight: 600; text-transform: uppercase;">Project</th>
+                        <th style="padding: 12px; text-align: right; font-size: 12px; color: #64748b; font-weight: 600; text-transform: uppercase;">Value</th>
+                        <th style="padding: 12px; text-align: center; font-size: 12px; color: #64748b; font-weight: 600; text-transform: uppercase;">Win %</th>
+                        <th style="padding: 12px; text-align: center; font-size: 12px; color: #64748b; font-weight: 600; text-transform: uppercase;">Health</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {top_opps_html}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Pipeline by Status -->
+        <div style="background: white; border-radius: 12px; padding: 24px; margin-bottom: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+            <h2 style="margin: 0 0 16px 0; font-size: 18px; color: #0f172a;">📊 Pipeline by Status</h2>
+            <div style="text-align: center;">
+                {status_html}
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div style="text-align: center; padding: 24px; color: #64748b; font-size: 13px;">
+            <p style="margin: 0;">Generated by Bensley Operating System</p>
+            <p style="margin: 8px 0 0 0;">
+                <a href="http://localhost:3002/overview" style="color: #3b82f6; text-decoration: none;">View Full Dashboard →</a>
+            </p>
+        </div>
+
+    </div>
+</body>
+</html>
+        """
+
+        return html
+
 
 def main():
     """CLI entry point for testing."""
