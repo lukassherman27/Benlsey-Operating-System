@@ -27,6 +27,7 @@ import { ProjectEmailsCard } from "@/components/project/project-emails-card";
 import { ProjectHealthBanner, calculateProjectHealth } from "@/components/project/project-health-banner";
 import { RFIDeliverablesPanel } from "@/components/project/rfi-deliverables-panel";
 import { WorkVsInvoiceWidget } from "@/components/project/work-vs-invoice-widget";
+import { ProjectInsights } from "@/components/project/project-insights";
 import { ds } from "@/lib/design-system";
 import { cn } from "@/lib/utils";
 
@@ -247,6 +248,15 @@ export default function ProjectDetailPage({
                 />
               );
             })()}
+
+            {/* Project Insights - Executive Summary, Health & Actions */}
+            <section className="mb-8">
+              <ProjectInsights
+                projectCode={projectCode}
+                projectDetail={projectDetail as Record<string, unknown>}
+                invoices={invoices}
+              />
+            </section>
 
             {/* RFI/Deliverables Panel */}
             <RFIDeliverablesPanel

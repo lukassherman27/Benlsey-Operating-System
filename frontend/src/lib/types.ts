@@ -197,6 +197,15 @@ export interface AnalyticsTrends {
     lost: number;
     total: number;
   }>;
+  stalled_pipeline: Array<{
+    status: string;
+    count: number;
+    value: number;
+  }>;
+  data_quality: {
+    missing_values: number;
+    zero_probability: number;
+  };
   summary: {
     active_proposals: number;
     total_pipeline: number;

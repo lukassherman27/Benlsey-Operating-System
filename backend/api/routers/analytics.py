@@ -176,14 +176,14 @@ async def get_analytics_trends(months: int = 12):
                 "lost": lost
             })
 
-        # Current pipeline by status
+        # Current pipeline by status (exclude closed + stale statuses)
         cursor.execute("""
             SELECT
                 status,
                 COUNT(*) as count,
                 COALESCE(SUM(project_value), 0) as value
             FROM proposals
-            WHERE status NOT IN ('Contract Signed', 'Lost', 'Declined')
+            WHERE status NOT IN ('Contract Signed', 'Lost', 'Declined', 'Dormant', 'On Hold')
             GROUP BY status
             ORDER BY
                 CASE status
@@ -218,7 +218,7 @@ async def get_analytics_trends(months: int = 12):
                 AVG(JULIANDAY('now') - JULIANDAY(COALESCE(last_status_change, first_contact_date, created_at))) as avg_days_in_stage,
                 COUNT(*) as count
             FROM proposals
-            WHERE status NOT IN ('Contract Signed', 'Lost', 'Declined')
+            WHERE status NOT IN ('Contract Signed', 'Lost', 'Declined', 'Dormant', 'On Hold')
             GROUP BY status
         """)
         stage_durations = [
@@ -265,16 +265,38 @@ async def get_analytics_trends(months: int = 12):
                 "total": total
             })
 
-        # Summary metrics
+        # Summary metrics (active pipeline only - excludes Dormant/On Hold)
         cursor.execute("""
             SELECT
                 COUNT(*) as active_count,
                 COALESCE(SUM(project_value), 0) as total_value,
                 COALESCE(SUM(project_value * COALESCE(win_probability, 50) / 100), 0) as weighted_value
             FROM proposals
-            WHERE status NOT IN ('Contract Signed', 'Lost', 'Declined')
+            WHERE status NOT IN ('Contract Signed', 'Lost', 'Declined', 'Dormant', 'On Hold')
         """)
         summary = dict(cursor.fetchone())
+
+        # Stalled pipeline (Dormant + On Hold - shown separately)
+        cursor.execute("""
+            SELECT
+                status,
+                COUNT(*) as count,
+                COALESCE(SUM(project_value), 0) as value
+            FROM proposals
+            WHERE status IN ('Dormant', 'On Hold')
+            GROUP BY status
+        """)
+        stalled_pipeline = [dict(row) for row in cursor.fetchall()]
+
+        # Data quality metrics
+        cursor.execute("""
+            SELECT
+                SUM(CASE WHEN project_value IS NULL OR project_value = 0 THEN 1 ELSE 0 END) as missing_values,
+                SUM(CASE WHEN win_probability = 0 AND status NOT IN ('Contract Signed', 'Lost', 'Declined') THEN 1 ELSE 0 END) as zero_probability
+            FROM proposals
+            WHERE status NOT IN ('Contract Signed', 'Lost', 'Declined')
+        """)
+        data_quality = dict(cursor.fetchone())
 
         conn.close()
 
@@ -285,6 +307,11 @@ async def get_analytics_trends(months: int = 12):
             "pipeline_by_status": pipeline_by_status,
             "stage_durations": stage_durations,
             "win_rate_by_value": win_rate_by_value,
+            "stalled_pipeline": stalled_pipeline,
+            "data_quality": {
+                "missing_values": data_quality['missing_values'] or 0,
+                "zero_probability": data_quality['zero_probability'] or 0
+            },
             "summary": {
                 "active_proposals": summary['active_count'],
                 "total_pipeline": summary['total_value'],

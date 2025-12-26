@@ -17,7 +17,7 @@ import {
   ResponsiveContainer,
   Cell,
 } from "recharts";
-import { TrendingUp, TrendingDown, Clock, Target, DollarSign, Percent } from "lucide-react";
+import { TrendingUp, TrendingDown, Clock, Target, DollarSign, Percent, AlertTriangle, PauseCircle } from "lucide-react";
 
 interface AnalyticsChartsProps {
   data?: AnalyticsTrends;
@@ -418,6 +418,83 @@ export function AnalyticsCharts({ data, isLoading }: AnalyticsChartsProps) {
           </div>
         </CardContent>
       </Card>
+
+      {/* Stalled Pipeline + Data Quality */}
+      <div className="grid gap-6 md:grid-cols-2">
+        {/* Stalled Pipeline */}
+        {data.stalled_pipeline && data.stalled_pipeline.length > 0 && (
+          <Card className="border-amber-200 bg-amber-50/50">
+            <CardHeader>
+              <CardTitle className={cn(ds.typography.heading3, "flex items-center gap-2")}>
+                <PauseCircle className="h-5 w-5 text-amber-600" />
+                Stalled Pipeline
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className={cn(ds.typography.caption, ds.textColors.secondary, "mb-4")}>
+                Not included in active pipeline totals
+              </p>
+              <div className="space-y-3">
+                {data.stalled_pipeline.map((item) => (
+                  <div key={item.status} className="flex items-center justify-between p-3 bg-white rounded-lg border border-amber-100">
+                    <div>
+                      <p className={cn(ds.typography.body, "font-medium")}>{item.status}</p>
+                      <p className={cn(ds.typography.caption, ds.textColors.tertiary)}>
+                        {item.count} proposals
+                      </p>
+                    </div>
+                    <p className={cn(ds.typography.heading3, "text-amber-700")}>
+                      {formatValue(item.value)}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Data Quality */}
+        {data.data_quality && (data.data_quality.missing_values > 0 || data.data_quality.zero_probability > 0) && (
+          <Card className="border-red-200 bg-red-50/50">
+            <CardHeader>
+              <CardTitle className={cn(ds.typography.heading3, "flex items-center gap-2")}>
+                <AlertTriangle className="h-5 w-5 text-red-600" />
+                Data Quality Issues
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {data.data_quality.missing_values > 0 && (
+                  <div className="flex items-center justify-between p-3 bg-white rounded-lg border border-red-100">
+                    <div>
+                      <p className={cn(ds.typography.body, "font-medium")}>Missing Project Values</p>
+                      <p className={cn(ds.typography.caption, ds.textColors.tertiary)}>
+                        Proposals without dollar amounts
+                      </p>
+                    </div>
+                    <p className={cn(ds.typography.heading3, "text-red-700")}>
+                      {data.data_quality.missing_values}
+                    </p>
+                  </div>
+                )}
+                {data.data_quality.zero_probability > 0 && (
+                  <div className="flex items-center justify-between p-3 bg-white rounded-lg border border-red-100">
+                    <div>
+                      <p className={cn(ds.typography.body, "font-medium")}>0% Win Probability</p>
+                      <p className={cn(ds.typography.caption, ds.textColors.tertiary)}>
+                        Should be marked Lost or updated
+                      </p>
+                    </div>
+                    <p className={cn(ds.typography.heading3, "text-red-700")}>
+                      {data.data_quality.zero_probability}
+                    </p>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+      </div>
     </div>
   );
 }
