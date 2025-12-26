@@ -40,7 +40,7 @@ export function ProjectsTimeline() {
 
   // Transform projects into Gantt format
   const { tasks, scales } = useMemo(() => {
-    const projects = projectsQuery.data?.projects || []
+    const projects = projectsQuery.data?.data || projectsQuery.data?.projects || []
     const ganttTasks: GanttTask[] = []
     let taskId = 1
 
@@ -50,7 +50,31 @@ export function ProjectsTimeline() {
       { unit: 'week' as const, step: 1, format: 'w' },
     ]
 
-    projects.forEach((project) => {
+    // Type for project data
+    interface ProjectData {
+      project_code: string
+      project_title?: string
+      project_name?: string
+      client_name?: string
+      contract_signed_date?: string
+      first_contact_date?: string
+      target_completion_date?: string
+      current_phase?: string
+      total_fee_usd?: number
+      contract_value?: number
+    }
+
+    // Sort projects by contract date (newest first)
+    const sortedProjects = [...projects].sort((a: ProjectData, b: ProjectData) => {
+      const dateA = a.contract_signed_date || a.first_contact_date || '2020-01-01'
+      const dateB = b.contract_signed_date || b.first_contact_date || '2020-01-01'
+      return dateB.localeCompare(dateA)
+    })
+
+    // Limit to 20 projects for performance
+    const displayProjects = sortedProjects.slice(0, 20)
+
+    displayProjects.forEach((project: ProjectData) => {
       const projectId = taskId++
 
       // Project start and end dates
@@ -60,10 +84,10 @@ export function ProjectsTimeline() {
           ? new Date(project.first_contact_date)
           : new Date()
 
-      // Default to 6 months if no end date
+      // Default to 12 months if no end date
       const endDate = project.target_completion_date
         ? new Date(project.target_completion_date)
-        : new Date(startDate.getTime() + 180 * 24 * 60 * 60 * 1000)
+        : new Date(startDate.getTime() + 365 * 24 * 60 * 60 * 1000)
 
       // Calculate progress based on current phase
       const currentPhaseOrder = project.current_phase
@@ -71,35 +95,41 @@ export function ProjectsTimeline() {
         : 0
       const progressPercent = Math.min(100, Math.round((currentPhaseOrder / 6) * 100))
 
+      // Project name
+      const projectName = project.project_title || project.project_name || project.client_name || 'Unnamed'
+
       // Add project as summary task
       ganttTasks.push({
         id: projectId,
-        text: `${project.project_code} - ${project.project_name?.substring(0, 30) || 'Unnamed'}`,
+        text: `${project.project_code} - ${projectName.substring(0, 35)}`,
         start: startDate,
         end: endDate,
-        duration: Math.ceil((endDate.getTime() - startDate.getTime()) / (24 * 60 * 60 * 1000)),
+        duration: Math.max(1, Math.ceil((endDate.getTime() - startDate.getTime()) / (24 * 60 * 60 * 1000))),
         progress: progressPercent,
         parent: 0,
         type: 'summary',
-        open: true,
+        open: false, // Collapsed by default for cleaner view
       })
 
-      // Add current phase as a task bar
+      // Add current phase as a task bar (if phase exists)
       if (project.current_phase) {
         const phaseId = taskId++
         const phaseStart = new Date(startDate)
         const phaseEnd = new Date()
 
-        ganttTasks.push({
-          id: phaseId,
-          text: project.current_phase,
-          start: phaseStart,
-          end: phaseEnd,
-          duration: Math.max(1, Math.ceil((phaseEnd.getTime() - phaseStart.getTime()) / (24 * 60 * 60 * 1000))),
-          progress: 50,
-          parent: projectId,
-          type: 'task',
-        })
+        // Only add phase if it's a reasonable duration
+        if (phaseEnd > phaseStart) {
+          ganttTasks.push({
+            id: phaseId,
+            text: project.current_phase,
+            start: phaseStart,
+            end: phaseEnd,
+            duration: Math.max(1, Math.ceil((phaseEnd.getTime() - phaseStart.getTime()) / (24 * 60 * 60 * 1000))),
+            progress: 50,
+            parent: projectId,
+            type: 'task',
+          })
+        }
       }
     })
 
@@ -162,21 +192,32 @@ export function ProjectsTimeline() {
     )
   }
 
+  const totalProjects = projectsQuery.data?.data?.length || projectsQuery.data?.projects?.length || 0
+  const displayedProjects = tasks.filter(t => t.parent === 0).length
+
   return (
     <Card className="border-slate-200">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <CalendarDays className="h-5 w-5 text-slate-600" />
-          Project Timeline ({tasks.filter(t => t.parent === 0).length} projects)
+      <CardHeader className="pb-2">
+        <CardTitle className="flex items-center justify-between">
+          <span className="flex items-center gap-2">
+            <CalendarDays className="h-5 w-5 text-teal-600" />
+            Project Timeline
+          </span>
+          <span className="text-sm font-normal text-slate-500">
+            Showing {displayedProjects} of {totalProjects} projects
+          </span>
         </CardTitle>
+        <p className="text-sm text-slate-500 mt-1">
+          Projects sorted by contract date. Click a row to expand and see current phase.
+        </p>
       </CardHeader>
       <CardContent>
-        <div className="h-[500px] w-full">
+        <div className="h-[600px] w-full border rounded-lg overflow-hidden">
           <Gantt
             tasks={tasks}
             scales={scales}
-            cellWidth={40}
-            cellHeight={38}
+            cellWidth={50}
+            cellHeight={40}
           />
         </div>
       </CardContent>

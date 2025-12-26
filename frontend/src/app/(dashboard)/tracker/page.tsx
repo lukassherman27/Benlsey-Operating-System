@@ -51,6 +51,7 @@ import {
   Bookmark,
   BookmarkPlus,
   Trash2,
+  MoreHorizontal,
 } from "lucide-react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -66,6 +67,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 // Status colors for the pipeline visualization (matches database values)
 const STATUS_COLORS: Record<string, { bg: string; fill: string; text: string }> = {
@@ -919,14 +927,14 @@ function ProposalTrackerContent() {
               <Table className="min-w-[900px]">
                 <TableHeader>
                   <TableRow>
-                    <TableHead className={cn("w-[100px] min-w-[100px]", ds.typography.captionBold)}>
-                      Project #
+                    <TableHead className={cn("w-[90px]", ds.typography.captionBold)}>
+                      Code
                     </TableHead>
-                    <TableHead className={cn("min-w-[180px] max-w-[280px]", ds.typography.captionBold)}>
-                      Project Name
+                    <TableHead className={cn("min-w-[150px]", ds.typography.captionBold)}>
+                      Project
                     </TableHead>
                     <TableHead
-                      className={cn("text-right w-[90px] min-w-[90px] cursor-pointer hover:bg-slate-50 select-none", ds.typography.captionBold)}
+                      className={cn("text-right w-[80px] cursor-pointer hover:bg-slate-50 select-none", ds.typography.captionBold)}
                       onClick={() => handleSort("value")}
                     >
                       <span className="flex items-center justify-end">
@@ -934,49 +942,36 @@ function ProposalTrackerContent() {
                       </span>
                     </TableHead>
                     <TableHead
-                      className={cn("w-[100px] min-w-[100px] cursor-pointer hover:bg-slate-50 select-none", ds.typography.captionBold)}
-                      onClick={() => handleSort("date")}
-                    >
-                      <span className="flex items-center">
-                        Last Contact {getSortIcon("date")}
-                      </span>
-                    </TableHead>
-                    <TableHead
-                      className={cn("w-[100px] min-w-[100px] cursor-pointer hover:bg-slate-50 select-none", ds.typography.captionBold)}
+                      className={cn("w-[110px] cursor-pointer hover:bg-slate-50 select-none", ds.typography.captionBold)}
                       onClick={() => handleSort("status")}
                     >
                       <span className="flex items-center">
                         Status {getSortIcon("status")}
                       </span>
                     </TableHead>
-                    <TableHead className={cn("text-center w-[60px] min-w-[60px]", ds.typography.captionBold)}>
+                    <TableHead className={cn("text-center w-[45px]", ds.typography.captionBold)}>
                       Ball
                     </TableHead>
-                    <TableHead className={cn("text-center w-[50px] min-w-[50px]", ds.typography.captionBold)}>
-                      Owner
+                    <TableHead className={cn("text-center w-[40px]", ds.typography.captionBold)} title="Owner">
+                      <User className="h-3.5 w-3.5 mx-auto" />
                     </TableHead>
                     <TableHead
-                      className={cn("text-center w-[80px] min-w-[80px] cursor-pointer hover:bg-slate-50 select-none", ds.typography.captionBold)}
+                      className={cn("text-center w-[55px] cursor-pointer hover:bg-slate-50 select-none", ds.typography.captionBold)}
                       onClick={() => handleSort("days")}
+                      title="Days in current status"
                     >
                       <span className="flex items-center justify-center">
                         Days {getSortIcon("days")}
                       </span>
                     </TableHead>
-                    <TableHead className={cn("text-center w-[60px] min-w-[60px]", ds.typography.captionBold)}>
-                      Health
+                    <TableHead className={cn("text-center w-[90px]", ds.typography.captionBold)} title="Health / Win% / Sentiment">
+                      Score
                     </TableHead>
-                    <TableHead className={cn("text-center w-[50px] min-w-[50px]", ds.typography.captionBold)}>
-                      Win%
-                    </TableHead>
-                    <TableHead className={cn("text-center w-[50px] min-w-[50px]", ds.typography.captionBold)}>
-                      Mood
-                    </TableHead>
-                    <TableHead className={cn("min-w-[180px] max-w-[300px]", ds.typography.captionBold)}>
+                    <TableHead className={cn("min-w-[140px]", ds.typography.captionBold)}>
                       Action Needed
                     </TableHead>
-                    <TableHead className={cn("w-[80px] text-center", ds.typography.captionBold)}>
-                      Actions
+                    <TableHead className={cn("w-[70px] text-center", ds.typography.captionBold)}>
+
                     </TableHead>
                   </TableRow>
                 </TableHeader>
@@ -1010,26 +1005,16 @@ function ProposalTrackerContent() {
                         tabIndex={0}
                         role="button"
                       >
-                        <TableCell className={cn("font-mono text-sm", ds.textColors.primary)}>
+                        <TableCell className={cn("font-mono text-xs", ds.textColors.primary)}>
                           {proposal.project_code}
                         </TableCell>
-                        <TableCell className={cn("max-w-[280px]", ds.typography.body, ds.textColors.primary)}>
-                          <span className="block truncate" title={proposal.project_name}>
+                        <TableCell className={cn("max-w-[200px]", ds.typography.body, ds.textColors.primary)}>
+                          <span className="block truncate text-sm" title={proposal.project_name}>
                             {proposal.project_name}
                           </span>
                         </TableCell>
-                        <TableCell className={cn("text-right whitespace-nowrap", ds.typography.body, ds.textColors.primary)}>
+                        <TableCell className={cn("text-right whitespace-nowrap text-sm", ds.textColors.primary)}>
                           {formatCurrency(proposal.project_value)}
-                        </TableCell>
-                        <TableCell className={cn("text-xs", ds.textColors.secondary)}>
-                          {proposal.last_email_date ? (
-                            <div className="flex flex-col">
-                              <span>{new Date(proposal.last_email_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
-                              {(proposal.email_count ?? 0) > 0 && (
-                                <span className="text-slate-400">{proposal.email_count} emails</span>
-                              )}
-                            </div>
-                          ) : "—"}
                         </TableCell>
                         <TableCell onClick={(e) => e.stopPropagation()}>
                           <Select
@@ -1113,61 +1098,54 @@ function ProposalTrackerContent() {
                           </div>
                         </TableCell>
                         <TableCell className="text-center">
-                          {/* Health Score Visual */}
-                          {proposal.health_score != null ? (
-                            <div
-                              className={cn(
-                                "inline-flex items-center justify-center w-8 h-8 rounded-full text-xs font-bold",
-                                proposal.health_score >= 70 ? "bg-emerald-100 text-emerald-700" :
-                                proposal.health_score >= 50 ? "bg-amber-100 text-amber-700" :
-                                "bg-red-100 text-red-700"
-                              )}
-                              title={`Health: ${proposal.health_score}/100`}
-                            >
-                              {proposal.health_score}
-                            </div>
-                          ) : (
-                            <span className="text-slate-400">—</span>
-                          )}
-                        </TableCell>
-                        <TableCell className="text-center">
-                          {/* Win Probability */}
-                          {proposal.win_probability != null ? (
-                            <div
-                              className={cn(
-                                "inline-flex items-center justify-center text-xs font-semibold",
-                                proposal.win_probability >= 60 ? "text-emerald-600" :
-                                proposal.win_probability >= 30 ? "text-amber-600" :
-                                "text-slate-400"
-                              )}
-                              title={`Win probability: ${proposal.win_probability}%`}
-                            >
-                              {proposal.win_probability}%
-                            </div>
-                          ) : (
-                            <span className="text-slate-400">—</span>
-                          )}
-                        </TableCell>
-                        <TableCell className="text-center">
-                          {/* Sentiment Indicator */}
-                          {proposal.last_sentiment ? (
-                            <div
-                              className={cn(
-                                "inline-flex items-center justify-center w-6 h-6 rounded-full text-[10px] font-bold",
-                                proposal.last_sentiment === 'positive' && "bg-emerald-100 text-emerald-700",
-                                proposal.last_sentiment === 'concerned' && "bg-amber-100 text-amber-700",
-                                proposal.last_sentiment === 'negative' && "bg-red-100 text-red-700",
-                                proposal.last_sentiment === 'neutral' && "bg-slate-100 text-slate-600"
-                              )}
-                              title={`Last sentiment: ${proposal.last_sentiment}`}
-                            >
-                              {proposal.last_sentiment === 'positive' ? '+' :
-                               proposal.last_sentiment === 'concerned' ? '!' :
-                               proposal.last_sentiment === 'negative' ? '-' : '~'}
-                            </div>
-                          ) : (
-                            <span className="text-slate-400">—</span>
-                          )}
+                          {/* Combined Score: Health / Win% / Sentiment */}
+                          <div className="flex items-center justify-center gap-1">
+                            {proposal.health_score != null && (
+                              <div
+                                className={cn(
+                                  "inline-flex items-center justify-center w-6 h-6 rounded text-[10px] font-bold",
+                                  proposal.health_score >= 70 ? "bg-emerald-100 text-emerald-700" :
+                                  proposal.health_score >= 50 ? "bg-amber-100 text-amber-700" :
+                                  "bg-red-100 text-red-700"
+                                )}
+                                title={`Health: ${proposal.health_score}`}
+                              >
+                                {proposal.health_score}
+                              </div>
+                            )}
+                            {proposal.win_probability != null && (
+                              <span
+                                className={cn(
+                                  "text-[10px] font-semibold",
+                                  proposal.win_probability >= 60 ? "text-emerald-600" :
+                                  proposal.win_probability >= 30 ? "text-amber-600" :
+                                  "text-slate-400"
+                                )}
+                                title={`Win: ${proposal.win_probability}%`}
+                              >
+                                {proposal.win_probability}%
+                              </span>
+                            )}
+                            {proposal.last_sentiment && (
+                              <div
+                                className={cn(
+                                  "inline-flex items-center justify-center w-4 h-4 rounded-full text-[8px] font-bold",
+                                  proposal.last_sentiment === 'positive' && "bg-emerald-100 text-emerald-700",
+                                  proposal.last_sentiment === 'concerned' && "bg-amber-100 text-amber-700",
+                                  proposal.last_sentiment === 'negative' && "bg-red-100 text-red-700",
+                                  proposal.last_sentiment === 'neutral' && "bg-slate-100 text-slate-600"
+                                )}
+                                title={proposal.last_sentiment}
+                              >
+                                {proposal.last_sentiment === 'positive' ? '+' :
+                                 proposal.last_sentiment === 'concerned' ? '!' :
+                                 proposal.last_sentiment === 'negative' ? '-' : '~'}
+                              </div>
+                            )}
+                            {!proposal.health_score && !proposal.win_probability && !proposal.last_sentiment && (
+                              <span className="text-slate-400">—</span>
+                            )}
+                          </div>
                         </TableCell>
                         <TableCell className={cn("max-w-[300px]", ds.typography.caption)}>
                           {proposal.action_needed ? (
@@ -1207,128 +1185,105 @@ function ProposalTrackerContent() {
                             <span className="text-slate-400">—</span>
                           )}
                         </TableCell>
-                        <TableCell className="text-center">
-                          <div className="flex items-center justify-center gap-1">
-                            {/* Follow Up Button - shows when ball is in our court or needs follow-up */}
+                        <TableCell className="text-center" onClick={(e) => e.stopPropagation()}>
+                          <div className="flex items-center justify-center gap-0.5">
+                            {/* Primary: Edit */}
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => {
+                                setSelectedProposal(proposal);
+                                setEditDialogOpen(true);
+                              }}
+                              className="h-7 w-7 p-0"
+                              title="Edit"
+                            >
+                              <Pencil className="h-3.5 w-3.5" />
+                            </Button>
+                            {/* Primary: Email (when needed) */}
                             {(proposal.ball_in_court === 'us' || proposal.days_in_current_status > 7) && (
                               <Button
                                 variant="ghost"
                                 size="sm"
-                                onClick={(e) => {
-                                  e.stopPropagation();
+                                onClick={() => {
                                   draftFollowUpMutation.mutate({
                                     proposalId: proposal.id,
                                     projectName: proposal.project_name,
                                   });
                                 }}
                                 disabled={draftFollowUpMutation.isPending}
-                                className="h-8 w-8 p-0 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
-                                title="Draft follow-up email"
+                                className="h-7 w-7 p-0 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                                title="Draft email"
                               >
                                 {draftFollowUpMutation.isPending ? (
-                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
                                 ) : (
-                                  <Mail className="h-4 w-4" />
+                                  <Mail className="h-3.5 w-3.5" />
                                 )}
                               </Button>
                             )}
-                            {/* Mark Followed Up - quick action to flip ball to them */}
-                            {proposal.ball_in_court === 'us' && (
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  markFollowedUpMutation.mutate({
+                            {/* More actions dropdown */}
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="sm" className="h-7 w-7 p-0">
+                                  <MoreHorizontal className="h-3.5 w-3.5" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end" className="w-40">
+                                <DropdownMenuItem
+                                  onClick={() => flipBallMutation.mutate({
                                     projectCode: proposal.project_code,
-                                  });
-                                }}
-                                disabled={markFollowedUpMutation.isPending}
-                                className="h-8 w-8 p-0 text-green-600 hover:text-green-700 hover:bg-green-50"
-                                title="Mark as followed up (ball to client)"
-                              >
-                                {markFollowedUpMutation.isPending ? (
-                                  <Loader2 className="h-4 w-4 animate-spin" />
-                                ) : (
-                                  <CheckCheck className="h-4 w-4" />
+                                    currentBall: proposal.ball_in_court || 'them',
+                                  })}
+                                >
+                                  <ArrowLeftRight className="h-4 w-4 mr-2" />
+                                  Flip Ball
+                                </DropdownMenuItem>
+                                {proposal.ball_in_court === 'us' && (
+                                  <DropdownMenuItem
+                                    onClick={() => markFollowedUpMutation.mutate({
+                                      projectCode: proposal.project_code,
+                                    })}
+                                  >
+                                    <CheckCheck className="h-4 w-4 mr-2" />
+                                    Mark Followed Up
+                                  </DropdownMenuItem>
                                 )}
-                              </Button>
-                            )}
-                            {/* Flip Ball - toggle between us/them */}
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                flipBallMutation.mutate({
-                                  projectCode: proposal.project_code,
-                                  currentBall: proposal.ball_in_court || 'them',
-                                });
-                              }}
-                              disabled={flipBallMutation.isPending}
-                              className="h-8 w-8 p-0 text-slate-500 hover:text-slate-700 hover:bg-slate-50"
-                              title={`Flip ball (currently: ${proposal.ball_in_court || 'unknown'})`}
-                            >
-                              {flipBallMutation.isPending ? (
-                                <Loader2 className="h-4 w-4 animate-spin" />
-                              ) : (
-                                <ArrowLeftRight className="h-4 w-4" />
-                              )}
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setSelectedProposal(proposal);
-                                setEditDialogOpen(true);
-                              }}
-                              className="h-8 w-8 p-0"
-                              title="Edit proposal"
-                            >
-                              <Pencil className="h-4 w-4" />
-                            </Button>
-                            {/* Quick Mark Won - only for active proposals */}
-                            {!["Contract Signed", "Lost", "Declined", "Dormant"].includes(proposal.current_status) && (
-                              <>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    if (confirm(`Mark "${proposal.project_name}" as WON?`)) {
-                                      updateStatusMutation.mutate({
-                                        projectCode: proposal.project_code,
-                                        newStatus: "Contract Signed",
-                                      });
-                                    }
-                                  }}
-                                  disabled={updateStatusMutation.isPending}
-                                  className="h-8 w-8 p-0 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50"
-                                  title="Mark as Won"
-                                >
-                                  <Trophy className="h-4 w-4" />
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    if (confirm(`Mark "${proposal.project_name}" as LOST?`)) {
-                                      updateStatusMutation.mutate({
-                                        projectCode: proposal.project_code,
-                                        newStatus: "Lost",
-                                      });
-                                    }
-                                  }}
-                                  disabled={updateStatusMutation.isPending}
-                                  className="h-8 w-8 p-0 text-red-500 hover:text-red-600 hover:bg-red-50"
-                                  title="Mark as Lost"
-                                >
-                                  <Ban className="h-4 w-4" />
-                                </Button>
-                              </>
-                            )}
+                                {!["Contract Signed", "Lost", "Declined", "Dormant"].includes(proposal.current_status) && (
+                                  <>
+                                    <DropdownMenuSeparator />
+                                    <DropdownMenuItem
+                                      onClick={() => {
+                                        if (confirm(`Mark "${proposal.project_name}" as WON?`)) {
+                                          updateStatusMutation.mutate({
+                                            projectCode: proposal.project_code,
+                                            newStatus: "Contract Signed",
+                                          });
+                                        }
+                                      }}
+                                      className="text-emerald-600"
+                                    >
+                                      <Trophy className="h-4 w-4 mr-2" />
+                                      Mark Won
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem
+                                      onClick={() => {
+                                        if (confirm(`Mark "${proposal.project_name}" as LOST?`)) {
+                                          updateStatusMutation.mutate({
+                                            projectCode: proposal.project_code,
+                                            newStatus: "Lost",
+                                          });
+                                        }
+                                      }}
+                                      className="text-red-600"
+                                    >
+                                      <Ban className="h-4 w-4 mr-2" />
+                                      Mark Lost
+                                    </DropdownMenuItem>
+                                  </>
+                                )}
+                              </DropdownMenuContent>
+                            </DropdownMenu>
                           </div>
                         </TableCell>
                       </TableRow>
