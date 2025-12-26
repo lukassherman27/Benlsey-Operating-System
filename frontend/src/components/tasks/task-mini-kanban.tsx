@@ -167,15 +167,8 @@ export function TaskMiniKanban({ projectCode, title = "Tasks" }: TaskMiniKanbanP
 
   // Update task status
   const updateStatus = useMutation({
-    mutationFn: async ({ taskId, status }: { taskId: number; status: string }) => {
-      const response = await fetch(`http://localhost:8000/api/tasks/${taskId}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status }),
-      })
-      if (!response.ok) throw new Error('Failed to update')
-      return response.json()
-    },
+    mutationFn: ({ taskId, status }: { taskId: number; status: string }) =>
+      api.updateTask(taskId, { status }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['project-tasks', projectCode] })
     },

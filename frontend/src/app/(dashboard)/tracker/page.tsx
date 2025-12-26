@@ -679,95 +679,37 @@ function ProposalTrackerContent() {
 
       {/* Filters */}
       <Card className={cn(ds.borderRadius.card, "border-slate-200/70")}>
-        <CardContent className={ds.spacing.spacious}>
-          <div className="flex flex-col sm:flex-row gap-4">
-            <div className="flex-1 relative">
-              <Search className={cn(
-                "absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4",
-                ds.textColors.tertiary
-              )} aria-hidden="true" />
+        <CardContent className="py-3 px-4">
+          <div className="flex flex-wrap items-center gap-2">
+            {/* Search */}
+            <div className="relative w-full sm:w-auto sm:flex-1 sm:max-w-xs">
+              <Search className="absolute left-2.5 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
               <Input
-                placeholder="Search by project code or name..."
+                placeholder="Search..."
                 value={search}
-                onChange={(e) => {
-                  setSearch(e.target.value);
-                  setPage(1);
-                }}
-                className={cn("pl-10", ds.borderRadius.input)}
-                aria-label="Search proposals by project code or name"
+                onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+                className="pl-8 h-8 text-sm"
               />
             </div>
 
-            {/* Discipline Filter - with counts from API */}
-            <Select
-              value={disciplineFilter}
-              onValueChange={(value) => {
-                setDisciplineFilter(value as DisciplineFilter);
-                setPage(1);
-              }}
-            >
-              <SelectTrigger className={cn("w-[220px]", ds.borderRadius.input)} aria-label="Filter by discipline">
-                <Filter className={cn("h-4 w-4 mr-2", ds.textColors.tertiary)} aria-hidden="true" />
-                <SelectValue placeholder="Discipline" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">
-                  All Disciplines ({disciplineData?.disciplines?.all?.count || 0})
-                </SelectItem>
-                <SelectItem value="landscape">
-                  Landscape ({disciplineData?.disciplines?.landscape?.count || 0})
-                </SelectItem>
-                <SelectItem value="interior">
-                  Interior ({disciplineData?.disciplines?.interior?.count || 0})
-                </SelectItem>
-                <SelectItem value="architect">
-                  Architecture ({disciplineData?.disciplines?.architect?.count || 0})
-                </SelectItem>
-                <SelectItem value="combined">
-                  Combined ({disciplineData?.disciplines?.combined?.count || 0})
-                </SelectItem>
-              </SelectContent>
-            </Select>
-
-            <Select
-              value={statusFilter}
-              onValueChange={(value) => {
-                setStatusFilter(value as ProposalStatus | "all");
-                setPage(1);
-              }}
-            >
-              <SelectTrigger className={cn("w-[180px]", ds.borderRadius.input)} aria-label="Filter by proposal status">
-                <Filter className={cn("h-4 w-4 mr-2", ds.textColors.tertiary)} aria-hidden="true" />
+            {/* Status Filter */}
+            <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v as ProposalStatus | "all"); setPage(1); }}>
+              <SelectTrigger className="w-[130px] h-8 text-sm">
                 <SelectValue placeholder="Status" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Statuses</SelectItem>
-                <SelectItem value="First Contact">First Contact</SelectItem>
-                <SelectItem value="Proposal Prep">Proposal Prep</SelectItem>
-                <SelectItem value="Proposal Sent">Proposal Sent</SelectItem>
-                <SelectItem value="Negotiation">Negotiation</SelectItem>
-                <SelectItem value="On Hold">On Hold</SelectItem>
-                <SelectItem value="Contract Signed">Contract Signed</SelectItem>
-                <SelectItem value="Lost">Lost</SelectItem>
-                <SelectItem value="Declined">Declined</SelectItem>
-                <SelectItem value="Dormant">Dormant</SelectItem>
+                {ALL_STATUSES.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
               </SelectContent>
             </Select>
 
             {/* Owner Filter */}
-            <Select
-              value={ownerFilter}
-              onValueChange={(value) => {
-                setOwnerFilter(value);
-                setPage(1);
-              }}
-            >
-              <SelectTrigger className={cn("w-[140px]", ds.borderRadius.input)} aria-label="Filter by owner">
-                <User className={cn("h-4 w-4 mr-2", ds.textColors.tertiary)} aria-hidden="true" />
+            <Select value={ownerFilter} onValueChange={(v) => { setOwnerFilter(v); setPage(1); }}>
+              <SelectTrigger className="w-[100px] h-8 text-sm">
                 <SelectValue placeholder="Owner" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Owners</SelectItem>
+                <SelectItem value="all">All</SelectItem>
                 <SelectItem value="bill">Bill</SelectItem>
                 <SelectItem value="brian">Brian</SelectItem>
                 <SelectItem value="lukas">Lukas</SelectItem>
@@ -775,40 +717,32 @@ function ProposalTrackerContent() {
               </SelectContent>
             </Select>
 
-            {/* Divider */}
-            <div className="h-8 w-px bg-slate-200" />
+            {/* Discipline Filter */}
+            <Select value={disciplineFilter} onValueChange={(v) => { setDisciplineFilter(v as DisciplineFilter); setPage(1); }}>
+              <SelectTrigger className="w-[120px] h-8 text-sm">
+                <SelectValue placeholder="Discipline" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All ({disciplineData?.disciplines?.all?.count || 0})</SelectItem>
+                <SelectItem value="landscape">LA ({disciplineData?.disciplines?.landscape?.count || 0})</SelectItem>
+                <SelectItem value="interior">ID ({disciplineData?.disciplines?.interior?.count || 0})</SelectItem>
+                <SelectItem value="architect">Arch ({disciplineData?.disciplines?.architect?.count || 0})</SelectItem>
+                <SelectItem value="combined">Combined ({disciplineData?.disciplines?.combined?.count || 0})</SelectItem>
+              </SelectContent>
+            </Select>
 
-            {/* Saved Views Dropdown */}
+            {/* Saved Views */}
             {savedViews.length > 0 && (
-              <Select
-                value=""
-                onValueChange={(viewId) => {
-                  const view = savedViews.find(v => v.id === viewId);
-                  if (view) handleApplyView(view);
-                }}
-              >
-                <SelectTrigger className={cn("w-[160px]", ds.borderRadius.input)} aria-label="Load saved view">
-                  <Bookmark className={cn("h-4 w-4 mr-2", ds.textColors.tertiary)} aria-hidden="true" />
-                  <SelectValue placeholder="Saved Views" />
+              <Select value="" onValueChange={(id) => { const v = savedViews.find(x => x.id === id); if (v) handleApplyView(v); }}>
+                <SelectTrigger className="w-[120px] h-8 text-sm">
+                  <Bookmark className="h-3 w-3 mr-1" />
+                  <SelectValue placeholder="Views" />
                 </SelectTrigger>
                 <SelectContent>
                   {savedViews.map((view) => (
-                    <div key={view.id} className="flex items-center justify-between px-2 py-1.5 hover:bg-slate-100 rounded cursor-pointer group">
-                      <span
-                        className="text-sm flex-1"
-                        onClick={() => handleApplyView(view)}
-                      >
-                        {view.name}
-                      </span>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100 text-red-500 hover:text-red-600 hover:bg-red-50"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDeleteView(view.id);
-                        }}
-                      >
+                    <div key={view.id} className="flex items-center justify-between px-2 py-1 hover:bg-slate-100 rounded cursor-pointer group">
+                      <span className="text-sm" onClick={() => handleApplyView(view)}>{view.name}</span>
+                      <Button variant="ghost" size="sm" className="h-5 w-5 p-0 opacity-0 group-hover:opacity-100 text-red-500" onClick={(e) => { e.stopPropagation(); handleDeleteView(view.id); }}>
                         <Trash2 className="h-3 w-3" />
                       </Button>
                     </div>
@@ -817,17 +751,31 @@ function ProposalTrackerContent() {
               </Select>
             )}
 
-            {/* Save Current View Button */}
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setSaveViewDialogOpen(true)}
-              className={cn(ds.borderRadius.button, "gap-2")}
-              title="Save current filters as a view"
-            >
-              <BookmarkPlus className="h-4 w-4" />
-              Save View
+            {/* Save View */}
+            <Button variant="outline" size="sm" onClick={() => setSaveViewDialogOpen(true)} className="h-8 text-xs gap-1">
+              <BookmarkPlus className="h-3 w-3" />
+              Save
             </Button>
+
+            {/* Clear Filters - show when any filter is active */}
+            {(search || statusFilter !== "all" || ownerFilter !== "all" || disciplineFilter !== "all" || activeMetric) && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setSearch("");
+                  setStatusFilter("all");
+                  setOwnerFilter("all");
+                  setDisciplineFilter("all");
+                  setActiveMetric(null);
+                  setPage(1);
+                }}
+                className="h-8 text-xs text-slate-500 hover:text-slate-700"
+              >
+                <X className="h-3 w-3 mr-1" />
+                Clear
+              </Button>
+            )}
           </div>
         </CardContent>
       </Card>

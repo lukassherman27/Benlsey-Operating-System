@@ -322,15 +322,8 @@ export function TaskKanbanBoard({ tasks, categoryFilter, onEditTask }: TaskKanba
 
   // Update task status mutation
   const updateTaskStatus = useMutation({
-    mutationFn: async ({ taskId, status }: { taskId: number; status: string }) => {
-      const response = await fetch(`http://localhost:8000/api/tasks/${taskId}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status }),
-      })
-      if (!response.ok) throw new Error('Failed to update task')
-      return response.json()
-    },
+    mutationFn: ({ taskId, status }: { taskId: number; status: string }) =>
+      api.updateTask(taskId, { status }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tasks'] })
     },
