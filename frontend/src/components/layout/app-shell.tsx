@@ -41,7 +41,7 @@ type NavItem = {
 };
 
 // Simplified navigation - context lives in proposal/project detail pages
-// Dec 25, 2025: Added Transcripts to nav. Deliverables, RFIs, Contacts accessed from detail pages
+// Dec 26, 2025: Merged Transcripts into Meetings page (unified view)
 const navItems: NavItem[] = [
   { href: "/my-day", label: "My Day", icon: Sun },
   { href: "/", label: "Overview", icon: Home },
@@ -55,8 +55,7 @@ const navItems: NavItem[] = [
     ]
   },
   { href: "/projects", label: "Projects", icon: FolderKanban },
-  { href: "/meetings", label: "Meetings", icon: Calendar },
-  { href: "/transcripts", label: "Transcripts", icon: Mic },
+  { href: "/meetings", label: "Meetings & Recordings", icon: Calendar },
   { href: "/finance", label: "Finance", icon: DollarSign },
   {
     href: "/admin",
