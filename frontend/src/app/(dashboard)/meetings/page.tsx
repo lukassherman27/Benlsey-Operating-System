@@ -38,6 +38,10 @@ import {
   Mic,
   MessageSquare,
   Search,
+  ChevronLeft,
+  ChevronRight,
+  LayoutGrid,
+  List,
 } from "lucide-react";
 import {
   Dialog,
@@ -328,6 +332,178 @@ function FilterBar({
         />
       </div>
     </div>
+  );
+}
+
+function ViewToggle({
+  view,
+  onViewChange
+}: {
+  view: "calendar" | "list";
+  onViewChange: (v: "calendar" | "list") => void;
+}) {
+  return (
+    <div className="flex items-center gap-1 bg-slate-100 rounded-lg p-1">
+      <Button
+        variant={view === "calendar" ? "default" : "ghost"}
+        size="sm"
+        onClick={() => onViewChange("calendar")}
+        className="gap-2"
+      >
+        <LayoutGrid className="h-4 w-4" />
+        Calendar
+      </Button>
+      <Button
+        variant={view === "list" ? "default" : "ghost"}
+        size="sm"
+        onClick={() => onViewChange("list")}
+        className="gap-2"
+      >
+        <List className="h-4 w-4" />
+        List
+      </Button>
+    </div>
+  );
+}
+
+function CalendarView({
+  items,
+  currentDate,
+  onDateChange,
+  onItemClick,
+}: {
+  items: UnifiedItem[];
+  currentDate: Date;
+  onDateChange: (date: Date) => void;
+  onItemClick: (item: UnifiedItem) => void;
+}) {
+  const monthStart = startOfMonth(currentDate);
+  const monthEnd = endOfMonth(currentDate);
+  const calendarStart = startOfWeek(monthStart, { weekStartsOn: 1 });
+  const calendarEnd = endOfWeek(monthEnd, { weekStartsOn: 1 });
+
+  const days: Date[] = [];
+  let day = calendarStart;
+  while (day <= calendarEnd) {
+    days.push(day);
+    day = addDays(day, 1);
+  }
+
+  const weeks: Date[][] = [];
+  for (let i = 0; i < days.length; i += 7) {
+    weeks.push(days.slice(i, i + 7));
+  }
+
+  const getItemsForDay = (date: Date) => {
+    return items.filter(item => isSameDay(item.date, date));
+  };
+
+  return (
+    <Card className="border-slate-200">
+      <CardContent className="p-6">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-xl font-semibold text-slate-900">
+            {format(currentDate, "MMMM yyyy")}
+          </h2>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => onDateChange(addMonths(currentDate, -1))}
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => onDateChange(new Date())}
+            >
+              Today
+            </Button>
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => onDateChange(addMonths(currentDate, 1))}
+            >
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+
+        {/* Day headers */}
+        <div className="grid grid-cols-7 gap-1 mb-2">
+          {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((dayName) => (
+            <div key={dayName} className="text-center text-xs font-semibold text-slate-500 py-2 uppercase tracking-wider">
+              {dayName}
+            </div>
+          ))}
+        </div>
+
+        {/* Calendar grid */}
+        <div className="space-y-1">
+          {weeks.map((week, weekIndex) => (
+            <div key={weekIndex} className="grid grid-cols-7 gap-1">
+              {week.map((date) => {
+                const dayItems = getItemsForDay(date);
+                const isCurrentDay = isToday(date);
+                const isCurrentMonth = isSameMonth(date, currentDate);
+
+                return (
+                  <div
+                    key={date.toISOString()}
+                    className={cn(
+                      "min-h-[100px] p-2 rounded-lg border transition-colors",
+                      !isCurrentMonth && "opacity-40 bg-slate-50",
+                      isCurrentMonth && "bg-white hover:bg-slate-50",
+                      isCurrentDay && "ring-2 ring-teal-500 border-teal-300 bg-teal-50/50"
+                    )}
+                  >
+                    <div className={cn(
+                      "text-sm font-semibold mb-1",
+                      isCurrentDay ? "text-teal-700" : "text-slate-700"
+                    )}>
+                      {format(date, "d")}
+                    </div>
+                    <div className="space-y-1">
+                      {dayItems.slice(0, 3).map((item) => {
+                        const style = getMeetingTypeStyle(item.meetingType);
+                        return (
+                          <button
+                            key={item.id}
+                            onClick={() => onItemClick(item)}
+                            className={cn(
+                              "w-full text-left p-1.5 rounded-md transition-all text-xs",
+                              item.type === "transcript" ? "bg-purple-50 text-purple-700" : cn(style.bg, style.text),
+                              "hover:ring-2 hover:ring-offset-1 hover:ring-slate-300"
+                            )}
+                          >
+                            <div className="font-medium truncate flex items-center gap-1">
+                              {item.type === "transcript" && <Mic className="h-3 w-3 flex-shrink-0" />}
+                              <span className="truncate">{item.title}</span>
+                            </div>
+                            {item.type === "meeting" && (
+                              <div className="text-[10px] opacity-75 mt-0.5">
+                                {format(item.date, "h:mm a")}
+                              </div>
+                            )}
+                          </button>
+                        );
+                      })}
+                      {dayItems.length > 3 && (
+                        <div className="text-xs text-slate-500 text-center font-medium">
+                          +{dayItems.length - 3} more
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -703,6 +879,8 @@ export default function MeetingsPage() {
   const [filter, setFilter] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedItem, setSelectedItem] = useState<UnifiedItem | null>(null);
+  const [view, setView] = useState<"calendar" | "list">("list");
+  const [calendarDate, setCalendarDate] = useState(new Date());
 
   // Fetch both meetings and transcripts
   const { data: meetingsData, isLoading: meetingsLoading, error: meetingsError, refetch: refetchMeetings } = useQuery({
@@ -767,38 +945,52 @@ export default function MeetingsPage() {
 
       <StatsBar meetings={meetings} transcripts={transcripts} isLoading={isLoading} />
 
-      <FilterBar
-        filter={filter}
-        onFilterChange={setFilter}
-        searchQuery={searchQuery}
-        onSearchChange={setSearchQuery}
-      />
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <FilterBar
+          filter={filter}
+          onFilterChange={setFilter}
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
+        />
+        <ViewToggle view={view} onViewChange={setView} />
+      </div>
 
-      {/* Items list */}
-      {filteredItems.length === 0 ? (
-        <Card className="border-slate-200">
-          <CardContent className="py-16 text-center">
-            <CalendarDays className="mx-auto h-12 w-12 text-slate-300 mb-4" />
-            <p className="text-lg font-medium text-slate-900 mb-1">
-              {allItems.length === 0 ? "No meetings or recordings yet" : "No matching items"}
-            </p>
-            <p className="text-sm text-slate-500">
-              {allItems.length === 0
-                ? "Scheduled meetings and recordings will appear here."
-                : "Try adjusting your search or filters."}
-            </p>
-          </CardContent>
-        </Card>
+      {/* Calendar or List View */}
+      {view === "calendar" ? (
+        <CalendarView
+          items={filteredItems}
+          currentDate={calendarDate}
+          onDateChange={setCalendarDate}
+          onItemClick={setSelectedItem}
+        />
       ) : (
-        <div className="space-y-3">
-          {filteredItems.map((item) => (
-            <UnifiedCard
-              key={item.id}
-              item={item}
-              onClick={() => setSelectedItem(item)}
-            />
-          ))}
-        </div>
+        <>
+          {filteredItems.length === 0 ? (
+            <Card className="border-slate-200">
+              <CardContent className="py-16 text-center">
+                <CalendarDays className="mx-auto h-12 w-12 text-slate-300 mb-4" />
+                <p className="text-lg font-medium text-slate-900 mb-1">
+                  {allItems.length === 0 ? "No meetings or recordings yet" : "No matching items"}
+                </p>
+                <p className="text-sm text-slate-500">
+                  {allItems.length === 0
+                    ? "Scheduled meetings and recordings will appear here."
+                    : "Try adjusting your search or filters."}
+                </p>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="space-y-3">
+              {filteredItems.map((item) => (
+                <UnifiedCard
+                  key={item.id}
+                  item={item}
+                  onClick={() => setSelectedItem(item)}
+                />
+              ))}
+            </div>
+          )}
+        </>
       )}
 
       {/* Detail modal */}
