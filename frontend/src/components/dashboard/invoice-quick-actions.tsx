@@ -17,15 +17,8 @@ import { useQuery } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { api } from "@/lib/api";
 
-interface InvoiceAgingData {
-  aging: {
-    current: number;
-    "30_days": number;
-    "60_days": number;
-    "90_days": number;
-    over_90_days: number;
-  };
-}
+const API_BASE_URL =
+  process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
 
 /**
  * Invoice Quick Actions Widget
@@ -48,23 +41,20 @@ export function InvoiceQuickActions() {
 
   const isLoading = agingLoading || outstandingLoading;
 
-  // Calculate real stats from data
-  const aging: InvoiceAgingData["aging"] = agingData?.aging || {
-    current: 0,
-    "30_days": 0,
-    "60_days": 0,
-    "90_days": 0,
-    over_90_days: 0,
-  };
+  // Calculate real stats from aging breakdown
+  const agingBreakdown = agingData?.data?.aging_breakdown;
+  const under30Count = agingBreakdown?.under_30?.count || 0;
+  const thirtyTo90Count = agingBreakdown?.["30_to_90"]?.count || 0;
+  const over90Count = agingBreakdown?.over_90?.count || 0;
 
   // Calculate action-based counts
-  const overdueCount = aging["30_days"] + aging["60_days"] + aging["90_days"] + aging.over_90_days;
-  const criticalCount = aging["90_days"] + aging.over_90_days; // 90+ days need urgent attention
-  const recentCount = aging.current + aging["30_days"]; // Current and 30-day invoices
+  const overdueCount = thirtyTo90Count + over90Count;
+  const criticalCount = over90Count; // 90+ days need urgent attention
+  const recentCount = under30Count; // Current invoices - on track
 
   const quickStats = {
     actionRequired: criticalCount, // 90+ days overdue
-    reviewNeeded: aging["30_days"] + aging["60_days"], // 30-60 days - need review
+    reviewNeeded: thirtyTo90Count, // 30-90 days - need review
     readyToClose: recentCount, // Current invoices - on track
   };
 

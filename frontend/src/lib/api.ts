@@ -336,12 +336,18 @@ export const api = {
     request<{
       success: boolean;
       exceptions: Array<{
-        type: string;
         project_code: string;
         project_name: string;
-        message: string;
-        severity: string;
+        issues: Array<{
+          type: string;
+          label: string;
+          severity: string;
+          value?: number;
+          days?: number;
+        }>;
       }>;
+      healthy_count: number;
+      total_count: number;
     }>("/api/dashboard/portfolio-exceptions"),
 
   getEmailImportStats: () =>
@@ -788,11 +794,35 @@ export const api = {
       `/api/admin/email-links${projectCode ? `?project_code=${projectCode}` : ""}`
     ),
 
-  unlinkEmail: (linkId: string, user: string = "admin") =>
+  getEmailLinksAdmin: (params: {
+    limit?: number;
+    offset?: number;
+    link_type?: string;
+    confidence_min?: number;
+    confidence_max?: number;
+  } = {}) =>
+    request<{ links: Array<Record<string, unknown>>; total: number }>(
+      `/api/admin/email-links${buildQuery(params)}`
+    ),
+
+  unlinkEmail: (linkId: string | number, user: string = "admin") =>
     request<{ success: boolean; message: string }>(
-      `/api/admin/email-links/${encodeURIComponent(linkId)}?user=${encodeURIComponent(user)}`,
+      `/api/admin/email-links/${encodeURIComponent(String(linkId))}?user=${encodeURIComponent(user)}`,
       {
         method: "DELETE",
+      }
+    ),
+
+  updateAdminEmailLink: (linkId: number, data: {
+    link_type?: string;
+    confidence_score?: number;
+    user?: string;
+  }) =>
+    request<{ success: boolean; message?: string }>(
+      `/api/admin/email-links/${encodeURIComponent(String(linkId))}`,
+      {
+        method: "PATCH",
+        body: JSON.stringify(data),
       }
     ),
 

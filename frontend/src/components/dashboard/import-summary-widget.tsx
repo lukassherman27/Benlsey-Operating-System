@@ -43,15 +43,7 @@ export function ImportSummaryWidget({ compact = false }: ImportSummaryWidgetProp
   const { data, isLoading, error } = useQuery<ImportStats>({
     queryKey: ["import-stats"],
     queryFn: async () => {
-      // Try to fetch from API, fallback to computed values from existing endpoints
-      try {
-        const result = await api.getEmailImportStats();
-        if (result) return result;
-      } catch {
-        // API not available, compute from existing data
-      }
-
-      // Fallback: compute from existing endpoints
+      // Compute stats from existing endpoints
       const [pendingRes, recentRes] = await Promise.all([
         api.getEmailsPendingApproval(100),
         api.getRecentEmails(100, 7),

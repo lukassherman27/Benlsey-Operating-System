@@ -37,18 +37,20 @@ export default function DashboardPage() {
   const proposalsQuery = useQuery({
     queryKey: ["dashboard-proposals-attention"],
     queryFn: async () => {
-      const res = await api.getProposals({ limit: 50 });
+      const res = await api.getProposals({ per_page: 50 });
       const proposals = res.data || [];
 
       // Filter to active proposals that need attention
-      const active = proposals.filter((p: Record<string, unknown>) =>
+      const active = proposals.filter((p) =>
         !['Lost', 'Declined', 'Contract Signed', 'Dormant'].includes(p.status as string)
       );
 
       // Find stale proposals (>14 days in current status)
       const now = new Date();
-      const stale = active.filter((p: Record<string, unknown>) => {
-        const lastContact = p.last_contact_date ? new Date(p.last_contact_date as string) : null;
+      const stale = active.filter((p) => {
+        const lastContact = (p as { last_contact_date?: string }).last_contact_date
+          ? new Date((p as { last_contact_date: string }).last_contact_date)
+          : null;
         if (!lastContact) return true;
         const daysSince = Math.floor((now.getTime() - lastContact.getTime()) / (1000 * 60 * 60 * 24));
         return daysSince > 14;
@@ -56,7 +58,7 @@ export default function DashboardPage() {
 
       // Group by status
       const byStatus: Record<string, typeof proposals> = {};
-      active.forEach((p: Record<string, unknown>) => {
+      active.forEach((p) => {
         const status = p.status as string;
         if (!byStatus[status]) byStatus[status] = [];
         byStatus[status].push(p);
@@ -66,8 +68,8 @@ export default function DashboardPage() {
         active,
         stale,
         byStatus,
-        totalValue: active.reduce((sum: number, p: Record<string, unknown>) =>
-          sum + ((p.project_value as number) || 0), 0
+        totalValue: active.reduce((sum, p) =>
+          sum + ((p as { project_value?: number }).project_value || 0), 0
         ),
       };
     },
@@ -78,8 +80,8 @@ export default function DashboardPage() {
   const invoicesQuery = useQuery({
     queryKey: ["dashboard-overdue-invoices"],
     queryFn: async () => {
-      const res = await api.getAgingInvoices();
-      const invoices = res.invoices || [];
+      const res = await api.getInvoiceAging();
+      const invoices = res.data?.largest_outstanding || [];
 
       // Group by project
       const byProject: Record<string, {
@@ -90,9 +92,9 @@ export default function DashboardPage() {
         oldestDays: number;
       }> = {};
 
-      invoices.forEach((inv: Record<string, unknown>) => {
-        const code = inv.project_code as string || 'Unknown';
-        const name = inv.project_name as string || code;
+      invoices.forEach((inv) => {
+        const code = inv.project_code || 'Unknown';
+        const name = inv.project_title || code;
         if (!byProject[code]) {
           byProject[code] = {
             projectName: name,
@@ -103,8 +105,8 @@ export default function DashboardPage() {
           };
         }
         byProject[code].invoices.push(inv);
-        byProject[code].totalOverdue += (inv.amount_due as number) || (inv.invoice_amount as number) || 0;
-        const days = inv.days_overdue as number || 0;
+        byProject[code].totalOverdue += inv.invoice_amount || 0;
+        const days = inv.days_overdue || 0;
         if (days > byProject[code].oldestDays) {
           byProject[code].oldestDays = days;
         }
@@ -114,8 +116,8 @@ export default function DashboardPage() {
       const sorted = Object.values(byProject).sort((a, b) => b.totalOverdue - a.totalOverdue);
 
       return {
-        totalOverdue: invoices.reduce((sum: number, i: Record<string, unknown>) =>
-          sum + ((i.amount_due as number) || (i.invoice_amount as number) || 0), 0
+        totalOverdue: invoices.reduce((sum, i) =>
+          sum + (i.invoice_amount || 0), 0
         ),
         invoiceCount: invoices.length,
         byProject: sorted,
@@ -286,19 +288,19 @@ export default function DashboardPage() {
                 </div>
               ) : proposals?.stale && proposals.stale.length > 0 ? (
                 <div className="space-y-2">
-                  {proposals.stale.slice(0, 5).map((p: Record<string, unknown>) => (
+                  {proposals.stale.slice(0, 5).map((p) => (
                     <Link
-                      key={p.proposal_id as number}
+                      key={p.proposal_id}
                       href={`/proposals/${p.proposal_id}`}
                       className="block p-3 rounded-lg border hover:bg-slate-50 transition-colors"
                     >
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0 flex-1">
                           <p className="font-medium text-slate-900 truncate">
-                            {(p.project_name as string) || (p.client_company as string) || 'Unnamed'}
+                            {p.project_name || (p as { client_company?: string }).client_company || 'Unnamed'}
                           </p>
                           <p className="text-xs text-slate-500 mt-0.5">
-                            {p.client_company as string} • {p.country as string || 'Unknown location'}
+                            {(p as { client_company?: string }).client_company} • {(p as { country?: string }).country || 'Unknown location'}
                           </p>
                         </div>
                         <div className="text-right flex-shrink-0">
