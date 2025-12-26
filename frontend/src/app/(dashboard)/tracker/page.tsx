@@ -46,6 +46,8 @@ import {
   User,
   CheckCheck,
   ArrowLeftRight,
+  Trophy,
+  Ban,
 } from "lucide-react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -1090,6 +1092,47 @@ function ProposalTrackerContent() {
                             >
                               <Pencil className="h-4 w-4" />
                             </Button>
+                            {/* Quick Mark Won - only for active proposals */}
+                            {!["Contract Signed", "Lost", "Declined", "Dormant"].includes(proposal.current_status) && (
+                              <>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (confirm(`Mark "${proposal.project_name}" as WON?`)) {
+                                      updateStatusMutation.mutate({
+                                        projectCode: proposal.project_code,
+                                        newStatus: "Contract Signed",
+                                      });
+                                    }
+                                  }}
+                                  disabled={updateStatusMutation.isPending}
+                                  className="h-8 w-8 p-0 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50"
+                                  title="Mark as Won"
+                                >
+                                  <Trophy className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (confirm(`Mark "${proposal.project_name}" as LOST?`)) {
+                                      updateStatusMutation.mutate({
+                                        projectCode: proposal.project_code,
+                                        newStatus: "Lost",
+                                      });
+                                    }
+                                  }}
+                                  disabled={updateStatusMutation.isPending}
+                                  className="h-8 w-8 p-0 text-red-500 hover:text-red-600 hover:bg-red-50"
+                                  title="Mark as Lost"
+                                >
+                                  <Ban className="h-4 w-4" />
+                                </Button>
+                              </>
+                            )}
                           </div>
                         </TableCell>
                       </TableRow>

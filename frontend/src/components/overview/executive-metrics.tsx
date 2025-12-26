@@ -7,9 +7,13 @@ import { ProposalTrackerItem } from "@/lib/types";
 import {
   DollarSign,
   TrendingUp,
+  TrendingDown,
   Clock,
   AlertTriangle,
   Target,
+  ArrowUp,
+  ArrowDown,
+  Minus,
 } from "lucide-react";
 
 interface ExecutiveMetricsProps {
@@ -17,6 +21,40 @@ interface ExecutiveMetricsProps {
   stats: any;
   proposals: ProposalTrackerItem[];
   isLoading: boolean;
+}
+
+// Delta indicator component for week-over-week changes
+function DeltaIndicator({ value, label, isCurrency = false }: { value: number; label?: string; isCurrency?: boolean }) {
+  if (value === 0) {
+    return (
+      <span className="inline-flex items-center gap-0.5 text-xs text-slate-400">
+        <Minus className="h-3 w-3" />
+        {label || "No change"}
+      </span>
+    );
+  }
+
+  const isPositive = value > 0;
+  const displayValue = isCurrency
+    ? formatCurrency(Math.abs(value))
+    : Math.abs(value).toString();
+
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center gap-0.5 text-xs font-medium",
+        isPositive ? "text-emerald-600" : "text-red-600"
+      )}
+    >
+      {isPositive ? (
+        <ArrowUp className="h-3 w-3" />
+      ) : (
+        <ArrowDown className="h-3 w-3" />
+      )}
+      {isPositive ? "+" : "-"}{displayValue}
+      {label && <span className="text-slate-400 font-normal ml-0.5">{label}</span>}
+    </span>
+  );
 }
 
 export function ExecutiveMetrics({ stats, proposals, isLoading }: ExecutiveMetricsProps) {
@@ -95,9 +133,14 @@ export function ExecutiveMetrics({ stats, proposals, isLoading }: ExecutiveMetri
             <p className="text-2xl font-bold text-slate-900">
               {formatCurrency(stats?.active_proposals_value || 0)}
             </p>
-            <p className="text-sm text-slate-500">
-              {stats?.active_proposals_count || 0} active proposals
-            </p>
+            <div className="flex items-center justify-between mt-1">
+              <span className="text-sm text-slate-500">
+                {stats?.active_proposals_count || 0} active
+              </span>
+              {stats?.pipeline_delta !== undefined && (
+                <DeltaIndicator value={stats.pipeline_delta} label="this week" isCurrency />
+              )}
+            </div>
           </CardContent>
         </Card>
 
@@ -108,9 +151,14 @@ export function ExecutiveMetrics({ stats, proposals, isLoading }: ExecutiveMetri
               <span className="text-xs font-medium text-emerald-600 uppercase">Win Rate</span>
             </div>
             <p className="text-2xl font-bold text-emerald-700">{winRate}%</p>
-            <p className="text-sm text-emerald-600">
-              {wonDeals.length} won / {closedDeals} closed
-            </p>
+            <div className="flex items-center justify-between mt-1">
+              <span className="text-sm text-emerald-600">
+                {wonDeals.length} won / {closedDeals} closed
+              </span>
+              {stats?.won_delta !== undefined && stats.won_delta !== 0 && (
+                <DeltaIndicator value={stats.won_delta} label="won" />
+              )}
+            </div>
           </CardContent>
         </Card>
 
@@ -118,10 +166,15 @@ export function ExecutiveMetrics({ stats, proposals, isLoading }: ExecutiveMetri
           <CardContent className="pt-4">
             <div className="flex items-center gap-2 mb-2">
               <Clock className="h-4 w-4 text-blue-500" />
-              <span className="text-xs font-medium text-blue-600 uppercase">Avg Cycle</span>
+              <span className="text-xs font-medium text-blue-600 uppercase">New This Week</span>
             </div>
-            <p className="text-2xl font-bold text-blue-700">{avgCycle} days</p>
-            <p className="text-sm text-blue-600">average time in stage</p>
+            <p className="text-2xl font-bold text-blue-700">{stats?.new_this_week || 0}</p>
+            <div className="flex items-center justify-between mt-1">
+              <span className="text-sm text-blue-600">proposals added</span>
+              {stats?.new_delta !== undefined && (
+                <DeltaIndicator value={stats.new_delta} label="vs last" />
+              )}
+            </div>
           </CardContent>
         </Card>
 

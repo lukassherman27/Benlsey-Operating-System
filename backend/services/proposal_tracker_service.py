@@ -198,6 +198,44 @@ class ProposalTrackerService(BaseService):
             stats['lost_count'] = lost_row['lost_count']
             stats['lost_value'] = lost_row['lost_value']
 
+            # Week-over-week comparison for delta indicators
+            # New proposals this week vs last week
+            cursor.execute("""
+                SELECT
+                    SUM(CASE WHEN created_at >= date('now', '-7 days') THEN 1 ELSE 0 END) as new_this_week,
+                    SUM(CASE WHEN created_at >= date('now', '-14 days') AND created_at < date('now', '-7 days') THEN 1 ELSE 0 END) as new_last_week
+                FROM proposals
+            """)
+            new_row = dict(cursor.fetchone())
+            stats['new_this_week'] = new_row['new_this_week'] or 0
+            stats['new_last_week'] = new_row['new_last_week'] or 0
+            stats['new_delta'] = (new_row['new_this_week'] or 0) - (new_row['new_last_week'] or 0)
+
+            # Proposals won this week vs last week
+            cursor.execute("""
+                SELECT
+                    SUM(CASE WHEN contract_signed_date >= date('now', '-7 days') THEN 1 ELSE 0 END) as won_this_week,
+                    SUM(CASE WHEN contract_signed_date >= date('now', '-14 days') AND contract_signed_date < date('now', '-7 days') THEN 1 ELSE 0 END) as won_last_week
+                FROM proposals
+                WHERE status = 'Contract Signed'
+            """)
+            won_week_row = dict(cursor.fetchone())
+            stats['won_this_week'] = won_week_row['won_this_week'] or 0
+            stats['won_last_week'] = won_week_row['won_last_week'] or 0
+            stats['won_delta'] = (won_week_row['won_this_week'] or 0) - (won_week_row['won_last_week'] or 0)
+
+            # Pipeline value change (active proposals now vs 7 days ago snapshot - approximate)
+            cursor.execute("""
+                SELECT
+                    COALESCE(SUM(CASE WHEN created_at >= date('now', '-7 days') THEN project_value ELSE 0 END), 0) as added_value,
+                    COALESCE(SUM(CASE WHEN status IN ('Contract Signed', 'Lost', 'Declined') AND updated_at >= date('now', '-7 days') THEN project_value ELSE 0 END), 0) as removed_value
+                FROM proposals
+            """)
+            pipeline_row = dict(cursor.fetchone())
+            stats['pipeline_value_added'] = pipeline_row['added_value']
+            stats['pipeline_value_removed'] = pipeline_row['removed_value']
+            stats['pipeline_delta'] = pipeline_row['added_value'] - pipeline_row['removed_value']
+
             return stats
 
     def get_proposals_list(
