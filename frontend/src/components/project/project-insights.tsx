@@ -390,11 +390,11 @@ export function ProjectInsights({ projectCode, projectDetail, invoices }: Projec
                     {(member.full_name as string)?.charAt(0) || "?"}
                   </div>
                   <span className="text-slate-700">{member.full_name as string}</span>
-                  {member.phase && (
+                  {member.phase ? (
                     <Badge variant="outline" className="text-xs">
-                      {member.phase as string}
+                      {String(member.phase)}
                     </Badge>
-                  )}
+                  ) : null}
                 </div>
               ))}
               {team.length > 10 && (

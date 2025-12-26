@@ -4,8 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
-
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
+import { api } from "@/lib/api";
 
 // TODO: Replace with actual authenticated user when auth is implemented
 const CURRENT_USER = process.env.NEXT_PUBLIC_DEFAULT_USER || "bill@bensley.com";
@@ -59,22 +58,28 @@ export default function EmailLinksManagerPage() {
     try {
       setLoading(true);
 
-      let url = `${API_BASE_URL}/api/admin/email-links?limit=${limit}&offset=${offset}`;
+      const params: {
+        limit: number;
+        offset: number;
+        link_type?: string;
+        confidence_min?: number;
+        confidence_max?: number;
+      } = { limit, offset };
 
       if (selectedType !== "all") {
-        url += `&link_type=${selectedType}`;
+        params.link_type = selectedType;
       }
 
       if (selectedConfidence === "low") {
-        url += `&confidence_min=0&confidence_max=0.7`;
+        params.confidence_min = 0;
+        params.confidence_max = 0.7;
       } else if (selectedConfidence === "high") {
-        url += `&confidence_min=0.7`;
+        params.confidence_min = 0.7;
       }
 
-      const response = await fetch(url);
-      const data = await response.json();
+      const data = await api.getEmailLinksAdmin(params);
 
-      setLinks(data.links || []);
+      setLinks((data.links || []) as unknown as EmailLink[]);
       setTotal(data.total || 0);
 
     } catch (error) {
@@ -92,9 +97,8 @@ export default function EmailLinksManagerPage() {
 
   const fetchProposals = async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/proposals`);
-      const data = await response.json();
-      setProposals(data.proposals || []);
+      const data = await api.getProposals({ per_page: 200 });
+      setProposals((data.data || []) as Proposal[]);
     } catch (error) {
       console.error("Failed to fetch proposals:", error);
     }
@@ -104,9 +108,7 @@ export default function EmailLinksManagerPage() {
     if (!confirm("Delete this email-proposal link? This will help train the AI not to make similar links.")) return;
 
     try {
-      await fetch(`${API_BASE_URL}/api/admin/email-links/${linkId}?user=${CURRENT_USER}`, {
-        method: "DELETE"
-      });
+      await api.unlinkEmail(linkId, CURRENT_USER);
 
       // Remove from UI
       setLinks(links.filter(l => l.link_id !== linkId));
@@ -122,29 +124,13 @@ export default function EmailLinksManagerPage() {
     }
   };
 
-  const approveLink = async (linkId: number, retryCount = 0) => {
+  const approveLink = async (linkId: number, retryCount = 0): Promise<boolean> => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/admin/email-links/${linkId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          link_type: "approved",
-          confidence_score: 1.0,
-          user: CURRENT_USER
-        })
+      await api.updateAdminEmailLink(linkId, {
+        link_type: "approved",
+        confidence_score: 1.0,
+        user: CURRENT_USER
       });
-
-      const result = await response.json();
-
-      // Handle database locked error with retry (up to 3 times)
-      if (result.detail && result.detail.includes("database is locked") && retryCount < 3) {
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        return approveLink(linkId, retryCount + 1);
-      }
-
-      if (!response.ok) {
-        throw new Error(result.detail || "Failed to approve link");
-      }
 
       // Update UI
       setLinks(links.map(l =>
@@ -156,8 +142,15 @@ export default function EmailLinksManagerPage() {
       return true;
 
     } catch (error) {
+      // Handle database locked error with retry (up to 3 times)
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      if (errorMsg.includes("database is locked") && retryCount < 3) {
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        return approveLink(linkId, retryCount + 1);
+      }
+
       console.error("Failed to approve link:", error);
-      alert(`❌ Failed to approve link: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      alert(`❌ Failed to approve link: ${errorMsg}`);
       return false;
     }
   };
@@ -210,9 +203,7 @@ export default function EmailLinksManagerPage() {
 
     for (const linkId of selectedArray) {
       try {
-        await fetch(`${API_BASE_URL}/api/admin/email-links/${linkId}?user=${CURRENT_USER}`, {
-          method: "DELETE"
-        });
+        await api.unlinkEmail(linkId, CURRENT_USER);
         successCount++;
         await new Promise(resolve => setTimeout(resolve, 200)); // Throttle
       } catch (error) {
@@ -244,26 +235,14 @@ export default function EmailLinksManagerPage() {
 
     try {
       // Delete old link
-      await fetch(`${API_BASE_URL}/api/admin/email-links/${editingLink.link_id}?user=${CURRENT_USER}`, {
-        method: "DELETE"
-      });
+      await api.unlinkEmail(editingLink.link_id, CURRENT_USER);
 
       // Create new link
-      const response = await fetch(`${API_BASE_URL}/api/admin/email-links`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          email_id: editingLink.email_id,
-          proposal_id: newProposalId,
-          user: CURRENT_USER
-        })
+      await api.createEmailLink({
+        email_id: editingLink.email_id,
+        proposal_id: newProposalId,
+        user: CURRENT_USER
       });
-
-      const result = await response.json();
-
-      if (!response.ok) {
-        throw new Error(result.detail || "Failed to create new link");
-      }
 
       alert("✅ Link updated successfully!");
       closeEditDialog();

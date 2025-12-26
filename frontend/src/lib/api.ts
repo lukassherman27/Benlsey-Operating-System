@@ -332,6 +332,35 @@ export const api = {
   getDashboardKPIs: (params?: { period?: string; start_date?: string; end_date?: string }) =>
     request<DashboardKPIs>(`/api/dashboard/kpis${buildQuery(params || {})}`),
 
+  getPortfolioExceptions: () =>
+    request<{
+      success: boolean;
+      exceptions: Array<{
+        project_code: string;
+        project_name: string;
+        issues: Array<{
+          type: string;
+          label: string;
+          severity: string;
+          value?: number;
+          days?: number;
+        }>;
+      }>;
+      healthy_count: number;
+      total_count: number;
+    }>("/api/dashboard/portfolio-exceptions"),
+
+  getEmailImportStats: () =>
+    request<{
+      success: boolean;
+      stats: {
+        total_emails: number;
+        linked: number;
+        unlinked: number;
+        last_import: string | null;
+      };
+    }>("/api/emails/import-stats"),
+
   // Action items - What needs attention
   getDashboardActions: () =>
     request<{
@@ -621,6 +650,12 @@ export const api = {
       };
     }>(`/api/projects/${encodeURIComponent(projectCode)}/schedule?days=${days}`),
 
+  getProjectScheduleTeam: (projectCode: string) =>
+    request<{
+      team: Array<{ staff_name: string; role?: string }>;
+      schedule: Array<Record<string, unknown>>;
+    }>(`/api/projects/${encodeURIComponent(projectCode)}/schedule-team`),
+
   // Invoices API
   getInvoiceStats: () =>
     request<Record<string, unknown>>("/api/invoices/stats"),
@@ -658,8 +693,10 @@ export const api = {
         is_virtual?: boolean;
         meeting_link?: string;
         has_transcript?: boolean;
+        has_polished_summary?: boolean;
         transcript_id?: number;
         transcript_summary?: string;
+        transcript_polished_summary?: string;
         transcript_key_points?: string;
         transcript_action_items?: string;
       }>;
@@ -757,11 +794,35 @@ export const api = {
       `/api/admin/email-links${projectCode ? `?project_code=${projectCode}` : ""}`
     ),
 
-  unlinkEmail: (linkId: string, user: string = "admin") =>
+  getEmailLinksAdmin: (params: {
+    limit?: number;
+    offset?: number;
+    link_type?: string;
+    confidence_min?: number;
+    confidence_max?: number;
+  } = {}) =>
+    request<{ links: Array<Record<string, unknown>>; total: number }>(
+      `/api/admin/email-links${buildQuery(params)}`
+    ),
+
+  unlinkEmail: (linkId: string | number, user: string = "admin") =>
     request<{ success: boolean; message: string }>(
-      `/api/admin/email-links/${encodeURIComponent(linkId)}?user=${encodeURIComponent(user)}`,
+      `/api/admin/email-links/${encodeURIComponent(String(linkId))}?user=${encodeURIComponent(user)}`,
       {
         method: "DELETE",
+      }
+    ),
+
+  updateAdminEmailLink: (linkId: number, data: {
+    link_type?: string;
+    confidence_score?: number;
+    user?: string;
+  }) =>
+    request<{ success: boolean; message?: string }>(
+      `/api/admin/email-links/${encodeURIComponent(String(linkId))}`,
+      {
+        method: "PATCH",
+        body: JSON.stringify(data),
       }
     ),
 
@@ -2052,16 +2113,24 @@ export const api = {
       offset: number;
       transcripts: Array<{
         id: number;
-        audio_filename: string;
-        audio_path: string;
-        transcript: string;
+        audio_filename: string | null;
+        audio_path: string | null;
+        transcript: string | null;
         created_at: string;
-        updated_at: string | null;
-        ai_summary: string | null;
+        summary: string | null;
+        polished_summary: string | null;
+        key_points: unknown[] | null;
+        action_items: unknown[] | null;
+        participants: unknown[] | null;
         project_id: number | null;
         proposal_id: number | null;
         meeting_title: string | null;
         meeting_date: string | null;
+        recorded_date: string | null;
+        detected_project_code: string | null;
+        duration_seconds: number | null;
+        proposal_name: string | null;
+        client_company: string | null;
       }>;
     }>(`/api/meeting-transcripts${buildQuery({
       project_id: params.project_id,
@@ -2293,6 +2362,13 @@ export const api = {
         project_code: string | null;
         attendees: string | null;
         created_at: string;
+        // Transcript fields
+        transcript_id: number | null;
+        transcript_summary: string | null;
+        transcript_polished_summary: string | null;
+        transcript_key_points: string | null;
+        transcript_action_items: string | null;
+        transcript_duration: number | null;
       }>;
       count: number;
     }>(`/api/calendar/project/${encodeURIComponent(projectCode)}`),
@@ -2314,7 +2390,11 @@ export const api = {
     }),
 
   // Unified Timeline API
-  getUnifiedTimeline: (projectCode: string) =>
+  getUnifiedTimeline: (projectCode: string, params?: {
+    limit?: number;
+    item_types?: string;
+    person?: string;
+  }) =>
     request<{
       success: boolean;
       project_code: string;
@@ -2325,7 +2405,7 @@ export const api = {
         description: string | null;
         data: Record<string, unknown>;
       }>;
-    }>(`/api/projects/${encodeURIComponent(projectCode)}/unified-timeline`),
+    }>(`/api/projects/${encodeURIComponent(projectCode)}/unified-timeline${buildQuery(params || {})}`),
 
   // Email Scheduling Extraction API
   extractSchedulingData: (emailId: number) =>

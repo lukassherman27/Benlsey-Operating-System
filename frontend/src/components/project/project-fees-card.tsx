@@ -7,22 +7,15 @@ import { Wallet, ChevronDown, ChevronRight } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { ds } from "@/lib/design-system";
-
-interface FeeBreakdown {
-  breakdown_id: string;
-  discipline: string;
-  phase: string;
-  phase_fee_usd: number;
-  total_invoiced: number;
-  total_paid: number;
-  percentage_of_total?: number;
-}
+import { api, FeeBreakdown } from "@/lib/api";
 
 interface FeeBreakdownResponse {
   success: boolean;
   project_code: string;
+  project_title: string | null;
+  contract_value: number | null;
   breakdowns: FeeBreakdown[];
-  summary?: {
+  summary: {
     total_breakdown_fee: number;
     total_invoiced: number;
     total_paid: number;
@@ -31,14 +24,13 @@ interface FeeBreakdownResponse {
     percentage_invoiced: number;
     percentage_paid: number;
   };
+  count: number;
 }
 
 interface ProjectFeesCardProps {
   projectCode: string;
   contractValue?: number;
 }
-
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
 
 const formatCurrency = (value?: number | null) => {
   if (value == null) return "$0";
@@ -96,13 +88,7 @@ export function ProjectFeesCard({ projectCode, contractValue = 0 }: ProjectFeesC
 
   const { data, isLoading, error } = useQuery<FeeBreakdownResponse>({
     queryKey: ["fee-breakdown", projectCode],
-    queryFn: async () => {
-      const res = await fetch(
-        `${API_BASE_URL}/api/projects/${encodeURIComponent(projectCode)}/fee-breakdown`
-      );
-      if (!res.ok) throw new Error("Failed to fetch fee breakdown");
-      return res.json();
-    },
+    queryFn: () => api.getProjectFeeBreakdowns(projectCode),
   });
 
   if (isLoading) {

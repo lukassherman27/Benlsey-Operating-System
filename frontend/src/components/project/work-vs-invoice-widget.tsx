@@ -65,7 +65,7 @@ export function WorkVsInvoiceWidget({ projectCode, className }: WorkVsInvoiceWid
 
   // Count work days by phase
   const workDaysByPhase: Record<string, number> = {};
-  scheduleEntries.forEach((entry: { phase?: string }) => {
+  scheduleEntries.forEach((entry) => {
     const phase = entry.phase || "";
     if (!workDaysByPhase[phase]) workDaysByPhase[phase] = 0;
     workDaysByPhase[phase]++;
@@ -79,14 +79,15 @@ export function WorkVsInvoiceWidget({ projectCode, className }: WorkVsInvoiceWid
     workDays: number;
   }> = {};
 
-  phases.forEach((p: { phase_name: string; phase_fee_usd?: number; percentage_invoiced?: number; percentage_paid?: number }) => {
+  phases.forEach((p) => {
     const phaseName = p.phase_name;
     if (!phaseAggregates[phaseName]) {
       phaseAggregates[phaseName] = { totalFee: 0, totalInvoiced: 0, totalPaid: 0, workDays: 0 };
     }
     const fee = p.phase_fee_usd || 0;
-    const invoicedPct = p.percentage_invoiced || 0;
-    const paidPct = p.percentage_paid || 0;
+    // Calculate percentages from actual values
+    const invoicedPct = p.phase_fee_usd ? ((p.invoiced_amount_usd || 0) / p.phase_fee_usd) * 100 : 0;
+    const paidPct = p.phase_fee_usd ? ((p.paid_amount_usd || 0) / p.phase_fee_usd) * 100 : 0;
 
     phaseAggregates[phaseName].totalFee += fee;
     phaseAggregates[phaseName].totalInvoiced += fee * (invoicedPct / 100);

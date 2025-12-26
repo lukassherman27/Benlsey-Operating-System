@@ -8,15 +8,15 @@ import { format, differenceInDays } from "date-fns";
 
 interface Deliverable {
   deliverable_id: number;
-  project_code: string | null;
-  project_title: string | null;
-  deliverable_name: string | null;
-  deliverable_type: string | null;
-  phase: string | null;
-  due_date: string | null;
+  project_code?: string | null;
+  project_title?: string | null;
+  deliverable_name?: string | null;
+  deliverable_type?: string | null;
+  phase?: string | null;
+  due_date?: string | null;
   status: string;
   priority: string;
-  assigned_pm: string | null;
+  assigned_pm?: string | null;
   days_until_due?: number;
   is_overdue?: number;
   urgency_level?: string;

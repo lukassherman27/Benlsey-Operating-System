@@ -5,8 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { TrendingDown, TrendingUp, Zap, Clock, Loader2 } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 import { useQuery } from "@tanstack/react-query";
-
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
+import { api } from "@/lib/api";
 
 interface ClientPaymentData {
   project_code: string;
@@ -32,21 +31,13 @@ export function PaymentVelocityWidget() {
   // Fetch client payment behavior data
   const { data: clientData, isLoading: clientLoading } = useQuery({
     queryKey: ["client-payment-behavior"],
-    queryFn: async () => {
-      const res = await fetch(`${API_BASE_URL}/api/invoices/client-payment-behavior?limit=10`);
-      if (!res.ok) throw new Error("Failed to fetch client payment behavior");
-      return res.json();
-    },
+    queryFn: () => api.getClientPaymentBehavior(10),
   });
 
   // Fetch revenue trends for average days to pay over time
   const { data: trendsData, isLoading: trendsLoading } = useQuery({
     queryKey: ["revenue-trends"],
-    queryFn: async () => {
-      const res = await fetch(`${API_BASE_URL}/api/invoices/revenue-trends?months=6`);
-      if (!res.ok) throw new Error("Failed to fetch revenue trends");
-      return res.json();
-    },
+    queryFn: () => api.getRevenueTrends(6),
   });
 
   const isLoading = clientLoading || trendsLoading;

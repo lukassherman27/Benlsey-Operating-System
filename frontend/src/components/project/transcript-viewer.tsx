@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Mic, Clock, Users, Target, ChevronDown, ChevronUp } from "lucide-react";
 import { useState } from "react";
 import { format } from "date-fns";
+import { api } from "@/lib/api";
 
 interface Transcript {
   transcript_id: number;
@@ -38,25 +39,12 @@ interface ActionItem {
   deadline?: string;
 }
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
-
 export function TranscriptViewer({ transcriptId, compact = false }: TranscriptViewerProps) {
   const [showFullTranscript, setShowFullTranscript] = useState(false);
 
   const { data: transcript, isLoading, error } = useQuery<Transcript>({
     queryKey: ["transcript", transcriptId],
-    queryFn: async () => {
-      const res = await fetch(
-        `${API_BASE_URL}/api/meeting-transcripts/${transcriptId}`
-      );
-      if (!res.ok) {
-        if (res.status === 404) {
-          throw new Error("Transcript not found");
-        }
-        throw new Error("Failed to fetch transcript");
-      }
-      return res.json();
-    },
+    queryFn: () => api.getTranscript(transcriptId).then(res => res.transcript as unknown as Transcript),
     retry: 1,
   });
 

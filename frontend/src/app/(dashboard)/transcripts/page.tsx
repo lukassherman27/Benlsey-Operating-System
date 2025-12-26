@@ -86,12 +86,12 @@ async function fetchTranscripts(): Promise<Transcript[]> {
     project_code: undefined,
     project_id: t.project_id ?? undefined,
     participants: undefined,
-    summary: t.ai_summary ?? undefined,
+    summary: t.summary ?? undefined,
     key_points: undefined,
     action_items: undefined,
-    content: t.transcript,
+    content: t.transcript ?? undefined,
     word_count: t.transcript ? t.transcript.split(/\s+/).length : undefined,
-    has_ai_summary: !!t.ai_summary,
+    has_ai_summary: !!t.summary,
     final_summary: undefined,
   }));
 }
