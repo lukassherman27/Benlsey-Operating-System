@@ -73,22 +73,27 @@ export function ActionBoard({ proposals, isLoading }: ActionBoardProps) {
   today.setHours(0, 0, 0, 0);
 
   // Categorize proposals
+  // Waiting on Client - ALL proposals where ball is with client (regardless of due date)
+  const waitingItems = activeProposals.filter(p =>
+    p.ball_in_court === 'them'
+  );
+
+  // Overdue - only OUR items that are overdue (ball is NOT with client)
   const overdueItems = activeProposals.filter(p =>
-    p.action_due && new Date(p.action_due) < today
+    p.action_due &&
+    new Date(p.action_due) < today &&
+    p.ball_in_court !== 'them'
   );
 
   const billItems = activeProposals.filter(p =>
     p.action_owner === 'bill' &&
+    p.ball_in_court !== 'them' &&
     !(p.action_due && new Date(p.action_due) < today)
   );
 
   const brianItems = activeProposals.filter(p =>
     p.action_owner === 'brian' &&
-    !(p.action_due && new Date(p.action_due) < today)
-  );
-
-  const waitingItems = activeProposals.filter(p =>
-    p.ball_in_court === 'them' &&
+    p.ball_in_court !== 'them' &&
     !(p.action_due && new Date(p.action_due) < today)
   );
 

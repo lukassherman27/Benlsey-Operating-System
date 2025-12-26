@@ -59,6 +59,7 @@ interface Meeting {
   // Transcript fields (from JOIN)
   transcript_id?: number | null;
   transcript_summary?: string | null;
+  transcript_polished_summary?: string | null;
   transcript_key_points?: string | null;
   transcript_action_items?: string | null;
   transcript_duration?: number | null;
@@ -193,7 +194,8 @@ export function ProposalMeetings({ projectCode }: ProposalMeetingsProps) {
     const meetingDate = parseISO(meeting.meeting_date);
     const isUpcomingToday = isToday(meetingDate);
     const videoLink = getZoomLink(meeting.location, meeting.meeting_link);
-    const hasTranscript = !!meeting.transcript_summary;
+    const hasTranscript = !!meeting.transcript_summary || !!meeting.transcript_polished_summary;
+    const hasPolishedSummary = !!meeting.transcript_polished_summary;
 
     return (
       <div
@@ -228,11 +230,15 @@ export function ProposalMeetings({ projectCode }: ProposalMeetingsProps) {
                   <Clock className="h-3 w-3" />
                   {formatMeetingTime(meeting.meeting_date, meeting.start_time)}
                 </span>
-                {hasTranscript && (
+                {hasPolishedSummary ? (
+                  <Badge className="bg-emerald-100 text-emerald-700 text-xs">
+                    Full Notes
+                  </Badge>
+                ) : hasTranscript ? (
                   <Badge className="bg-purple-100 text-purple-700 text-xs">
                     Has Notes
                   </Badge>
-                )}
+                ) : null}
               </div>
             </div>
           </div>

@@ -340,7 +340,28 @@ class FollowUpAgent(BaseService):
         context_parts.append(f"Client: {proposal.get('client_company')}")
         context_parts.append(f"Contact: {proposal.get('contact_person')} ({proposal.get('contact_email')})")
         context_parts.append(f"Value: ${proposal.get('project_value', 0):,.0f}")
-        context_parts.append(f"Status: {proposal.get('status')}")
+
+        # Stage-specific context (CRITICAL for correct email tone)
+        status = proposal.get('status', '')
+        proposal_sent_date = proposal.get('proposal_sent_date')
+        context_parts.append(f"Status: {status}")
+
+        # Add explicit stage guidance
+        if status == 'First Contact' or (not proposal_sent_date and status not in ['Contract Signed', 'Lost', 'Declined']):
+            context_parts.append("STAGE: Initial inquiry - NO PROPOSAL HAS BEEN SENT YET")
+            context_parts.append("GOAL: Schedule an introductory call or meeting to discuss the project")
+        elif status == 'Proposal Prep':
+            context_parts.append("STAGE: Preparing proposal - working on it internally")
+            context_parts.append("GOAL: Update client on progress or request additional information")
+        elif status == 'Proposal Sent':
+            context_parts.append(f"STAGE: Proposal was sent on {proposal_sent_date or 'unknown date'}")
+            context_parts.append("GOAL: Follow up on the proposal, ask if they have questions")
+        elif status == 'Negotiation':
+            context_parts.append("STAGE: In negotiation - discussing terms")
+            context_parts.append("GOAL: Move toward contract signing")
+        elif status == 'Dormant':
+            context_parts.append("STAGE: Gone quiet - client not responding")
+            context_parts.append("GOAL: Re-engage with fresh angle or check if still interested")
 
         if proposal.get('days_since_contact'):
             context_parts.append(f"Days since last contact: {proposal['days_since_contact']}")
@@ -372,14 +393,23 @@ class FollowUpAgent(BaseService):
     def _generate_email_draft(self, context: str, tone: str) -> Dict[str, str]:
         """Use AI to generate email draft"""
         try:
-            system_prompt = f"""You are drafting a follow-up email for a landscape architecture proposal.
+            system_prompt = f"""You are drafting an email for BENSLEY, a world-renowned landscape architecture and design firm.
 
 Tone: {tone}
+
+CRITICAL RULES:
+1. Pay attention to the STAGE and GOAL in the context
+2. If STAGE says "NO PROPOSAL HAS BEEN SENT YET" - DO NOT mention "following up on our proposal"
+   - Instead, suggest scheduling an introductory call or meeting
+3. If STAGE says "Proposal was sent" - you CAN reference the proposal
+4. Match the email purpose to the current stage
+
 Keep the email:
 - Concise (3-5 sentences max)
 - Professional but warm
-- Focused on moving the project forward
+- Focused on the GOAL stated in the context
 - Not pushy or desperate
+- Sign off as "Best regards" (Bill Bensley or the team will add their name)
 
 Return JSON with:
 {{"subject": "subject line", "body": "email body"}}"""

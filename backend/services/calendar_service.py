@@ -377,19 +377,26 @@ Return ONLY valid JSON, no explanation."""
         cursor = conn.cursor()
 
         # Get meetings with LEFT JOIN to transcripts
+        # Join by transcript_id OR by matching project_code
         cursor.execute("""
             SELECT
                 m.*,
-                t.id as transcript_id,
-                t.summary as transcript_summary,
-                t.key_points as transcript_key_points,
-                t.action_items as transcript_action_items,
-                t.duration_seconds as transcript_duration
+                COALESCE(t.id, t2.id) as transcript_id,
+                COALESCE(t.summary, t2.summary) as transcript_summary,
+                COALESCE(t.polished_summary, t2.polished_summary) as transcript_polished_summary,
+                COALESCE(t.key_points, t2.key_points) as transcript_key_points,
+                COALESCE(t.action_items, t2.action_items) as transcript_action_items,
+                COALESCE(t.duration_seconds, t2.duration_seconds) as transcript_duration
             FROM meetings m
             LEFT JOIN meeting_transcripts t ON m.transcript_id = t.id
+            LEFT JOIN meeting_transcripts t2 ON (
+                t2.detected_project_code LIKE '%' || ? || '%'
+                AND DATE(t2.meeting_date) = DATE(m.meeting_date)
+                AND m.transcript_id IS NULL
+            )
             WHERE m.project_code LIKE ?
             ORDER BY m.meeting_date DESC, m.start_time
-        """, (f"%{project_code}%",))
+        """, (project_code, f"%{project_code}%",))
 
         meetings = [dict(row) for row in cursor.fetchall()]
         conn.close()

@@ -951,16 +951,22 @@ function ProposalTrackerContent() {
                           )}
                         </TableCell>
                         <TableCell className="text-center">
-                          {/* Sentiment Emoji */}
+                          {/* Sentiment Indicator */}
                           {proposal.last_sentiment ? (
-                            <span
-                              className="text-lg"
+                            <div
+                              className={cn(
+                                "inline-flex items-center justify-center w-6 h-6 rounded-full text-[10px] font-bold",
+                                proposal.last_sentiment === 'positive' && "bg-emerald-100 text-emerald-700",
+                                proposal.last_sentiment === 'concerned' && "bg-amber-100 text-amber-700",
+                                proposal.last_sentiment === 'negative' && "bg-red-100 text-red-700",
+                                proposal.last_sentiment === 'neutral' && "bg-slate-100 text-slate-600"
+                              )}
                               title={`Last sentiment: ${proposal.last_sentiment}`}
                             >
-                              {proposal.last_sentiment === 'positive' ? '😊' :
-                               proposal.last_sentiment === 'concerned' ? '😟' :
-                               proposal.last_sentiment === 'negative' ? '😠' : '😐'}
-                            </span>
+                              {proposal.last_sentiment === 'positive' ? '+' :
+                               proposal.last_sentiment === 'concerned' ? '!' :
+                               proposal.last_sentiment === 'negative' ? '-' : '~'}
+                            </div>
                           ) : (
                             <span className="text-slate-400">—</span>
                           )}

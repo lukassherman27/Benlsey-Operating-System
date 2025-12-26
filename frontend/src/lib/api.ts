@@ -2293,6 +2293,13 @@ export const api = {
         project_code: string | null;
         attendees: string | null;
         created_at: string;
+        // Transcript fields
+        transcript_id: number | null;
+        transcript_summary: string | null;
+        transcript_polished_summary: string | null;
+        transcript_key_points: string | null;
+        transcript_action_items: string | null;
+        transcript_duration: number | null;
       }>;
       count: number;
     }>(`/api/calendar/project/${encodeURIComponent(projectCode)}`),
