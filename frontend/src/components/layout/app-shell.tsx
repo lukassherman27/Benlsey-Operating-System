@@ -21,6 +21,9 @@ import {
   Mail,
   Mic,
   LayoutDashboard,
+  Users,
+  BarChart3,
+  FolderKanban,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ds } from "@/lib/design-system";
@@ -55,8 +58,15 @@ const navItems: NavItem[] = [
       { href: "/overview", label: "Dashboard", icon: LayoutDashboard },
     ]
   },
-  { href: "/projects", label: "Projects", icon: FileText },
-  { href: "/tasks", label: "Tasks", icon: CheckSquare },
+  {
+    href: "/projects",
+    label: "Projects",
+    icon: FolderKanban,
+    subItems: [
+      { href: "/projects", label: "Active Projects", icon: FolderKanban },
+      { href: "/tasks", label: "Tasks & Deliverables", icon: CheckSquare },
+    ]
+  },
   { href: "/meetings", label: "Meetings", icon: Calendar },
   { href: "/transcripts", label: "Transcripts", icon: Mic },
   { href: "/finance", label: "Finance", icon: DollarSign },
