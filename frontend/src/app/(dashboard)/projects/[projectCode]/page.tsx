@@ -122,8 +122,8 @@ export default function ProjectDetailPage({
   ).length;
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+    <div className={cn(ds.gap.loose, "space-y-6 w-full max-w-full overflow-x-hidden")}>
+      <div>
         {/* Header */}
         <div className="mb-8">
           <Link href="/projects">
@@ -374,9 +374,9 @@ export default function ProjectDetailPage({
             </section>
 
             {/* Project Activity Timeline */}
-            <section className="mb-8">
+            <section>
               <div className="flex items-center justify-between mb-4">
-                <h2 className="text-lg font-semibold text-slate-900">Activity Timeline</h2>
+                <h2 className={cn(ds.typography.cardHeader, ds.textColors.primary)}>Activity Timeline</h2>
               </div>
               <UnifiedTimeline projectCode={projectCode} limit={50} />
             </section>
