@@ -3,17 +3,19 @@
 import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { api } from "@/lib/api";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, Text, Tab, TabGroup, TabList, TabPanel, TabPanels, Badge as TremorBadge, Grid, Metric, ProgressBar } from "@tremor/react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   ArrowLeft,
   Building2,
-  Clock,
-  TrendingUp,
   AlertTriangle,
   Calendar,
-  CreditCard,
+  Users,
+  FileCheck,
+  DollarSign,
+  Clock,
+  Layers,
 } from "lucide-react";
 import Link from "next/link";
 import { use } from "react";
@@ -28,6 +30,8 @@ import { ProjectHealthBanner, calculateProjectHealth } from "@/components/projec
 import { RFIDeliverablesPanel } from "@/components/project/rfi-deliverables-panel";
 import { WorkVsInvoiceWidget } from "@/components/project/work-vs-invoice-widget";
 import { ProjectInsights } from "@/components/project/project-insights";
+import { PhaseProgressBar } from "@/components/project/phase-progress-bar";
+import { ProjectKPICards } from "@/components/project/project-kpi-cards";
 import { ds } from "@/lib/design-system";
 import { cn } from "@/lib/utils";
 
@@ -73,10 +77,28 @@ export default function ProjectDetailPage({
     staleTime: 1000 * 60 * 5,
   });
 
+  const phasesQuery = useQuery({
+    queryKey: ["project-phases", projectCode],
+    queryFn: () => api.getProjectPhases(projectCode),
+    staleTime: 1000 * 60 * 5,
+  });
+
+  const teamQuery = useQuery({
+    queryKey: ["project-schedule-team", projectCode],
+    queryFn: async () => {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000'}/api/projects/${projectCode}/schedule-team`);
+      if (!res.ok) return { team: [], schedule: [] };
+      return res.json();
+    },
+    staleTime: 1000 * 60 * 5,
+  });
+
   const projectDetail = projectDetailQuery.data;
   const invoices = invoicesQuery.data?.invoices ?? [];
+  const phases = phasesQuery.data?.phases ?? [];
+  const team = teamQuery.data?.team ?? [];
 
-  const isLoading = projectDetailQuery.isLoading || invoicesQuery.isLoading;
+  const isLoading = projectDetailQuery.isLoading;
 
   if (projectDetailQuery.error) {
     const errorMsg = projectDetailQuery.error instanceof Error
@@ -84,25 +106,17 @@ export default function ProjectDetailPage({
       : String(projectDetailQuery.error);
     return (
       <div className="flex min-h-screen items-center justify-center bg-slate-50">
-        <Card className={cn(ds.cards.default, "border-red-200 bg-red-50")}>
-          <CardContent className="p-8 text-center">
-            <AlertTriangle className="mx-auto h-12 w-12 text-red-600" />
-            <h2 className={cn(ds.typography.cardHeader, "mt-4")}>
-              Project Not Found
-            </h2>
-            <p className={cn(ds.typography.bodySmall, "mt-2")}>
-              Could not load project {projectCode}
-            </p>
-            <p className="text-xs text-red-600 mt-2 font-mono">
-              Error: {errorMsg}
-            </p>
-            <Link href="/projects">
-              <Button className={cn(ds.buttons.secondary, "mt-6")}>
-                <ArrowLeft className="mr-2 h-4 w-4" />
-                Back to Projects
-              </Button>
-            </Link>
-          </CardContent>
+        <Card className="border-red-200 bg-red-50 p-8 text-center max-w-md">
+          <AlertTriangle className="mx-auto h-12 w-12 text-red-600" />
+          <Text className="text-lg font-semibold text-slate-900 mt-4">Project Not Found</Text>
+          <Text className="text-sm text-slate-600 mt-2">Could not load project {projectCode}</Text>
+          <Text className="text-xs text-red-600 mt-2 font-mono">Error: {errorMsg}</Text>
+          <Link href="/projects">
+            <Button className={cn(ds.buttons.secondary, "mt-6")}>
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              Back to Projects
+            </Button>
+          </Link>
         </Card>
       </div>
     );
@@ -211,22 +225,18 @@ export default function ProjectDetailPage({
 
         {isLoading ? (
           <div className="space-y-6">
-            {/* Skeleton for main cards */}
-            <div className="grid gap-6 lg:grid-cols-3">
-              {[1, 2, 3].map((i) => (
-                <Card key={i} className={cn(ds.cards.default, "animate-pulse")}>
-                  <CardContent className="p-6">
-                    <div className="h-5 w-32 bg-slate-200 rounded mb-4" />
-                    <div className="h-10 w-24 bg-slate-200 rounded mb-2" />
-                    <div className="h-4 w-full bg-slate-200 rounded" />
-                  </CardContent>
+            <div className="grid gap-4 grid-cols-4">
+              {[1, 2, 3, 4].map((i) => (
+                <Card key={i} className="animate-pulse p-4">
+                  <div className="h-4 w-20 bg-slate-200 rounded mb-2" />
+                  <div className="h-8 w-16 bg-slate-200 rounded" />
                 </Card>
               ))}
             </div>
           </div>
         ) : (
           <>
-            {/* Health Banner - Shows issues if any */}
+            {/* Health Banner */}
             {(() => {
               const health = calculateProjectHealth({
                 overdue_invoices_count: invoices.filter((i: Record<string, unknown>) =>
@@ -249,137 +259,191 @@ export default function ProjectDetailPage({
               );
             })()}
 
-            {/* Project Insights - Executive Summary, Health & Actions */}
-            <section className="mb-8">
-              <ProjectInsights
-                projectCode={projectCode}
-                projectDetail={projectDetail as Record<string, unknown>}
-                invoices={invoices}
-              />
-            </section>
+            {/* Tabbed Content */}
+            <TabGroup>
+              <TabList className="mb-6">
+                <Tab icon={Layers}>Overview</Tab>
+                <Tab icon={Clock}>Phases</Tab>
+                <Tab icon={Users}>Team</Tab>
+                <Tab icon={FileCheck}>Submissions</Tab>
+                <Tab icon={DollarSign}>Finance</Tab>
+              </TabList>
 
-            {/* RFI/Deliverables Panel */}
-            <RFIDeliverablesPanel
-              rfis={(projectDetail?.rfis as Array<{rfi_id: number; rfi_number?: string; subject: string; status: "open" | "answered" | "closed"; submitted_date: string; response_date?: string | null; days_open?: number}>) ?? []}
-              deliverables={(projectDetail?.deliverables as Array<{deliverable_id: number; name: string; status: "pending" | "in_progress" | "delivered" | "approved"; due_date: string | null; delivered_date?: string | null; responsible_party?: string}>) ?? []}
-              projectCode={projectCode}
-              className="mb-6"
-            />
+              <TabPanels>
+                {/* OVERVIEW TAB */}
+                <TabPanel>
+                  {/* KPI Cards */}
+                  <div className="mb-6">
+                    <ProjectKPICards projectCode={projectCode} />
+                  </div>
 
-            {/* Main Dashboard Cards - 3 column layout */}
-            <section className="mb-8">
-              <div className="grid gap-6 lg:grid-cols-3">
-                {/* Fees & Scope Card */}
-                <ProjectFeesCard
-                  projectCode={projectCode}
-                  contractValue={contractValue}
-                />
+                  {/* Insights */}
+                  <div className="mb-6">
+                    <ProjectInsights
+                      projectCode={projectCode}
+                      projectDetail={projectDetail as Record<string, unknown>}
+                      invoices={invoices}
+                    />
+                  </div>
 
-                {/* Payments Card */}
-                <Card className={ds.cards.default}>
-                  <CardHeader className="pb-2">
-                    <CardTitle className="flex items-center gap-2 text-base">
-                      <CreditCard className="h-4 w-4 text-emerald-600" />
-                      Payments
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="pt-0">
-                    {/* Payment Summary */}
+                  {/* Quick Stats Grid */}
+                  <Grid numItemsSm={2} numItemsLg={4} className="gap-4 mb-6">
+                    <Card decoration="left" decorationColor="teal">
+                      <Text>Team Size</Text>
+                      <Metric>{team.length}</Metric>
+                    </Card>
+                    <Card decoration="left" decorationColor="blue">
+                      <Text>Phases Complete</Text>
+                      <Metric>
+                        {phases.filter((p: { status: string }) => p.status === 'completed').length} / {phases.length}
+                      </Metric>
+                    </Card>
+                    <Card decoration="left" decorationColor="amber">
+                      <Text>Open RFIs</Text>
+                      <Metric>{(projectDetail?.open_rfis_count as number) ?? 0}</Metric>
+                    </Card>
+                    <Card decoration="left" decorationColor="emerald">
+                      <Text>Collection Rate</Text>
+                      <Metric>{Math.round(paymentProgress)}%</Metric>
+                    </Card>
+                  </Grid>
+
+                  {/* Tasks & Communication */}
+                  <div className="grid gap-6 lg:grid-cols-2">
+                    <ProjectTasksCard projectCode={projectCode} maxItems={5} />
                     <div className="space-y-4">
-                      {/* Paid to Date */}
-                      <div>
-                        <div className="flex items-baseline justify-between">
-                          <span className={ds.typography.metricLarge}>{formatCurrency(paidToDate)}</span>
-                          <span className="text-sm text-emerald-600 font-medium">
-                            {Math.round(paymentProgress)}% collected
-                          </span>
-                        </div>
-                        <p className="text-xs text-slate-500 mt-1">of {formatCurrency(totalInvoiced)} invoiced</p>
+                      <div className="flex items-center justify-between">
+                        <Text className="font-semibold">Recent Emails</Text>
+                        <Link href={`/projects/${encodeURIComponent(projectCode)}/emails`}>
+                          <Button variant="ghost" size="sm" className="text-xs">
+                            View All
+                          </Button>
+                        </Link>
                       </div>
-
-                      {/* Progress bar */}
-                      <div className="h-2 w-full overflow-hidden rounded-full bg-slate-100">
-                        <div
-                          className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-emerald-600 transition-all"
-                          style={{ width: `${Math.min(paymentProgress, 100)}%` }}
-                        />
-                      </div>
-
-                      {/* Stats */}
-                      <div className="grid grid-cols-2 gap-4 pt-2">
-                        <div className="p-3 rounded-lg bg-slate-50">
-                          <div className="flex items-center gap-2 mb-1">
-                            <TrendingUp className="h-4 w-4 text-purple-600" />
-                            <span className="text-xs text-slate-500">Invoiced</span>
-                          </div>
-                          <p className="text-lg font-semibold text-slate-900">
-                            {formatCurrency(totalInvoiced)}
-                          </p>
-                          <p className="text-xs text-slate-500">
-                            {Math.round(invoicingProgress)}% of contract
-                          </p>
-                        </div>
-                        <div className="p-3 rounded-lg bg-slate-50">
-                          <div className="flex items-center gap-2 mb-1">
-                            <Clock className="h-4 w-4 text-amber-600" />
-                            <span className="text-xs text-slate-500">Outstanding</span>
-                          </div>
-                          <p className="text-lg font-semibold text-slate-900">
-                            {formatCurrency(Math.max(0, outstandingAmount))}
-                          </p>
-                          <p className="text-xs text-slate-500">
-                            {unpaidInvoices} unpaid invoice{unpaidInvoices !== 1 ? 's' : ''}
-                          </p>
-                        </div>
-                      </div>
+                      <ProjectEmailsCard projectCode={projectCode} limit={5} />
                     </div>
-                  </CardContent>
-                </Card>
+                  </div>
+                </TabPanel>
 
-                {/* Pending Tasks Card */}
-                <ProjectTasksCard projectCode={projectCode} maxItems={4} />
-              </div>
-            </section>
+                {/* PHASES TAB */}
+                <TabPanel>
+                  {/* Phase Progress Bar */}
+                  <Card className="mb-6 p-6">
+                    <Text className="font-semibold text-slate-900 mb-4">Design Phase Progress</Text>
+                    <PhaseProgressBar phases={phases} />
+                  </Card>
 
-            {/* Work vs Invoice Progress */}
-            <section className="mb-8">
-              <WorkVsInvoiceWidget projectCode={projectCode} />
-            </section>
+                  {/* Phase Details */}
+                  <div className="grid gap-4 mb-6">
+                    {phases.map((phase: { phase_name: string; status: string; phase_fee_usd?: number; invoiced_amount_usd?: number; paid_amount_usd?: number }) => (
+                      <Card key={phase.phase_name} className="p-4">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <div className={cn(
+                              "w-3 h-3 rounded-full",
+                              phase.status === 'completed' ? "bg-emerald-500" :
+                              phase.status === 'in_progress' ? "bg-teal-500" :
+                              "bg-slate-300"
+                            )} />
+                            <Text className="font-medium">{phase.phase_name}</Text>
+                          </div>
+                          <div className="flex items-center gap-4">
+                            <TremorBadge color={
+                              phase.status === 'completed' ? "emerald" :
+                              phase.status === 'in_progress' ? "teal" :
+                              "gray"
+                            }>
+                              {phase.status === 'completed' ? "Complete" :
+                               phase.status === 'in_progress' ? "In Progress" :
+                               "Pending"}
+                            </TremorBadge>
+                            {phase.phase_fee_usd && (
+                              <Text className="text-sm text-slate-500">
+                                {formatCurrency(phase.phase_fee_usd)}
+                              </Text>
+                            )}
+                          </div>
+                        </div>
+                        {phase.status !== 'pending' && phase.phase_fee_usd && (
+                          <div className="mt-3">
+                            <ProgressBar
+                              value={phase.invoiced_amount_usd ? (phase.invoiced_amount_usd / phase.phase_fee_usd) * 100 : 0}
+                              color="teal"
+                              className="h-2"
+                            />
+                            <Text className="text-xs text-slate-500 mt-1">
+                              {formatCurrency(phase.invoiced_amount_usd || 0)} invoiced of {formatCurrency(phase.phase_fee_usd)}
+                            </Text>
+                          </div>
+                        )}
+                      </Card>
+                    ))}
+                  </div>
 
-            {/* Team & Contacts */}
-            <section className="mb-8">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-lg font-semibold text-slate-900">People</h2>
-              </div>
-              <div className="grid gap-6 lg:grid-cols-2">
-                <BensleyTeamCard projectCode={projectCode} />
-                <ProjectContactsCard projectCode={projectCode} />
-              </div>
-            </section>
+                  {/* Timeline */}
+                  <Card className="p-6">
+                    <Text className="font-semibold text-slate-900 mb-4">Activity Timeline</Text>
+                    <UnifiedTimeline projectCode={projectCode} limit={30} />
+                  </Card>
+                </TabPanel>
 
-            {/* Communication & Meetings */}
-            <section className="mb-8">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-lg font-semibold text-slate-900">Communication</h2>
-                <Link href={`/projects/${encodeURIComponent(projectCode)}/emails`}>
-                  <Button variant="outline" size="sm" className="text-xs">
-                    View All Emails
-                  </Button>
-                </Link>
-              </div>
-              <div className="grid gap-6 lg:grid-cols-2">
-                <ProjectEmailsCard projectCode={projectCode} limit={10} />
-                <ProjectMeetingsCard projectCode={projectCode} />
-              </div>
-            </section>
+                {/* TEAM TAB */}
+                <TabPanel>
+                  <div className="grid gap-6 lg:grid-cols-2">
+                    <BensleyTeamCard projectCode={projectCode} />
+                    <ProjectContactsCard projectCode={projectCode} />
+                  </div>
+                  <div className="mt-6">
+                    <ProjectMeetingsCard projectCode={projectCode} />
+                  </div>
+                </TabPanel>
 
-            {/* Project Activity Timeline */}
-            <section className="mb-8">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-lg font-semibold text-slate-900">Activity Timeline</h2>
-              </div>
-              <UnifiedTimeline projectCode={projectCode} limit={50} />
-            </section>
+                {/* SUBMISSIONS TAB */}
+                <TabPanel>
+                  <RFIDeliverablesPanel
+                    rfis={(projectDetail?.rfis as Array<{rfi_id: number; rfi_number?: string; subject: string; status: "open" | "answered" | "closed"; submitted_date: string; response_date?: string | null; days_open?: number}>) ?? []}
+                    deliverables={(projectDetail?.deliverables as Array<{deliverable_id: number; name: string; status: "pending" | "in_progress" | "delivered" | "approved"; due_date: string | null; delivered_date?: string | null; responsible_party?: string}>) ?? []}
+                    projectCode={projectCode}
+                  />
+                </TabPanel>
+
+                {/* FINANCE TAB */}
+                <TabPanel>
+                  <div className="grid gap-6 lg:grid-cols-2 mb-6">
+                    <ProjectFeesCard
+                      projectCode={projectCode}
+                      contractValue={contractValue}
+                    />
+                    <Card className="p-6">
+                      <div className="flex items-center gap-2 mb-4">
+                        <DollarSign className="h-5 w-5 text-emerald-600" />
+                        <Text className="font-semibold text-slate-900">Payments</Text>
+                      </div>
+                      <Metric className="mb-2">{formatCurrency(paidToDate)}</Metric>
+                      <Text className="text-sm text-slate-500 mb-4">
+                        of {formatCurrency(totalInvoiced)} invoiced ({Math.round(paymentProgress)}%)
+                      </Text>
+                      <ProgressBar value={paymentProgress} color="emerald" className="mb-4" />
+                      <Grid numItemsSm={2} className="gap-4">
+                        <div className="p-3 rounded-lg bg-slate-50">
+                          <Text className="text-xs text-slate-500">Outstanding</Text>
+                          <Text className="text-lg font-semibold text-slate-900">
+                            {formatCurrency(Math.max(0, outstandingAmount))}
+                          </Text>
+                        </div>
+                        <div className="p-3 rounded-lg bg-slate-50">
+                          <Text className="text-xs text-slate-500">Unpaid Invoices</Text>
+                          <Text className="text-lg font-semibold text-slate-900">
+                            {unpaidInvoices}
+                          </Text>
+                        </div>
+                      </Grid>
+                    </Card>
+                  </div>
+                  <WorkVsInvoiceWidget projectCode={projectCode} />
+                </TabPanel>
+              </TabPanels>
+            </TabGroup>
           </>
         )}
       </div>
