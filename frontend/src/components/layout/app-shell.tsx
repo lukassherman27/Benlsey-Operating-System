@@ -5,13 +5,11 @@ import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { PropsWithChildren, useState } from "react";
 import {
-  FileText,
   Home,
   ListChecks,
   ChevronDown,
   ChevronRight,
   Settings,
-  CheckSquare,
   DollarSign,
   Sparkles,
   Calendar,
@@ -21,8 +19,6 @@ import {
   Mail,
   Mic,
   LayoutDashboard,
-  Users,
-  BarChart3,
   FolderKanban,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -58,15 +54,7 @@ const navItems: NavItem[] = [
       { href: "/overview", label: "Dashboard", icon: LayoutDashboard },
     ]
   },
-  {
-    href: "/projects",
-    label: "Projects",
-    icon: FolderKanban,
-    subItems: [
-      { href: "/projects", label: "Active Projects", icon: FolderKanban },
-      { href: "/tasks", label: "Tasks & Deliverables", icon: CheckSquare },
-    ]
-  },
+  { href: "/projects", label: "Projects", icon: FolderKanban },
   { href: "/meetings", label: "Meetings", icon: Calendar },
   { href: "/transcripts", label: "Transcripts", icon: Mic },
   { href: "/finance", label: "Finance", icon: DollarSign },

@@ -156,100 +156,145 @@ export default function ProjectDetailPage({
   });
 
   return (
-    <div className={cn(ds.gap.loose, "space-y-6 w-full max-w-full overflow-x-hidden")}>
-      {/* Header */}
-      <div className="mb-2">
+    <div className="p-4 sm:p-6 space-y-4 sm:space-y-6 max-w-[100vw] overflow-x-hidden">
+      {/* Header Row */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <Link href="/projects">
-          <Button variant="ghost" className={cn(ds.buttons.ghost, "mb-4 gap-2")}>
+          <Button variant="ghost" className="gap-2">
             <ArrowLeft className="h-4 w-4" />
             Back to Projects
           </Button>
         </Link>
-        <div className="flex items-start justify-between">
-          <div>
-            <div className="flex items-center gap-3 flex-wrap">
-              <h1 className={ds.typography.pageTitle}>
-                {(projectDetail?.project_name as string) ?? (projectDetail?.client_name as string) ?? projectCode}
-              </h1>
-              <Badge className={ds.badges.default}>
-                {(projectDetail?.current_phase as string) ?? (projectDetail?.phase as string) ?? "Unknown Phase"}
-              </Badge>
-            </div>
-            <div className="flex items-center gap-4 mt-2 text-sm text-slate-500">
-              <span className="font-mono">{projectCode}</span>
-              {(projectDetail?.client_name as string) && (
-                <>
-                  <span>•</span>
-                  <span className="flex items-center gap-1">
-                    <Building2 className="h-3.5 w-3.5" />
-                    {projectDetail?.client_name as string}
-                  </span>
-                </>
-              )}
-              {teamCount > 0 && (
-                <>
-                  <span>•</span>
-                  <span className="flex items-center gap-1">
-                    <Users className="h-3.5 w-3.5" />
-                    {teamCount} team member{teamCount !== 1 ? 's' : ''}
-                  </span>
-                </>
-              )}
-              {(projectDetail?.contract_signed_date as string) && (
-                <>
-                  <span>•</span>
-                  <span className="flex items-center gap-1">
-                    <Calendar className="h-3.5 w-3.5" />
-                    Since {formatDisplayDate(projectDetail?.contract_signed_date as string)}
-                  </span>
-                </>
-              )}
-            </div>
-          </div>
-          <div className="text-right">
-            <div className="flex items-center gap-2 justify-end mb-1">
-              <Badge
-                variant="outline"
-                className={cn(
-                  "text-xs",
-                  outstandingAmount > 0
-                    ? "bg-amber-50 text-amber-700 border-amber-200"
-                    : "bg-emerald-50 text-emerald-700 border-emerald-200"
-                )}
-              >
-                {outstandingAmount > 0 ? `${formatCurrency(outstandingAmount)} outstanding` : "Paid up"}
-              </Badge>
-              <Badge
-                variant="outline"
-                className={cn(
-                  "text-xs",
-                  (projectDetail?.status as string) === "Active"
-                    ? "bg-teal-50 text-teal-700 border-teal-200"
-                    : "bg-slate-100 text-slate-600 border-slate-200"
-                )}
-              >
-                {(projectDetail?.status as string) || "Active"}
-              </Badge>
-            </div>
-            <p className="text-sm text-slate-500">Contract Value</p>
-            <p className="text-3xl font-bold text-slate-900">
-              {formatCurrency(contractValue)}
-            </p>
-            <div className="mt-2 w-48 ml-auto">
-              <div className="flex justify-between text-xs text-slate-500 mb-1">
-                <span>{Math.round(invoicingProgress)}% invoiced</span>
-                <span>{Math.round(paymentProgress)}% paid</span>
-              </div>
-              <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-200">
-                <div
-                  className="h-full rounded-full bg-gradient-to-r from-teal-500 to-emerald-500 transition-all"
-                  style={{ width: `${Math.min(invoicingProgress, 100)}%` }}
-                />
-              </div>
-            </div>
-          </div>
+        <div className="flex gap-2 flex-wrap">
+          <Badge
+            variant="outline"
+            className={cn(
+              "text-xs px-3 py-1",
+              (projectDetail?.status as string) === "Active"
+                ? "bg-teal-50 text-teal-700 border-teal-200"
+                : "bg-slate-100 text-slate-600 border-slate-200"
+            )}
+          >
+            {(projectDetail?.status as string) || "Active Project"}
+          </Badge>
+          <Badge
+            variant="outline"
+            className={cn(
+              "text-xs px-3 py-1",
+              outstandingAmount > 0
+                ? "bg-amber-50 text-amber-700 border-amber-200"
+                : "bg-emerald-50 text-emerald-700 border-emerald-200"
+            )}
+          >
+            {outstandingAmount > 0 ? `${formatCurrency(outstandingAmount)} outstanding` : "Paid up"}
+          </Badge>
         </div>
       </div>
+
+      {/* Hero Card */}
+      <Card className="border-2 border-slate-200">
+        <CardContent className="p-4 sm:p-6">
+          <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-6">
+            {/* Left side - Project info */}
+            <div className="space-y-4 flex-1 min-w-0">
+              <div>
+                <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 break-words">
+                  {(projectDetail?.project_name as string) ?? (projectDetail?.client_name as string) ?? projectCode}
+                </h1>
+                <p className="text-lg text-slate-500 break-words mt-1">
+                  {(projectDetail?.client_name as string) || "Client not specified"}
+                </p>
+              </div>
+
+              {/* Badges row */}
+              <div className="flex flex-wrap gap-2">
+                <Badge className="text-sm px-3 py-1 font-mono bg-slate-100 text-slate-700">
+                  {projectCode}
+                </Badge>
+                <Badge className="text-sm px-3 py-1 bg-teal-100 text-teal-700">
+                  {(projectDetail?.current_phase as string) ?? "Unknown Phase"}
+                </Badge>
+                {(projectDetail?.country as string) && (
+                  <Badge variant="outline" className="text-sm px-3 py-1 gap-1">
+                    <Building2 className="h-3 w-3" />
+                    {projectDetail?.country as string}
+                  </Badge>
+                )}
+              </div>
+
+              {/* Meta info */}
+              <div className="flex flex-wrap gap-4 text-sm text-slate-500">
+                {teamCount > 0 && (
+                  <span className="flex items-center gap-1.5">
+                    <Users className="h-4 w-4 text-blue-500" />
+                    <span className="font-medium text-slate-700">{teamCount}</span> team members
+                  </span>
+                )}
+                {(projectDetail?.contract_signed_date as string) && (
+                  <span className="flex items-center gap-1.5">
+                    <Calendar className="h-4 w-4 text-slate-400" />
+                    Since {formatDisplayDate(projectDetail?.contract_signed_date as string)}
+                  </span>
+                )}
+                {phases.length > 0 && (
+                  <span className="flex items-center gap-1.5">
+                    <BarChart3 className="h-4 w-4 text-teal-500" />
+                    {phases.filter((p: { status: string }) => p.status === 'completed').length}/{phases.length} phases complete
+                  </span>
+                )}
+              </div>
+            </div>
+
+            {/* Right side - Financial summary */}
+            <div className="lg:text-right bg-slate-50 rounded-xl p-4 lg:min-w-[240px]">
+              <p className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-1">Contract Value</p>
+              <p className="text-3xl font-bold text-slate-900 tabular-nums">
+                {formatCurrency(contractValue)}
+              </p>
+
+              {/* Progress bars */}
+              <div className="mt-4 space-y-2">
+                <div>
+                  <div className="flex justify-between text-xs text-slate-500 mb-1">
+                    <span>Invoiced</span>
+                    <span className="font-medium text-slate-700">{Math.round(invoicingProgress)}%</span>
+                  </div>
+                  <div className="h-2 w-full overflow-hidden rounded-full bg-slate-200">
+                    <div
+                      className="h-full rounded-full bg-gradient-to-r from-blue-400 to-blue-600 transition-all"
+                      style={{ width: `${Math.min(invoicingProgress, 100)}%` }}
+                    />
+                  </div>
+                </div>
+                <div>
+                  <div className="flex justify-between text-xs text-slate-500 mb-1">
+                    <span>Collected</span>
+                    <span className="font-medium text-emerald-600">{Math.round(paymentProgress)}%</span>
+                  </div>
+                  <div className="h-2 w-full overflow-hidden rounded-full bg-slate-200">
+                    <div
+                      className="h-full rounded-full bg-gradient-to-r from-emerald-400 to-emerald-600 transition-all"
+                      style={{ width: `${Math.min(paymentProgress, 100)}%` }}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Quick stats */}
+              <div className="mt-4 pt-4 border-t border-slate-200 grid grid-cols-2 gap-3 text-center">
+                <div>
+                  <p className="text-lg font-bold text-emerald-600">{formatCurrency(paidToDate)}</p>
+                  <p className="text-xs text-slate-500">Paid</p>
+                </div>
+                <div>
+                  <p className="text-lg font-bold text-amber-600">{formatCurrency(Math.max(0, outstandingAmount))}</p>
+                  <p className="text-xs text-slate-500">Outstanding</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       {isLoading ? (
         <div className="space-y-6">

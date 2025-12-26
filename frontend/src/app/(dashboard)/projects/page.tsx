@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import dynamic from "next/dynamic";
 import { useQuery } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { api } from "@/lib/api";
@@ -51,6 +52,21 @@ import { ds } from "@/lib/design-system";
 import { PhaseProgressCompact, getCurrentPhaseSummary } from "@/components/project/phase-progress-bar";
 import { TaskKanbanBoard } from "@/components/tasks/task-kanban-board";
 import { TaskEditModal } from "@/components/tasks/task-edit-modal";
+
+// Dynamic import for Gantt chart (doesn't support SSR)
+const ProjectsTimeline = dynamic(
+  () => import("@/components/projects/projects-timeline").then((mod) => mod.ProjectsTimeline),
+  {
+    ssr: false,
+    loading: () => (
+      <Card className="border-slate-200">
+        <CardContent className="py-12">
+          <Skeleton className="h-[400px] w-full" />
+        </CardContent>
+      </Card>
+    ),
+  }
+);
 
 interface Project {
   project_id?: number;
@@ -546,24 +562,7 @@ export default function ProjectsPage() {
 
         {/* Timeline Tab */}
         <TabsContent value="timeline" className="space-y-4">
-          <Card className="border-slate-200">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <CalendarDays className="h-5 w-5 text-slate-600" />
-                Project Timeline
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="py-12 text-center">
-              <CalendarDays className="mx-auto h-16 w-16 text-slate-300 mb-4" />
-              <p className="text-lg font-medium text-slate-700 mb-2">
-                Gantt Timeline Coming Soon
-              </p>
-              <p className="text-sm text-slate-500 max-w-md mx-auto">
-                This will show all projects with their milestones and phases in a visual timeline.
-                Using wx-react-gantt library which is already installed.
-              </p>
-            </CardContent>
-          </Card>
+          <ProjectsTimeline />
         </TabsContent>
 
         {/* Deliverables Tab */}
@@ -629,40 +628,57 @@ function ProjectRow({ project, onClick }: { project: Project; onClick: () => voi
 
   return (
     <TableRow
-      className={cn("cursor-pointer group", ds.hover.subtle)}
+      className="cursor-pointer group hover:bg-slate-50/80 transition-colors"
       onClick={onClick}
     >
-      <TableCell className="font-mono text-sm">
-        <div className="flex items-center gap-2">
-          <ExternalLink className="h-3.5 w-3.5 text-slate-400 group-hover:text-teal-600 transition-colors" />
-          {projectCode}
-        </div>
-      </TableCell>
+      {/* Project Code - Badge style */}
       <TableCell>
-        <div>
-          <p className={cn(ds.typography.body, ds.textColors.primary, "group-hover:text-teal-700 transition-colors")}>
+        <Badge variant="secondary" className="font-mono text-xs px-2.5 py-1 bg-slate-100 text-slate-700 group-hover:bg-teal-100 group-hover:text-teal-700 transition-colors">
+          {projectCode}
+        </Badge>
+      </TableCell>
+
+      {/* Project Name */}
+      <TableCell>
+        <div className="space-y-0.5">
+          <p className="text-sm font-semibold text-slate-900 group-hover:text-teal-700 transition-colors">
             {projectName}
           </p>
           {project.client_name && project.client_name !== projectName && (
-            <p className={cn(ds.typography.caption, ds.textColors.tertiary)}>
-              {project.client_name}
-            </p>
+            <p className="text-xs text-slate-500">{project.client_name}</p>
           )}
         </div>
       </TableCell>
-      <TableCell className={cn("text-sm", ds.textColors.secondary)}>
-        {project.pm_name || "—"}
-      </TableCell>
+
+      {/* PM - Avatar style */}
       <TableCell>
-        {project.country ? (
-          <span className="inline-flex items-center gap-1 text-xs text-slate-600">
-            <MapPin className="h-3 w-3 text-slate-400" />
-            {project.country}
-          </span>
+        {project.pm_name ? (
+          <div className="flex items-center gap-2">
+            <div className="h-7 w-7 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center shadow-sm">
+              <span className="text-[10px] font-bold text-white">
+                {project.pm_name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
+              </span>
+            </div>
+            <span className="text-sm text-slate-700 font-medium">{project.pm_name}</span>
+          </div>
         ) : (
-          <span className="text-slate-400">—</span>
+          <span className="text-sm text-slate-400">—</span>
         )}
       </TableCell>
+
+      {/* Country - Flag style badge */}
+      <TableCell>
+        {project.country ? (
+          <Badge variant="outline" className="text-xs font-medium bg-slate-50 border-slate-200 text-slate-600 gap-1">
+            <MapPin className="h-3 w-3" />
+            {project.country}
+          </Badge>
+        ) : (
+          <span className="text-sm text-slate-400">—</span>
+        )}
+      </TableCell>
+
+      {/* Phase Progress */}
       <TableCell>
         {phasesQuery.isLoading ? (
           <Skeleton className="h-6 w-full" />
@@ -674,32 +690,34 @@ function ProjectRow({ project, onClick }: { project: Project; onClick: () => voi
                 status: p.status,
               }))}
             />
-            <p className="text-xs text-teal-600 font-medium text-center">
+            <p className="text-xs text-teal-600 font-semibold text-center">
               {currentPhase}
             </p>
           </div>
         ) : (
-          <p className={cn(ds.typography.caption, ds.textColors.tertiary, "text-center")}>
-            No phases
-          </p>
+          <p className="text-xs text-slate-400 text-center">No phases</p>
         )}
       </TableCell>
+
+      {/* Team - Pill badge */}
       <TableCell className="text-center">
         {teamQuery.isLoading ? (
-          <Skeleton className="h-5 w-8 mx-auto" />
+          <Skeleton className="h-6 w-10 mx-auto" />
         ) : teamCount > 0 ? (
-          <div className="inline-flex items-center justify-center gap-1 px-2 py-1 rounded-full bg-blue-50 text-blue-700">
-            <Users className="h-3.5 w-3.5" />
-            <span className="text-sm font-medium">{teamCount}</span>
-          </div>
+          <Badge variant="outline" className="bg-blue-50 border-blue-200 text-blue-700 gap-1">
+            <Users className="h-3 w-3" />
+            <span className="font-semibold">{teamCount}</span>
+          </Badge>
         ) : (
-          <span className={cn(ds.typography.caption, ds.textColors.tertiary)}>—</span>
+          <span className="text-sm text-slate-400">—</span>
         )}
       </TableCell>
+
+      {/* Contract Value - Prominent */}
       <TableCell className="text-right">
-        <p className={cn(ds.typography.body, ds.textColors.primary, "font-semibold")}>
+        <span className="text-sm font-bold text-slate-900 tabular-nums">
           {formatCurrency(contractValue)}
-        </p>
+        </span>
       </TableCell>
     </TableRow>
   );
