@@ -425,9 +425,15 @@ export default function ProjectDetailPage({
                 <CardContent>
                   {phases.length > 0 ? (
                     <PhaseProgressBar
-                      phases={phases.map((p: { phase_name: string; status: string }) => ({
+                      phases={phases.map(p => ({
                         phase_name: p.phase_name,
                         status: p.status,
+                        phase_fee_usd: p.phase_fee_usd ?? undefined,
+                        invoiced_amount_usd: p.invoiced_amount_usd ?? undefined,
+                        paid_amount_usd: p.paid_amount_usd ?? undefined,
+                        start_date: p.start_date ?? undefined,
+                        expected_completion_date: p.expected_completion_date ?? undefined,
+                        actual_completion_date: p.actual_completion_date ?? undefined,
                       }))}
                     />
                   ) : (
@@ -456,7 +462,7 @@ export default function ProjectDetailPage({
                           </tr>
                         </thead>
                         <tbody>
-                          {phases.map((phase: { phase_id: number; phase_name: string; status: string; discipline?: string; phase_fee_usd?: number }) => (
+                          {phases.map((phase) => (
                             <tr key={phase.phase_id} className="border-b border-slate-100">
                               <td className="py-3 px-4 font-medium">{phase.phase_name}</td>
                               <td className="py-3 px-4">

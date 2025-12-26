@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import dynamic from "next/dynamic";
 import { useQuery } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { api } from "@/lib/api";
@@ -52,21 +51,7 @@ import { ds } from "@/lib/design-system";
 import { PhaseProgressCompact, getCurrentPhaseSummary } from "@/components/project/phase-progress-bar";
 import { TaskKanbanBoard } from "@/components/tasks/task-kanban-board";
 import { TaskEditModal } from "@/components/tasks/task-edit-modal";
-
-// Dynamic import for Gantt chart (doesn't support SSR)
-const ProjectsTimeline = dynamic(
-  () => import("@/components/projects/projects-timeline").then((mod) => mod.ProjectsTimeline),
-  {
-    ssr: false,
-    loading: () => (
-      <Card className="border-slate-200">
-        <CardContent className="py-12">
-          <Skeleton className="h-[400px] w-full" />
-        </CardContent>
-      </Card>
-    ),
-  }
-);
+import { ProjectsTimeline } from "@/components/projects/projects-timeline";
 
 interface Project {
   project_id?: number;
@@ -95,10 +80,17 @@ interface Task {
   due_date: string | null;
   project_code: string | null;
   proposal_id: number | null;
+  source_suggestion_id: number | null;
+  source_email_id: number | null;
+  source_transcript_id: number | null;
+  source_meeting_id: number | null;
   assignee: string | null;
   created_at: string;
   completed_at: string | null;
+  parent_task_id: number | null;
   category: string | null;
+  assigned_staff_id: number | null;
+  deliverable_id: number | null;
 }
 
 // Phase colors for visualization
@@ -649,7 +641,7 @@ function ProjectRow({ project, onClick }: { project: Project; onClick: () => voi
   const currentPhase = getCurrentPhaseSummary(
     phases.map((p: { phase_name: string; status: string }) => ({
       phase_name: p.phase_name,
-      status: p.status,
+      status: p.status as "pending" | "in_progress" | "completed",
     }))
   );
 
@@ -717,7 +709,7 @@ function ProjectRow({ project, onClick }: { project: Project; onClick: () => voi
             <PhaseProgressCompact
               phases={phases.map((p: { phase_name: string; status: string }) => ({
                 phase_name: p.phase_name,
-                status: p.status,
+                status: p.status as "pending" | "in_progress" | "completed",
               }))}
             />
             <p className="text-xs text-teal-600 font-semibold text-center">
