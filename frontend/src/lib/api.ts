@@ -1,5 +1,6 @@
 import {
   AnalyticsDashboard,
+  AnalyticsTrends,
   ProposalsQueryParams,
   ProposalDetail,
   ProposalFollowUp,
@@ -321,6 +322,9 @@ export const api = {
 
   getDashboardAnalytics: () =>
     request<AnalyticsDashboard>("/api/analytics/dashboard"),
+
+  getAnalyticsTrends: (months?: number) =>
+    request<AnalyticsTrends>(`/api/analytics/trends${months ? `?months=${months}` : ""}`),
 
   getDashboardStats: (role?: string) =>
     request<DashboardStats>(`/api/dashboard/stats${role ? `?role=${role}` : ""}`),

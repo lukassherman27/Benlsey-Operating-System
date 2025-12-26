@@ -7,9 +7,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ExecutiveMetrics } from "@/components/overview/executive-metrics";
 import { ActionBoard } from "@/components/overview/action-board";
 import { WeeklySummary } from "@/components/overview/weekly-summary";
+import { AnalyticsCharts } from "@/components/overview/analytics-charts";
 import { cn } from "@/lib/utils";
 import { ds } from "@/lib/design-system";
-import { BarChart3, Kanban, Calendar } from "lucide-react";
+import { BarChart3, Kanban, Calendar, LineChart } from "lucide-react";
 
 export default function OverviewPage() {
   const [activeTab, setActiveTab] = useState("executive");
@@ -32,6 +33,12 @@ export default function OverviewPage() {
     queryFn: () => api.getProposalWeeklyChanges(),
   });
 
+  // Fetch analytics trends
+  const { data: trendsData, isLoading: trendsLoading } = useQuery({
+    queryKey: ["analyticsTrends"],
+    queryFn: () => api.getAnalyticsTrends(12),
+  });
+
   return (
     <div className={cn(ds.gap.loose, "space-y-6 w-full max-w-full")}>
       {/* Header */}
@@ -46,18 +53,22 @@ export default function OverviewPage() {
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full max-w-md grid-cols-3">
+        <TabsList className="grid w-full max-w-xl grid-cols-4">
           <TabsTrigger value="executive" className="flex items-center gap-2">
             <BarChart3 className="h-4 w-4" />
             Executive
           </TabsTrigger>
           <TabsTrigger value="actions" className="flex items-center gap-2">
             <Kanban className="h-4 w-4" />
-            Action Board
+            Actions
           </TabsTrigger>
           <TabsTrigger value="weekly" className="flex items-center gap-2">
             <Calendar className="h-4 w-4" />
             Weekly
+          </TabsTrigger>
+          <TabsTrigger value="analytics" className="flex items-center gap-2">
+            <LineChart className="h-4 w-4" />
+            Analytics
           </TabsTrigger>
         </TabsList>
 
@@ -80,6 +91,13 @@ export default function OverviewPage() {
           <WeeklySummary
             weeklyData={weeklyData}
             isLoading={weeklyLoading}
+          />
+        </TabsContent>
+
+        <TabsContent value="analytics" className="mt-6">
+          <AnalyticsCharts
+            data={trendsData}
+            isLoading={trendsLoading}
           />
         </TabsContent>
       </Tabs>
