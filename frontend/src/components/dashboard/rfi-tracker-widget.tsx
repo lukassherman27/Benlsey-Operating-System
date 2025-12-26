@@ -14,6 +14,7 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { AlertCircle, Clock, CheckCircle, AlertTriangle, User, FileText, Calendar, ChevronRight } from "lucide-react";
 import { differenceInDays, format } from "date-fns";
+import { api } from "@/lib/api";
 
 interface RFI {
   rfi_id: number;
@@ -37,8 +38,6 @@ interface RFIResponse {
   rfis: RFI[];
 }
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
-
 export function RFITrackerWidget() {
   const [selectedRFI, setSelectedRFI] = useState<RFI | null>(null);
   const [checklist, setChecklist] = useState({
@@ -49,11 +48,7 @@ export function RFITrackerWidget() {
 
   const { data, isLoading, error } = useQuery<RFIResponse>({
     queryKey: ["rfis-open"],
-    queryFn: async () => {
-      const res = await fetch(`${API_BASE_URL}/api/rfis`);
-      if (!res.ok) throw new Error("Failed to fetch RFIs");
-      return res.json();
-    },
+    queryFn: () => api.getRfis(),
     refetchInterval: 5 * 60 * 1000,
   });
 

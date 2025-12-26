@@ -7,6 +7,7 @@ import { Wallet, ChevronDown, ChevronRight } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { ds } from "@/lib/design-system";
+import { api } from "@/lib/api";
 
 interface FeeBreakdown {
   breakdown_id: string;
@@ -37,8 +38,6 @@ interface ProjectFeesCardProps {
   projectCode: string;
   contractValue?: number;
 }
-
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
 
 const formatCurrency = (value?: number | null) => {
   if (value == null) return "$0";
@@ -96,13 +95,7 @@ export function ProjectFeesCard({ projectCode, contractValue = 0 }: ProjectFeesC
 
   const { data, isLoading, error } = useQuery<FeeBreakdownResponse>({
     queryKey: ["fee-breakdown", projectCode],
-    queryFn: async () => {
-      const res = await fetch(
-        `${API_BASE_URL}/api/projects/${encodeURIComponent(projectCode)}/fee-breakdown`
-      );
-      if (!res.ok) throw new Error("Failed to fetch fee breakdown");
-      return res.json();
-    },
+    queryFn: () => api.getProjectFeeBreakdowns(projectCode),
   });
 
   if (isLoading) {

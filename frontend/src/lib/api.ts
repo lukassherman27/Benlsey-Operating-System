@@ -2360,7 +2360,11 @@ export const api = {
     }),
 
   // Unified Timeline API
-  getUnifiedTimeline: (projectCode: string) =>
+  getUnifiedTimeline: (projectCode: string, params?: {
+    limit?: number;
+    item_types?: string;
+    person?: string;
+  }) =>
     request<{
       success: boolean;
       project_code: string;
@@ -2371,7 +2375,7 @@ export const api = {
         description: string | null;
         data: Record<string, unknown>;
       }>;
-    }>(`/api/projects/${encodeURIComponent(projectCode)}/unified-timeline`),
+    }>(`/api/projects/${encodeURIComponent(projectCode)}/unified-timeline${buildQuery(params || {})}`),
 
   // Email Scheduling Extraction API
   extractSchedulingData: (emailId: number) =>

@@ -19,6 +19,7 @@ import {
 import { useState } from "react";
 import { format, parseISO, isValid } from "date-fns";
 import { cn } from "@/lib/utils";
+import { api } from "@/lib/api";
 
 interface TimelineEvent {
   type: "email" | "transcript" | "rfi" | "invoice" | "milestone" | "status_change" | "suggestion_approved" | "first_contact" | "proposal_sent";
@@ -145,8 +146,6 @@ const DIRECTION_STYLES: Record<string, { badge: string; icon: typeof Send; label
   },
 };
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
-
 // Helper to format date safely
 const formatDate = (dateStr: string, formatStr: string = "MMM d, yyyy h:mm a") => {
   try {
@@ -177,23 +176,11 @@ export function UnifiedTimeline({ projectCode, limit = 20, showStory = false }: 
 
   const { data, isLoading, error } = useQuery<TimelineResponse>({
     queryKey: ["unified-timeline", projectCode, typeFilter, personFilter, limit],
-    queryFn: async () => {
-      const params = new URLSearchParams({ limit: String(limit) });
-      if (typeFilter !== "all") params.set("item_types", typeFilter);
-      if (personFilter !== "all") params.set("person", personFilter);
-
-      const res = await fetch(
-        `${API_BASE_URL}/api/projects/${encodeURIComponent(projectCode)}/unified-timeline?${params}`
-      );
-      if (!res.ok) {
-        if (res.status === 404) {
-          // API not implemented yet - return empty
-          return { success: true, timeline: [], total: 0, project_code: projectCode, item_counts: { email: 0, transcript: 0, invoice: 0, rfi: 0 } };
-        }
-        throw new Error("Failed to fetch timeline");
-      }
-      return res.json();
-    },
+    queryFn: () => api.getUnifiedTimeline(projectCode, {
+      limit,
+      item_types: typeFilter !== "all" ? typeFilter : undefined,
+      person: personFilter !== "all" ? personFilter : undefined,
+    }),
     retry: 1,
   });
 
