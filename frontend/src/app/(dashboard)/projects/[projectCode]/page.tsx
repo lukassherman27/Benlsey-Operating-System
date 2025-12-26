@@ -24,7 +24,7 @@ import Link from "next/link";
 import { use } from "react";
 import { UnifiedTimeline } from "@/components/project/unified-timeline";
 import { ProjectFeesCard } from "@/components/project/project-fees-card";
-import { ProjectTasksCard } from "@/components/project/project-tasks-card";
+import { TaskMiniKanban } from "@/components/tasks/task-mini-kanban";
 import { BensleyTeamCard } from "@/components/project/bensley-team-card";
 import { ProjectContactsCard } from "@/components/project/project-contacts-card";
 import { ProjectMeetingsCard } from "@/components/project/project-meetings-card";
@@ -469,7 +469,7 @@ export default function ProjectDetailPage({
               />
 
               {/* Tasks Card */}
-              <ProjectTasksCard projectCode={projectCode} maxItems={20} />
+              <TaskMiniKanban projectCode={projectCode} />
             </TabsContent>
 
             {/* FINANCE TAB */}
@@ -539,7 +539,7 @@ export default function ProjectDetailPage({
                 </Card>
 
                 {/* Tasks Card for Finance Tab */}
-                <ProjectTasksCard projectCode={projectCode} maxItems={4} />
+                <TaskMiniKanban projectCode={projectCode} />
               </div>
 
               {/* Work vs Invoice Progress */}
