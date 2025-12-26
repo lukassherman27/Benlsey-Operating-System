@@ -48,6 +48,9 @@ interface Project {
   contract_value?: number;
   country?: string;
   current_phase?: string;
+  paid_to_date_usd?: number;
+  outstanding_usd?: number;
+  remaining_value?: number;
 }
 
 export default function ProjectsPage() {
@@ -72,7 +75,10 @@ export default function ProjectsPage() {
   // Calculate stats
   const stats = useMemo(() => {
     const totalValue = projects.reduce((sum, p) => sum + (p.total_fee_usd || p.contract_value || 0), 0);
-    return { totalProjects: projects.length, totalValue, pmCount: uniquePMs.length };
+    const totalPaid = projects.reduce((sum, p) => sum + (p.paid_to_date_usd || 0), 0);
+    const outstanding = projects.reduce((sum, p) => sum + (p.outstanding_usd || 0), 0);
+    const remaining = totalValue - totalPaid;
+    return { totalProjects: projects.length, totalValue, totalPaid, outstanding, remaining, pmCount: uniquePMs.length };
   }, [projects, uniquePMs]);
 
   // Filter projects
@@ -122,9 +128,10 @@ export default function ProjectsPage() {
         <Card className="border-teal-200 bg-teal-50/50">
           <CardContent className="pt-4">
             <p className="text-xs font-medium text-teal-600 uppercase tracking-wide flex items-center gap-1">
-              <TrendingUp className="h-3 w-3" /> Pipeline Value
+              <TrendingUp className="h-3 w-3" /> Remaining Value
             </p>
-            <p className="text-2xl font-bold text-teal-700 mt-1">{formatCurrency(stats.totalValue)}</p>
+            <p className="text-2xl font-bold text-teal-700 mt-1">{formatCurrency(stats.remaining)}</p>
+            <p className="text-xs text-teal-600 mt-0.5">of {formatCurrency(stats.totalValue)} total</p>
           </CardContent>
         </Card>
 
@@ -140,9 +147,10 @@ export default function ProjectsPage() {
         <Card className="border-emerald-200 bg-emerald-50/50">
           <CardContent className="pt-4">
             <p className="text-xs font-medium text-emerald-600 uppercase tracking-wide flex items-center gap-1">
-              <CheckCircle2 className="h-3 w-3" /> Filtered
+              <CheckCircle2 className="h-3 w-3" /> Collected
             </p>
-            <p className="text-2xl font-bold text-emerald-700 mt-1">{filteredProjects.length}</p>
+            <p className="text-2xl font-bold text-emerald-700 mt-1">{formatCurrency(stats.totalPaid)}</p>
+            <p className="text-xs text-emerald-600 mt-0.5">{Math.round((stats.totalPaid / stats.totalValue) * 100)}% of total</p>
           </CardContent>
         </Card>
       </div>
