@@ -85,11 +85,15 @@ async def get_transcripts(
         cursor.execute(f"SELECT COUNT(*) FROM meeting_transcripts WHERE {where_sql}", params)
         total = cursor.fetchone()[0]
 
-        # Get paginated results - join with emails to get final summary if available
+        # Get paginated results - join with emails and proposals to get names
         cursor.execute(f"""
-            SELECT mt.*, e.body_full as final_summary
+            SELECT mt.*,
+                   e.body_full as final_summary,
+                   p.project_name as proposal_name,
+                   p.client_company
             FROM meeting_transcripts mt
             LEFT JOIN emails e ON mt.final_summary_email_id = e.email_id
+            LEFT JOIN proposals p ON mt.detected_project_code = p.project_code
             WHERE {where_sql.replace('detected_project_code', 'mt.detected_project_code')}
             ORDER BY mt.created_at DESC
             LIMIT ? OFFSET ?
