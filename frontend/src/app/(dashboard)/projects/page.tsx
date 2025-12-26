@@ -579,9 +579,9 @@ function ProjectRow({
   const feeBreakdowns = feeBreakdownQuery.data?.breakdowns ?? [];
   const phases = phasesQuery.data?.phases ?? [];
   const currentPhase = getCurrentPhaseSummary(
-    phases.map((p: { phase_name: string; status: string; phase_fee_usd?: number | null; invoiced_amount_usd?: number | null; paid_amount_usd?: number | null }) => ({
+    phases.map((p) => ({
       phase_name: p.phase_name,
-      status: p.status,
+      status: p.status as "pending" | "in_progress" | "completed",
       phase_fee_usd: p.phase_fee_usd ?? undefined,
       invoiced_amount_usd: p.invoiced_amount_usd ?? undefined,
       paid_amount_usd: p.paid_amount_usd ?? undefined,
@@ -684,9 +684,9 @@ function ProjectRow({
           ) : phases.length > 0 ? (
             <div className="space-y-1">
               <PhaseProgressCompact
-                phases={phases.map((p: { phase_name: string; status: string; phase_fee_usd?: number | null; invoiced_amount_usd?: number | null; paid_amount_usd?: number | null }) => ({
+                phases={phases.map((p) => ({
                   phase_name: p.phase_name,
-                  status: p.status,
+                  status: p.status as "pending" | "in_progress" | "completed",
                   phase_fee_usd: p.phase_fee_usd ?? undefined,
                   invoiced_amount_usd: p.invoiced_amount_usd ?? undefined,
                   paid_amount_usd: p.paid_amount_usd ?? undefined,

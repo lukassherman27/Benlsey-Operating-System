@@ -28,6 +28,7 @@ import { ProjectHealthBanner, calculateProjectHealth } from "@/components/projec
 import { RFIDeliverablesPanel } from "@/components/project/rfi-deliverables-panel";
 import { WorkVsInvoiceWidget } from "@/components/project/work-vs-invoice-widget";
 import { ProjectInsights } from "@/components/project/project-insights";
+import { ProjectGantt } from "@/components/project/project-gantt";
 import { ds } from "@/lib/design-system";
 import { cn } from "@/lib/utils";
 
@@ -255,6 +256,43 @@ export default function ProjectDetailPage({
                 projectCode={projectCode}
                 projectDetail={projectDetail as Record<string, unknown>}
                 invoices={invoices}
+              />
+            </section>
+
+            {/* Project Timeline / Gantt Chart */}
+            <section className="mb-8">
+              <ProjectGantt
+                projectCode={projectCode}
+                projectName={(projectDetail?.project_name as string) || projectCode}
+                contractStartDate={projectDetail?.contract_signed_date as string | null}
+                targetCompletion={projectDetail?.target_completion as string | null}
+                phases={(projectDetail?.phases as Array<{
+                  phase_id: number;
+                  phase_name: string;
+                  status: string;
+                  discipline?: string;
+                  phase_fee_usd?: number | null;
+                  start_date?: string | null;
+                  expected_completion_date?: string | null;
+                  actual_completion_date?: string | null;
+                  phase_order?: number;
+                }>) || []}
+                deliverables={(projectDetail?.deliverables as Array<{
+                  deliverable_id: number;
+                  name: string;
+                  status: string;
+                  start_date?: string | null;
+                  due_date?: string | null;
+                  phase_id?: number | null;
+                }>) || []}
+                tasks={(projectDetail?.tasks as Array<{
+                  task_id: number;
+                  title: string;
+                  status: string;
+                  due_date?: string | null;
+                  created_at?: string;
+                }>) || []}
+                isLoading={isLoading}
               />
             </section>
 

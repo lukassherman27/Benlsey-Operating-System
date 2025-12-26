@@ -39,23 +39,11 @@ interface ImportSummaryWidgetProps {
   compact?: boolean;
 }
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
-
 export function ImportSummaryWidget({ compact = false }: ImportSummaryWidgetProps) {
   const { data, isLoading, error } = useQuery<ImportStats>({
     queryKey: ["import-stats"],
     queryFn: async () => {
-      // Try to fetch from API, fallback to computed values from existing endpoints
-      try {
-        const res = await fetch(`${API_BASE_URL}/api/emails/import-stats`);
-        if (res.ok) {
-          return res.json();
-        }
-      } catch {
-        // API not available, compute from existing data
-      }
-
-      // Fallback: compute from existing endpoints
+      // Compute stats from existing endpoints
       const [pendingRes, recentRes] = await Promise.all([
         api.getEmailsPendingApproval(100),
         api.getRecentEmails(100, 7),

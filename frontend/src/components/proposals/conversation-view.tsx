@@ -18,15 +18,15 @@ import {
 } from "lucide-react";
 
 interface ConversationEmail {
-  email_id: number;
+  email_id: string;
   date: string;
   subject: string;
   sender_email: string;
   sender_category: "bill" | "brian" | "lukas" | "mink" | "bensley_other" | "client";
-  body_preview?: string;
-  body_full?: string;
-  has_attachments?: boolean;
-  email_direction?: string;
+  body_preview: string;
+  body_full: string | null;
+  has_attachments: boolean;
+  email_direction: string | null;
 }
 
 interface ConversationViewProps {
@@ -287,7 +287,7 @@ function WaitingIndicator({
 }
 
 export function ConversationView({ projectCode }: ConversationViewProps) {
-  const [expandedEmails, setExpandedEmails] = useState<Set<number>>(new Set());
+  const [expandedEmails, setExpandedEmails] = useState<Set<string>>(new Set());
 
   const { data, isLoading, isError, error } = useQuery({
     queryKey: ["proposal-conversation", projectCode],
@@ -295,7 +295,7 @@ export function ConversationView({ projectCode }: ConversationViewProps) {
     enabled: !!projectCode,
   });
 
-  const toggleEmail = (emailId: number) => {
+  const toggleEmail = (emailId: string) => {
     setExpandedEmails(prev => {
       const next = new Set(prev);
       if (next.has(emailId)) {

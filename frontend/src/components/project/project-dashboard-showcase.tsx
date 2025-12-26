@@ -48,7 +48,7 @@ const SHOWCASE_DATA = {
     status: "Active",
     phase: "Design Development",
     health: 78,
-    healthStatus: "at_risk" as const,
+    healthStatus: "at_risk" as "healthy" | "at_risk" | "critical",
   },
 
   // Financial Summary

@@ -14,30 +14,31 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { AlertCircle, Clock, CheckCircle, AlertTriangle, User, FileText, Calendar, ChevronRight } from "lucide-react";
 import { differenceInDays, format } from "date-fns";
+import { api } from "@/lib/api";
 
+// Type that matches api.getRfis() return value
 interface RFI {
-  rfi_id: number;
-  project_code: string | null;
-  project_title: string | null;
-  rfi_number: string | null;
-  subject: string | null;
-  description?: string | null;
-  date_sent: string | null;
-  date_due: string | null;
+  id: number;
+  rfi_number?: string;
+  subject: string;
+  description?: string;
+  project_code?: string;
+  project_name?: string;
   status: string;
-  priority: string;
-  days_open: number | null;
-  days_overdue: number | null;
-  is_overdue: number;
-  assigned_pm?: string | null;
+  priority?: string;
+  requested_by?: string;
+  assigned_to?: string;
+  created_at: string;
+  due_date?: string;
+  responded_at?: string;
+  closed_at?: string;
+  response?: string;
+  is_overdue?: boolean;
 }
 
 interface RFIResponse {
-  total: number;
   rfis: RFI[];
 }
-
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
 
 export function RFITrackerWidget() {
   const [selectedRFI, setSelectedRFI] = useState<RFI | null>(null);
@@ -49,11 +50,7 @@ export function RFITrackerWidget() {
 
   const { data, isLoading, error } = useQuery<RFIResponse>({
     queryKey: ["rfis-open"],
-    queryFn: async () => {
-      const res = await fetch(`${API_BASE_URL}/api/rfis`);
-      if (!res.ok) throw new Error("Failed to fetch RFIs");
-      return res.json();
-    },
+    queryFn: () => api.getRfis(),
     refetchInterval: 5 * 60 * 1000,
   });
 
@@ -94,7 +91,7 @@ export function RFITrackerWidget() {
   }
 
   const rfis = data?.rfis || [];
-  const overdueCount = rfis.filter((rfi) => rfi.is_overdue === 1).length;
+  const overdueCount = rfis.filter((rfi) => rfi.is_overdue).length;
   const highPriorityCount = rfis.filter((rfi) => rfi.priority === "high").length;
 
   return (
@@ -125,13 +122,13 @@ export function RFITrackerWidget() {
           ) : (
             <div className="space-y-2">
               {rfis.slice(0, 8).map((rfi) => {
-                const dueDate = rfi.date_due ? new Date(rfi.date_due) : null;
-                const isOverdue = rfi.is_overdue === 1;
+                const dueDate = rfi.due_date ? new Date(rfi.due_date) : null;
+                const isOverdue = rfi.is_overdue === true;
                 const daysUntilDue = dueDate ? differenceInDays(dueDate, new Date()) : null;
 
                 return (
                   <div
-                    key={rfi.rfi_id}
+                    key={rfi.id}
                     onClick={() => openRFIDetail(rfi)}
                     className={`p-3 rounded-lg border cursor-pointer transition-all hover:shadow-md ${
                       isOverdue
@@ -152,7 +149,7 @@ export function RFITrackerWidget() {
                           )}
                         </div>
                         <p className="text-xs text-blue-600 font-medium mt-0.5">
-                          {rfi.project_title || rfi.project_code}
+                          {rfi.project_name || rfi.project_code}
                         </p>
                         <p className="text-xs text-muted-foreground">
                           {rfi.project_code}
@@ -168,7 +165,7 @@ export function RFITrackerWidget() {
                           >
                             <Clock className="h-3 w-3" />
                             {isOverdue
-                              ? `${rfi.days_overdue || Math.abs(daysUntilDue!)}d overdue`
+                              ? `${Math.abs(daysUntilDue!)}d overdue`
                               : daysUntilDue === 0
                               ? "Due today"
                               : daysUntilDue === 1
@@ -208,7 +205,7 @@ export function RFITrackerWidget() {
               <div className="bg-slate-50 rounded-lg p-4">
                 <p className="text-sm text-slate-500">Project</p>
                 <p className="font-semibold text-lg">
-                  {selectedRFI.project_title || "Unknown Project"}
+                  {selectedRFI.project_name || "Unknown Project"}
                 </p>
                 <p className="text-sm text-slate-600">{selectedRFI.project_code}</p>
               </div>
@@ -234,11 +231,11 @@ export function RFITrackerWidget() {
                 <div>
                   <p className="text-sm text-slate-500 mb-1 flex items-center gap-1">
                     <Calendar className="h-3.5 w-3.5" />
-                    Date Sent
+                    Created
                   </p>
                   <p className="text-sm font-medium">
-                    {selectedRFI.date_sent
-                      ? format(new Date(selectedRFI.date_sent), "MMM d, yyyy")
+                    {selectedRFI.created_at
+                      ? format(new Date(selectedRFI.created_at), "MMM d, yyyy")
                       : "—"}
                   </p>
                 </div>
@@ -248,36 +245,40 @@ export function RFITrackerWidget() {
                     Due Date
                   </p>
                   <p className={`text-sm font-medium ${selectedRFI.is_overdue ? "text-red-600" : ""}`}>
-                    {selectedRFI.date_due
-                      ? format(new Date(selectedRFI.date_due), "MMM d, yyyy")
+                    {selectedRFI.due_date
+                      ? format(new Date(selectedRFI.due_date), "MMM d, yyyy")
                       : "—"}
-                    {selectedRFI.is_overdue === 1 && " (Overdue)"}
+                    {selectedRFI.is_overdue && " (Overdue)"}
                   </p>
                 </div>
               </div>
 
-              {/* Assigned PM */}
-              {selectedRFI.assigned_pm && (
+              {/* Assigned To */}
+              {selectedRFI.assigned_to && (
                 <div>
                   <p className="text-sm text-slate-500 mb-1 flex items-center gap-1">
                     <User className="h-3.5 w-3.5" />
-                    Assigned Project Manager
+                    Assigned To
                   </p>
-                  <p className="text-sm font-medium">{selectedRFI.assigned_pm}</p>
+                  <p className="text-sm font-medium">{selectedRFI.assigned_to}</p>
                 </div>
               )}
 
               {/* Priority and Status Badges */}
               <div className="flex gap-2">
-                <Badge
-                  variant={selectedRFI.priority === "high" ? "default" : "outline"}
-                  className={selectedRFI.priority === "high" ? "bg-amber-500" : ""}
-                >
-                  {selectedRFI.priority} priority
-                </Badge>
+                {selectedRFI.priority && (
+                  <Badge
+                    variant={selectedRFI.priority === "high" ? "default" : "outline"}
+                    className={selectedRFI.priority === "high" ? "bg-amber-500" : ""}
+                  >
+                    {selectedRFI.priority} priority
+                  </Badge>
+                )}
                 <Badge variant="outline">{selectedRFI.status}</Badge>
-                {selectedRFI.days_open && (
-                  <Badge variant="secondary">Open {selectedRFI.days_open} days</Badge>
+                {selectedRFI.created_at && (
+                  <Badge variant="secondary">
+                    Open {differenceInDays(new Date(), new Date(selectedRFI.created_at))} days
+                  </Badge>
                 )}
               </div>
 

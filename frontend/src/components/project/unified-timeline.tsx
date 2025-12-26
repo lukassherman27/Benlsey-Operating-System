@@ -19,6 +19,7 @@ import {
 import { useState } from "react";
 import { format, parseISO, isValid } from "date-fns";
 import { cn } from "@/lib/utils";
+import { api } from "@/lib/api";
 
 interface TimelineEvent {
   type: "email" | "transcript" | "rfi" | "invoice" | "milestone" | "status_change" | "suggestion_approved" | "first_contact" | "proposal_sent";
@@ -50,25 +51,19 @@ interface TimelineEvent {
   changed_by?: string;
 }
 
+// Response type that matches api.getUnifiedTimeline()
+interface TimelineApiItem {
+  type: 'email' | 'transcript' | 'invoice' | 'rfi';
+  date: string;
+  title: string;
+  description: string | null;
+  data: Record<string, unknown>;
+}
+
 interface TimelineResponse {
   success: boolean;
   project_code: string;
-  timeline: TimelineEvent[];
-  total: number;
-  item_counts: {
-    email: number;
-    transcript: number;
-    invoice: number;
-    rfi: number;
-    status_change?: number;
-    suggestion_approved?: number;
-  };
-  email_category_counts?: {
-    internal: number;
-    client: number;
-    external: number;
-  };
-  unique_people?: string[];
+  items: TimelineApiItem[];
 }
 
 interface UnifiedTimelineProps {
@@ -145,8 +140,6 @@ const DIRECTION_STYLES: Record<string, { badge: string; icon: typeof Send; label
   },
 };
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
-
 // Helper to format date safely
 const formatDate = (dateStr: string, formatStr: string = "MMM d, yyyy h:mm a") => {
   try {
@@ -177,23 +170,11 @@ export function UnifiedTimeline({ projectCode, limit = 20, showStory = false }: 
 
   const { data, isLoading, error } = useQuery<TimelineResponse>({
     queryKey: ["unified-timeline", projectCode, typeFilter, personFilter, limit],
-    queryFn: async () => {
-      const params = new URLSearchParams({ limit: String(limit) });
-      if (typeFilter !== "all") params.set("item_types", typeFilter);
-      if (personFilter !== "all") params.set("person", personFilter);
-
-      const res = await fetch(
-        `${API_BASE_URL}/api/projects/${encodeURIComponent(projectCode)}/unified-timeline?${params}`
-      );
-      if (!res.ok) {
-        if (res.status === 404) {
-          // API not implemented yet - return empty
-          return { success: true, timeline: [], total: 0, project_code: projectCode, item_counts: { email: 0, transcript: 0, invoice: 0, rfi: 0 } };
-        }
-        throw new Error("Failed to fetch timeline");
-      }
-      return res.json();
-    },
+    queryFn: () => api.getUnifiedTimeline(projectCode, {
+      limit,
+      item_types: typeFilter !== "all" ? typeFilter : undefined,
+      person: personFilter !== "all" ? personFilter : undefined,
+    }),
     retry: 1,
   });
 
@@ -223,10 +204,34 @@ export function UnifiedTimeline({ projectCode, limit = 20, showStory = false }: 
     );
   }
 
-  const events: TimelineEvent[] = data?.timeline || [];
-  const itemCounts = data?.item_counts || { email: 0, transcript: 0, invoice: 0, rfi: 0 };
-  const emailCategoryCounts = data?.email_category_counts || { internal: 0, client: 0, external: 0 };
-  const uniquePeople = data?.unique_people || [];
+  // Convert API items to TimelineEvent format
+  const events: TimelineEvent[] = (data?.items || []).map((item) => ({
+    type: item.type as TimelineEvent["type"],
+    date: item.date,
+    title: item.title,
+    summary: item.description || "",
+    id: (item.data?.id as number) || 0,
+    // Extract additional fields from data
+    sender: item.data?.sender as string | undefined,
+    sender_name: item.data?.sender_name as string | undefined,
+    category: item.data?.category as string | undefined,
+    status: item.data?.status as string | undefined,
+    priority: item.data?.priority as string | undefined,
+    invoice_amount: item.data?.amount as number | undefined,
+  }));
+
+  // Compute item counts from the events
+  const itemCounts = events.reduce(
+    (acc, e) => {
+      acc[e.type as keyof typeof acc] = (acc[e.type as keyof typeof acc] || 0) + 1;
+      return acc;
+    },
+    { email: 0, transcript: 0, invoice: 0, rfi: 0 } as Record<string, number>
+  );
+
+  // Email category counts and unique people not available from this API
+  const emailCategoryCounts = { internal: 0, client: 0, external: 0 };
+  const uniquePeople: string[] = [];
 
   // Apply client-side email category filter
   const filteredEvents = events.filter((event) => {
