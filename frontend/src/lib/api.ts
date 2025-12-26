@@ -2054,16 +2054,24 @@ export const api = {
       offset: number;
       transcripts: Array<{
         id: number;
-        audio_filename: string;
-        audio_path: string;
-        transcript: string;
+        audio_filename: string | null;
+        audio_path: string | null;
+        transcript: string | null;
         created_at: string;
-        updated_at: string | null;
-        ai_summary: string | null;
+        summary: string | null;
+        polished_summary: string | null;
+        key_points: unknown[] | null;
+        action_items: unknown[] | null;
+        participants: unknown[] | null;
         project_id: number | null;
         proposal_id: number | null;
         meeting_title: string | null;
         meeting_date: string | null;
+        recorded_date: string | null;
+        detected_project_code: string | null;
+        duration_seconds: number | null;
+        proposal_name: string | null;
+        client_company: string | null;
       }>;
     }>(`/api/meeting-transcripts${buildQuery({
       project_id: params.project_id,
