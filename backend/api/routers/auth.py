@@ -9,13 +9,13 @@ Endpoints:
 
 from datetime import datetime
 from typing import Optional
+import sqlite3
 
 from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
 
 from api.dependencies import get_db, get_current_user, DB_PATH
 from api.security import verify_password, get_password_hash, create_access_token, Token
-import sqlite3
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 

@@ -1,3 +1,5 @@
+import { getSession } from "next-auth/react";
+
 import {
   AnalyticsDashboard,
   AnalyticsTrends,
@@ -66,12 +68,21 @@ async function request<T>(
   init?: RequestInit,
   signal?: AbortSignal
 ): Promise<T> {
+  // Get session to include auth token
+  const session = await getSession();
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    ...(init?.headers as Record<string, string> || {}),
+  };
+
+  // Add Authorization header if we have a token
+  if (session?.accessToken) {
+    headers["Authorization"] = `Bearer ${session.accessToken}`;
+  }
+
   const response = await fetch(`${API_BASE_URL}${path}`, {
     ...init,
-    headers: {
-      "Content-Type": "application/json",
-      ...(init?.headers || {}),
-    },
+    headers,
     signal,
   });
 

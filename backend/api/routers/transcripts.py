@@ -125,7 +125,7 @@ async def get_transcripts(
 
 @router.get("/meeting-transcripts/stats")
 async def get_transcript_stats():
-    """Get transcript statistics"""
+    """Get transcript statistics including orphan metrics"""
     try:
         conn = sqlite3.connect(DB_PATH)
         conn.row_factory = sqlite3.Row
@@ -134,9 +134,12 @@ async def get_transcript_stats():
         cursor.execute("""
             SELECT
                 COUNT(*) as total,
-                SUM(CASE WHEN detected_project_code IS NOT NULL THEN 1 ELSE 0 END) as linked,
+                SUM(CASE WHEN detected_project_code IS NOT NULL THEN 1 ELSE 0 END) as with_detected_code,
+                SUM(CASE WHEN project_id IS NOT NULL OR proposal_id IS NOT NULL THEN 1 ELSE 0 END) as linked,
+                SUM(CASE WHEN project_id IS NULL AND proposal_id IS NULL THEN 1 ELSE 0 END) as orphaned,
                 SUM(CASE WHEN summary IS NOT NULL THEN 1 ELSE 0 END) as with_summary,
                 AVG(duration_seconds) as avg_duration,
+                AVG(match_confidence) as avg_confidence,
                 COUNT(DISTINCT detected_project_code) as unique_projects
             FROM meeting_transcripts
         """)
@@ -144,9 +147,59 @@ async def get_transcript_stats():
         row = cursor.fetchone()
         stats = dict(row) if row else {}
 
+        # Calculate orphan percentage
+        if stats.get('total', 0) > 0:
+            stats['orphan_percentage'] = round(
+                (stats.get('orphaned', 0) / stats['total']) * 100, 1
+            )
+        else:
+            stats['orphan_percentage'] = 0
+
         conn.close()
 
         return item_response(stats)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/meeting-transcripts/orphaned")
+async def get_orphaned_transcripts():
+    """
+    Get transcripts that are not linked to any project or proposal.
+
+    Returns transcripts where both project_id and proposal_id are NULL.
+    These need manual review and linking.
+    """
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+
+        cursor.execute("""
+            SELECT
+                id,
+                meeting_title,
+                detected_project_code,
+                match_confidence,
+                recorded_date,
+                created_at,
+                SUBSTR(summary, 1, 200) as summary_preview
+            FROM meeting_transcripts
+            WHERE project_id IS NULL AND proposal_id IS NULL
+            ORDER BY created_at DESC
+        """)
+
+        rows = cursor.fetchall()
+        orphaned = [dict(row) for row in rows]
+
+        conn.close()
+
+        return {
+            "success": True,
+            "total": len(orphaned),
+            "orphaned_transcripts": orphaned,
+            "message": f"Found {len(orphaned)} orphaned transcripts needing review"
+        }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

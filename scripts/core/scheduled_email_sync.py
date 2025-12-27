@@ -75,6 +75,33 @@ DELAY_BETWEEN_EMAILS = 0.2  # 200ms delay
 FOLDERS_TO_SYNC = ['INBOX', 'Sent']
 
 
+def categorize_inbox(inbox_email: str) -> str:
+    """
+    Categorize an inbox email address into a routing category.
+
+    Categories:
+    - proposals: BD/proposals work (bd@, businessdevelopment@)
+    - projects: Project correspondence (projects@)
+    - invoices: Payment tracking (invoices@)
+    - internal: Internal comms (dailywork@, scheduling@)
+    - general: Personal inboxes (lukas@, bill@)
+    """
+    inbox_lower = inbox_email.lower()
+
+    if inbox_lower.startswith('projects@'):
+        return 'projects'
+    elif inbox_lower.startswith('invoices@'):
+        return 'invoices'
+    elif inbox_lower.startswith('dailywork@') or inbox_lower.startswith('scheduling@'):
+        return 'internal'
+    elif inbox_lower.startswith('bd@') or inbox_lower.startswith('businessdevelopment@'):
+        return 'proposals'
+    elif inbox_lower.startswith('lukas@') or inbox_lower.startswith('bill@'):
+        return 'general'
+    else:
+        return 'unknown'
+
+
 def get_email_accounts() -> List[Dict[str, str]]:
     """
     Get list of email accounts to sync.
@@ -279,15 +306,21 @@ def sync_folder(imap_conn, folder: str, db_cursor, db_conn, account_email: str =
                 # Build folder with account prefix for multi-account tracking
                 folder_with_account = f"{account_email}:{folder}" if account_email else folder
 
-                # Insert email
+                # Determine inbox source and category for routing
+                inbox_source = account_email if account_email else 'unknown'
+                inbox_category = categorize_inbox(inbox_source)
+
+                # Insert email with inbox routing info
                 db_cursor.execute("""
                     INSERT INTO emails
                     (message_id, sender_email, recipient_emails, subject, snippet, body_full,
-                     date, date_normalized, processed, folder, thread_id)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?)
+                     date, date_normalized, processed, folder, thread_id,
+                     inbox_source, inbox_category)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?)
                 """, (
                     message_id, sender, recipients, subject, snippet, body,
-                    email_date.isoformat(), email_date.isoformat(), folder_with_account, thread_id
+                    email_date.isoformat(), email_date.isoformat(), folder_with_account, thread_id,
+                    inbox_source, inbox_category
                 ))
 
                 stats['imported'] += 1
