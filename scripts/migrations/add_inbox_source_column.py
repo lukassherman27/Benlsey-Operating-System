@@ -137,11 +137,11 @@ def categorize_inbox(inbox_email: str) -> str:
     Categorize an inbox email address into a routing category.
 
     Categories:
-    - proposals: Bill's proposals work
-    - projects: Project correspondence
-    - invoices: Payment tracking
-    - internal: Internal comms (dailywork, scheduling)
-    - general: General inbox
+    - proposals: BD/proposals work (bd@, businessdevelopment@)
+    - projects: Project correspondence (projects@)
+    - invoices: Payment tracking (invoices@)
+    - internal: Internal comms (dailywork@, scheduling@)
+    - general: Personal inboxes (lukas@, bill@)
     """
     inbox_lower = inbox_email.lower()
 
@@ -151,9 +151,9 @@ def categorize_inbox(inbox_email: str) -> str:
         return 'invoices'
     elif inbox_lower.startswith('dailywork@') or inbox_lower.startswith('scheduling@'):
         return 'internal'
-    elif inbox_lower.startswith('bill@'):
-        return 'proposals'  # Bill primarily handles proposals
-    elif inbox_lower.startswith('lukas@'):
+    elif inbox_lower.startswith('bd@') or inbox_lower.startswith('businessdevelopment@'):
+        return 'proposals'
+    elif inbox_lower.startswith('lukas@') or inbox_lower.startswith('bill@'):
         return 'general'
     else:
         return 'unknown'
