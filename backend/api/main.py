@@ -63,6 +63,7 @@ from api.routers import (
     activities,
     story,
     weekly_report,
+    team,
 )
 
 # Initialize logger
@@ -206,6 +207,9 @@ app.include_router(story.router)
 # Weekly Report (Issue #142)
 app.include_router(weekly_report.router)
 
+# Team & PM Workload (Issue #192)
+app.include_router(team.router)
+
 # ============================================================================
 # GLOBAL EXCEPTION HANDLERS
 # ============================================================================
@@ -275,6 +279,7 @@ async def api_info():
             {"name": "training", "prefix": "/api", "description": "AI training data"},
             {"name": "admin", "prefix": "/api", "description": "Admin & validation"},
             {"name": "tasks", "prefix": "/api", "description": "Task management"},
+            {"name": "team", "prefix": "/api", "description": "Team & PM workload"},
         ]
     }
 

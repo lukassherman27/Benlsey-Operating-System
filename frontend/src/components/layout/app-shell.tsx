@@ -20,6 +20,7 @@ import {
   Mic,
   LayoutDashboard,
   FolderKanban,
+  Users,
   LogOut,
   User,
 } from "lucide-react";
@@ -58,6 +59,7 @@ const navItems: NavItem[] = [
     ]
   },
   { href: "/projects", label: "Projects", icon: FolderKanban },
+  { href: "/team", label: "PM Workload", icon: Users },
   { href: "/meetings", label: "Meetings", icon: Calendar },
   { href: "/finance", label: "Finance", icon: DollarSign },
   {

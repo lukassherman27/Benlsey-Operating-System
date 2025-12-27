@@ -49,7 +49,7 @@ def get_password_hash(password: str) -> str:
     ).decode('utf-8')
 
 
-def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> tuple:
+def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> tuple[str, datetime]:
     """
     Create a JWT access token.
 
