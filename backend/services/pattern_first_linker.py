@@ -500,16 +500,36 @@ class PatternFirstLinker(BaseService):
             "email_id": email_id,
         }
 
-    def apply_link(self, email_id: int, target_type: str, target_id: int,
-                   confidence: float, match_type: str, pattern_id: int = None) -> bool:
-        """Apply a link to the database, set category, and update pattern usage stats"""
+    def apply_link(
+        self,
+        email_id: int,
+        target_type: str,
+        target_id: int,
+        confidence: float,
+        match_type: str,
+        pattern_id: int = None,
+        target_code: str = None,
+        target_name: str = None,
+    ) -> bool:
+        """
+        Apply a link to the database, set category, and update pattern usage stats.
+
+        When a pattern is used (pattern_id provided) and confidence < 0.95,
+        creates a link_review suggestion so the link can be reviewed and
+        provide feedback for pattern learning.
+        """
+        import json
+
         try:
+            # Flag links for review if pattern confidence is below threshold
+            needs_review = 1 if pattern_id and confidence < 0.95 else 0
+
             if target_type == "proposal":
                 self.execute_update("""
                     INSERT OR IGNORE INTO email_proposal_links
-                    (email_id, proposal_id, confidence_score, match_method, created_at)
-                    VALUES (?, ?, ?, ?, datetime('now'))
-                """, (email_id, target_id, confidence, match_type))
+                    (email_id, proposal_id, confidence_score, match_method, created_at, needs_review)
+                    VALUES (?, ?, ?, ?, datetime('now'), ?)
+                """, (email_id, target_id, confidence, match_type, needs_review))
                 # Set category to PROPOSAL for linked emails
                 self.execute_update("""
                     UPDATE emails SET primary_category = 'PROPOSAL'
@@ -519,9 +539,9 @@ class PatternFirstLinker(BaseService):
                 # email_project_links uses different column names: confidence, link_method
                 self.execute_update("""
                     INSERT OR IGNORE INTO email_project_links
-                    (email_id, project_id, confidence, link_method, created_at)
-                    VALUES (?, ?, ?, ?, datetime('now'))
-                """, (email_id, target_id, confidence, match_type))
+                    (email_id, project_id, confidence, link_method, created_at, needs_review)
+                    VALUES (?, ?, ?, ?, datetime('now'), ?)
+                """, (email_id, target_id, confidence, match_type, needs_review))
                 # Set category to PROJECT for linked emails
                 self.execute_update("""
                     UPDATE emails SET primary_category = 'PROJECT'
@@ -544,6 +564,39 @@ class PatternFirstLinker(BaseService):
                     WHERE pattern_id = ?
                 """, (pattern_id,))
                 logger.debug(f"Incremented times_used for pattern {pattern_id}")
+
+                # Create link_review suggestion for pattern feedback loop
+                # This allows human review to update times_correct/times_rejected
+                if needs_review and target_type in ("proposal", "project"):
+                    suggested_data = {
+                        "email_id": email_id,
+                        "link_type": target_type,
+                        f"{target_type}_id": target_id,
+                        "project_code": target_code,
+                        "project_name": target_name,
+                        "pattern_matched": pattern_id,
+                        "match_type": match_type,
+                        "confidence": confidence,
+                    }
+                    self.execute_update("""
+                        INSERT INTO ai_suggestions
+                        (source_type, source_id, suggestion_type, title, description,
+                         suggested_data, confidence_score, project_code, proposal_id,
+                         status, created_at)
+                        VALUES ('email', ?, 'link_review', ?, ?,
+                                ?, ?, ?, ?, 'pending', datetime('now'))
+                    """, (
+                        email_id,
+                        f"Review: {target_code or target_type + ' #' + str(target_id)}",
+                        f"Pattern match ({match_type}) needs review",
+                        json.dumps(suggested_data),
+                        confidence,
+                        target_code,
+                        target_id if target_type == "proposal" else None,
+                    ))
+                    logger.debug(
+                        f"Created link_review for email {email_id}, pattern {pattern_id}"
+                    )
 
             return True
         except Exception as e:
@@ -648,13 +701,16 @@ class PatternFirstLinker(BaseService):
             if result.get("linked"):
                 results["auto_linked"] += 1
                 # Apply the link and track pattern usage
+                # Pass target_code and target_name for review suggestion context
                 if self.apply_link(
                     email["email_id"],
                     result["target_type"],
                     result["target_id"],
                     result["confidence"],
                     result["match_type"],
-                    pattern_id=result.get("pattern_id")  # Track which pattern was used
+                    pattern_id=result.get("pattern_id"),
+                    target_code=result.get("target_code"),
+                    target_name=result.get("target_name"),
                 ):
                     results["links_applied"] += 1
 
