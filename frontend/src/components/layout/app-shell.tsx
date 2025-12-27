@@ -20,7 +20,10 @@ import {
   Mic,
   LayoutDashboard,
   FolderKanban,
+  LogOut,
+  User,
 } from "lucide-react";
+import { useSession, signOut } from "next-auth/react";
 import { cn } from "@/lib/utils";
 import { ds } from "@/lib/design-system";
 import {
@@ -72,8 +75,13 @@ const navItems: NavItem[] = [
 
 export default function AppShell({ children }: PropsWithChildren) {
   const pathname = usePathname();
+  const { data: session } = useSession();
   const [expandedItems, setExpandedItems] = useState<string[]>([]);
   const [mobileOpen, setMobileOpen] = useState(false);
+
+  const handleLogout = () => {
+    signOut({ callbackUrl: "/login" });
+  };
 
   const toggleExpanded = (href: string) => {
     setExpandedItems((prev) =>
@@ -257,23 +265,46 @@ export default function AppShell({ children }: PropsWithChildren) {
             />
           </div>
           {renderNavContent()}
-          <div className={cn(
-            "mt-auto border border-dashed",
-            ds.borderRadius.card,
-            "border-slate-300 bg-slate-50/80",
-            ds.spacing.normal,
-            ds.shadows.sm
-          )}>
-            <p className={cn(ds.typography.label, ds.textColors.muted)}>
-              Phase 1 status
-            </p>
-            <p className={cn("mt-1", ds.typography.heading3, ds.textColors.primary)}>
-              Proposal Tracker live
-            </p>
-            <p className={cn(ds.typography.caption, ds.textColors.tertiary)}>
-              Financials, meetings, staff intelligence up next.
-            </p>
-          </div>
+          {/* User Info & Logout */}
+          {session?.user && (
+            <div className={cn(
+              "mt-auto border",
+              ds.borderRadius.card,
+              "border-slate-200 bg-slate-50/80",
+              ds.spacing.normal,
+              ds.shadows.sm
+            )}>
+              <div className="flex items-center gap-3">
+                <div className={cn(
+                  "flex h-9 w-9 items-center justify-center rounded-full",
+                  "bg-slate-200 text-slate-600"
+                )}>
+                  <User className="h-4 w-4" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className={cn(ds.typography.bodyBold, ds.textColors.primary, "truncate")}>
+                    {session.user.name}
+                  </p>
+                  <p className={cn(ds.typography.caption, ds.textColors.tertiary, "truncate")}>
+                    {session.user.role || session.user.email}
+                  </p>
+                </div>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleLogout}
+                className={cn(
+                  "mt-3 w-full justify-start",
+                  ds.textColors.muted,
+                  "hover:text-red-600 hover:bg-red-50"
+                )}
+              >
+                <LogOut className="mr-2 h-4 w-4" />
+                Sign out
+              </Button>
+            </div>
+          )}
         </aside>
         <main className={cn(
           "flex-1 min-w-0 overflow-x-hidden bg-white/70 p-4 sm:p-6 lg:p-10"

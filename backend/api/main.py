@@ -30,6 +30,7 @@ from api.dependencies import DB_PATH
 
 # Import all routers
 from api.routers import (
+    auth,
     health,
     proposals,
     projects,
@@ -139,6 +140,9 @@ async def log_requests(request: Request, call_next):
 # ============================================================================
 # INCLUDE ROUTERS
 # ============================================================================
+
+# Authentication
+app.include_router(auth.router)
 
 # Health & Status
 app.include_router(health.router)
