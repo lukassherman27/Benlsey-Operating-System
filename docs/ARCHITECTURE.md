@@ -1,6 +1,8 @@
 # Architecture
 
-**Updated:** 2025-12-11
+**Updated:** 2025-12-27
+
+> See [TECHNICAL-ARCHITECTURE.md](./TECHNICAL-ARCHITECTURE.md) for detailed technical design.
 
 ---
 
