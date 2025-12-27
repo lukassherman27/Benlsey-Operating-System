@@ -274,8 +274,8 @@ def check_orphaned_fk(root: Path) -> tuple[bool, str]:
         # Check project_contact_links -> projects
         cursor.execute("""
             SELECT COUNT(*) FROM project_contact_links pcl
-            WHERE pcl.project_id IS NOT NULL
-            AND NOT EXISTS (SELECT 1 FROM projects p WHERE p.project_id = pcl.project_id)
+            WHERE pcl.project_code IS NOT NULL
+            AND NOT EXISTS (SELECT 1 FROM projects p WHERE p.project_code = pcl.project_code)
         """)
         count = cursor.fetchone()[0]
         if count > 0:
