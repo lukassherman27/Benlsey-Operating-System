@@ -87,10 +87,11 @@ def run_migration():
             updated_count += 1
 
     # Handle legacy emails without account prefix
+    # Lukas handles BD/proposals, so set category to 'proposals'
     cursor.execute("""
         UPDATE emails
         SET inbox_source = 'lukas@bensley.com',
-            inbox_category = 'general'
+            inbox_category = 'proposals'
         WHERE inbox_source IS NULL
         AND folder IN ('INBOX', 'Sent')
     """)
@@ -137,11 +138,11 @@ def categorize_inbox(inbox_email: str) -> str:
     Categorize an inbox email address into a routing category.
 
     Categories:
-    - proposals: Bill's proposals work
+    - proposals: Lukas's BD/proposals work
     - projects: Project correspondence
     - invoices: Payment tracking
     - internal: Internal comms (dailywork, scheduling)
-    - general: General inbox
+    - general: Bill's inbox (handles everything)
     """
     inbox_lower = inbox_email.lower()
 
@@ -151,10 +152,10 @@ def categorize_inbox(inbox_email: str) -> str:
         return 'invoices'
     elif inbox_lower.startswith('dailywork@') or inbox_lower.startswith('scheduling@'):
         return 'internal'
-    elif inbox_lower.startswith('bill@'):
-        return 'proposals'  # Bill primarily handles proposals
     elif inbox_lower.startswith('lukas@'):
-        return 'general'
+        return 'proposals'  # Lukas handles BD/proposals
+    elif inbox_lower.startswith('bill@'):
+        return 'general'  # Bill handles everything
     else:
         return 'unknown'
 
