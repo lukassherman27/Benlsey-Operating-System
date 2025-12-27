@@ -422,6 +422,7 @@ def run_sync():
     # Connect to database
     try:
         db_conn = sqlite3.connect(DB_PATH)
+        db_conn.execute("PRAGMA foreign_keys = ON")  # Enable FK enforcement
         db_cursor = db_conn.cursor()
         log(f"Connected to database: {DB_PATH}")
     except Exception as e:
