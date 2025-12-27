@@ -32,7 +32,9 @@ async def get_emails(
     per_page: int = Query(50, ge=1, le=200),
     category: Optional[str] = None,
     project_code: Optional[str] = None,
-    search: Optional[str] = None
+    search: Optional[str] = None,
+    inbox_source: Optional[str] = Query(None, description="Filter by source inbox (e.g., projects@bensley.com)"),
+    inbox_category: Optional[str] = Query(None, description="Filter by inbox category (projects, invoices, internal, general)")
 ):
     """Get paginated list of emails with optional filtering"""
     try:
@@ -41,7 +43,9 @@ async def get_emails(
             per_page=per_page,
             category=category,
             project_code=project_code,
-            search=search
+            search=search,
+            inbox_source=inbox_source,
+            inbox_category=inbox_category
         )
         return list_response(
             result.get('emails', []),
@@ -59,6 +63,59 @@ async def get_email_stats():
     try:
         stats = email_service.get_email_stats()
         return item_response(stats)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/emails/inbox-stats")
+async def get_inbox_stats():
+    """
+    Get email counts grouped by inbox source and category.
+
+    Returns counts for:
+    - By inbox_source (projects@, invoices@, lukas@, etc.)
+    - By inbox_category (projects, invoices, internal, general)
+    """
+    try:
+        import sqlite3
+        from api.dependencies import DB_PATH
+
+        with sqlite3.connect(DB_PATH) as conn:
+            conn.row_factory = sqlite3.Row
+            cursor = conn.cursor()
+
+            # Get counts by inbox_source
+            cursor.execute("""
+                SELECT inbox_source, COUNT(*) as count
+                FROM emails
+                WHERE inbox_source IS NOT NULL
+                GROUP BY inbox_source
+                ORDER BY count DESC
+            """)
+            by_source = [dict(row) for row in cursor.fetchall()]
+
+            # Get counts by inbox_category
+            cursor.execute("""
+                SELECT inbox_category, COUNT(*) as count
+                FROM emails
+                WHERE inbox_category IS NOT NULL
+                GROUP BY inbox_category
+                ORDER BY count DESC
+            """)
+            by_category = [dict(row) for row in cursor.fetchall()]
+
+            # Get total
+            cursor.execute("SELECT COUNT(*) FROM emails")
+            total = cursor.fetchone()[0]
+
+        return {
+            "success": True,
+            "data": {
+                "total": total,
+                "by_source": by_source,
+                "by_category": by_category
+            }
+        }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

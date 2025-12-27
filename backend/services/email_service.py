@@ -21,14 +21,18 @@ class EmailService(BaseService):
         per_page: int = 50,
         category: Optional[str] = None,
         project_code: Optional[str] = None,
-        search: Optional[str] = None
+        search: Optional[str] = None,
+        inbox_source: Optional[str] = None,
+        inbox_category: Optional[str] = None
     ) -> Dict[str, Any]:
         """Wrapper for get_all_emails with router-compatible parameters"""
         result = self.get_all_emails(
             search_query=search,
             category=category,
             page=page,
-            per_page=per_page
+            per_page=per_page,
+            inbox_source=inbox_source,
+            inbox_category=inbox_category
         )
         return {
             'emails': result.get('items', []),
@@ -45,7 +49,9 @@ class EmailService(BaseService):
         page: int = 1,
         per_page: int = 20,
         sort_by: str = "date",
-        sort_order: str = "DESC"
+        sort_order: str = "DESC",
+        inbox_source: Optional[str] = None,
+        inbox_category: Optional[str] = None
     ) -> Dict[str, Any]:
         """
         Get all emails with search, filtering, pagination, and sorting
@@ -58,6 +64,8 @@ class EmailService(BaseService):
             per_page: Results per page
             sort_by: Column to sort by (date, sender_email, subject)
             sort_order: ASC or DESC
+            inbox_source: Filter by source inbox (e.g., projects@bensley.com)
+            inbox_category: Filter by inbox category (projects, invoices, internal, general)
 
         Returns:
             Paginated email results
@@ -69,6 +77,8 @@ class EmailService(BaseService):
                 e.sender_email,
                 e.date,
                 e.snippet,
+                e.inbox_source,
+                e.inbox_category,
                 ec.category,
                 ec.subcategory,
                 ec.importance_score,
@@ -109,6 +119,14 @@ class EmailService(BaseService):
                 SELECT email_id FROM email_proposal_links WHERE proposal_id = ?
             )"""
             params.append(proposal_id)
+
+        if inbox_source:
+            sql += " AND e.inbox_source = ?"
+            params.append(inbox_source)
+
+        if inbox_category:
+            sql += " AND e.inbox_category = ?"
+            params.append(inbox_category)
 
         # Validate sort parameters to prevent SQL injection
         allowed_columns = ['date', 'sender_email', 'subject', 'email_id']
