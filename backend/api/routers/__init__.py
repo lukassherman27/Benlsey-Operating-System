@@ -6,6 +6,7 @@ Import routers here to make them available via:
     from api.routers import proposals, projects, etc.
 """
 
+from api.routers import auth
 from api.routers import health
 from api.routers import proposals
 from api.routers import projects
@@ -33,6 +34,7 @@ from api.routers import learning
 from api.routers import agent
 
 __all__ = [
+    'auth',
     'health',
     'proposals',
     'projects',

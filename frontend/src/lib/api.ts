@@ -2666,6 +2666,117 @@ export const api = {
     }>(`/api/projects/${encodeURIComponent(projectCode)}/team`),
 
   // ==========================================================================
+  // TEAM & PM WORKLOAD API (Issue #192)
+  // ==========================================================================
+
+  getPMWorkload: () =>
+    request<{
+      success: boolean;
+      data: Array<{
+        pm_id: number;
+        pm_name: string;
+        pm_email: string | null;
+        office: string | null;
+        project_count: number;
+        open_task_count: number;
+        overdue_count: number;
+        health_status: 'on_track' | 'warning' | 'at_risk';
+        projects: Array<{
+          project_id: number;
+          project_code: string;
+          project_title: string | null;
+          status: string | null;
+          health_score: number | null;
+          client_name: string | null;
+        }>;
+      }>;
+      summary: {
+        total_pms: number;
+        total_projects_assigned: number;
+        total_open_tasks: number;
+        total_overdue: number;
+        unassigned_projects: number;
+      };
+    }>('/api/team/pm-workload'),
+
+  getProjectsByPM: (pmId: number) =>
+    request<{
+      success: boolean;
+      pm: {
+        staff_id: number;
+        first_name: string;
+        display_name: string;
+      };
+      data: Array<{
+        project_id: number;
+        project_code: string;
+        project_title: string | null;
+        status: string | null;
+        current_phase: string | null;
+        health_score: number | null;
+        contract_value: number | null;
+        contract_signed_date: string | null;
+        target_completion: string | null;
+        client_name: string | null;
+        total_tasks: number;
+        open_tasks: number;
+        overdue_tasks: number;
+        architect_count: number;
+        health_status: 'on_track' | 'warning' | 'at_risk';
+      }>;
+      count: number;
+      summary: {
+        total_projects: number;
+        active_projects: number;
+        total_open_tasks: number;
+        total_overdue: number;
+      };
+    }>(`/api/projects/by-pm/${pmId}`),
+
+  getUnassignedProjects: () =>
+    request<{
+      success: boolean;
+      data: Array<{
+        project_id: number;
+        project_code: string;
+        project_title: string | null;
+        status: string | null;
+        health_score: number | null;
+        client_name: string | null;
+        contract_signed_date: string | null;
+      }>;
+      count: number;
+    }>('/api/team/unassigned-projects'),
+
+  getPMs: () =>
+    request<{
+      success: boolean;
+      data: Array<{
+        staff_id: number;
+        first_name: string;
+        last_name: string | null;
+        nickname: string | null;
+        email: string | null;
+        office: string | null;
+        department: string | null;
+        role: string | null;
+        seniority: string | null;
+      }>;
+      count: number;
+    }>('/api/team/pms'),
+
+  assignPMToProject: (projectCode: string, pmStaffId: number) =>
+    request<{ success: boolean; message: string }>(`/api/projects/${encodeURIComponent(projectCode)}/assign-pm`, {
+      method: 'PUT',
+      body: JSON.stringify({ pm_staff_id: pmStaffId }),
+    }),
+
+  unassignPMFromProject: (projectCode: string) =>
+    request<{ success: boolean; message: string }>(`/api/projects/${encodeURIComponent(projectCode)}/assign-pm`, {
+      method: 'DELETE',
+    }),
+
+  // ==========================================================================
   // PREVIEW API - Lightweight entity previews for hover cards
   // ==========================================================================
 
