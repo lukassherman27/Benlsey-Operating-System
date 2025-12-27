@@ -2,15 +2,22 @@
 Link review handler for link_review suggestions.
 
 Reviews existing email links that were auto-created and flagged for review.
-Approve = mark link as reviewed (needs_review = 0)
-Reject = delete the link
+Approve = mark link as reviewed (needs_review = 0) + update pattern times_correct
+Reject = delete the link + update pattern times_rejected
+
+CRITICAL: This handler completes the pattern learning feedback loop.
+When a pattern-matched link is approved/rejected, we update the pattern's
+accuracy metrics so the system can learn over time.
 """
 
+import logging
 from datetime import datetime
 from typing import Any, Dict, List
 
 from .base import BaseSuggestionHandler, ChangePreview, SuggestionResult
 from .registry import register_handler
+
+logger = logging.getLogger(__name__)
 
 
 @register_handler
@@ -25,6 +32,7 @@ class LinkReviewHandler(BaseSuggestionHandler):
     - link_type: 'proposal' or 'project'
     - email_id: The email ID
     - proposal_id or project_id: The target ID
+    - pattern_matched (optional): ID of pattern used, enables learning feedback
 
     On approve: sets needs_review = 0, reviewed_at = now, reviewed_by = 'user'
     On reject: deletes the link from the table
@@ -33,6 +41,62 @@ class LinkReviewHandler(BaseSuggestionHandler):
     suggestion_type = "link_review"
     target_table = "email_proposal_links"  # May use email_project_links
     is_actionable = True
+
+    def _update_pattern_feedback(
+        self,
+        suggested_data: Dict[str, Any],
+        approved: bool,
+        suggestion_id: int = None
+    ) -> bool:
+        """
+        Update pattern accuracy metrics based on review outcome.
+
+        This is the CORE of the learning feedback loop:
+        - Approved: times_correct++, confidence += 0.02
+        - Rejected: times_rejected++, confidence -= 0.1
+
+        Args:
+            suggested_data: Contains 'pattern_matched' if a pattern was used
+            approved: True if approved, False if rejected
+            suggestion_id: For logging
+
+        Returns:
+            True if pattern was updated, False if no pattern to update
+        """
+        pattern_id = suggested_data.get("pattern_matched")
+        if not pattern_id:
+            return False
+
+        cursor = self.conn.cursor()
+
+        if approved:
+            cursor.execute("""
+                UPDATE email_learned_patterns
+                SET times_correct = times_correct + 1,
+                    confidence = MIN(confidence + 0.02, 0.99),
+                    last_used_at = datetime('now'),
+                    updated_at = datetime('now')
+                WHERE pattern_id = ?
+            """, (pattern_id,))
+            logger.info(
+                f"Pattern {pattern_id} approved: times_correct++ "
+                f"(suggestion {suggestion_id})"
+            )
+        else:
+            cursor.execute("""
+                UPDATE email_learned_patterns
+                SET times_rejected = times_rejected + 1,
+                    confidence = MAX(confidence - 0.1, 0.1),
+                    updated_at = datetime('now')
+                WHERE pattern_id = ?
+            """, (pattern_id,))
+            logger.info(
+                f"Pattern {pattern_id} rejected: times_rejected++, confidence-=0.1 "
+                f"(suggestion {suggestion_id})"
+            )
+
+        self.conn.commit()
+        return True
 
     def _get_link_info(self, suggested_data: Dict[str, Any]) -> tuple:
         """
@@ -134,7 +198,7 @@ class LinkReviewHandler(BaseSuggestionHandler):
         """
         Mark the link as reviewed (approved).
 
-        Sets needs_review = 0 and records review timestamp.
+        Sets needs_review = 0, records review timestamp, and updates pattern feedback.
         """
         cursor = self.conn.cursor()
 
@@ -166,12 +230,21 @@ class LinkReviewHandler(BaseSuggestionHandler):
         )
         self.conn.commit()
 
+        # LEARNING FEEDBACK: Update pattern accuracy if pattern was used
+        pattern_updated = self._update_pattern_feedback(
+            suggested_data, approved=True, suggestion_id=suggestion_id
+        )
+
         target_type = id_col.replace("_id", "")
         target_desc = project_code or f"{target_type} #{target_id}"
 
+        message = f"Approved link: email #{email_id} → {target_desc}"
+        if pattern_updated:
+            message += f" (pattern #{suggested_data.get('pattern_matched')} improved)"
+
         return SuggestionResult(
             success=True,
-            message=f"Approved link: email #{email_id} → {target_desc}",
+            message=message,
             changes_made=[{
                 "table": table,
                 "record_id": email_id,
@@ -190,7 +263,7 @@ class LinkReviewHandler(BaseSuggestionHandler):
         Delete the link (rejection).
 
         This is called when a link_review suggestion is rejected.
-        Unlike other handlers, rejection deletes the link from the database.
+        Deletes the link from the database and updates pattern feedback.
         """
         cursor = self.conn.cursor()
 
@@ -235,12 +308,21 @@ class LinkReviewHandler(BaseSuggestionHandler):
         )
         self.conn.commit()
 
+        # LEARNING FEEDBACK: Update pattern accuracy if pattern was used
+        pattern_updated = self._update_pattern_feedback(
+            suggested_data, approved=False, suggestion_id=suggestion_id
+        )
+
         target_type = id_col.replace("_id", "")
         target_desc = project_code or f"{target_type} #{target_id}"
 
+        message = f"Deleted link: email #{email_id} → {target_desc}"
+        if pattern_updated:
+            message += f" (pattern #{suggested_data.get('pattern_matched')} penalized)"
+
         return SuggestionResult(
             success=True,
-            message=f"Deleted link: email #{email_id} → {target_desc}",
+            message=message,
             changes_made=[{
                 "table": table,
                 "record_id": email_id,
