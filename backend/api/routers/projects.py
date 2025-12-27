@@ -1246,3 +1246,293 @@ async def get_project_schedule_team(project_code: str):
         return {"success": True, "project_code": project_code, "team": team, "count": len(team)}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to get schedule team: {str(e)}")
+
+
+# ============================================================================
+# TEAM ASSIGNMENT ENDPOINTS (Issue #190)
+# ============================================================================
+
+# Project roles for team assignments
+PROJECT_ROLES = [
+    "Project Lead",
+    "Project Manager",
+    "Designer",
+    "Draftsperson",
+    "Admin Support",
+]
+
+
+@router.get("/staff")
+async def get_staff_list():
+    """
+    Get list of active Bensley staff for team assignment dropdown.
+
+    Returns all active staff members sorted by name.
+    """
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+
+        cursor.execute("""
+            SELECT
+                staff_id,
+                first_name,
+                last_name,
+                nickname,
+                email,
+                role,
+                department,
+                office
+            FROM staff
+            WHERE is_active = 1
+            ORDER BY first_name, last_name
+        """)
+
+        staff = []
+        for row in cursor.fetchall():
+            s = dict(row)
+            # Create display name
+            name_parts = [s.get('first_name', '')]
+            if s.get('last_name'):
+                name_parts.append(s['last_name'])
+            s['display_name'] = ' '.join(name_parts)
+            if s.get('nickname'):
+                s['display_name'] += f" ({s['nickname']})"
+            staff.append(s)
+
+        conn.close()
+
+        return {
+            "success": True,
+            "staff": staff,
+            "count": len(staff),
+            "roles": PROJECT_ROLES
+        }
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to get staff list: {str(e)}")
+
+
+@router.get("/projects/{project_code}/assignments")
+async def get_project_assignments(project_code: str):
+    """
+    Get explicit team assignments for a project from project_team table.
+
+    Returns staff members assigned to this project with their roles.
+    """
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+
+        cursor.execute("""
+            SELECT
+                pt.id as assignment_id,
+                pt.staff_id,
+                s.first_name,
+                s.last_name,
+                s.nickname,
+                s.email,
+                s.department,
+                s.office,
+                pt.role_custom as role,
+                pt.is_active,
+                pt.start_date,
+                pt.notes,
+                pt.created_at
+            FROM project_team pt
+            JOIN staff s ON pt.staff_id = s.staff_id
+            WHERE pt.project_code = ?
+              AND pt.staff_id IS NOT NULL
+              AND pt.is_active = 1
+            ORDER BY
+                CASE pt.role_custom
+                    WHEN 'Project Lead' THEN 1
+                    WHEN 'Project Manager' THEN 2
+                    WHEN 'Designer' THEN 3
+                    WHEN 'Draftsperson' THEN 4
+                    ELSE 5
+                END,
+                s.first_name
+        """, (project_code,))
+
+        assignments = []
+        for row in cursor.fetchall():
+            a = dict(row)
+            # Create display name
+            name_parts = [a.get('first_name', '')]
+            if a.get('last_name'):
+                name_parts.append(a['last_name'])
+            a['display_name'] = ' '.join(name_parts)
+            assignments.append(a)
+
+        conn.close()
+
+        return {
+            "success": True,
+            "project_code": project_code,
+            "assignments": assignments,
+            "count": len(assignments),
+            "roles": PROJECT_ROLES
+        }
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to get project assignments: {str(e)}")
+
+
+class AddTeamMemberRequest(BaseModel):
+    """Request to add a team member to a project."""
+    staff_id: int
+    role: str
+    notes: Optional[str] = None
+
+
+@router.post("/projects/{project_code}/assignments")
+async def add_project_assignment(project_code: str, request: AddTeamMemberRequest):
+    """
+    Add a staff member to a project with a role.
+
+    Creates a new entry in project_team table.
+    """
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+
+        # Check if assignment already exists
+        cursor.execute("""
+            SELECT id FROM project_team
+            WHERE project_code = ? AND staff_id = ? AND is_active = 1
+        """, (project_code, request.staff_id))
+
+        if cursor.fetchone():
+            conn.close()
+            raise HTTPException(
+                status_code=400,
+                detail="Staff member is already assigned to this project"
+            )
+
+        # Verify staff exists
+        cursor.execute("SELECT staff_id FROM staff WHERE staff_id = ?", (request.staff_id,))
+        if not cursor.fetchone():
+            conn.close()
+            raise HTTPException(status_code=404, detail="Staff member not found")
+
+        # Create assignment
+        cursor.execute("""
+            INSERT INTO project_team (project_code, staff_id, role_custom, notes, is_active)
+            VALUES (?, ?, ?, ?, 1)
+        """, (project_code, request.staff_id, request.role, request.notes))
+
+        assignment_id = cursor.lastrowid
+        conn.commit()
+        conn.close()
+
+        return {
+            "success": True,
+            "message": "Team member added successfully",
+            "assignment_id": assignment_id
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to add team member: {str(e)}")
+
+
+class UpdateTeamMemberRequest(BaseModel):
+    """Request to update a team member's role."""
+    role: Optional[str] = None
+    notes: Optional[str] = None
+
+
+@router.put("/projects/{project_code}/assignments/{assignment_id}")
+async def update_project_assignment(
+    project_code: str,
+    assignment_id: int,
+    request: UpdateTeamMemberRequest
+):
+    """
+    Update a team member's role on a project.
+    """
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+
+        # Build update query dynamically
+        updates = []
+        values = []
+
+        if request.role is not None:
+            updates.append("role_custom = ?")
+            values.append(request.role)
+
+        if request.notes is not None:
+            updates.append("notes = ?")
+            values.append(request.notes)
+
+        if not updates:
+            conn.close()
+            raise HTTPException(status_code=400, detail="No fields to update")
+
+        updates.append("updated_at = datetime('now')")
+        values.extend([project_code, assignment_id])
+
+        cursor.execute(f"""
+            UPDATE project_team
+            SET {', '.join(updates)}
+            WHERE project_code = ? AND id = ?
+        """, values)
+
+        if cursor.rowcount == 0:
+            conn.close()
+            raise HTTPException(status_code=404, detail="Assignment not found")
+
+        conn.commit()
+        conn.close()
+
+        return {
+            "success": True,
+            "message": "Assignment updated successfully"
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to update assignment: {str(e)}")
+
+
+@router.delete("/projects/{project_code}/assignments/{assignment_id}")
+async def remove_project_assignment(project_code: str, assignment_id: int):
+    """
+    Remove a team member from a project.
+
+    Sets is_active = 0 (soft delete).
+    """
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+
+        cursor.execute("""
+            UPDATE project_team
+            SET is_active = 0, updated_at = datetime('now')
+            WHERE project_code = ? AND id = ?
+        """, (project_code, assignment_id))
+
+        if cursor.rowcount == 0:
+            conn.close()
+            raise HTTPException(status_code=404, detail="Assignment not found")
+
+        conn.commit()
+        conn.close()
+
+        return {
+            "success": True,
+            "message": "Team member removed from project"
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to remove assignment: {str(e)}")
