@@ -48,7 +48,8 @@ type NavItem = {
   subItems?: { href: string; label: string; icon: React.ElementType }[];
 };
 
-// Navigation structure - Dec 29, 2025: Added Tasks page
+// Navigation structure - Dec 29, 2025: Added Tasks page and hidden pages (deliverables, rfis, contacts, analytics, query)
+// Issue #232: Navigation incomplete - 4 pages hidden, duplicates exist
 const navItems: NavItem[] = [
   { href: "/my-day", label: "My Day", icon: Sun },
   { href: "/tasks", label: "Tasks", icon: CheckSquare },
