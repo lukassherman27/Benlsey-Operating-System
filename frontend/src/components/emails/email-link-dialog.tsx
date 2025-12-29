@@ -17,6 +17,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Search } from 'lucide-react'
+import { useCurrentUser } from "@/hooks/useCurrentUser"
 
 interface EmailLinkDialogProps {
   open: boolean
@@ -31,6 +32,7 @@ export function EmailLinkDialog({ open, onOpenChange, emailId, onSuccess }: Emai
   const [searchQuery, setSearchQuery] = useState('')
 
   const queryClient = useQueryClient()
+  const { email: currentUserEmail } = useCurrentUser()
 
   // Get all projects
   const { data: projectsData, isLoading: loadingProjects } = useQuery({
@@ -57,7 +59,7 @@ export function EmailLinkDialog({ open, onOpenChange, emailId, onSuccess }: Emai
       api.updateEmailLink(emailId, {
         project_code: projectCode,
         reason,
-        updated_by: 'bill'
+        updated_by: currentUserEmail || 'user'
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['email-validation-queue'] })

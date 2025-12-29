@@ -30,9 +30,7 @@ import { toast } from "sonner";
 import { Loader2, Edit, History, Mail } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ds } from "@/lib/design-system";
-
-// Configurable current user - will be replaced with auth system
-const CURRENT_USER = process.env.NEXT_PUBLIC_DEFAULT_USER || "bill@bensley.com";
+import { useCurrentUser } from "@/hooks/useCurrentUser";
 
 interface ProposalQuickEditDialogProps {
   proposal: ProposalTrackerItem | null;
@@ -46,6 +44,7 @@ export function ProposalQuickEditDialog({
   onOpenChange,
 }: ProposalQuickEditDialogProps) {
   const queryClient = useQueryClient();
+  const { email: currentUserEmail } = useCurrentUser();
   const [formData, setFormData] = useState({
     project_name: proposal?.project_name || "",
     country: proposal?.country || "",
@@ -164,7 +163,7 @@ export function ProposalQuickEditDialog({
     }
 
     // Add provenance tracking metadata
-    updates.updated_by = CURRENT_USER;
+    updates.updated_by = currentUserEmail || "user";
     updates.source_type = "manual";
     updates.change_reason = "Updated via dashboard";
 

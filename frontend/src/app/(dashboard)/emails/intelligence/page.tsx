@@ -17,6 +17,7 @@ import {
 import { Check, Edit, X, Link as LinkIcon, Mail, Paperclip, AlertCircle } from 'lucide-react'
 import { EmailLinkDialog } from '@/components/emails/email-link-dialog'
 import { EmailDetailsPanel } from '@/components/emails/email-details-panel'
+import { useCurrentUser } from '@/hooks/useCurrentUser'
 
 export default function EmailIntelligencePage() {
   const [statusFilter, setStatusFilter] = useState<'all' | 'unlinked' | 'low_confidence'>('all')
@@ -27,6 +28,7 @@ export default function EmailIntelligencePage() {
   const [emailToLink, setEmailToLink] = useState<number | null>(null)
 
   const queryClient = useQueryClient()
+  const { email: currentUserEmail } = useCurrentUser()
 
   // Fetch validation queue
   const { data, isLoading, error } = useQuery({
@@ -36,7 +38,7 @@ export default function EmailIntelligencePage() {
 
   // Confirm link mutation
   const confirmLink = useMutation({
-    mutationFn: (emailId: number) => api.confirmEmailLink(emailId, 'bill'),
+    mutationFn: (emailId: number) => api.confirmEmailLink(emailId, currentUserEmail || 'user'),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['email-validation-queue'] })
     }
@@ -45,7 +47,7 @@ export default function EmailIntelligencePage() {
   // Unlink mutation
   const unlinkEmail = useMutation({
     mutationFn: ({ emailId, reason }: { emailId: number; reason: string }) =>
-      api.unlinkEmailIntelligence(emailId, reason, 'bill'),
+      api.unlinkEmailIntelligence(emailId, reason, currentUserEmail || 'user'),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['email-validation-queue'] })
     }

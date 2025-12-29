@@ -35,15 +35,19 @@ import {
   MyDayProposal,
   MyDaySuggestion,
 } from '@/lib/types'
+import { useCurrentUser, getFirstName } from '@/hooks/useCurrentUser'
 
 export default function MyDayPage() {
   const queryClient = useQueryClient()
+  const { email, name } = useCurrentUser()
+  const firstName = getFirstName(name)
 
   // Fetch My Day data
   const { data, isLoading, error } = useQuery({
-    queryKey: ['my-day'],
-    queryFn: () => api.getMyDay('bill', 'Bill'),
+    queryKey: ['my-day', email],
+    queryFn: () => api.getMyDay(email || 'user', firstName),
     refetchInterval: 60000, // Refresh every minute
+    enabled: !!email, // Only fetch when user email is available
   })
 
   // Mark task complete mutation
