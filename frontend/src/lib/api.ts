@@ -2788,6 +2788,79 @@ export const api = {
     }),
 
   // ==========================================================================
+  // TEAM ASSIGNMENT API (Issue #190)
+  // ==========================================================================
+
+  getStaffList: () =>
+    request<{
+      success: boolean;
+      staff: Array<{
+        staff_id: number;
+        first_name: string;
+        last_name: string | null;
+        nickname: string | null;
+        email: string;
+        role: string | null;
+        department: string | null;
+        office: string | null;
+        display_name: string;
+      }>;
+      count: number;
+      roles: string[];
+    }>(`/api/staff`),
+
+  getProjectAssignments: (projectCode: string) =>
+    request<{
+      success: boolean;
+      project_code: string;
+      assignments: Array<{
+        assignment_id: number;
+        staff_id: number;
+        first_name: string;
+        last_name: string | null;
+        nickname: string | null;
+        email: string;
+        department: string | null;
+        office: string | null;
+        role: string | null;
+        display_name: string;
+      }>;
+      count: number;
+      roles: string[];
+    }>(`/api/projects/${encodeURIComponent(projectCode)}/assignments`),
+
+  addProjectAssignment: (projectCode: string, data: { staff_id: number; role: string; notes?: string }) =>
+    request<{
+      success: boolean;
+      message: string;
+      assignment_id: number;
+    }>(`/api/projects/${encodeURIComponent(projectCode)}/assignments`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+
+  updateProjectAssignment: (
+    projectCode: string,
+    assignmentId: number,
+    data: { role?: string; notes?: string }
+  ) =>
+    request<{
+      success: boolean;
+      message: string;
+    }>(`/api/projects/${encodeURIComponent(projectCode)}/assignments/${assignmentId}`, {
+      method: "PUT",
+      body: JSON.stringify(data),
+    }),
+
+  removeProjectAssignment: (projectCode: string, assignmentId: number) =>
+    request<{
+      success: boolean;
+      message: string;
+    }>(`/api/projects/${encodeURIComponent(projectCode)}/assignments/${assignmentId}`, {
+      method: "DELETE",
+    }),
+
+  // ==========================================================================
   // PREVIEW API - Lightweight entity previews for hover cards
   // ==========================================================================
 
