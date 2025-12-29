@@ -1,17 +1,19 @@
 """
 Projects Router - Project management endpoints
 
+RBAC:
+    - All endpoints require authentication
+    - PMs only see projects they are assigned to
+    - Financial data (contract values, invoices) hidden from PMs
+    - Executive/Finance can see all data
+
 Endpoints:
     GET /api/projects/active - List active projects
     GET /api/projects/{project_code} - Get project details
-    POST /api/projects - Create a project
-    PUT /api/projects/{project_code} - Update a project
-    GET /api/projects/{project_code}/financial-summary - Financial summary
-    GET /api/projects/{project_code}/contacts - Project contacts
     ... and more
 """
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from typing import Optional, List
 import sqlite3
 
@@ -20,7 +22,13 @@ from api.services import (
     financial_service,
     contract_service,
 )
-from api.dependencies import DB_PATH
+from api.dependencies import (
+    DB_PATH,
+    get_db,
+    get_current_user,
+    get_current_user_optional,
+    get_user_access_level,
+)
 from api.models import ProjectCreateRequest
 from api.helpers import list_response, item_response, action_response
 
@@ -28,18 +36,90 @@ router = APIRouter(prefix="/api", tags=["projects"])
 
 
 # ============================================================================
+# RBAC HELPERS
+# ============================================================================
+
+def get_pm_assigned_projects(staff_id: int, db: sqlite3.Connection) -> List[str]:
+    """Get list of project codes assigned to a PM."""
+    cursor = db.cursor()
+    cursor.execute("""
+        SELECT DISTINCT project_code
+        FROM project_team
+        WHERE staff_id = ? AND is_active = 1
+    """, (staff_id,))
+    return [row[0] for row in cursor.fetchall()]
+
+
+def filter_financial_data(data: dict, user: dict) -> dict:
+    """Remove financial fields from response for PM/staff users."""
+    access_level = get_user_access_level(user)
+
+    # Only PMs and staff have financial data hidden
+    if access_level not in ("pm", "staff"):
+        return data
+
+    # Fields to hide
+    financial_fields = [
+        "contract_value", "contract_value_usd", "total_fee_usd",
+        "total_invoiced", "total_paid", "paid_to_date_usd",
+        "outstanding", "outstanding_usd", "remaining_value",
+        "remaining_to_invoice", "invoice_amount", "payment_amount",
+        "total_contract_value", "percent_invoiced", "percent_paid",
+        "percentage_invoiced"
+    ]
+
+    filtered = dict(data)
+    for field in financial_fields:
+        if field in filtered:
+            filtered[field] = None
+    return filtered
+
+
+def can_access_project(user: dict, project_code: str, db: sqlite3.Connection) -> bool:
+    """Check if user can access a specific project."""
+    access_level = get_user_access_level(user)
+
+    # Executive, admin, finance can see all
+    if access_level in ("executive", "admin", "finance"):
+        return True
+
+    # PMs can only see assigned projects
+    if access_level == "pm":
+        staff_id = user.get("staff_id")
+        assigned = get_pm_assigned_projects(staff_id, db)
+        return project_code in assigned
+
+    # Staff have no project access by default
+    return False
+
+
+# ============================================================================
 # PROJECT LIST ENDPOINTS
 # ============================================================================
 
 @router.get("/projects/active")
-async def get_active_projects():
-    """Get all active projects (where first payment received) with invoice data"""
-    try:
-        conn = sqlite3.connect(DB_PATH)
-        conn.row_factory = sqlite3.Row
-        cursor = conn.cursor()
+async def get_active_projects(
+    user: dict = Depends(get_current_user),
+    db: sqlite3.Connection = Depends(get_db)
+):
+    """
+    Get all active projects with invoice data.
 
-        cursor.execute("""
+    RBAC:
+    - Executive/Finance: See all projects with full financial data
+    - PM: See only assigned projects, financial data hidden
+    - Staff: No access
+    """
+    try:
+        access_level = get_user_access_level(user)
+        cursor = db.cursor()
+
+        # Staff have no project access
+        if access_level == "staff":
+            return list_response([], 0)
+
+        # Build base query
+        base_query = """
             SELECT
                 p.project_code,
                 p.project_title,
@@ -61,11 +141,28 @@ async def get_active_projects():
             LEFT JOIN proposals pr ON p.project_code = pr.project_code
             LEFT JOIN clients c ON p.client_id = c.client_id
             LEFT JOIN invoices i ON p.project_id = i.project_id
-            WHERE p.is_active_project = 1 OR p.status IN ('active', 'active_project', 'Active')
+            WHERE (p.is_active_project = 1 OR p.status IN ('active', 'active_project', 'Active'))
+        """
+
+        params = []
+
+        # PM filtering - only see assigned projects
+        if access_level == "pm":
+            staff_id = user.get("staff_id")
+            assigned = get_pm_assigned_projects(staff_id, db)
+            if not assigned:
+                return list_response([], 0)
+            placeholders = ",".join("?" * len(assigned))
+            base_query += f" AND p.project_code IN ({placeholders})"
+            params = assigned
+
+        base_query += """
             GROUP BY p.project_id, p.project_code, p.project_title, pr.client_company, c.company_name,
                      p.total_fee_usd, p.status, p.current_phase, p.contract_signed_date
             ORDER BY p.project_code DESC
-        """)
+        """
+
+        cursor.execute(base_query, params)
 
         projects = []
         for row in cursor.fetchall():
@@ -83,9 +180,9 @@ async def get_active_projects():
             else:
                 project['payment_status'] = 'pending'
 
+            # Filter financial data for PM/staff
+            project = filter_financial_data(project, user)
             projects.append(project)
-
-        conn.close()
 
         response = list_response(projects, len(projects))
         response["count"] = len(projects)  # Backward compat

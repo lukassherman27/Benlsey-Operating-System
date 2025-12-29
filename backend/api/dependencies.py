@@ -161,3 +161,108 @@ async def get_current_user_optional(
         return await get_current_user(credentials, db)
     except HTTPException:
         return None
+
+
+# ============================================================================
+# ROLE-BASED ACCESS CONTROL (RBAC)
+# ============================================================================
+
+RBAC_ROLES = {
+    "executive": "Full access to all data and features",
+    "finance": "Access to financial data and read-only projects",
+    "pm": "Access to assigned projects only, no financial data",
+    "admin": "Full access including admin functions",
+    "staff": "Limited access - design team members",
+}
+
+
+def get_user_access_level(user: dict) -> str:
+    """
+    Compute the RBAC access level from staff attributes.
+
+    Mapping:
+    - executive: Leadership + (Owner or Principal seniority)
+    - admin: Leadership + Director, or Operations role
+    - finance: Finance department
+    - pm: is_pm flag = 1
+    - staff: Everyone else (designers)
+    """
+    department = user.get("department", "")
+    seniority = user.get("seniority", "")
+    is_pm = user.get("is_pm", 0)
+
+    if department == "Leadership" and seniority in ("Owner", "Principal"):
+        return "executive"
+    if department == "Leadership" and seniority == "Director":
+        return "admin"
+    if department in ("Operations", "Admin"):
+        return "admin"
+    if department == "Finance":
+        return "finance"
+    if is_pm == 1:
+        return "pm"
+    return "staff"
+
+
+def get_user_roles(user: dict) -> set:
+    """Get all applicable roles for a user."""
+    roles = {"staff"}
+    department = user.get("department", "")
+    seniority = user.get("seniority", "")
+    is_pm = user.get("is_pm", 0)
+
+    if department == "Leadership" and seniority in ("Owner", "Principal"):
+        roles.update({"executive", "admin", "finance", "pm"})
+        return roles
+
+    if department in ("Leadership", "Operations", "Admin") and seniority == "Director":
+        roles.update({"admin", "finance", "pm"})
+
+    if department in ("Operations", "Admin"):
+        roles.add("admin")
+    if department == "Finance":
+        roles.add("finance")
+    if is_pm == 1:
+        roles.add("pm")
+
+    return roles
+
+
+def require_role(*allowed_roles: str):
+    """
+    Dependency factory to require specific roles for endpoint access.
+
+    Usage:
+        @router.get("/finance/data")
+        async def finance_data(user = Depends(require_role("executive", "finance"))):
+            return {"data": "sensitive"}
+    """
+    async def role_checker(user: dict = Depends(get_current_user)) -> dict:
+        user_roles = get_user_roles(user)
+        if not user_roles.intersection(set(allowed_roles)):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Access denied. Required role: {' or '.join(allowed_roles)}"
+            )
+        user["_access_level"] = get_user_access_level(user)
+        user["_roles"] = user_roles
+        return user
+    return role_checker
+
+
+async def require_admin(user: dict = Depends(get_current_user)) -> dict:
+    """Require admin role for endpoint access."""
+    checker = require_role("admin", "executive")
+    return await checker(user)
+
+
+async def require_finance(user: dict = Depends(get_current_user)) -> dict:
+    """Require finance role for endpoint access."""
+    checker = require_role("finance", "executive")
+    return await checker(user)
+
+
+async def require_executive(user: dict = Depends(get_current_user)) -> dict:
+    """Require executive role for endpoint access."""
+    checker = require_role("executive")
+    return await checker(user)

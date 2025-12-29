@@ -1,45 +1,34 @@
 """
 Admin Router - System administration and data validation endpoints
 
+RBAC: All endpoints require 'admin' or 'executive' role.
+
 Endpoints:
     GET /api/admin/system-health - System health metrics
     GET /api/admin/system-stats - Comprehensive system stats
     GET /api/admin/validation/suggestions - Data validation suggestions
-    GET /api/admin/validation/suggestions/{id} - Single suggestion detail
-    POST /api/admin/validation/suggestions/{id}/approve - Approve suggestion
-    POST /api/admin/validation/suggestions/{id}/deny - Deny suggestion
-    GET /api/admin/email-links - Email link management
-    POST /api/admin/email-links - Create manual link
-    PATCH /api/admin/email-links/{id} - Update email link
-    DELETE /api/admin/email-links/{id} - Remove email link
-    GET /api/manual-overrides - List manual overrides
-    POST /api/manual-overrides - Create manual override
-    PATCH /api/manual-overrides/{id} - Update override
-    POST /api/manual-overrides/{id}/apply - Apply override
-    POST /api/admin/run-pipeline - Run full email processing pipeline
-    POST /api/admin/batch-process-emails - Process emails with context-aware AI
-    GET /api/admin/batch-process-status - Get processing status and stats
-    POST /api/admin/process-email/{email_id} - Process single email
-    POST /api/admin/process-unlinked-emails - Process emails without links
-    POST /api/admin/process-transcript/{transcript_id} - Process single transcript
-    POST /api/admin/process-unlinked-transcripts - Process all unlinked transcripts
-    POST /api/admin/consolidate-transcripts - Consolidate chunked transcripts
-    GET /api/admin/analyze-transcripts - Analyze transcript chunk patterns
-    POST /api/admin/generate-transcript-title/{id} - Generate smart title
+    ... (many more)
 """
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from typing import Optional, List
 from pydantic import BaseModel, Field
 from datetime import datetime
 import sqlite3
 import os
 
-from api.dependencies import DB_PATH
+from api.dependencies import DB_PATH, require_role
 from api.services import proposal_service, admin_service, override_service
 from api.helpers import list_response, item_response, action_response
 
-router = APIRouter(prefix="/api", tags=["admin"])
+# RBAC: All admin endpoints require admin or executive role
+admin_access = require_role("admin", "executive")
+
+router = APIRouter(
+    prefix="/api",
+    tags=["admin"],
+    dependencies=[Depends(admin_access)]
+)
 
 
 # ============================================================================

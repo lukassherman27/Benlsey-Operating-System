@@ -2,12 +2,14 @@
 
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useSession } from "next-auth/react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { CalendarWidget } from "@/components/dashboard/calendar-widget";
 import { cn } from "@/lib/utils";
 import { ds } from "@/lib/design-system";
+import { useRBAC } from "@/hooks/useRBAC";
 import {
   Clock,
   RefreshCw,
@@ -32,6 +34,11 @@ const formatCurrency = (value: number) => {
 
 export default function DashboardPage() {
   const [lastUpdated] = useState(new Date());
+  const { data: session } = useSession();
+  const { canViewFinancials, isPM, userRole } = useRBAC();
+
+  // Get user's first name for greeting
+  const userName = session?.user?.name?.split(" ")[0] || "there";
 
   // Fetch proposals that need attention
   const proposalsQuery = useQuery({
@@ -164,7 +171,7 @@ export default function DashboardPage() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className={cn(ds.typography.heading1, ds.textColors.primary)}>
-            Good {new Date().getHours() < 12 ? 'Morning' : new Date().getHours() < 18 ? 'Afternoon' : 'Evening'}, Bill
+            Good {new Date().getHours() < 12 ? 'Morning' : new Date().getHours() < 18 ? 'Afternoon' : 'Evening'}, {userName}
           </h1>
           <p className={cn(ds.typography.body, ds.textColors.secondary, "mt-1")}>
             {format(new Date(), "EEEE, MMMM d, yyyy")}
@@ -184,21 +191,24 @@ export default function DashboardPage() {
       </div>
 
       {/* Key Numbers - Compact Strip */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Card className="bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2 text-blue-600 text-sm font-medium">
-              <TrendingUp className="h-4 w-4" />
-              Pipeline
-            </div>
-            <p className="text-2xl font-bold text-blue-900 mt-1">
-              {formatCurrency(proposals?.totalValue || 0)}
-            </p>
-            <p className="text-xs text-blue-600 mt-0.5">
-              {proposals?.active?.length || 0} active proposals
-            </p>
-          </CardContent>
-        </Card>
+      <div className={cn("grid gap-4", canViewFinancials ? "grid-cols-2 md:grid-cols-4" : "grid-cols-2")}>
+        {/* Pipeline Value - Only visible to Finance/Executive */}
+        {canViewFinancials && (
+          <Card className="bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-2 text-blue-600 text-sm font-medium">
+                <TrendingUp className="h-4 w-4" />
+                Pipeline
+              </div>
+              <p className="text-2xl font-bold text-blue-900 mt-1">
+                {formatCurrency(proposals?.totalValue || 0)}
+              </p>
+              <p className="text-xs text-blue-600 mt-0.5">
+                {proposals?.active?.length || 0} active proposals
+              </p>
+            </CardContent>
+          </Card>
+        )}
 
         <Card className="bg-gradient-to-br from-amber-50 to-amber-100 border-amber-200">
           <CardContent className="p-4">
@@ -215,34 +225,37 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
 
-        <Card className={cn(
-          "bg-gradient-to-br border",
-          (invoices?.totalOverdue || 0) > 0
-            ? "from-red-50 to-red-100 border-red-200"
-            : "from-emerald-50 to-emerald-100 border-emerald-200"
-        )}>
-          <CardContent className="p-4">
-            <div className={cn(
-              "flex items-center gap-2 text-sm font-medium",
-              (invoices?.totalOverdue || 0) > 0 ? "text-red-600" : "text-emerald-600"
-            )}>
-              <DollarSign className="h-4 w-4" />
-              Overdue
-            </div>
-            <p className={cn(
-              "text-2xl font-bold mt-1",
-              (invoices?.totalOverdue || 0) > 0 ? "text-red-900" : "text-emerald-900"
-            )}>
-              {formatCurrency(invoices?.totalOverdue || 0)}
-            </p>
-            <p className={cn(
-              "text-xs mt-0.5",
-              (invoices?.totalOverdue || 0) > 0 ? "text-red-600" : "text-emerald-600"
-            )}>
-              {invoices?.invoiceCount || 0} invoices past due
-            </p>
-          </CardContent>
-        </Card>
+        {/* Overdue Invoices - Only visible to Finance/Executive */}
+        {canViewFinancials && (
+          <Card className={cn(
+            "bg-gradient-to-br border",
+            (invoices?.totalOverdue || 0) > 0
+              ? "from-red-50 to-red-100 border-red-200"
+              : "from-emerald-50 to-emerald-100 border-emerald-200"
+          )}>
+            <CardContent className="p-4">
+              <div className={cn(
+                "flex items-center gap-2 text-sm font-medium",
+                (invoices?.totalOverdue || 0) > 0 ? "text-red-600" : "text-emerald-600"
+              )}>
+                <DollarSign className="h-4 w-4" />
+                Overdue
+              </div>
+              <p className={cn(
+                "text-2xl font-bold mt-1",
+                (invoices?.totalOverdue || 0) > 0 ? "text-red-900" : "text-emerald-900"
+              )}>
+                {formatCurrency(invoices?.totalOverdue || 0)}
+              </p>
+              <p className={cn(
+                "text-xs mt-0.5",
+                (invoices?.totalOverdue || 0) > 0 ? "text-red-600" : "text-emerald-600"
+              )}>
+                {invoices?.invoiceCount || 0} invoices past due
+              </p>
+            </CardContent>
+          </Card>
+        )}
 
         <Card className="bg-gradient-to-br from-slate-50 to-slate-100 border-slate-200">
           <CardContent className="p-4">

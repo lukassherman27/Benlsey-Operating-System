@@ -1,6 +1,8 @@
 """
 Finance Router - Financial dashboard and metrics endpoints
 
+RBAC: All endpoints require 'executive' or 'finance' role.
+
 Endpoints:
     GET /api/finance/dashboard-metrics - Dashboard financial metrics
     GET /api/finance/recent-payments - Recent payments
@@ -10,13 +12,20 @@ Endpoints:
     GET /api/finance/projects-by-remaining - Projects by remaining value
 """
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 import sqlite3
 
-from api.dependencies import DB_PATH
+from api.dependencies import DB_PATH, require_role
 from api.helpers import item_response, list_response
 
-router = APIRouter(prefix="/api", tags=["finance"])
+# RBAC: All finance endpoints require executive or finance role
+finance_access = require_role("executive", "finance")
+
+router = APIRouter(
+    prefix="/api",
+    tags=["finance"],
+    dependencies=[Depends(finance_access)]
+)
 
 
 @router.get("/finance/dashboard-metrics")
