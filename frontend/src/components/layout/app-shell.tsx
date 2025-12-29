@@ -17,12 +17,16 @@ import {
   Sun,
   Brain,
   Mail,
-  Mic,
   LayoutDashboard,
   FolderKanban,
   Users,
   LogOut,
   User,
+  Package,
+  HelpCircle,
+  BarChart3,
+  MessageSquareText,
+  CheckSquare,
 } from "lucide-react";
 import { useSession, signOut } from "next-auth/react";
 import { cn } from "@/lib/utils";
@@ -44,11 +48,11 @@ type NavItem = {
   subItems?: { href: string; label: string; icon: React.ElementType }[];
 };
 
-// Simplified navigation - context lives in proposal/project detail pages
-// Dec 26, 2025: Merged Transcripts into Meetings page (unified view)
+// Navigation structure - Dec 29, 2025: Added Tasks page
 const navItems: NavItem[] = [
   { href: "/my-day", label: "My Day", icon: Sun },
-  { href: "/", label: "Overview", icon: Home },
+  { href: "/tasks", label: "Tasks", icon: CheckSquare },
+  { href: "/", label: "Dashboard", icon: Home },
   {
     href: "/tracker",
     label: "Proposals",
@@ -58,10 +62,28 @@ const navItems: NavItem[] = [
       { href: "/overview", label: "Dashboard", icon: LayoutDashboard },
     ]
   },
-  { href: "/projects", label: "Projects", icon: FolderKanban },
-  { href: "/team", label: "PM Workload", icon: Users },
+  {
+    href: "/projects",
+    label: "Projects",
+    icon: FolderKanban,
+    subItems: [
+      { href: "/projects", label: "All Projects", icon: FolderKanban },
+      { href: "/deliverables", label: "Deliverables", icon: Package },
+      { href: "/rfis", label: "RFIs", icon: HelpCircle },
+    ]
+  },
+  {
+    href: "/team",
+    label: "Team",
+    icon: Users,
+    subItems: [
+      { href: "/team", label: "PM Workload", icon: Users },
+      { href: "/contacts", label: "Contacts", icon: Users },
+    ]
+  },
   { href: "/meetings", label: "Meetings", icon: Calendar },
   { href: "/finance", label: "Finance", icon: DollarSign },
+  { href: "/analytics", label: "Analytics", icon: BarChart3 },
   {
     href: "/admin",
     label: "Admin",
@@ -70,6 +92,7 @@ const navItems: NavItem[] = [
       { href: "/emails/review", label: "Email Review", icon: Mail },
       { href: "/admin/suggestions", label: "AI Review", icon: Sparkles },
       { href: "/admin/patterns", label: "Patterns", icon: Brain },
+      { href: "/query", label: "Query AI", icon: MessageSquareText },
       { href: "/system", label: "System", icon: Settings },
     ]
   },
