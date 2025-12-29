@@ -4,6 +4,7 @@
  * Provides helpers to check user permissions and conditionally render components.
  */
 
+import React from "react";
 import { useSession } from "next-auth/react";
 
 // RBAC role hierarchy (mirrors backend)
