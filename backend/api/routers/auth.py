@@ -67,7 +67,7 @@ async def login(request: LoginRequest):
     try:
         cursor.execute("""
             SELECT staff_id, email, first_name, last_name, password_hash,
-                   role, department, office, seniority, is_active
+                   role, department, office, seniority, is_pm, is_active
             FROM staff
             WHERE LOWER(email) = LOWER(?) AND is_active = 1
         """, (request.email,))
@@ -112,6 +112,8 @@ async def login(request: LoginRequest):
                 "role": user["role"],
                 "department": user["department"],
                 "office": user["office"],
+                "seniority": user["seniority"],
+                "is_pm": bool(user["is_pm"]),
             }
         )
     finally:

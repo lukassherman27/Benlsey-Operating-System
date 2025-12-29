@@ -40,7 +40,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 
           const data = await response.json();
 
-          // Return user object with token
+          // Return user object with token and RBAC fields
           return {
             id: String(data.user.staff_id),
             email: data.user.email,
@@ -49,6 +49,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             role: data.user.role,
             department: data.user.department,
             office: data.user.office,
+            seniority: data.user.seniority,
+            is_pm: data.user.is_pm,
           };
         } catch (error) {
           console.error("Auth error:", error);
@@ -65,6 +67,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         token.staffId = user.id;
         token.department = user.department;
         token.office = user.office;
+        token.seniority = user.seniority;
+        token.is_pm = user.is_pm;
       }
       return token;
     },
@@ -74,6 +78,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       session.user.staffId = token.staffId as string;
       session.user.department = token.department as string;
       session.user.office = token.office as string;
+      session.user.seniority = token.seniority as string;
+      session.user.is_pm = token.is_pm as boolean;
       return session;
     },
   },

@@ -15,6 +15,8 @@ declare module "next-auth" {
       staffId?: string;
       department?: string;
       office?: string;
+      seniority?: string;
+      is_pm?: boolean;
     } & DefaultSession["user"];
   }
 
@@ -23,6 +25,8 @@ declare module "next-auth" {
     role?: string;
     department?: string;
     office?: string;
+    seniority?: string;
+    is_pm?: boolean;
   }
 }
 
@@ -33,5 +37,7 @@ declare module "next-auth/jwt" {
     staffId?: string;
     department?: string;
     office?: string;
+    seniority?: string;
+    is_pm?: boolean;
   }
 }
