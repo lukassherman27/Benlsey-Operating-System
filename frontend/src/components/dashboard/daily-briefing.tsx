@@ -17,9 +17,9 @@ import {
 import { api } from "@/lib/api";
 import { format } from "date-fns";
 import { ProposalLink } from "@/components/cross-link/entity-link";
+import { useCurrentUser, getFirstName } from "@/hooks/useCurrentUser";
 
 interface DailyBriefingProps {
-  userName?: string;
   className?: string;
 }
 
@@ -62,7 +62,10 @@ const healthConfig: Record<
   },
 };
 
-export function DailyBriefing({ userName = "Bill", className }: DailyBriefingProps) {
+export function DailyBriefing({ className }: DailyBriefingProps) {
+  const { name } = useCurrentUser();
+  const userName = getFirstName(name);
+
   const { data: briefing, isLoading, error } = useQuery({
     queryKey: ["daily-briefing"],
     queryFn: () => api.getDailyBriefing(),

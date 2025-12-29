@@ -5,9 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { api } from "@/lib/api";
-
-// TODO: Replace with actual authenticated user when auth is implemented
-const CURRENT_USER = process.env.NEXT_PUBLIC_DEFAULT_USER || "bill@bensley.com";
+import { useCurrentUser } from "@/hooks/useCurrentUser";
 
 interface EmailLink {
   link_id: number;
@@ -35,6 +33,7 @@ interface Proposal {
 }
 
 export default function EmailLinksManagerPage() {
+  const { email: currentUserEmail } = useCurrentUser();
   const [links, setLinks] = useState<EmailLink[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedType, setSelectedType] = useState("all");
@@ -108,7 +107,7 @@ export default function EmailLinksManagerPage() {
     if (!confirm("Delete this email-proposal link? This will help train the AI not to make similar links.")) return;
 
     try {
-      await api.unlinkEmail(linkId, CURRENT_USER);
+      await api.unlinkEmail(linkId, currentUserEmail || 'user');
 
       // Remove from UI
       setLinks(links.filter(l => l.link_id !== linkId));
@@ -129,7 +128,7 @@ export default function EmailLinksManagerPage() {
       await api.updateAdminEmailLink(linkId, {
         link_type: "approved",
         confidence_score: 1.0,
-        user: CURRENT_USER
+        user: currentUserEmail || 'user'
       });
 
       // Update UI
@@ -203,7 +202,7 @@ export default function EmailLinksManagerPage() {
 
     for (const linkId of selectedArray) {
       try {
-        await api.unlinkEmail(linkId, CURRENT_USER);
+        await api.unlinkEmail(linkId, currentUserEmail || 'user');
         successCount++;
         await new Promise(resolve => setTimeout(resolve, 200)); // Throttle
       } catch (error) {
@@ -235,13 +234,13 @@ export default function EmailLinksManagerPage() {
 
     try {
       // Delete old link
-      await api.unlinkEmail(editingLink.link_id, CURRENT_USER);
+      await api.unlinkEmail(editingLink.link_id, currentUserEmail || 'user');
 
       // Create new link
       await api.createEmailLink({
         email_id: editingLink.email_id,
         proposal_id: newProposalId,
-        user: CURRENT_USER
+        user: currentUserEmail || 'user'
       });
 
       alert("✅ Link updated successfully!");

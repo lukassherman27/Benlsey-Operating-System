@@ -59,9 +59,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ds } from "@/lib/design-system";
-
-const DEFAULT_OVERRIDE_AUTHOR =
-  process.env.NEXT_PUBLIC_OVERRIDE_AUTHOR ?? "bill";
+import { useCurrentUser } from "@/hooks/useCurrentUser";
 
 // Empty state defaults - shows proper empty UI instead of fake data
 const EMPTY_BRIEFING: DailyBriefing = {
@@ -152,6 +150,7 @@ const formatDisplayDate = (value?: string | null) => {
 };
 
 export default function DashboardPage() {
+  const { email: currentUserEmail } = useCurrentUser();
   const [isContextOpen, setIsContextOpen] = useState(false);
   const [contextNote, setContextNote] = useState("");
   const [contextScope, setContextScope] = useState<
@@ -376,7 +375,7 @@ export default function DashboardPage() {
       project_code: undefined,
       scope: contextScope,
       instruction: contextNote.trim(),
-      author: DEFAULT_OVERRIDE_AUTHOR,
+      author: currentUserEmail || "user",
       urgency: contextUrgency,
     });
   };
