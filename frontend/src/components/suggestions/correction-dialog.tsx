@@ -126,6 +126,7 @@ export interface CorrectionSubmitData {
   subcategory?: string;
   create_pattern: boolean;
   pattern_notes?: string;
+  other_notes?: string; // For "other" category text input
   // Scheduling fields
   deadlines?: SchedulingDeadline[];
   people?: SchedulingPerson[];
