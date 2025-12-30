@@ -655,6 +655,85 @@ class DeliverablesService(BaseService):
 
         return alerts
 
+    def get_deliverable_by_id(self, deliverable_id: int) -> Optional[Dict]:
+        """Get a single deliverable by ID"""
+        try:
+            with self.get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute("""
+                    SELECT d.*, p.project_title
+                    FROM deliverables d
+                    LEFT JOIN projects p ON d.project_id = p.project_id
+                    WHERE d.deliverable_id = ?
+                """, (deliverable_id,))
+                row = cursor.fetchone()
+                if row:
+                    result = dict(row)
+                    # Parse attachments JSON if present
+                    if result.get('attachments'):
+                        try:
+                            result['attachments'] = json.loads(result['attachments'])
+                        except:
+                            result['attachments'] = []
+                    return result
+                return None
+        except sqlite3.OperationalError as e:
+            logger.error(f"Error getting deliverable {deliverable_id}: {e}")
+            return None
+
+    def update_deliverable(self, deliverable_id: int, updates: Dict[str, Any]) -> bool:
+        """Update a deliverable with arbitrary fields"""
+        try:
+            with self.get_connection() as conn:
+                cursor = conn.cursor()
+
+                # Handle attachments JSON serialization
+                if 'attachments' in updates and updates['attachments'] is not None:
+                    updates['attachments'] = json.dumps(updates['attachments'])
+
+                # Build dynamic update query
+                set_clauses = []
+                params = []
+                for key, value in updates.items():
+                    set_clauses.append(f"{key} = ?")
+                    params.append(value)
+
+                if not set_clauses:
+                    return False
+
+                set_clauses.append("updated_at = datetime('now')")
+                params.append(deliverable_id)
+
+                query = f"""
+                    UPDATE deliverables
+                    SET {', '.join(set_clauses)}
+                    WHERE deliverable_id = ?
+                """
+                cursor.execute(query, params)
+                conn.commit()
+
+                logger.info(f"Updated deliverable {deliverable_id}: {list(updates.keys())}")
+                return cursor.rowcount > 0
+        except sqlite3.OperationalError as e:
+            logger.error(f"Error updating deliverable {deliverable_id}: {e}")
+            return False
+
+    def delete_deliverable(self, deliverable_id: int) -> bool:
+        """Delete a deliverable"""
+        try:
+            with self.get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute(
+                    "DELETE FROM deliverables WHERE deliverable_id = ?",
+                    (deliverable_id,)
+                )
+                conn.commit()
+                logger.info(f"Deleted deliverable {deliverable_id}")
+                return cursor.rowcount > 0
+        except sqlite3.OperationalError as e:
+            logger.error(f"Error deleting deliverable {deliverable_id}: {e}")
+            return False
+
     def seed_from_milestones(self) -> Dict:
         """
         Seed deliverables table from existing project_milestones data.
