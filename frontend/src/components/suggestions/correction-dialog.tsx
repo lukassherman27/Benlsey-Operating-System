@@ -248,6 +248,20 @@ const QUICK_ACTIONS = [
     goToTab: 'project' as const,
   },
   {
+    id: 'link_contact',
+    label: 'Link to contact',
+    icon: <Users className="h-4 w-4" />,
+    reason: 'wrong_contact',
+    category: 'contact',
+  },
+  {
+    id: 'link_meeting',
+    label: 'Link to meeting',
+    icon: <Video className="h-4 w-4" />,
+    reason: 'other',
+    category: 'meeting',
+  },
+  {
     id: 'scheduling',
     label: 'Internal scheduling email',
     icon: <Calendar className="h-4 w-4" />,
@@ -290,6 +304,13 @@ const QUICK_ACTIONS = [
     icon: <Layers className="h-4 w-4" />,
     reason: 'wrong_project',
     goToTab: 'project' as const,
+  },
+  {
+    id: 'other',
+    label: 'Other (add notes)',
+    icon: <MessageSquare className="h-4 w-4" />,
+    reason: 'other',
+    category: 'other',
   },
 ];
 
