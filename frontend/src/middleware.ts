@@ -1,31 +1,32 @@
 /**
- * NextAuth.js Middleware
+ * NextAuth.js Middleware (DISABLED)
  *
- * Protects routes by redirecting unauthenticated users to login.
- * Public routes are excluded from protection.
+ * Authentication middleware is temporarily disabled until:
+ * 1. All staff users have passwords set
+ * 2. Auth flow is fully tested
+ *
+ * Once ready, replace this with the protected version.
+ *
+ * Issue #185 - Auth system not fully configured
  */
 
-import { auth } from "@/lib/auth";
 import { NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
 
-export default auth((req) => {
-  const isLoggedIn = !!req.auth;
-  const isOnLoginPage = req.nextUrl.pathname === "/login";
-
-  // If not logged in and not on login page, redirect to login
-  if (!isLoggedIn && !isOnLoginPage) {
-    return NextResponse.redirect(new URL("/login", req.url));
-  }
-
-  // If logged in and on login page, redirect to dashboard
-  if (isLoggedIn && isOnLoginPage) {
-    return NextResponse.redirect(new URL("/", req.url));
-  }
-
+export function middleware(_request: NextRequest) {
+  // Allow all requests through without auth check
   return NextResponse.next();
-});
+}
 
-// Apply middleware to all routes except static files and API routes
+// Minimal matcher to avoid unnecessary overhead
 export const config = {
-  matcher: ["/((?!api|_next/static|_next/image|favicon.ico).*)"],
+  matcher: [
+    /*
+     * Match only specific paths that would need auth later:
+     * - Protected API routes (if any)
+     * - Dashboard routes
+     * Exclude: static files, images, public routes
+     */
+    "/((?!_next/static|_next/image|favicon.ico).*)",
+  ],
 };
