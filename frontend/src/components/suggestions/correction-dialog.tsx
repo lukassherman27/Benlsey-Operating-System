@@ -337,6 +337,7 @@ export function CorrectionDialog({
   const [projectSearch, setProjectSearch] = useState("");
   const [activeTab, setActiveTab] = useState<"quick" | "category" | "project">("quick");
   const [selectedQuickAction, setSelectedQuickAction] = useState<string | null>(null);
+  const [otherNotes, setOtherNotes] = useState(""); // For "other" category text input
 
   // Scheduling state
   const [isExtractingScheduling, setIsExtractingScheduling] = useState(false);
@@ -357,6 +358,7 @@ export function CorrectionDialog({
       setProjectSearch("");
       setActiveTab("quick");
       setSelectedQuickAction(null);
+      setOtherNotes(""); // Reset other notes
       // Reset scheduling state
       setIsExtractingScheduling(false);
       setExtractedSchedulingData(null);
@@ -543,6 +545,10 @@ export function CorrectionDialog({
       data.category = selectedCategory;
       if (selectedSubcategory) {
         data.subcategory = selectedSubcategory;
+      }
+      // Include other notes if category is 'other'
+      if (selectedCategory === 'other' && otherNotes) {
+        data.other_notes = otherNotes;
       }
     }
 
@@ -747,6 +753,22 @@ export function CorrectionDialog({
                           {selectedSubcategory && ` > ${currentCategoryDetails?.subcategories?.find(s => s.id === selectedSubcategory)?.label}`}
                         </Badge>
                       </p>
+                    </div>
+                  )}
+
+                  {/* Other category - text input for notes */}
+                  {selectedCategory === 'other' && (
+                    <div className="space-y-2 p-3 bg-gray-50 rounded-lg border border-gray-200">
+                      <Label className="text-sm text-gray-700 flex items-center gap-2">
+                        <MessageSquare className="h-4 w-4" />
+                        Add notes about this item
+                      </Label>
+                      <Input
+                        value={otherNotes}
+                        onChange={(e) => setOtherNotes(e.target.value)}
+                        placeholder="Describe why this doesn't fit other categories..."
+                        className="bg-white"
+                      />
                     </div>
                   )}
 
