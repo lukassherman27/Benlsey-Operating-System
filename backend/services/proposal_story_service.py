@@ -115,7 +115,6 @@ class ProposalStoryService(BaseService):
                         except:
                             activity[field] = []
 
-            # Get pending action items
             # Get pending action items from tasks table (unified action items)
             cursor.execute("""
                 SELECT
