@@ -197,34 +197,49 @@ class ActivityExtractor(BaseService):
                 ))
                 activity_id = cursor.lastrowid
 
-            # Create action items
+            # Create action item suggestions (for human review before creating tasks)
             action_items_created = 0
             for item in action_items:
-                # Check for duplicate
+                # Check for duplicate suggestion
                 cursor.execute("""
-                    SELECT action_id FROM proposal_action_items
-                    WHERE proposal_id = ? AND action_text = ?
-                """, (proposal_id, item['text']))
+                    SELECT suggestion_id FROM ai_suggestions
+                    WHERE source_type = 'email' AND source_id = ?
+                    AND suggestion_type = 'action_item'
+                    AND status = 'pending'
+                    AND json_extract(suggested_data, '$.task_title') = ?
+                """, (email_id, item['text']))
 
                 if not cursor.fetchone():
+                    # Create AI suggestion for human review
+                    suggested_data = json.dumps({
+                        'task_title': item['text'],
+                        'task_description': f"Extracted from email. Category: {item.get('category', 'general')}",
+                        'assignee_hint': item.get('assigned_to', 'us'),
+                        'due_date_hint': item.get('due_date'),
+                        'priority_hint': item.get('priority', 'normal'),
+                        'category': 'Project' if email.get('project_code') else 'Admin',
+                        'source_email_id': email_id,
+                        'proposal_id': proposal_id,
+                        'project_code': email.get('project_code'),
+                    })
+
                     cursor.execute("""
-                        INSERT INTO proposal_action_items (
-                            proposal_id, source_activity_id,
-                            action_text, action_category,
-                            due_date, due_date_source,
-                            assigned_to, status, priority,
-                            extraction_confidence
-                        ) VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?)
+                        INSERT INTO ai_suggestions (
+                            suggestion_type, priority, confidence_score,
+                            source_type, source_id, source_reference,
+                            title, description, suggested_action,
+                            suggested_data, target_table, project_code,
+                            status, created_at
+                        ) VALUES ('action_item', ?, ?, 'email', ?, ?, ?, ?, 'Create task', ?, 'tasks', ?, 'pending', datetime('now'))
                     """, (
-                        proposal_id,
-                        activity_id,
-                        item['text'],
-                        item.get('category', 'general'),
-                        item.get('due_date'),
-                        'extracted' if item.get('due_date') else None,
-                        item.get('assigned_to'),
-                        item.get('priority', 'normal'),
-                        item.get('confidence', 0.7)
+                        'high' if item.get('priority') == 'high' else 'medium',
+                        item.get('confidence', 0.7),
+                        email_id,
+                        f"Email: {email.get('subject', 'Unknown')[:50]}",
+                        f"Task: {item['text'][:60]}",
+                        f"Extracted action item: {item['text']}",
+                        suggested_data,
+                        email.get('project_code'),
                     ))
                     action_items_created += 1
 
@@ -360,27 +375,48 @@ class ActivityExtractor(BaseService):
                 ))
                 activity_id = cursor.lastrowid
 
-            # Create action items
+            # Create action item suggestions (for human review before creating tasks)
             action_items_created = 0
             for item in action_items:
                 item_text = item['text'] if isinstance(item, dict) else item
+                # Check for duplicate suggestion
                 cursor.execute("""
-                    SELECT action_id FROM proposal_action_items
-                    WHERE proposal_id = ? AND action_text = ?
-                """, (proposal_id, item_text))
+                    SELECT suggestion_id FROM ai_suggestions
+                    WHERE source_type = 'transcript' AND source_id = ?
+                    AND suggestion_type = 'action_item'
+                    AND status = 'pending'
+                    AND json_extract(suggested_data, '$.task_title') = ?
+                """, (transcript_id, item_text))
 
                 if not cursor.fetchone():
+                    # Create AI suggestion for human review
+                    suggested_data = json.dumps({
+                        'task_title': item_text,
+                        'task_description': f"Extracted from meeting transcript: {transcript.get('meeting_title', 'Unknown')}",
+                        'assignee_hint': 'us',
+                        'due_date_hint': None,
+                        'priority_hint': 'medium',
+                        'category': 'Project' if transcript.get('project_code') else 'Meeting',
+                        'source_transcript_id': transcript_id,
+                        'proposal_id': proposal_id,
+                        'project_code': transcript.get('project_code'),
+                    })
+
                     cursor.execute("""
-                        INSERT INTO proposal_action_items (
-                            proposal_id, source_activity_id,
-                            action_text, action_category,
-                            status, priority,
-                            extraction_confidence
-                        ) VALUES (?, ?, ?, 'meeting', 'pending', 'normal', 0.8)
+                        INSERT INTO ai_suggestions (
+                            suggestion_type, priority, confidence_score,
+                            source_type, source_id, source_reference,
+                            title, description, suggested_action,
+                            suggested_data, target_table, project_code,
+                            status, created_at
+                        ) VALUES ('action_item', 'medium', 0.8, 'transcript', ?, ?, ?, ?, 'Create task', ?, 'tasks', ?, 'pending', datetime('now'))
                     """, (
-                        proposal_id,
-                        activity_id,
-                        item_text
+                        transcript_id,
+                        f"Meeting: {transcript.get('meeting_title', 'Unknown')[:50]}",
+                        f"Task: {item_text[:60]}",
+                        f"Action item from meeting: {item_text}",
+                        suggested_data,
+                        transcript.get('project_code'),
                     ))
                     action_items_created += 1
 
