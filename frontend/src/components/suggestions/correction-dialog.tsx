@@ -65,10 +65,11 @@ interface CategoryOption {
 }
 
 interface LinkedItem {
-  type: 'project' | 'proposal' | 'category';
+  type: 'project' | 'proposal' | 'category' | 'contact' | 'email' | 'meeting' | 'other';
   code: string;
   name: string;
   subcategory?: string;
+  notes?: string;
 }
 
 // Scheduling-specific types
