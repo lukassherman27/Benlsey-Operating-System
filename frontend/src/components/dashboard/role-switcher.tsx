@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { User, Briefcase, DollarSign } from "lucide-react";
 
-export type DashboardRole = "bill" | "pm" | "finance";
+export type DashboardRole = "executive" | "pm" | "finance";
 
 interface RoleSwitcherProps {
   onRoleChange: (role: DashboardRole) => void;
@@ -12,14 +12,14 @@ interface RoleSwitcherProps {
 }
 
 const ROLES: Array<{ value: DashboardRole; label: string; icon: React.ReactNode }> = [
-  { value: "bill", label: "Executive", icon: <User className="h-4 w-4" /> },
+  { value: "executive", label: "Executive", icon: <User className="h-4 w-4" /> },
   { value: "pm", label: "PM", icon: <Briefcase className="h-4 w-4" /> },
   { value: "finance", label: "Finance", icon: <DollarSign className="h-4 w-4" /> },
 ];
 
 const STORAGE_KEY = "dashboard_role";
 
-export function RoleSwitcher({ onRoleChange, defaultRole = "bill" }: RoleSwitcherProps) {
+export function RoleSwitcher({ onRoleChange, defaultRole = "executive" }: RoleSwitcherProps) {
   const [selectedRole, setSelectedRole] = useState<DashboardRole>(defaultRole);
   const [mounted, setMounted] = useState(false);
 
@@ -63,7 +63,7 @@ export function RoleSwitcher({ onRoleChange, defaultRole = "bill" }: RoleSwitche
 /**
  * Hook to access current dashboard role with localStorage persistence
  */
-export function useDashboardRole(defaultRole: DashboardRole = "bill"): [
+export function useDashboardRole(defaultRole: DashboardRole = "executive"): [
   DashboardRole,
   (role: DashboardRole) => void
 ] {

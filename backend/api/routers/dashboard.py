@@ -34,7 +34,7 @@ async def get_role_based_stats(role: str) -> dict:
     """Get role-specific dashboard statistics
 
     Args:
-        role: Role identifier (bill, pm, finance)
+        role: Role identifier (executive, pm, finance)
 
     Returns:
         Role-specific KPI dictionary
@@ -44,7 +44,7 @@ async def get_role_based_stats(role: str) -> dict:
     cursor = conn.cursor()
 
     try:
-        if role == "bill":
+        if role == "executive" or role == "bill":  # Support both for backward compat
             # Executive KPIs
             # Pipeline value: SUM of active proposals (all now USD after data fix)
             cursor.execute("""
@@ -85,7 +85,7 @@ async def get_role_based_stats(role: str) -> dict:
             overdue_invoices_count = cursor.fetchone()['count'] or 0
 
             return {
-                "role": "bill",
+                "role": "executive",
                 "pipeline_value": round(pipeline_value, 2),
                 "active_projects_count": active_projects_count,
                 "outstanding_invoices_total": round(outstanding_invoices_total, 2),
@@ -193,7 +193,7 @@ async def get_role_based_stats(role: str) -> dict:
             }
 
         else:
-            raise HTTPException(status_code=400, detail=f"Invalid role: {role}. Must be one of: bill, pm, finance")
+            raise HTTPException(status_code=400, detail=f"Invalid role: {role}. Must be one of: executive, pm, finance")
 
     finally:
         conn.close()
@@ -204,11 +204,11 @@ async def get_role_based_stats(role: str) -> dict:
 # ============================================================================
 
 @router.get("/dashboard/stats")
-async def get_dashboard_stats(role: Optional[str] = Query(None, description="Role filter: bill, pm, finance")):
+async def get_dashboard_stats(role: Optional[str] = Query(None, description="Role filter: executive, pm, finance")):
     """Get comprehensive dashboard statistics with optional role-based filtering
 
     Args:
-        role: Optional role filter (bill, pm, finance) for role-specific KPIs
+        role: Optional role filter (executive, pm, finance) for role-specific KPIs
 
     Returns:
         - If role is specified: Role-specific KPIs
