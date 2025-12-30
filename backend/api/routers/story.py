@@ -202,12 +202,12 @@ async def get_extraction_stats():
     """)
     transcripts_with_activities = cursor.fetchone()[0]
 
-    # Total action items
-    cursor.execute("SELECT COUNT(*) FROM proposal_action_items")
+    # Total action items (from unified tasks table)
+    cursor.execute("SELECT COUNT(*) FROM tasks WHERE proposal_id IS NOT NULL")
     total_action_items = cursor.fetchone()[0]
 
     # Pending action items
-    cursor.execute("SELECT COUNT(*) FROM proposal_action_items WHERE status = 'pending'")
+    cursor.execute("SELECT COUNT(*) FROM tasks WHERE proposal_id IS NOT NULL AND status = 'pending'")
     pending_action_items = cursor.fetchone()[0]
 
     conn.close()
