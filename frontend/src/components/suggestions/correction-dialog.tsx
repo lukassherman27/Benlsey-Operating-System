@@ -850,7 +850,7 @@ export function CorrectionDialog({
               </TabsContent>
 
               {/* Project Linking Tab */}
-              <TabsContent value="project" className="mt-4">
+              <TabsContent value="project" className="flex-1 overflow-auto mt-4">
                 <div className="space-y-4">
                   {/* Search */}
                   <div className="space-y-2">
