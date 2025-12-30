@@ -42,6 +42,9 @@ import {
   Layers,
   Check,
   Calendar,
+  MessageSquare,
+  Users,
+  Video,
 } from "lucide-react";
 import { SuggestionItem, api } from "@/lib/api";
 import { cn } from "@/lib/utils";
@@ -65,10 +68,11 @@ interface CategoryOption {
 }
 
 interface LinkedItem {
-  type: 'project' | 'proposal' | 'category';
+  type: 'project' | 'proposal' | 'category' | 'contact' | 'email' | 'meeting' | 'other';
   code: string;
   name: string;
   subcategory?: string;
+  notes?: string;
 }
 
 // Scheduling-specific types
@@ -125,6 +129,7 @@ export interface CorrectionSubmitData {
   subcategory?: string;
   create_pattern: boolean;
   pattern_notes?: string;
+  other_notes?: string; // For "other" category text input
   // Scheduling fields
   deadlines?: SchedulingDeadline[];
   people?: SchedulingPerson[];
@@ -170,6 +175,18 @@ const CATEGORIES: CategoryOption[] = [
     color: 'bg-amber-100 text-amber-700 border-amber-200',
   },
   {
+    id: 'contact',
+    label: 'Contact',
+    icon: <Users className="h-4 w-4" />,
+    color: 'bg-cyan-100 text-cyan-700 border-cyan-200',
+  },
+  {
+    id: 'meeting',
+    label: 'Meeting',
+    icon: <Video className="h-4 w-4" />,
+    color: 'bg-violet-100 text-violet-700 border-violet-200',
+  },
+  {
     id: 'internal',
     label: 'Internal Email',
     icon: <Mail className="h-4 w-4" />,
@@ -213,6 +230,12 @@ const CATEGORIES: CategoryOption[] = [
     icon: <Ban className="h-4 w-4" />,
     color: 'bg-red-100 text-red-700 border-red-200',
   },
+  {
+    id: 'other',
+    label: 'Other',
+    icon: <MessageSquare className="h-4 w-4" />,
+    color: 'bg-gray-100 text-gray-700 border-gray-200',
+  },
 ];
 
 // Quick actions for common patterns
@@ -223,6 +246,20 @@ const QUICK_ACTIONS = [
     icon: <Link2 className="h-4 w-4" />,
     reason: 'wrong_project',
     goToTab: 'project' as const,
+  },
+  {
+    id: 'link_contact',
+    label: 'Link to contact',
+    icon: <Users className="h-4 w-4" />,
+    reason: 'wrong_contact',
+    category: 'contact',
+  },
+  {
+    id: 'link_meeting',
+    label: 'Link to meeting',
+    icon: <Video className="h-4 w-4" />,
+    reason: 'other',
+    category: 'meeting',
   },
   {
     id: 'scheduling',
@@ -268,6 +305,13 @@ const QUICK_ACTIONS = [
     reason: 'wrong_project',
     goToTab: 'project' as const,
   },
+  {
+    id: 'other',
+    label: 'Other (add notes)',
+    icon: <MessageSquare className="h-4 w-4" />,
+    reason: 'other',
+    category: 'other',
+  },
 ];
 
 // ========================================
@@ -293,6 +337,7 @@ export function CorrectionDialog({
   const [projectSearch, setProjectSearch] = useState("");
   const [activeTab, setActiveTab] = useState<"quick" | "category" | "project">("quick");
   const [selectedQuickAction, setSelectedQuickAction] = useState<string | null>(null);
+  const [otherNotes, setOtherNotes] = useState(""); // For "other" category text input
 
   // Scheduling state
   const [isExtractingScheduling, setIsExtractingScheduling] = useState(false);
@@ -313,6 +358,7 @@ export function CorrectionDialog({
       setProjectSearch("");
       setActiveTab("quick");
       setSelectedQuickAction(null);
+      setOtherNotes(""); // Reset other notes
       // Reset scheduling state
       setIsExtractingScheduling(false);
       setExtractedSchedulingData(null);
@@ -499,6 +545,10 @@ export function CorrectionDialog({
       data.category = selectedCategory;
       if (selectedSubcategory) {
         data.subcategory = selectedSubcategory;
+      }
+      // Include other notes if category is 'other'
+      if (selectedCategory === 'other' && otherNotes) {
+        data.other_notes = otherNotes;
       }
     }
 
@@ -706,6 +756,22 @@ export function CorrectionDialog({
                     </div>
                   )}
 
+                  {/* Other category - text input for notes */}
+                  {selectedCategory === 'other' && (
+                    <div className="space-y-2 p-3 bg-gray-50 rounded-lg border border-gray-200">
+                      <Label className="text-sm text-gray-700 flex items-center gap-2">
+                        <MessageSquare className="h-4 w-4" />
+                        Add notes about this item
+                      </Label>
+                      <Input
+                        value={otherNotes}
+                        onChange={(e) => setOtherNotes(e.target.value)}
+                        placeholder="Describe why this doesn't fit other categories..."
+                        className="bg-white"
+                      />
+                    </div>
+                  )}
+
                   {/* Scheduling-specific UI */}
                   {showSchedulingUI && (
                     <div className="space-y-4 border-t pt-4 mt-4">
@@ -850,7 +916,7 @@ export function CorrectionDialog({
               </TabsContent>
 
               {/* Project Linking Tab */}
-              <TabsContent value="project" className="mt-4">
+              <TabsContent value="project" className="flex-1 overflow-auto mt-4">
                 <div className="space-y-4">
                   {/* Search */}
                   <div className="space-y-2">

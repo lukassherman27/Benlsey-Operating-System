@@ -1564,15 +1564,15 @@ export default function SuggestionsPage() {
 
         {/* Edit Contact Dialog */}
         <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
-          <DialogContent className="max-w-lg">
-            <DialogHeader>
+          <DialogContent className="max-w-lg max-h-[85vh] overflow-hidden flex flex-col">
+            <DialogHeader className="shrink-0">
               <DialogTitle>Edit Contact Before Adding</DialogTitle>
               <DialogDescription>
                 Review and enrich this contact with additional context before adding to your database.
               </DialogDescription>
             </DialogHeader>
 
-            <div className="space-y-4 py-4">
+            <div className="space-y-4 py-4 overflow-y-auto flex-1">
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="name">Name *</Label>
@@ -1651,7 +1651,7 @@ export default function SuggestionsPage() {
               </div>
             </div>
 
-            <DialogFooter>
+            <DialogFooter className="shrink-0">
               <Button variant="outline" onClick={() => setEditDialogOpen(false)}>
                 Cancel
               </Button>
@@ -1689,15 +1689,15 @@ export default function SuggestionsPage() {
             setRejectPatternNotes("");
           }
         }}>
-          <DialogContent className="max-w-lg">
-            <DialogHeader>
+          <DialogContent className="max-w-lg max-h-[85vh] overflow-hidden flex flex-col">
+            <DialogHeader className="shrink-0">
               <DialogTitle>Reject Suggestion</DialogTitle>
               <DialogDescription>
                 Explain why this suggestion is incorrect. Optionally provide the correct information to help the system learn.
               </DialogDescription>
             </DialogHeader>
 
-            <div className="space-y-4 py-4">
+            <div className="space-y-4 py-4 overflow-y-auto flex-1">
               {/* Rejection Reason */}
               <div className="space-y-2">
                 <Label>Why is this suggestion incorrect?</Label>
@@ -1796,7 +1796,7 @@ export default function SuggestionsPage() {
               )}
             </div>
 
-            <DialogFooter>
+            <DialogFooter className="shrink-0">
               <Button
                 variant="outline"
                 onClick={() => {
@@ -1852,15 +1852,15 @@ export default function SuggestionsPage() {
             setApproveContactRole("");
           }
         }}>
-          <DialogContent className="max-w-lg">
-            <DialogHeader>
+          <DialogContent className="max-w-lg max-h-[85vh] overflow-hidden flex flex-col">
+            <DialogHeader className="shrink-0">
               <DialogTitle>Approve with Learning</DialogTitle>
               <DialogDescription>
                 Approve this suggestion and optionally create patterns to improve future suggestions.
               </DialogDescription>
             </DialogHeader>
 
-            <div className="space-y-4 py-4">
+            <div className="space-y-4 py-4 overflow-y-auto flex-1">
               {/* Show suggestion info */}
               {selectedSuggestion && (
                 <div className="p-3 bg-slate-50 rounded-lg border">
@@ -1937,7 +1937,7 @@ export default function SuggestionsPage() {
               )}
             </div>
 
-            <DialogFooter>
+            <DialogFooter className="shrink-0">
               <Button
                 variant="outline"
                 onClick={() => {

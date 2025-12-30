@@ -1742,10 +1742,11 @@ export const api = {
     correct_contact_id?: number;
     // Multi-linking support
     linked_items?: Array<{
-      type: 'project' | 'proposal' | 'category';
+      type: 'project' | 'proposal' | 'category' | 'contact' | 'email' | 'meeting' | 'other';
       code: string;
       name?: string;
       subcategory?: string;
+      notes?: string;
     }>;
     // Email categorization
     category?: string;
