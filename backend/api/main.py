@@ -64,6 +64,7 @@ from api.routers import (
     story,
     weekly_report,
     team,
+    upload,
 )
 
 # Initialize logger
@@ -166,6 +167,7 @@ app.include_router(transcripts.router)
 # Documents & Files
 app.include_router(documents.router)
 app.include_router(files.router)
+app.include_router(upload.router)  # OneDrive upload (Issue #243)
 
 # Intelligence & AI
 app.include_router(suggestions.router)
