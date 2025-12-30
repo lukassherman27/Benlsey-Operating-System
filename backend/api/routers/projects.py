@@ -788,6 +788,133 @@ class UpdatePhaseFeeRequest(BaseModel):
     status: Optional[str] = None
 
 
+class PhaseTimelineUpdate(BaseModel):
+    """Request model for updating phase timeline fields (Issue #242)."""
+    contract_duration_months: Optional[int] = None
+    contract_end_date: Optional[str] = None
+    sd_allocated_months: Optional[int] = None
+    sd_start_date: Optional[str] = None
+    sd_deadline: Optional[str] = None
+    sd_actual_completion: Optional[str] = None
+    dd_allocated_months: Optional[int] = None
+    dd_start_date: Optional[str] = None
+    dd_deadline: Optional[str] = None
+    dd_actual_completion: Optional[str] = None
+    cd_allocated_months: Optional[int] = None
+    cd_start_date: Optional[str] = None
+    cd_deadline: Optional[str] = None
+    cd_actual_completion: Optional[str] = None
+    ca_allocated_months: Optional[int] = None
+    ca_start_date: Optional[str] = None
+    ca_deadline: Optional[str] = None
+    ca_actual_completion: Optional[str] = None
+
+
+def _calculate_phase_status(start: str, deadline: str, actual: str) -> str:
+    """Calculate status for a phase based on dates."""
+    from datetime import date
+    today = date.today().isoformat()
+    if actual:
+        return "completed"
+    if not start:
+        return "not_started"
+    if start > today:
+        return "not_started"
+    if deadline and deadline < today:
+        return "overdue"
+    return "in_progress"
+
+
+@router.get("/projects/{project_code}/phase-timeline")
+async def get_project_phase_timeline(project_code: str):
+    """Get phase timeline for a project (Issue #242)."""
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT project_code, project_title,
+                   contract_duration_months, contract_end_date,
+                   contract_start_date, contract_expiry_date,
+                   sd_allocated_months, sd_start_date, sd_deadline, sd_actual_completion,
+                   dd_allocated_months, dd_start_date, dd_deadline, dd_actual_completion,
+                   cd_allocated_months, cd_start_date, cd_deadline, cd_actual_completion,
+                   ca_allocated_months, ca_start_date, ca_deadline, ca_actual_completion
+            FROM projects WHERE project_code = ?
+        """, (project_code,))
+        row = cursor.fetchone()
+        conn.close()
+        if not row:
+            raise HTTPException(status_code=404, detail=f"Project {project_code} not found")
+        data = dict(row)
+        phases = {}
+        for phase in ['sd', 'dd', 'cd', 'ca']:
+            start = data.get(f'{phase}_start_date')
+            deadline = data.get(f'{phase}_deadline')
+            actual = data.get(f'{phase}_actual_completion')
+            phases[phase] = {
+                'allocated_months': data.get(f'{phase}_allocated_months'),
+                'start_date': start,
+                'deadline': deadline,
+                'actual_completion': actual,
+                'status': _calculate_phase_status(start, deadline, actual)
+            }
+        return {
+            "success": True,
+            "project_code": project_code,
+            "project_title": data.get('project_title'),
+            "contract": {
+                "duration_months": data.get('contract_duration_months'),
+                "start_date": data.get('contract_start_date'),
+                "end_date": data.get('contract_end_date') or data.get('contract_expiry_date'),
+            },
+            "phases": phases
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to get phase timeline: {str(e)}")
+
+
+@router.patch("/projects/{project_code}/phase-timeline")
+async def update_project_phase_timeline(project_code: str, request: PhaseTimelineUpdate):
+    """Update phase timeline fields for a project (Issue #242)."""
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        cursor.execute("SELECT project_id FROM projects WHERE project_code = ?", (project_code,))
+        if not cursor.fetchone():
+            conn.close()
+            raise HTTPException(status_code=404, detail=f"Project {project_code} not found")
+        updates = []
+        params = []
+        fields = [
+            'contract_duration_months', 'contract_end_date',
+            'sd_allocated_months', 'sd_start_date', 'sd_deadline', 'sd_actual_completion',
+            'dd_allocated_months', 'dd_start_date', 'dd_deadline', 'dd_actual_completion',
+            'cd_allocated_months', 'cd_start_date', 'cd_deadline', 'cd_actual_completion',
+            'ca_allocated_months', 'ca_start_date', 'ca_deadline', 'ca_actual_completion',
+        ]
+        request_dict = request.model_dump(exclude_unset=True)
+        for field in fields:
+            if field in request_dict:
+                updates.append(f"{field} = ?")
+                params.append(request_dict[field])
+        if not updates:
+            conn.close()
+            raise HTTPException(status_code=400, detail="No fields to update")
+        params.append(project_code)
+        query = f"UPDATE projects SET {', '.join(updates)} WHERE project_code = ?"
+        cursor.execute(query, params)
+        conn.commit()
+        conn.close()
+        return {"success": True, "message": "Phase timeline updated", "fields_updated": list(request_dict.keys())}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to update phase timeline: {str(e)}")
+
+
 @router.get("/phase-fees")
 async def get_all_phase_fees(
     project_code: Optional[str] = None,
