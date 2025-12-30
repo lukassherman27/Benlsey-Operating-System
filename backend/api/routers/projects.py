@@ -768,7 +768,7 @@ async def get_project_hierarchy(project_code: str):
 # PHASE FEES ENDPOINTS
 # ============================================================================
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class CreatePhaseFeeRequest(BaseModel):
@@ -2076,3 +2076,103 @@ async def delete_daily_work(daily_work_id: int):
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to delete daily work: {str(e)}")
+
+
+# ============================================================================
+# PROJECT PROGRESS ENDPOINTS (Issue #246)
+# ============================================================================
+
+@router.get("/projects/{project_code}/progress")
+async def get_project_progress(project_code: str):
+    """
+    Get comprehensive project progress including per-phase breakdown.
+
+    Returns overall progress, phase-by-phase progress with task/deliverable counts,
+    and timeline status (behind/on_track/ahead).
+    """
+    from services.progress_calculator import get_progress_calculator
+
+    try:
+        calculator = get_progress_calculator(DB_PATH)
+        result = calculator.get_project_progress(project_code)
+
+        if "error" in result:
+            raise HTTPException(status_code=404, detail=result["error"])
+
+        return result
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to get progress: {str(e)}")
+
+
+class UpdatePhaseProgressRequest(BaseModel):
+    """Request to update phase progress."""
+    progress_percent: float = Field(..., ge=0, le=100)
+    status: Optional[str] = None
+
+
+@router.patch("/projects/{project_code}/phases/{phase_id}/progress")
+async def update_phase_progress(
+    project_code: str,
+    phase_id: int,
+    request: UpdatePhaseProgressRequest
+):
+    """
+    Update progress for a specific project phase.
+
+    Used by PMs to manually update phase completion percentage.
+    """
+    from services.progress_calculator import get_progress_calculator
+
+    try:
+        calculator = get_progress_calculator(DB_PATH)
+        success = calculator.update_phase_progress(
+            phase_id=phase_id,
+            progress_percent=request.progress_percent,
+            status=request.status
+        )
+
+        if not success:
+            raise HTTPException(status_code=404, detail=f"Phase {phase_id} not found")
+
+        return {
+            "success": True,
+            "message": f"Phase progress updated to {request.progress_percent}%"
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to update progress: {str(e)}")
+
+
+@router.get("/projects/progress-summary")
+async def get_projects_progress_summary(
+    project_codes: Optional[str] = Query(None, description="Comma-separated project codes")
+):
+    """
+    Get progress summary for multiple projects.
+
+    Useful for dashboard views showing portfolio-wide progress.
+    """
+    from services.progress_calculator import get_progress_calculator
+
+    try:
+        calculator = get_progress_calculator(DB_PATH)
+
+        codes = None
+        if project_codes:
+            codes = [c.strip() for c in project_codes.split(",")]
+
+        results = calculator.get_progress_summary(codes)
+
+        return {
+            "success": True,
+            "projects": results,
+            "count": len(results)
+        }
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to get progress summary: {str(e)}")
