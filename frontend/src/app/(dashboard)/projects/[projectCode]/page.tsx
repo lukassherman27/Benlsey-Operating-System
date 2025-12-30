@@ -19,9 +19,10 @@ import {
   ListTodo,
   DollarSign,
   BarChart3,
+  ClipboardList,
 } from "lucide-react";
 import Link from "next/link";
-import { use } from "react";
+import { use, useState } from "react";
 import { UnifiedTimeline } from "@/components/project/unified-timeline";
 import { ProjectFeesCard } from "@/components/project/project-fees-card";
 import { TaskMiniKanban } from "@/components/tasks/task-mini-kanban";
@@ -36,6 +37,7 @@ import { ProjectInsights } from "@/components/project/project-insights";
 import { PhaseProgressBar } from "@/components/project/phase-progress-bar";
 import { WeeklyScheduleGrid } from "@/components/project/weekly-schedule-grid";
 import { PhaseTimeline } from "@/components/project/phase-timeline";
+import { DailyWorkSubmissionForm, DailyWorkList, DailyWorkReviewInterface } from "@/components/daily-work";
 import { ds } from "@/lib/design-system";
 import { cn } from "@/lib/utils";
 
@@ -66,6 +68,27 @@ export default function ProjectDetailPage({
 }) {
   const { projectCode: rawProjectCode } = use(params);
   const projectCode = decodeURIComponent(rawProjectCode);
+
+  // State for daily work review modal
+  const [selectedDailyWork, setSelectedDailyWork] = useState<{
+    daily_work_id: number;
+    project_code: string;
+    work_date: string;
+    submitted_at: string;
+    description: string;
+    task_type: string | null;
+    discipline: string | null;
+    phase: string | null;
+    hours_spent: number | null;
+    staff_id: number | null;
+    staff_name: string | null;
+    attachments: Array<{ file_id: number; filename: string }>;
+    reviewer_id: number | null;
+    reviewer_name: string | null;
+    review_status: "pending" | "reviewed" | "needs_revision" | "approved";
+    review_comments: string | null;
+    reviewed_at: string | null;
+  } | null>(null);
 
   // Fetch project data
   const projectDetailQuery = useQuery({
@@ -322,7 +345,7 @@ export default function ProjectDetailPage({
 
           {/* Tabbed Content */}
           <Tabs defaultValue="overview" className="w-full">
-            <TabsList className="grid w-full grid-cols-5 lg:w-auto lg:inline-flex">
+            <TabsList className="grid w-full grid-cols-6 lg:w-auto lg:inline-flex">
               <TabsTrigger value="overview" className="gap-2">
                 <BarChart3 className="h-4 w-4" />
                 <span className="hidden sm:inline">Overview</span>
@@ -330,6 +353,10 @@ export default function ProjectDetailPage({
               <TabsTrigger value="phases" className="gap-2">
                 <Calendar className="h-4 w-4" />
                 <span className="hidden sm:inline">Phases</span>
+              </TabsTrigger>
+              <TabsTrigger value="daily-work" className="gap-2">
+                <ClipboardList className="h-4 w-4" />
+                <span className="hidden sm:inline">Daily Work</span>
               </TabsTrigger>
               <TabsTrigger value="team" className="gap-2">
                 <Users className="h-4 w-4" />
@@ -499,6 +526,18 @@ export default function ProjectDetailPage({
               <PhaseTimeline projectCode={projectCode} />
             </TabsContent>
 
+            {/* DAILY WORK TAB */}
+            <TabsContent value="daily-work" className="space-y-6 mt-6">
+              {/* Submission Form */}
+              <DailyWorkSubmissionForm projectCode={projectCode} />
+
+              {/* Submissions List */}
+              <DailyWorkList
+                projectCode={projectCode}
+                onSelectItem={(item) => setSelectedDailyWork(item)}
+              />
+            </TabsContent>
+
             {/* TEAM TAB */}
             <TabsContent value="team" className="space-y-6 mt-6">
               <div className="grid gap-6 lg:grid-cols-2">
@@ -598,6 +637,15 @@ export default function ProjectDetailPage({
             </TabsContent>
           </Tabs>
         </>
+      )}
+
+      {/* Daily Work Review Modal */}
+      {selectedDailyWork && (
+        <DailyWorkReviewInterface
+          item={selectedDailyWork}
+          onClose={() => setSelectedDailyWork(null)}
+          reviewerName="Bill"
+        />
       )}
     </div>
   );

@@ -1763,3 +1763,316 @@ async def remove_project_assignment(project_code: str, assignment_id: int):
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to remove assignment: {str(e)}")
+
+
+# ============================================================================
+# DAILY WORK ENDPOINTS (Issue #244)
+# ============================================================================
+
+class DailyWorkSubmission(BaseModel):
+    """Request to submit daily work."""
+    work_date: str
+    description: str
+    task_type: Optional[str] = None  # 'drawing', 'model', 'presentation', etc.
+    discipline: Optional[str] = None  # 'Architecture', 'Interior', 'Landscape', etc.
+    phase: Optional[str] = None  # 'Concept', 'SD', 'DD', 'CD', 'CA'
+    hours_spent: Optional[float] = None
+    staff_id: Optional[int] = None
+    staff_name: Optional[str] = None
+    attachments: Optional[List[dict]] = None  # [{file_id, filename}]
+
+
+class DailyWorkReview(BaseModel):
+    """Request to review daily work (Bill/Brian)."""
+    review_status: str  # 'reviewed', 'needs_revision', 'approved'
+    review_comments: Optional[str] = None
+    reviewer_id: Optional[int] = None
+    reviewer_name: Optional[str] = None
+
+
+@router.post("/projects/{project_code}/daily-work")
+async def submit_daily_work(project_code: str, request: DailyWorkSubmission):
+    """
+    Submit daily work for a project.
+
+    Junior architects use this to log their daily work with optional file attachments.
+    """
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+
+        # Get project_id
+        cursor.execute("SELECT project_id FROM projects WHERE project_code = ?", (project_code,))
+        project = cursor.fetchone()
+        if not project:
+            conn.close()
+            raise HTTPException(status_code=404, detail=f"Project {project_code} not found")
+
+        project_id = project['project_id']
+
+        # Convert attachments to JSON string
+        import json
+        attachments_json = json.dumps(request.attachments) if request.attachments else None
+
+        cursor.execute("""
+            INSERT INTO daily_work (
+                project_id, project_code, work_date, description,
+                task_type, discipline, phase, hours_spent,
+                staff_id, staff_name, attachments, review_status
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending')
+        """, (
+            project_id, project_code, request.work_date, request.description,
+            request.task_type, request.discipline, request.phase, request.hours_spent,
+            request.staff_id, request.staff_name, attachments_json
+        ))
+
+        daily_work_id = cursor.lastrowid
+        conn.commit()
+        conn.close()
+
+        return {
+            "success": True,
+            "message": "Daily work submitted successfully",
+            "daily_work_id": daily_work_id
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to submit daily work: {str(e)}")
+
+
+@router.get("/projects/{project_code}/daily-work")
+async def get_project_daily_work(
+    project_code: str,
+    status: Optional[str] = Query(None, description="Filter by review_status"),
+    staff_id: Optional[int] = Query(None, description="Filter by staff"),
+    date_from: Optional[str] = Query(None, description="Start date YYYY-MM-DD"),
+    date_to: Optional[str] = Query(None, description="End date YYYY-MM-DD"),
+    limit: int = Query(50, ge=1, le=200)
+):
+    """
+    Get daily work submissions for a project.
+
+    Supports filtering by status, staff, and date range.
+    """
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+
+        query = """
+            SELECT
+                daily_work_id, project_code, work_date, submitted_at,
+                description, task_type, discipline, phase, hours_spent,
+                staff_id, staff_name, attachments,
+                reviewer_id, reviewer_name, review_status, review_comments, reviewed_at
+            FROM daily_work
+            WHERE project_code = ?
+        """
+        params = [project_code]
+
+        if status:
+            query += " AND review_status = ?"
+            params.append(status)
+
+        if staff_id:
+            query += " AND staff_id = ?"
+            params.append(staff_id)
+
+        if date_from:
+            query += " AND work_date >= ?"
+            params.append(date_from)
+
+        if date_to:
+            query += " AND work_date <= ?"
+            params.append(date_to)
+
+        query += " ORDER BY work_date DESC, submitted_at DESC LIMIT ?"
+        params.append(limit)
+
+        cursor.execute(query, params)
+
+        import json
+        submissions = []
+        for row in cursor.fetchall():
+            item = dict(row)
+            # Parse attachments JSON
+            if item.get('attachments'):
+                try:
+                    item['attachments'] = json.loads(item['attachments'])
+                except:
+                    item['attachments'] = []
+            else:
+                item['attachments'] = []
+            submissions.append(item)
+
+        # Get summary stats
+        cursor.execute("""
+            SELECT
+                COUNT(*) as total,
+                SUM(CASE WHEN review_status = 'pending' THEN 1 ELSE 0 END) as pending,
+                SUM(CASE WHEN review_status = 'reviewed' THEN 1 ELSE 0 END) as reviewed,
+                SUM(CASE WHEN review_status = 'needs_revision' THEN 1 ELSE 0 END) as needs_revision,
+                SUM(CASE WHEN review_status = 'approved' THEN 1 ELSE 0 END) as approved
+            FROM daily_work
+            WHERE project_code = ?
+        """, (project_code,))
+        stats = dict(cursor.fetchone())
+
+        conn.close()
+
+        return {
+            "success": True,
+            "project_code": project_code,
+            "submissions": submissions,
+            "count": len(submissions),
+            "stats": stats
+        }
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to get daily work: {str(e)}")
+
+
+@router.get("/daily-work/{daily_work_id}")
+async def get_daily_work_detail(daily_work_id: int):
+    """Get a single daily work submission with full details."""
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+
+        cursor.execute("SELECT * FROM daily_work WHERE daily_work_id = ?", (daily_work_id,))
+        row = cursor.fetchone()
+        conn.close()
+
+        if not row:
+            raise HTTPException(status_code=404, detail=f"Daily work {daily_work_id} not found")
+
+        import json
+        item = dict(row)
+        if item.get('attachments'):
+            try:
+                item['attachments'] = json.loads(item['attachments'])
+            except:
+                item['attachments'] = []
+
+        return {"success": True, "data": item}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to get daily work: {str(e)}")
+
+
+@router.patch("/daily-work/{daily_work_id}/review")
+async def review_daily_work(daily_work_id: int, request: DailyWorkReview):
+    """
+    Add review to daily work submission.
+
+    Used by Bill/Brian to provide feedback on junior architect work.
+    """
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+
+        # Verify submission exists
+        cursor.execute("SELECT daily_work_id FROM daily_work WHERE daily_work_id = ?", (daily_work_id,))
+        if not cursor.fetchone():
+            conn.close()
+            raise HTTPException(status_code=404, detail=f"Daily work {daily_work_id} not found")
+
+        cursor.execute("""
+            UPDATE daily_work
+            SET review_status = ?,
+                review_comments = ?,
+                reviewer_id = ?,
+                reviewer_name = ?,
+                reviewed_at = datetime('now')
+            WHERE daily_work_id = ?
+        """, (
+            request.review_status,
+            request.review_comments,
+            request.reviewer_id,
+            request.reviewer_name,
+            daily_work_id
+        ))
+
+        conn.commit()
+        conn.close()
+
+        return {
+            "success": True,
+            "message": f"Daily work marked as {request.review_status}"
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to review daily work: {str(e)}")
+
+
+@router.patch("/daily-work/{daily_work_id}")
+async def update_daily_work(daily_work_id: int, request: DailyWorkSubmission):
+    """Update a daily work submission (before review)."""
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+
+        import json
+        attachments_json = json.dumps(request.attachments) if request.attachments else None
+
+        cursor.execute("""
+            UPDATE daily_work
+            SET work_date = ?,
+                description = ?,
+                task_type = ?,
+                discipline = ?,
+                phase = ?,
+                hours_spent = ?,
+                attachments = ?
+            WHERE daily_work_id = ?
+        """, (
+            request.work_date, request.description, request.task_type,
+            request.discipline, request.phase, request.hours_spent,
+            attachments_json, daily_work_id
+        ))
+
+        if cursor.rowcount == 0:
+            conn.close()
+            raise HTTPException(status_code=404, detail=f"Daily work {daily_work_id} not found")
+
+        conn.commit()
+        conn.close()
+
+        return {"success": True, "message": "Daily work updated"}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to update daily work: {str(e)}")
+
+
+@router.delete("/daily-work/{daily_work_id}")
+async def delete_daily_work(daily_work_id: int):
+    """Delete a daily work submission."""
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+
+        cursor.execute("DELETE FROM daily_work WHERE daily_work_id = ?", (daily_work_id,))
+
+        if cursor.rowcount == 0:
+            conn.close()
+            raise HTTPException(status_code=404, detail=f"Daily work {daily_work_id} not found")
+
+        conn.commit()
+        conn.close()
+
+        return {"success": True, "message": "Daily work deleted"}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to delete daily work: {str(e)}")
