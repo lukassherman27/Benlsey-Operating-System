@@ -54,6 +54,7 @@ from services.meeting_briefing_service import MeetingBriefingService
 from services.user_learning_service import UserLearningService
 from services.invoice_service import InvoiceService
 from services.email_orchestrator import EmailOrchestrator
+from services.onedrive_service import get_onedrive_service
 
 # Orphaned services now being connected (Dec 2025)
 from services.pattern_first_linker import get_pattern_linker
@@ -93,6 +94,7 @@ try:
     user_learning_service = UserLearningService(DB_PATH)
     invoice_service = InvoiceService(DB_PATH)
     email_orchestrator = EmailOrchestrator(DB_PATH)
+    onedrive_service = get_onedrive_service(DB_PATH)
 
     # Orphaned services now being wired up (Dec 2025)
     pattern_linker = get_pattern_linker(DB_PATH)
@@ -136,6 +138,7 @@ __all__ = [
     'user_learning_service',
     'invoice_service',
     'email_orchestrator',
+    'onedrive_service',
     # Newly wired services (Dec 2025)
     'pattern_linker',
     'proposal_version_service',

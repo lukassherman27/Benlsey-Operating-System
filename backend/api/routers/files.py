@@ -248,3 +248,88 @@ async def bulk_update_onedrive_paths(request: BulkUpdateOnedriveRequest):
         return action_response(True, data={"updated": count}, message=f"Updated {count} files")
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+# ============================================================================
+# ONEDRIVE UPLOAD/DOWNLOAD (Issue #243)
+# ============================================================================
+
+from fastapi import UploadFile, File, Form
+from api.services import onedrive_service
+
+
+@router.post("/files/upload")
+async def upload_file(
+    file: UploadFile = File(...),
+    project_code: str = Form(...),
+    category: str = Form(...),
+    uploaded_by: str = Form(default="system"),
+):
+    """
+    Upload a file to OneDrive (or local storage as fallback).
+
+    Categories: Daily Work, Deliverables, Client Submissions, Proposals, Contracts, Drawings, Reference
+    """
+    try:
+        content = await file.read()
+        result = await onedrive_service.upload_file(
+            file_content=content,
+            filename=file.filename,
+            project_code=project_code,
+            category=category,
+            uploaded_by=uploaded_by,
+        )
+        return {"success": True, "message": "File uploaded successfully", **result}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Upload failed: {str(e)}")
+
+
+@router.get("/files/download/{file_id}")
+async def get_download_url(file_id: int):
+    """Get download URL for a file."""
+    try:
+        result = await onedrive_service.get_download_url(file_id)
+        return {"success": True, **result}
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to get download URL: {str(e)}")
+
+
+@router.get("/files/by-project/{project_code}")
+async def get_files_by_project(project_code: str, category: Optional[str] = None):
+    """Get all uploaded files for a project."""
+    try:
+        files = onedrive_service.get_files_by_project(project_code, category)
+        response = list_response(files, len(files))
+        response["project_code"] = project_code
+        response["files"] = files
+        response["count"] = len(files)
+        return response
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.delete("/files/uploaded/{file_id}")
+async def delete_uploaded_file(file_id: int):
+    """Delete an uploaded file from storage and database."""
+    try:
+        success = onedrive_service.delete_file(file_id)
+        if not success:
+            raise HTTPException(status_code=404, detail=f"File {file_id} not found")
+        return action_response(True, message="File deleted")
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/files/config")
+async def get_onedrive_config():
+    """Check OneDrive configuration status."""
+    return {
+        "success": True,
+        "onedrive_configured": onedrive_service.is_configured(),
+        "storage_mode": "onedrive" if onedrive_service.is_configured() else "local",
+        "categories": onedrive_service.FOLDER_CATEGORIES,
+    }
