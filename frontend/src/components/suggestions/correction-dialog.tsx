@@ -42,6 +42,9 @@ import {
   Layers,
   Check,
   Calendar,
+  MessageSquare,
+  Users,
+  Video,
 } from "lucide-react";
 import { SuggestionItem, api } from "@/lib/api";
 import { cn } from "@/lib/utils";
@@ -172,6 +175,18 @@ const CATEGORIES: CategoryOption[] = [
     color: 'bg-amber-100 text-amber-700 border-amber-200',
   },
   {
+    id: 'contact',
+    label: 'Contact',
+    icon: <Users className="h-4 w-4" />,
+    color: 'bg-cyan-100 text-cyan-700 border-cyan-200',
+  },
+  {
+    id: 'meeting',
+    label: 'Meeting',
+    icon: <Video className="h-4 w-4" />,
+    color: 'bg-violet-100 text-violet-700 border-violet-200',
+  },
+  {
     id: 'internal',
     label: 'Internal Email',
     icon: <Mail className="h-4 w-4" />,
@@ -214,6 +229,12 @@ const CATEGORIES: CategoryOption[] = [
     label: 'Spam',
     icon: <Ban className="h-4 w-4" />,
     color: 'bg-red-100 text-red-700 border-red-200',
+  },
+  {
+    id: 'other',
+    label: 'Other',
+    icon: <MessageSquare className="h-4 w-4" />,
+    color: 'bg-gray-100 text-gray-700 border-gray-200',
   },
 ];
 
