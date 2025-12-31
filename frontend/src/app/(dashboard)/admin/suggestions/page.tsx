@@ -687,6 +687,14 @@ export default function SuggestionsPage() {
     setFocusedIndex(0);
   }, [page, activeTab, confidenceFilter, statusFilter]);
 
+  // Auto-advance: Keep focused index in bounds when suggestions list shrinks
+  // This enables Gmail-style workflow: approve/reject → automatically focus next item
+  useEffect(() => {
+    if (suggestions.length > 0 && focusedIndex >= suggestions.length) {
+      setFocusedIndex(suggestions.length - 1);
+    }
+  }, [suggestions.length, focusedIndex]);
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white w-full max-w-full overflow-x-hidden">
       <div className="mx-auto max-w-full px-4 py-8 sm:px-6 lg:px-8">

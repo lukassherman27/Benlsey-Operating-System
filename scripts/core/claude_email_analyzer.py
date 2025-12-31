@@ -331,13 +331,17 @@ def create_suggestion(conn, email_id: int, analysis: Dict, dry_run: bool = False
 
     suggestion_data = {
         'email_id': email_id,
+        'proposal_id': proposal_id,  # Required by email_link_handler
         'sender': analysis['sender'],
         'subject': analysis['subject'],
         'project_code': top['project_code'],
         'project_name': top['project_name'],
         'confidence': top['confidence'],
+        'confidence_score': top['confidence'],  # Handler also checks this key
         'method': top['method'],
+        'match_method': top['method'],  # Handler uses this key for link record
         'reasoning': top['reasoning'],
+        'match_reason': top['reasoning'],  # Handler uses this key for link record
         'all_suggestions': analysis['suggestions']
     }
 
