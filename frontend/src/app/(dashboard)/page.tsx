@@ -36,7 +36,7 @@ const formatCurrency = (value: number) => {
 export default function DashboardPage() {
   const [lastUpdated] = useState(new Date());
   const { data: session } = useSession();
-  const { canViewFinancials, isPM, userRole } = useRBAC();
+  const { canViewFinancials } = useRBAC();
 
   // Get user's first name for greeting
   const userName = session?.user?.name?.split(" ")[0] || "there";

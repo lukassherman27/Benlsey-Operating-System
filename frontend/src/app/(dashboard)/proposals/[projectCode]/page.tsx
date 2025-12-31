@@ -29,23 +29,6 @@ import { ConversationView } from "@/components/proposals/conversation-view";
 import { NextActionCard } from "@/components/proposals/next-action-card";
 import { HorizontalTimeline } from "@/components/proposals/horizontal-timeline";
 
-// Email type for combined timeline and direct emails
-interface CombinedEmail {
-  email_id?: number;
-  id?: number;
-  subject?: string;
-  title?: string;
-  sender_email?: string;
-  from?: string;
-  date?: string;
-  date_normalized?: string;
-  snippet?: string;
-  ai_summary?: string;
-  type?: string;
-  has_attachments?: boolean | number;
-  category?: string;
-}
-
 // Calculate health score from days since contact
 function getHealthInfo(daysSinceContact: number | null | undefined): {
   score: "healthy" | "ok" | "attention" | "at_risk";

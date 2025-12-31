@@ -5,8 +5,6 @@ import { Button } from "@/components/ui/button";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 
-type SystemStats = Awaited<ReturnType<typeof api.getSystemStats>>;
-
 export default function SystemStatusPage() {
   const { data: stats, isLoading, error, refetch, dataUpdatedAt } = useQuery({
     queryKey: ["system-stats"],
