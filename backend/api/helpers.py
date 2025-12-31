@@ -6,9 +6,9 @@ All endpoints should use these helpers to ensure consistent response formats.
 Usage:
     from api.helpers import list_response, item_response, action_response
 
-Response Format Standards:
-    - Lists: {"data": [...], "meta": {"total": N, "page": 1, "per_page": 50, "has_more": bool}}
-    - Single items: {"data": {...}, "meta": {"fetched_at": "..."}}
+Response Format Standards (Issue #126 - all include "success" for consistency):
+    - Lists: {"success": true, "data": [...], "meta": {"total": N, "page": 1, "per_page": 50, "has_more": bool}}
+    - Single items: {"success": true, "data": {...}, "meta": {"fetched_at": "..."}}
     - Actions: {"success": bool, "data": {...}, "message": "..."}
     - Errors: {"error": true, "code": "...", "message": "...", "detail": "..."}
 
@@ -46,6 +46,7 @@ def list_response(
         total = len(data)
 
     return {
+        "success": True,
         "data": data,
         "meta": {
             "total": total,
@@ -76,6 +77,7 @@ def item_response(data: Any, include_timestamp: bool = True) -> dict:
         meta["fetched_at"] = datetime.utcnow().isoformat() + "Z"
 
     return {
+        "success": True,
         "data": data,
         "meta": meta
     }
