@@ -219,8 +219,8 @@ export function MeetingRecorder() {
       {state === "idle" && (
         <div className="p-6 border-t border-slate-200 space-y-6">
           <div className="space-y-2"><Label className="flex items-center gap-2"><Briefcase className="h-4 w-4" />Project (Optional)</Label>
-            <Select value={selectedProject} onValueChange={setSelectedProject}><SelectTrigger><SelectValue placeholder="Select a project..." /></SelectTrigger>
-              <SelectContent><SelectItem value="">No project</SelectItem>{projects.map(p => <SelectItem key={p.project_code} value={p.project_code}><span className="font-mono text-xs mr-2">{p.project_code}</span>{p.project_name}</SelectItem>)}</SelectContent>
+            <Select value={selectedProject} onValueChange={(v) => setSelectedProject(v === "_none" ? "" : v)}><SelectTrigger><SelectValue placeholder="Select a project..." /></SelectTrigger>
+              <SelectContent><SelectItem value="_none">No project</SelectItem>{projects.map(p => <SelectItem key={p.project_code} value={p.project_code}><span className="font-mono text-xs mr-2">{p.project_code}</span>{p.project_name}</SelectItem>)}</SelectContent>
             </Select></div>
           <div className="space-y-2"><Label className="flex items-center gap-2"><Clock className="h-4 w-4" />Meeting Title (Optional)</Label><Input placeholder="e.g., Weekly Design Review" value={meetingTitle} onChange={e => setMeetingTitle(e.target.value)} /></div>
           <AttendeeInput attendees={attendees} onAdd={n => setAttendees([...attendees, n])} onRemove={i => setAttendees(attendees.filter((_, idx) => idx !== i))} />
