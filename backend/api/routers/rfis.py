@@ -19,7 +19,7 @@ Endpoints:
 """
 
 from fastapi import APIRouter, HTTPException, Query
-from typing import Optional
+from typing import Optional, Dict, Any, List
 from pydantic import BaseModel, Field
 from datetime import date
 import sqlite3
@@ -29,6 +29,52 @@ from api.services import rfi_service
 from api.helpers import list_response, item_response, action_response
 
 router = APIRouter(prefix="/api", tags=["rfis"])
+
+
+# ============================================================================
+# FIELD MAPPING HELPER
+# ============================================================================
+
+def map_rfi_for_frontend(rfi: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Map backend RFI fields to frontend expected format.
+
+    Backend -> Frontend mapping:
+    - rfi_id -> id
+    - date_sent -> created_at
+    - date_due -> due_date
+    - sender_name -> requested_by
+    - date_responded -> responded_at
+    - project_code -> project_code (unchanged)
+    """
+    return {
+        "id": rfi.get("rfi_id"),
+        "rfi_number": rfi.get("rfi_number"),
+        "subject": rfi.get("subject", ""),
+        "description": rfi.get("description"),
+        "project_code": rfi.get("project_code"),
+        "project_name": rfi.get("project_title") or rfi.get("project_name"),
+        "status": rfi.get("status", "open"),
+        "priority": rfi.get("priority"),
+        "requested_by": rfi.get("sender_name") or rfi.get("sender_email"),
+        "assigned_to": rfi.get("assigned_to"),
+        "created_at": rfi.get("date_sent") or rfi.get("created_at"),
+        "due_date": rfi.get("date_due"),
+        "responded_at": rfi.get("date_responded"),
+        "closed_at": rfi.get("closed_at"),  # If exists
+        "response": rfi.get("response"),
+        "days_open": rfi.get("days_open"),
+        "is_overdue": rfi.get("is_overdue", False),
+        # Keep original fields for backward compat
+        "rfi_id": rfi.get("rfi_id"),
+        "project_id": rfi.get("project_id"),
+        "extraction_confidence": rfi.get("extraction_confidence"),
+    }
+
+
+def map_rfis_for_frontend(rfis: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """Map a list of RFIs for frontend compatibility."""
+    return [map_rfi_for_frontend(rfi) for rfi in rfis]
 
 
 # ============================================================================
@@ -67,7 +113,8 @@ async def list_rfis(
     try:
         if proposal_id and not project_code and not overdue_only:
             rfis = rfi_service.get_rfis_by_proposal(proposal_id)
-            return {"total": len(rfis), "rfis": rfis}
+            mapped = map_rfis_for_frontend(rfis)
+            return {"success": True, "total": len(mapped), "rfis": mapped}
 
         conn = sqlite3.connect(DB_PATH)
         conn.row_factory = sqlite3.Row
@@ -111,7 +158,9 @@ async def list_rfis(
             else:
                 rfi['is_overdue'] = False
 
-        return list_response(rfis, len(rfis))
+        # Map fields for frontend and return with 'rfis' key (frontend expectation)
+        mapped_rfis = map_rfis_for_frontend(rfis)
+        return {"success": True, "total": len(mapped_rfis), "rfis": mapped_rfis}
     except Exception as e:
         raise HTTPException(status_code=500, detail="An internal error occurred")
 
@@ -133,19 +182,23 @@ async def get_rfi_stats():
         stats = rfi_service.get_rfi_stats_for_dashboard()
         summary = stats.get('summary', {})
 
-        # Map to frontend expected format (open -> pending for UI consistency)
+        # Format stats for frontend - frontend expects 'open' not 'pending'
         formatted_stats = {
             'total': summary.get('total_rfis', 0),
-            'pending': summary.get('open', 0),  # Map 'open' to 'pending' for frontend
+            'open': summary.get('open', 0),  # Frontend expects 'open'
             'responded': summary.get('responded', 0),
             'closed': summary.get('closed', 0),
             'overdue': summary.get('overdue', 0),
             'avg_response_days': summary.get('avg_days_open'),
         }
 
-        response = item_response(formatted_stats)
-        response.update(formatted_stats)  # Backward compat - flatten at root
-        return response
+        # Return with nested 'stats' object as frontend API expects
+        return {
+            "success": True,
+            "stats": formatted_stats,
+            # Backward compat - also flatten at root level
+            **formatted_stats
+        }
     except Exception as e:
         raise HTTPException(status_code=500, detail="An internal error occurred")
 
