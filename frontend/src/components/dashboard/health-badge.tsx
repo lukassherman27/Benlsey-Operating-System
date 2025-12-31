@@ -6,17 +6,18 @@ const labelMap: Record<string, string> = {
   critical: "Critical",
 };
 
-const variants: Record<string, "default" | "secondary" | "destructive"> = {
-  healthy: "default",
-  at_risk: "secondary",
-  critical: "destructive",
+// Use semantic status variants for proper color coding
+const variants: Record<string, "success" | "warning" | "danger"> = {
+  healthy: "success",    // Green - good state
+  at_risk: "warning",    // Amber - needs attention
+  critical: "danger",    // Red - urgent
 };
 
 export function HealthBadge({ status }: { status?: string }) {
   if (!status) return null;
   const normalized = status.toLowerCase();
   return (
-    <Badge variant={variants[normalized] ?? "secondary"} className="capitalize">
+    <Badge variant={variants[normalized] ?? "warning"} className="capitalize">
       {labelMap[normalized] ?? status}
     </Badge>
   );
