@@ -1,0 +1,39 @@
+[Unit]
+Description=Bensley Operations Platform - Frontend (Next.js)
+After=network.target bensley-backend.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=bensley
+Group=bensley
+WorkingDirectory=/home/bensley/bensley-operating-system/frontend
+
+# Environment variables
+Environment=NODE_ENV=production
+Environment=PORT=3000
+
+# Load additional environment from file
+EnvironmentFile=/home/bensley/bensley-operating-system/frontend/.env.local
+
+# Start Next.js production server
+ExecStart=/usr/bin/npm run start
+
+# Restart policy
+Restart=always
+RestartSec=5
+
+# Resource limits
+LimitNOFILE=65535
+
+# Security hardening
+NoNewPrivileges=true
+PrivateTmp=true
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=bensley-frontend
+
+[Install]
+WantedBy=multi-user.target

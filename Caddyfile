@@ -1,0 +1,63 @@
+# Bensley Operations Platform - Caddy Configuration
+#
+# This file configures Caddy as a reverse proxy with automatic HTTPS.
+# Copy to /etc/caddy/Caddyfile on your production server.
+#
+# Usage:
+#   sudo cp Caddyfile /etc/caddy/Caddyfile
+#   sudo systemctl reload caddy
+
+# Replace with your actual domain
+your-domain.com {
+    # Enable HSTS (HTTP Strict Transport Security)
+    header Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+
+    # Security headers
+    header X-Content-Type-Options "nosniff"
+    header X-Frame-Options "DENY"
+    header Referrer-Policy "strict-origin-when-cross-origin"
+
+    # API routes -> Backend (FastAPI on port 8000)
+    handle /api/* {
+        reverse_proxy localhost:8000 {
+            # Health check for backend
+            health_uri /api/health
+            health_interval 30s
+            health_timeout 5s
+        }
+    }
+
+    # API docs (FastAPI built-in)
+    handle /docs* {
+        reverse_proxy localhost:8000
+    }
+    handle /redoc* {
+        reverse_proxy localhost:8000
+    }
+    handle /openapi.json {
+        reverse_proxy localhost:8000
+    }
+
+    # Everything else -> Frontend (Next.js on port 3000)
+    handle {
+        reverse_proxy localhost:3000 {
+            # Health check for frontend
+            health_uri /
+            health_interval 30s
+            health_timeout 5s
+        }
+    }
+
+    # Logging
+    log {
+        output file /var/log/caddy/access.log {
+            roll_size 10mb
+            roll_keep 5
+        }
+    }
+}
+
+# Redirect www to non-www (optional)
+www.your-domain.com {
+    redir https://your-domain.com{uri} permanent
+}
