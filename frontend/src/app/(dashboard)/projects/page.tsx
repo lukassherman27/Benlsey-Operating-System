@@ -41,6 +41,7 @@ import {
   ListTodo,
   Clock,
   AlertTriangle,
+  AlertCircle,
   CalendarDays,
   Package,
   RefreshCw,
@@ -288,6 +289,7 @@ export default function ProjectsPage() {
   };
 
   const isLoading = activeProjectsQuery.isLoading || tasksQuery.isLoading;
+  const hasError = activeProjectsQuery.isError;
 
   return (
     <div className={cn(ds.gap.loose, "space-y-6 w-full max-w-full overflow-x-hidden")}>
@@ -491,6 +493,20 @@ export default function ProjectsPage() {
                       <Skeleton className="h-12 w-24" />
                     </div>
                   ))}
+                </div>
+              ) : hasError ? (
+                <div className="py-16 text-center">
+                  <AlertCircle className="mx-auto h-16 w-16 text-red-300 mb-4" />
+                  <p className={cn(ds.typography.cardHeader, ds.textColors.primary, "mb-2")}>
+                    Unable to load projects
+                  </p>
+                  <p className={cn(ds.typography.body, ds.textColors.tertiary, "mb-4")}>
+                    Something went wrong. Try refreshing the page.
+                  </p>
+                  <Button variant="outline" onClick={() => activeProjectsQuery.refetch()}>
+                    <RefreshCw className="h-4 w-4 mr-2" />
+                    Try Again
+                  </Button>
                 </div>
               ) : filteredProjects.length === 0 ? (
                 <div className="py-16 text-center">

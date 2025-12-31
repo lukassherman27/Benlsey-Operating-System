@@ -17,17 +17,11 @@ import {
   Sun,
   Brain,
   Mail,
-  LayoutDashboard,
   FolderKanban,
   Users,
   LogOut,
   User,
-  Package,
-  HelpCircle,
   BarChart3,
-  MessageSquareText,
-  CheckSquare,
-  Mic,
 } from "lucide-react";
 import { useSession, signOut } from "next-auth/react";
 import { cn } from "@/lib/utils";
@@ -49,51 +43,17 @@ type NavItem = {
   subItems?: { href: string; label: string; icon: React.ElementType }[];
 };
 
-// Navigation structure - Dec 29, 2025: Added Tasks page and hidden pages (deliverables, rfis, contacts, analytics, query)
-// Issue #232: Navigation incomplete - 4 pages hidden, duplicates exist
+// Navigation structure - Dec 31, 2025: Simplified navigation for UX clarity
+// Removed: /deliverables (redirect only), /rfis (access from projects), /overview (duplicate)
+// Issue #232: Navigation cleanup - simplified to essential pages only
 const navItems: NavItem[] = [
   { href: "/my-day", label: "My Day", icon: Sun },
-  { href: "/tasks", label: "Tasks", icon: CheckSquare },
   { href: "/", label: "Dashboard", icon: Home },
-  {
-    href: "/tracker",
-    label: "Proposals",
-    icon: ListChecks,
-    subItems: [
-      { href: "/tracker", label: "Pipeline Tracker", icon: ListChecks },
-      { href: "/overview", label: "Dashboard", icon: LayoutDashboard },
-    ]
-  },
-  {
-    href: "/projects",
-    label: "Projects",
-    icon: FolderKanban,
-    subItems: [
-      { href: "/projects", label: "All Projects", icon: FolderKanban },
-      { href: "/deliverables", label: "Deliverables", icon: Package },
-      { href: "/rfis", label: "RFIs", icon: HelpCircle },
-    ]
-  },
-  {
-    href: "/team",
-    label: "Team",
-    icon: Users,
-    subItems: [
-      { href: "/team", label: "PM Workload", icon: Users },
-      { href: "/contacts", label: "Contacts", icon: Users },
-    ]
-  },
-  {
-    href: "/meetings",
-    label: "Meetings",
-    icon: Calendar,
-    subItems: [
-      { href: "/meetings", label: "Calendar", icon: Calendar },
-      { href: "/recorder", label: "Recorder", icon: Mic },
-    ]
-  },
+  { href: "/tracker", label: "Proposals", icon: ListChecks },
+  { href: "/projects", label: "Projects", icon: FolderKanban },
+  { href: "/team", label: "Team", icon: Users },
+  { href: "/meetings", label: "Meetings", icon: Calendar },
   { href: "/finance", label: "Finance", icon: DollarSign },
-  { href: "/analytics", label: "Analytics", icon: BarChart3 },
   {
     href: "/admin",
     label: "Admin",
@@ -102,7 +62,7 @@ const navItems: NavItem[] = [
       { href: "/emails/review", label: "Email Review", icon: Mail },
       { href: "/admin/suggestions", label: "AI Review", icon: Sparkles },
       { href: "/admin/patterns", label: "Patterns", icon: Brain },
-      { href: "/query", label: "Query AI", icon: MessageSquareText },
+      { href: "/analytics", label: "Analytics", icon: BarChart3 },
       { href: "/system", label: "System", icon: Settings },
     ]
   },
