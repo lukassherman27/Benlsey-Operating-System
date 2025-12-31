@@ -1,0 +1,18 @@
+[Unit]
+Description=Run Bensley email sync every 15 minutes
+
+[Timer]
+# Run 15 minutes after boot
+OnBootSec=15min
+
+# Run every 15 minutes after that
+OnUnitActiveSec=15min
+
+# Randomize start time by up to 60 seconds to avoid thundering herd
+RandomizedDelaySec=60
+
+# Start immediately if last run was missed
+Persistent=true
+
+[Install]
+WantedBy=timers.target
