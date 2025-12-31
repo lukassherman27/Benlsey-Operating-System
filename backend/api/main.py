@@ -66,6 +66,7 @@ from api.routers import (
     team,
     upload,
     recordings,
+    reports,
 )
 
 # Initialize logger
@@ -215,6 +216,9 @@ app.include_router(team.router)
 
 # Meeting Recorder (Issue #194)
 app.include_router(recordings.router)
+
+# Reports API - Historical Reports (Issue #291)
+app.include_router(reports.router)
 
 # ============================================================================
 # GLOBAL EXCEPTION HANDLERS
