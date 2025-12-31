@@ -27,6 +27,7 @@ import {
   BarChart3,
   MessageSquareText,
   CheckSquare,
+  Mic,
 } from "lucide-react";
 import { useSession, signOut } from "next-auth/react";
 import { cn } from "@/lib/utils";
@@ -82,7 +83,15 @@ const navItems: NavItem[] = [
       { href: "/contacts", label: "Contacts", icon: Users },
     ]
   },
-  { href: "/meetings", label: "Meetings", icon: Calendar },
+  {
+    href: "/meetings",
+    label: "Meetings",
+    icon: Calendar,
+    subItems: [
+      { href: "/meetings", label: "Calendar", icon: Calendar },
+      { href: "/recorder", label: "Recorder", icon: Mic },
+    ]
+  },
   { href: "/finance", label: "Finance", icon: DollarSign },
   { href: "/analytics", label: "Analytics", icon: BarChart3 },
   {
