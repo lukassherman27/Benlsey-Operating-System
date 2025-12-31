@@ -1325,16 +1325,17 @@ async def reject_with_correction(
                             result_data["corrected"] = True
 
         # Handle email category update
-        # Note: emails table only has category column, subcategory is stored as part of category value
+        # Note: Uses primary_category column (the canonical category field)
+        # Subcategory is stored as part of the category value (e.g., "INTERNAL:scheduling")
         if request.category and email_id:
-            # Store as "category:subcategory" if subcategory provided, else just category
-            category_value = request.category
+            # Map to uppercase format used by primary_category
+            category_value = request.category.upper()
             if request.subcategory:
-                category_value = f"{request.category}:{request.subcategory}"
+                category_value = f"{category_value}:{request.subcategory.upper()}"
 
             cursor.execute("""
                 UPDATE emails
-                SET category = ?
+                SET primary_category = ?
                 WHERE email_id = ?
             """, (category_value, email_id))
             result_data["category_updated"] = True
