@@ -13,11 +13,14 @@ Endpoints:
 from fastapi import APIRouter, HTTPException, Query
 from typing import Optional, List
 import sqlite3
+import logging
 
 from api.services import email_service, email_intelligence_service, email_orchestrator
 from api.dependencies import DB_PATH
 from api.models import EmailCategoryRequest, EmailLinkRequest, BulkCategoryRequest
 from api.helpers import list_response, item_response, action_response
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api", tags=["emails"])
 
@@ -336,10 +339,11 @@ async def bulk_approve_emails(
                     })
 
             except Exception as e:
+                logger.exception("Error approving email %d", email_id)
                 results["failed"] += 1
                 results["errors"].append({
                     "email_id": email_id,
-                    "error": str(e)
+                    "error": "Failed to process email"
                 })
 
         return {
@@ -349,7 +353,8 @@ async def bulk_approve_emails(
         }
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception("Error in bulk approve emails")
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.post("/emails/{email_id}/quick-approve")
@@ -476,7 +481,8 @@ async def quick_approve_email(
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception("Error in quick approve email %d", email_id)
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 # ============================================================================
@@ -824,7 +830,8 @@ async def scan_sent_for_proposals(
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception("Error detecting sent proposals")
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.post("/emails/process-sent-emails")
