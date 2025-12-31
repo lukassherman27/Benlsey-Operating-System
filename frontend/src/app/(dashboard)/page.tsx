@@ -15,6 +15,7 @@ import {
   RefreshCw,
   DollarSign,
   AlertTriangle,
+  AlertCircle,
   TrendingUp,
   FileText,
   ChevronRight,
@@ -299,6 +300,14 @@ export default function DashboardPage() {
                 <div className="space-y-3">
                   {[1, 2, 3].map(i => <div key={i} className="h-16 bg-slate-100 animate-pulse rounded" />)}
                 </div>
+              ) : proposalsQuery.isError ? (
+                <div className="text-center py-6 text-slate-500">
+                  <AlertCircle className="h-8 w-8 mx-auto mb-2 text-red-300" />
+                  <p className="text-sm text-slate-600 mb-2">Unable to load proposals</p>
+                  <Button variant="ghost" size="sm" onClick={() => proposalsQuery.refetch()}>
+                    <RefreshCw className="h-3 w-3 mr-1" /> Retry
+                  </Button>
+                </div>
               ) : proposals?.stale && proposals.stale.length > 0 ? (
                 <div className="space-y-2">
                   {proposals.stale.slice(0, 5).map((p) => (
@@ -364,6 +373,14 @@ export default function DashboardPage() {
               {invoicesQuery.isLoading ? (
                 <div className="space-y-3">
                   {[1, 2, 3].map(i => <div key={i} className="h-14 bg-slate-100 animate-pulse rounded" />)}
+                </div>
+              ) : invoicesQuery.isError ? (
+                <div className="text-center py-6 text-slate-500">
+                  <AlertCircle className="h-8 w-8 mx-auto mb-2 text-red-300" />
+                  <p className="text-sm text-slate-600 mb-2">Unable to load invoices</p>
+                  <Button variant="ghost" size="sm" onClick={() => invoicesQuery.refetch()}>
+                    <RefreshCw className="h-3 w-3 mr-1" /> Retry
+                  </Button>
                 </div>
               ) : invoices?.byProject && invoices.byProject.length > 0 ? (
                 <div className="space-y-2">
