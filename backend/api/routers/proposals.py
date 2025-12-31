@@ -51,7 +51,8 @@ async def list_proposals(
     sort_order: str = Query("ASC", regex="^(ASC|DESC)$")
 ):
     """
-    List all proposals with optional filtering and pagination
+    List all proposals with optional filtering and pagination.
+    Returns standardized response format.
     """
     try:
         result = proposal_service.get_all_proposals(
@@ -62,7 +63,13 @@ async def list_proposals(
             sort_by=sort_by,
             sort_order=sort_order
         )
-        return result
+        # Standardize response format (Issue #126)
+        return list_response(
+            result.get('items', []),
+            total=result.get('total', 0),
+            page=result.get('page', page),
+            per_page=result.get('per_page', per_page)
+        )
     except ValueError as e:
         raise HTTPException(status_code=400, detail="Invalid request")
     except Exception as e:
@@ -71,10 +78,11 @@ async def list_proposals(
 
 @router.get("/proposals/stats")
 async def get_proposal_stats():
-    """Get proposal statistics"""
+    """Get proposal statistics. Returns standardized response format."""
     try:
         stats = proposal_service.get_dashboard_stats()
-        return stats
+        # Standardize response format (Issue #126)
+        return item_response(stats)
     except Exception as e:
         raise HTTPException(status_code=500, detail="An internal error occurred")
 
