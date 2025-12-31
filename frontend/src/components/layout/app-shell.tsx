@@ -23,7 +23,6 @@ import {
   User,
   BarChart3,
   LayoutDashboard,
-  Package,
   HelpCircle,
   CheckSquare,
   Mic,
@@ -70,7 +69,6 @@ const navItems: NavItem[] = [
     icon: FolderKanban,
     subItems: [
       { href: "/projects", label: "All Projects", icon: FolderKanban },
-      { href: "/deliverables", label: "Deliverables", icon: Package },
       { href: "/rfis", label: "RFIs", icon: HelpCircle },
     ]
   },
