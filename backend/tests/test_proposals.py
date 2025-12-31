@@ -19,14 +19,17 @@ def test_proposals_stats_has_required_fields(client):
     response = client.get("/api/proposals/stats")
     data = response.json()
 
+    # Stats are nested under 'data' key
+    stats = data.get("data", data)
+
     # Should have core pipeline metrics
     expected_fields = ["active_pipeline", "active_projects", "at_risk"]
     for field in expected_fields:
-        assert field in data, f"Missing field: {field}"
+        assert field in stats, f"Missing field: {field}"
 
     # Values should be integers
-    assert isinstance(data["active_pipeline"], int)
-    assert isinstance(data["active_projects"], int)
+    assert isinstance(stats["active_pipeline"], int)
+    assert isinstance(stats["active_projects"], int)
 
 
 def test_proposals_list_returns_200(client):
@@ -40,10 +43,13 @@ def test_proposals_list_has_pagination(client):
     response = client.get("/api/proposals?page=1&per_page=10")
     data = response.json()
 
-    # Should have pagination info with items array
+    # Should have items/data array
     assert "items" in data or "data" in data or "proposals" in data
-    assert "page" in data
-    assert "per_page" in data
+    # Pagination info is in 'meta' object
+    assert "meta" in data
+    meta = data["meta"]
+    assert "page" in meta
+    assert "per_page" in meta
 
 
 def test_proposals_list_respects_per_page(client):
