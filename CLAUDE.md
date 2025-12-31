@@ -50,6 +50,42 @@ git checkout -b fix/short-desc-42
 
 ---
 
+## MCP DATABASE ACCESS
+
+Claude Code has direct database access via the Model Context Protocol (MCP). This means you can query `bensley_master.db` directly during conversations.
+
+### How It Works
+The `.mcp.json` file configures the SQLite MCP server. When Claude Code starts in this project, it connects to the database automatically.
+
+### Available Tools
+| Tool | Purpose |
+|------|---------|
+| `read_query` | Execute SELECT statements |
+| `write_query` | Execute INSERT/UPDATE/DELETE |
+| `list_tables` | Show all tables in database |
+| `describe_table` | Show column definitions |
+
+### Example Queries
+
+```
+# Instead of running sqlite3 commands in bash, just ask:
+"How many unlinked emails do we have?"
+"Show me proposals created this month"
+"What are the most used email patterns?"
+```
+
+### Check MCP Status
+```bash
+claude mcp list  # Shows connected MCP servers
+```
+
+### Security Note
+- The database contains sensitive business data
+- MCP access is local-only (no network exposure)
+- Changes are logged in sqlite - be careful with write operations
+
+---
+
 ## COMMIT MESSAGES (MANDATORY)
 
 ```bash
