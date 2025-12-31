@@ -1,0 +1,21 @@
+[Unit]
+Description=Bensley Operations Platform - Email Sync (runs periodically via timer)
+After=network.target
+
+[Service]
+Type=oneshot
+User=bensley
+Group=bensley
+WorkingDirectory=/home/bensley/bensley-operating-system
+
+# Load environment
+EnvironmentFile=/home/bensley/bensley-operating-system/.env
+
+# Run email sync script
+ExecStart=/home/bensley/bensley-operating-system/venv/bin/python \
+    scripts/core/scheduled_email_sync.py
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=bensley-email-sync

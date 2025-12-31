@@ -1,0 +1,45 @@
+[Unit]
+Description=Bensley Operations Platform - Backend API (FastAPI)
+After=network.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=bensley
+Group=bensley
+WorkingDirectory=/home/bensley/bensley-operating-system
+
+# Load environment variables from .env file
+EnvironmentFile=/home/bensley/bensley-operating-system/.env
+
+# Start uvicorn with the FastAPI app
+ExecStart=/home/bensley/bensley-operating-system/venv/bin/uvicorn \
+    backend.api.main:app \
+    --host 127.0.0.1 \
+    --port 8000 \
+    --workers 2 \
+    --log-level info
+
+# Restart policy
+Restart=always
+RestartSec=5
+
+# Resource limits
+LimitNOFILE=65535
+
+# Security hardening
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=/home/bensley/bensley-operating-system/database
+ReadWritePaths=/home/bensley/bensley-operating-system/backend/storage
+ReadWritePaths=/home/bensley/bensley-operating-system/logs
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=bensley-backend
+
+[Install]
+WantedBy=multi-user.target
