@@ -140,10 +140,13 @@ function normalizePaginationResponse<T>(raw: unknown): {
     extractArray(payload.items) ??
     ([] as T[]);
 
+  // Support both 'pagination' (legacy) and 'meta' (new standard) formats
   const paginationSource =
     typeof payload.pagination === "object" && payload.pagination !== null
       ? (payload.pagination as Record<string, unknown>)
-      : payload;
+      : typeof payload.meta === "object" && payload.meta !== null
+        ? (payload.meta as Record<string, unknown>)
+        : payload;
 
   const asNumber = (value: unknown, fallback: number): number =>
     typeof value === "number" ? value : fallback;
