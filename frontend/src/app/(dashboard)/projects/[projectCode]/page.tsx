@@ -20,6 +20,7 @@ import {
   DollarSign,
   BarChart3,
   ClipboardList,
+  Package,
 } from "lucide-react";
 import Link from "next/link";
 import { use, useState } from "react";
@@ -38,6 +39,7 @@ import { PhaseProgressBar } from "@/components/project/phase-progress-bar";
 import { WeeklyScheduleGrid } from "@/components/project/weekly-schedule-grid";
 import { PhaseTimeline } from "@/components/project/phase-timeline";
 import { DailyWorkSubmissionForm, DailyWorkList, DailyWorkReviewInterface } from "@/components/daily-work";
+import { DeliverablesTable, AddDeliverableForm } from "@/components/deliverables";
 import { ds } from "@/lib/design-system";
 import { cn } from "@/lib/utils";
 
@@ -88,6 +90,23 @@ export default function ProjectDetailPage({
     review_status: "pending" | "reviewed" | "needs_revision" | "approved";
     review_comments: string | null;
     reviewed_at: string | null;
+  } | null>(null);
+
+  // State for deliverables form
+  const [showDeliverableForm, setShowDeliverableForm] = useState(false);
+  const [editingDeliverable, setEditingDeliverable] = useState<{
+    deliverable_id: number;
+    name?: string;
+    deliverable_name?: string;
+    description?: string;
+    deliverable_type?: string;
+    phase?: string;
+    due_date?: string;
+    start_date?: string;
+    status?: string;
+    priority?: string;
+    assigned_pm?: string;
+    owner_staff_id?: number;
   } | null>(null);
 
   // Fetch project data
@@ -358,6 +377,10 @@ export default function ProjectDetailPage({
                 <ClipboardList className="h-4 w-4" />
                 <span className="hidden sm:inline">Daily Work</span>
               </TabsTrigger>
+              <TabsTrigger value="deliverables" className="gap-2">
+                <Package className="h-4 w-4" />
+                <span className="hidden sm:inline">Deliverables</span>
+              </TabsTrigger>
               <TabsTrigger value="team" className="gap-2">
                 <Users className="h-4 w-4" />
                 <span className="hidden sm:inline">Team</span>
@@ -538,6 +561,21 @@ export default function ProjectDetailPage({
               />
             </TabsContent>
 
+            {/* DELIVERABLES TAB */}
+            <TabsContent value="deliverables" className="space-y-6 mt-6">
+              <DeliverablesTable
+                projectCode={projectCode}
+                onAddNew={() => {
+                  setEditingDeliverable(null);
+                  setShowDeliverableForm(true);
+                }}
+                onEdit={(d) => {
+                  setEditingDeliverable(d);
+                  setShowDeliverableForm(true);
+                }}
+              />
+            </TabsContent>
+
             {/* TEAM TAB */}
             <TabsContent value="team" className="space-y-6 mt-6">
               <div className="grid gap-6 lg:grid-cols-2">
@@ -645,6 +683,18 @@ export default function ProjectDetailPage({
           item={selectedDailyWork}
           onClose={() => setSelectedDailyWork(null)}
           reviewerName="Bill"
+        />
+      )}
+
+      {/* Deliverables Add/Edit Form Modal */}
+      {showDeliverableForm && (
+        <AddDeliverableForm
+          projectCode={projectCode}
+          editingDeliverable={editingDeliverable}
+          onClose={() => {
+            setShowDeliverableForm(false);
+            setEditingDeliverable(null);
+          }}
         />
       )}
     </div>

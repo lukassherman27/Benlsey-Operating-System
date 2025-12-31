@@ -31,13 +31,37 @@ router = APIRouter(prefix="/api", tags=["deliverables"])
 class CreateDeliverableRequest(BaseModel):
     """Request to create a deliverable"""
     project_code: str
-    deliverable_name: str
+    name: str  # Use 'name' to match table schema
+    deliverable_name: Optional[str] = None  # Alias for backward compat
+    description: Optional[str] = None
+    deliverable_type: Optional[str] = None  # 'drawing', 'presentation', 'document', etc.
     phase: Optional[str] = None
     due_date: Optional[str] = None
+    start_date: Optional[str] = None
+    owner_staff_id: Optional[int] = None
     assigned_pm: Optional[str] = None
     status: str = "pending"
     priority: str = "normal"
     notes: Optional[str] = None
+    attachments: Optional[List[dict]] = None
+
+
+class UpdateDeliverableRequest(BaseModel):
+    """Request to update a deliverable"""
+    name: Optional[str] = None
+    description: Optional[str] = None
+    deliverable_type: Optional[str] = None
+    phase: Optional[str] = None
+    due_date: Optional[str] = None
+    start_date: Optional[str] = None
+    actual_completion_date: Optional[str] = None
+    owner_staff_id: Optional[int] = None
+    assigned_pm: Optional[str] = None
+    status: Optional[str] = None
+    priority: Optional[str] = None
+    internal_notes: Optional[str] = None
+    client_feedback: Optional[str] = None
+    attachments: Optional[List[dict]] = None
 
 
 class UpdateDeliverableStatusRequest(BaseModel):
@@ -192,6 +216,51 @@ async def update_deliverable_status(deliverable_id: int, request: UpdateDelivera
         if not success:
             raise HTTPException(status_code=404, detail=f"Deliverable {deliverable_id} not found")
         return action_response(True, message="Status updated")
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/deliverables/{deliverable_id}")
+async def get_deliverable(deliverable_id: int):
+    """Get a single deliverable by ID"""
+    try:
+        deliverable = deliverables_service.get_deliverable_by_id(deliverable_id)
+        if not deliverable:
+            raise HTTPException(status_code=404, detail=f"Deliverable {deliverable_id} not found")
+        return item_response(deliverable)
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.patch("/deliverables/{deliverable_id}")
+async def update_deliverable(deliverable_id: int, request: UpdateDeliverableRequest):
+    """Update a deliverable"""
+    try:
+        updates = request.model_dump(exclude_unset=True)
+        if not updates:
+            raise HTTPException(status_code=400, detail="No fields to update")
+        success = deliverables_service.update_deliverable(deliverable_id, updates)
+        if not success:
+            raise HTTPException(status_code=404, detail=f"Deliverable {deliverable_id} not found")
+        return action_response(True, message="Deliverable updated")
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.delete("/deliverables/{deliverable_id}")
+async def delete_deliverable(deliverable_id: int):
+    """Delete a deliverable"""
+    try:
+        success = deliverables_service.delete_deliverable(deliverable_id)
+        if not success:
+            raise HTTPException(status_code=404, detail=f"Deliverable {deliverable_id} not found")
+        return action_response(True, message="Deliverable deleted")
     except HTTPException:
         raise
     except Exception as e:
