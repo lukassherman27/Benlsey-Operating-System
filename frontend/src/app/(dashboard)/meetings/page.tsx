@@ -119,7 +119,7 @@ function PageHeader() {
 function StatsBar({ meetings, isLoading }: { meetings: Meeting[]; isLoading: boolean }) {
   const now = new Date();
   const todayMeetings = meetings.filter(m => isToday(new Date(m.start_time))).length;
-  const upcomingMeetings = meetings.filter(m => isFuture(new Date(m.start_time))).length;
+  const _upcomingMeetings = meetings.filter(m => isFuture(new Date(m.start_time))).length;
   const withNotes = meetings.filter(m => m.has_polished_summary || m.has_transcript).length;
   const linkedToProjects = meetings.filter(m => m.project_code).length;
 

@@ -30,7 +30,6 @@ import {
 import { cn } from "@/lib/utils";
 import { ds } from "@/lib/design-system";
 import { api } from "@/lib/api";
-import { AnalyticsDashboard } from "@/lib/types";
 
 // Format currency
 function formatCurrency(value?: number): string {
