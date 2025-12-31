@@ -22,15 +22,27 @@ import {
   Building2,
   Users,
   ArrowUpRight,
+  Send,
 } from "lucide-react";
-import { format, formatDistanceToNow } from "date-fns";
+import { format, formatDistanceToNow, isAfter, subDays } from "date-fns";
 import { api } from "@/lib/api";
 import Link from "next/link";
+import type { ProposalStats, AgingBreakdown } from "@/lib/types";
 
 const formatCurrency = (value: number) => {
   if (value >= 1_000_000) return `$${(value / 1_000_000).toFixed(1)}M`;
   if (value >= 1_000) return `$${Math.round(value / 1_000)}K`;
   return `$${value.toLocaleString()}`;
+};
+
+// Status color mapping for consistent styling
+const STATUS_COLORS: Record<string, string> = {
+  'First Contact': 'bg-sky-100 text-sky-800 border-sky-200',
+  'Proposal Prep': 'bg-purple-100 text-purple-800 border-purple-200',
+  'Proposal Sent': 'bg-blue-100 text-blue-800 border-blue-200',
+  'Negotiation': 'bg-amber-100 text-amber-800 border-amber-200',
+  'Contract Signed': 'bg-emerald-100 text-emerald-800 border-emerald-200',
+  'On Hold': 'bg-slate-100 text-slate-800 border-slate-200',
 };
 
 export default function DashboardPage() {
@@ -41,19 +53,30 @@ export default function DashboardPage() {
   // Get user's first name for greeting
   const userName = session?.user?.name?.split(" ")[0] || "there";
 
+  // Fetch proposal stats for status breakdown
+  const proposalStatsQuery = useQuery({
+    queryKey: ["dashboard-proposal-stats"],
+    queryFn: async () => {
+      const res = await api.getProposalStats();
+      return res.data as ProposalStats;
+    },
+    staleTime: 1000 * 60 * 5,
+  });
+
   // Fetch proposals that need attention
   const proposalsQuery = useQuery({
     queryKey: ["dashboard-proposals-attention"],
     queryFn: async () => {
-      const res = await api.getProposals({ per_page: 50 });
+      const res = await api.getProposals({ per_page: 100 });
       const proposals = res.data || [];
+      const sevenDaysAgo = subDays(new Date(), 7);
 
       // Filter to active proposals that need attention
       const active = proposals.filter((p) =>
         !['Lost', 'Declined', 'Contract Signed', 'Dormant'].includes(p.status as string)
       );
 
-      // Find stale proposals (>14 days in current status)
+      // Find stale proposals (>14 days no contact)
       const now = new Date();
       const stale = active.filter((p) => {
         const lastContact = (p as { last_contact_date?: string }).last_contact_date
@@ -64,18 +87,29 @@ export default function DashboardPage() {
         return daysSince > 14;
       });
 
-      // Group by status
-      const byStatus: Record<string, typeof proposals> = {};
-      active.forEach((p) => {
+      // Find recently sent proposals (last 7 days)
+      const recentlySent = proposals.filter((p) => {
+        const sentDate = (p as { proposal_sent_date?: string }).proposal_sent_date;
+        if (!sentDate) return false;
+        return isAfter(new Date(sentDate), sevenDaysAgo);
+      }).sort((a, b) => {
+        const dateA = new Date((a as { proposal_sent_date?: string }).proposal_sent_date || 0);
+        const dateB = new Date((b as { proposal_sent_date?: string }).proposal_sent_date || 0);
+        return dateB.getTime() - dateA.getTime();
+      });
+
+      // Count by status for breakdown
+      const statusCounts: Record<string, number> = {};
+      proposals.forEach((p) => {
         const status = p.status as string;
-        if (!byStatus[status]) byStatus[status] = [];
-        byStatus[status].push(p);
+        statusCounts[status] = (statusCounts[status] || 0) + 1;
       });
 
       return {
         active,
         stale,
-        byStatus,
+        recentlySent,
+        statusCounts,
         totalValue: active.reduce((sum, p) =>
           sum + ((p as { project_value?: number }).project_value || 0), 0
         ),
@@ -84,12 +118,14 @@ export default function DashboardPage() {
     staleTime: 1000 * 60 * 5,
   });
 
-  // Fetch overdue invoices
+  // Fetch overdue invoices with aging breakdown
   const invoicesQuery = useQuery({
     queryKey: ["dashboard-overdue-invoices"],
     queryFn: async () => {
       const res = await api.getInvoiceAging();
       const invoices = res.data?.largest_outstanding || [];
+      const agingBreakdown = res.data?.aging_breakdown as AgingBreakdown | undefined;
+      const summary = res.data?.summary;
 
       // Group by project
       const byProject: Record<string, {
@@ -124,11 +160,12 @@ export default function DashboardPage() {
       const sorted = Object.values(byProject).sort((a, b) => b.totalOverdue - a.totalOverdue);
 
       return {
-        totalOverdue: invoices.reduce((sum, i) =>
+        totalOverdue: summary?.total_outstanding_amount || invoices.reduce((sum, i) =>
           sum + (i.invoice_amount || 0), 0
         ),
-        invoiceCount: invoices.length,
+        invoiceCount: summary?.total_outstanding_count || invoices.length,
         byProject: sorted,
+        agingBreakdown,
       };
     },
     staleTime: 1000 * 60 * 5,
@@ -163,6 +200,7 @@ export default function DashboardPage() {
   });
 
   const proposals = proposalsQuery.data;
+  const proposalStats = proposalStatsQuery.data;
   const invoices = invoicesQuery.data;
   const projects = projectsQuery.data;
 
@@ -205,7 +243,7 @@ export default function DashboardPage() {
                 {formatCurrency(proposals?.totalValue || 0)}
               </p>
               <p className="text-xs text-blue-600 mt-0.5">
-                {proposals?.active?.length || 0} active proposals
+                {proposalStats?.active_pipeline || proposals?.active?.length || 0} active proposals
               </p>
             </CardContent>
           </Card>
@@ -218,7 +256,7 @@ export default function DashboardPage() {
               Stale
             </div>
             <p className="text-2xl font-bold text-amber-900 mt-1">
-              {proposals?.stale?.length || 0}
+              {proposalStats?.need_followup || proposals?.stale?.length || 0}
             </p>
             <p className="text-xs text-amber-600 mt-0.5">
               Need follow-up (&gt;14 days)
@@ -274,6 +312,50 @@ export default function DashboardPage() {
         </Card>
       </div>
 
+      {/* Proposal Status Breakdown */}
+      <Card>
+        <CardHeader className="pb-2">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-base flex items-center gap-2">
+              <FileText className="h-4 w-4 text-blue-600" />
+              Pipeline by Status
+            </CardTitle>
+            <Link href="/proposals">
+              <Button variant="ghost" size="sm" className="text-xs">
+                View All <ChevronRight className="h-3 w-3 ml-1" />
+              </Button>
+            </Link>
+          </div>
+        </CardHeader>
+        <CardContent className="pt-0">
+          {proposalsQuery.isLoading ? (
+            <div className="flex gap-2">
+              {[1, 2, 3, 4].map(i => (
+                <div key={i} className="h-8 w-24 bg-slate-100 animate-pulse rounded-full" />
+              ))}
+            </div>
+          ) : (
+            <div className="flex flex-wrap gap-2">
+              {proposals?.statusCounts && Object.entries(proposals.statusCounts)
+                .filter(([status]) => !['Dormant', 'Lost', 'Declined'].includes(status))
+                .sort((a, b) => b[1] - a[1])
+                .map(([status, count]) => (
+                  <Link
+                    key={status}
+                    href={`/proposals?status=${encodeURIComponent(status)}`}
+                    className={cn(
+                      "px-3 py-1.5 rounded-full text-sm font-medium border hover:opacity-80 transition-opacity",
+                      STATUS_COLORS[status] || 'bg-slate-100 text-slate-800 border-slate-200'
+                    )}
+                  >
+                    {status}: {count}
+                  </Link>
+                ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
       {/* Main Content - Two Columns */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
@@ -285,8 +367,8 @@ export default function DashboardPage() {
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
                 <CardTitle className="text-base flex items-center gap-2">
-                  <FileText className="h-4 w-4 text-blue-600" />
-                  Proposals Needing Action
+                  <AlertTriangle className="h-4 w-4 text-amber-600" />
+                  Proposals Needing Follow-up
                 </CardTitle>
                 <Link href="/proposals">
                   <Button variant="ghost" size="sm" className="text-xs">
@@ -330,8 +412,8 @@ export default function DashboardPage() {
                             {p.status as string}
                           </Badge>
                           <p className="text-xs text-amber-600 mt-1">
-                            {p.last_contact_date
-                              ? formatDistanceToNow(new Date(p.last_contact_date as string), { addSuffix: true })
+                            {(p as { last_contact_date?: string }).last_contact_date
+                              ? formatDistanceToNow(new Date((p as { last_contact_date: string }).last_contact_date), { addSuffix: true })
                               : 'No contact'
                             }
                           </p>
@@ -354,7 +436,56 @@ export default function DashboardPage() {
             </CardContent>
           </Card>
 
-          {/* Overdue by Project */}
+          {/* Recently Sent Proposals */}
+          <Card>
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Send className="h-4 w-4 text-blue-600" />
+                  Recently Sent (Last 7 Days)
+                </CardTitle>
+              </div>
+            </CardHeader>
+            <CardContent className="pt-0">
+              {proposalsQuery.isLoading ? (
+                <div className="space-y-2">
+                  {[1, 2, 3].map(i => <div key={i} className="h-12 bg-slate-100 animate-pulse rounded" />)}
+                </div>
+              ) : proposals?.recentlySent && proposals.recentlySent.length > 0 ? (
+                <div className="space-y-2">
+                  {proposals.recentlySent.slice(0, 5).map((p) => (
+                    <Link
+                      key={p.proposal_id}
+                      href={`/proposals/${p.proposal_id}`}
+                      className="block p-3 rounded-lg border hover:bg-slate-50 transition-colors"
+                    >
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="min-w-0 flex-1">
+                          <p className="font-medium text-slate-900 truncate">
+                            {p.project_name || (p as { client_company?: string }).client_company || 'Unnamed'}
+                          </p>
+                          <p className="text-xs text-slate-500">
+                            {(p as { client_company?: string }).client_company}
+                          </p>
+                        </div>
+                        <div className="text-right flex-shrink-0">
+                          <p className="text-xs text-blue-600">
+                            Sent {format(new Date((p as { proposal_sent_date: string }).proposal_sent_date), "MMM d")}
+                          </p>
+                        </div>
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-4 text-slate-500">
+                  <p className="text-sm">No proposals sent this week</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Overdue by Project with Aging Breakdown */}
           <Card className={invoices?.totalOverdue ? "border-red-200 bg-red-50/30" : ""}>
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
@@ -382,27 +513,54 @@ export default function DashboardPage() {
                     <RefreshCw className="h-3 w-3 mr-1" /> Retry
                   </Button>
                 </div>
-              ) : invoices?.byProject && invoices.byProject.length > 0 ? (
-                <div className="space-y-2">
-                  {invoices.byProject.slice(0, 5).map((proj) => (
-                    <div
-                      key={proj.projectCode}
-                      className="p-3 rounded-lg bg-white border border-red-100 flex items-center justify-between"
-                    >
-                      <div className="min-w-0 flex-1">
-                        <p className="font-medium text-slate-900 truncate">
-                          {proj.projectName}
+              ) : invoices?.totalOverdue && invoices.totalOverdue > 0 ? (
+                <div className="space-y-4">
+                  {/* Aging Breakdown */}
+                  {invoices.agingBreakdown && (
+                    <div className="grid grid-cols-3 gap-2 text-center">
+                      <div className="p-2 rounded bg-amber-50 border border-amber-200">
+                        <p className="text-lg font-bold text-amber-800">
+                          {formatCurrency(invoices.agingBreakdown.under_30?.amount || 0)}
                         </p>
-                        <p className="text-xs text-red-600 mt-0.5">
-                          {proj.invoices.length} invoice{proj.invoices.length > 1 ? 's' : ''} •
-                          oldest {proj.oldestDays} days overdue
+                        <p className="text-xs text-amber-600">&lt;30 days</p>
+                      </div>
+                      <div className="p-2 rounded bg-orange-50 border border-orange-200">
+                        <p className="text-lg font-bold text-orange-800">
+                          {formatCurrency(invoices.agingBreakdown['30_to_90']?.amount || 0)}
+                        </p>
+                        <p className="text-xs text-orange-600">30-90 days</p>
+                      </div>
+                      <div className="p-2 rounded bg-red-50 border border-red-200">
+                        <p className="text-lg font-bold text-red-800">
+                          {formatCurrency(invoices.agingBreakdown.over_90?.amount || 0)}
+                        </p>
+                        <p className="text-xs text-red-600">&gt;90 days</p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Top Projects */}
+                  <div className="space-y-2">
+                    {invoices.byProject.slice(0, 5).map((proj) => (
+                      <div
+                        key={proj.projectCode}
+                        className="p-3 rounded-lg bg-white border border-red-100 flex items-center justify-between"
+                      >
+                        <div className="min-w-0 flex-1">
+                          <p className="font-medium text-slate-900 truncate">
+                            {proj.projectName}
+                          </p>
+                          <p className="text-xs text-red-600 mt-0.5">
+                            {proj.invoices.length} invoice{proj.invoices.length > 1 ? 's' : ''} •
+                            oldest {proj.oldestDays} days overdue
+                          </p>
+                        </div>
+                        <p className="text-lg font-bold text-red-700 flex-shrink-0">
+                          {formatCurrency(proj.totalOverdue)}
                         </p>
                       </div>
-                      <p className="text-lg font-bold text-red-700 flex-shrink-0">
-                        {formatCurrency(proj.totalOverdue)}
-                      </p>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
                 </div>
               ) : (
                 <div className="text-center py-6 text-emerald-600">
