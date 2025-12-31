@@ -34,7 +34,7 @@ async def ask_query(request: QueryRequest):
         )
         return item_response(result)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.get("/query/ask")
@@ -44,7 +44,7 @@ async def ask_query_get(q: str = Query(..., description="Natural language query"
         result = query_service.process_query(query=q)
         return item_response(result)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.post("/query/ask-enhanced")
@@ -57,7 +57,7 @@ async def ask_enhanced_query(request: QueryRequest):
         )
         return item_response(result)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.post("/query/chat")
@@ -86,7 +86,7 @@ async def chat_query(request: dict):
         # Return raw result - frontend expects {success, results, ...} not wrapped in {data, meta}
         return result
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 # ============================================================================
@@ -108,7 +108,7 @@ async def search(
         response["count"] = len(results)  # Backward compat
         return response
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.get("/query/search-communications")
@@ -130,7 +130,7 @@ async def search_communications(
         response["count"] = len(results)  # Backward compat
         return response
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 # ============================================================================
@@ -146,7 +146,7 @@ async def get_query_suggestions():
         response["suggestions"] = suggestions  # Backward compat
         return response
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.get("/query/examples")
@@ -172,7 +172,7 @@ async def get_query_stats():
         stats = query_service.get_stats()
         return item_response(stats)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.get("/query/intelligent-suggestions")
@@ -184,7 +184,7 @@ async def get_intelligent_suggestions():
         response["suggestions"] = suggestions  # Backward compat
         return response
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 # ============================================================================
@@ -202,7 +202,7 @@ async def query_project_status(project_search: str):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.get("/query/context/{project_search}")
@@ -216,7 +216,7 @@ async def get_project_context(project_search: str):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.get("/query/timeline/{project_search}")
@@ -229,7 +229,7 @@ async def get_project_timeline(project_search: str):
         response["timeline"] = result  # Backward compat
         return response
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.get("/query/outstanding/{project_search}")
@@ -239,7 +239,7 @@ async def get_project_outstanding(project_search: str):
         result = proposal_query_service.get_outstanding(project_search)
         return item_response(result)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.get("/query/proposal/{project_code}/status")
@@ -253,7 +253,7 @@ async def get_proposal_status(project_code: str):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.get("/query/proposal/{project_code}/documents")
@@ -266,7 +266,7 @@ async def get_proposal_documents(project_code: str):
         response["documents"] = result  # Backward compat
         return response
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.get("/query/proposal/{project_code}/fee")
@@ -276,7 +276,7 @@ async def get_proposal_fee(project_code: str):
         result = proposal_query_service.get_fee_details(project_code)
         return item_response(result)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.get("/query/proposal/{project_code}/scope")
@@ -286,7 +286,7 @@ async def get_proposal_scope(project_code: str):
         result = proposal_query_service.get_scope(project_code)
         return item_response(result)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 # ============================================================================
@@ -305,4 +305,4 @@ async def submit_query_feedback(request: QueryFeedbackRequest):
         )
         return action_response(True, message="Feedback recorded")
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")

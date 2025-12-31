@@ -82,7 +82,7 @@ async def get_context_by_proposal(
         response["count"] = len(context)  # Backward compat
         return response
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.get("/context/by-proposal/{proposal_id}/summary")
@@ -92,7 +92,7 @@ async def get_context_summary(proposal_id: int):
         summary = context_service.get_context_summary(proposal_id)
         return item_response(summary)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.get("/context/by-proposal/{proposal_id}/notes")
@@ -106,7 +106,7 @@ async def get_notes_by_proposal(proposal_id: int):
         response["count"] = len(notes)  # Backward compat
         return response
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.get("/context/by-proposal/{proposal_id}/tasks")
@@ -120,7 +120,7 @@ async def get_tasks_by_proposal(proposal_id: int):
         response["count"] = len(tasks)  # Backward compat
         return response
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 # ============================================================================
@@ -138,7 +138,7 @@ async def get_context(context_id: int):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.post("/context")
@@ -148,7 +148,7 @@ async def create_context(request: CreateContextRequest):
         context_id = context_service.create_context(request.dict())
         return action_response(True, data={"context_id": context_id}, message="Context created")
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.patch("/context/{context_id}")
@@ -166,7 +166,7 @@ async def update_context(context_id: int, request: UpdateContextRequest):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.delete("/context/{context_id}")
@@ -180,7 +180,7 @@ async def delete_context(context_id: int):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.post("/context/{context_id}/complete")
@@ -194,7 +194,7 @@ async def complete_task(context_id: int):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.post("/context/{context_id}/log-action")
@@ -208,7 +208,7 @@ async def log_agent_action(context_id: int, request: LogAgentActionRequest):
         )
         return action_response(True, message="Action logged")
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 # ============================================================================
@@ -229,7 +229,7 @@ async def get_tasks_by_assigned(
         response["count"] = len(tasks)  # Backward compat
         return response
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.get("/context/tasks/overdue")
@@ -239,7 +239,7 @@ async def get_overdue_tasks():
         tasks = context_service.get_overdue_tasks()
         return list_response(tasks, len(tasks))
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.get("/context/tasks/upcoming")
@@ -249,4 +249,4 @@ async def get_upcoming_tasks(days: int = Query(7, ge=1, le=30)):
         tasks = context_service.get_upcoming_tasks(days_ahead=days)
         return list_response(tasks, len(tasks))
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")

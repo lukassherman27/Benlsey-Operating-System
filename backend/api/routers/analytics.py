@@ -98,7 +98,7 @@ async def get_dashboard_analytics():
             }
         }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.get("/analytics/trends")
@@ -320,4 +320,4 @@ async def get_analytics_trends(months: int = 12):
             }
         }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")

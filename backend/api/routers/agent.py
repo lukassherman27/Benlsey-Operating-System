@@ -107,7 +107,7 @@ async def get_follow_up_summary():
             "overdue_actions": []
         }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.get("/agent/follow-up/proposals")
@@ -174,7 +174,7 @@ async def get_follow_up_proposals(
             "count": len(proposals)
         }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.post("/agent/follow-up/draft/{proposal_id}")
@@ -271,4 +271,4 @@ Best regards"""
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")

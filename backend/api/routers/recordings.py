@@ -79,7 +79,7 @@ async def upload_recording(
             "tasks_created": len(result.get('task_ids', []))
         }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Processing failed: {str(e)}")
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.get("/projects")
@@ -90,7 +90,7 @@ async def get_projects():
         projects = processor.get_projects_for_dropdown()
         return {"success": True, "projects": projects, "count": len(projects)}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.get("/{transcript_id}/status")
@@ -148,4 +148,4 @@ async def get_recording_status(transcript_id: int):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")

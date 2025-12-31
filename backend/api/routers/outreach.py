@@ -73,7 +73,7 @@ async def get_outreach_needing_followup():
         records = outreach_service.get_outreach_needing_followup()
         return list_response(records, len(records))
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.get("/outreach/upcoming")
@@ -83,7 +83,7 @@ async def get_upcoming_followups(days: int = Query(7, ge=1, le=30)):
         records = outreach_service.get_upcoming_followups(days_ahead=days)
         return list_response(records, len(records))
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 # ============================================================================
@@ -101,7 +101,7 @@ async def get_outreach_by_proposal(proposal_id: int):
         response["count"] = len(records)  # Backward compat
         return response
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.get("/outreach/by-proposal/{proposal_id}/timeline")
@@ -115,7 +115,7 @@ async def get_contact_history_timeline(proposal_id: int):
         response["count"] = len(timeline)  # Backward compat
         return response
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.get("/outreach/by-proposal/{proposal_id}/summary")
@@ -125,7 +125,7 @@ async def get_outreach_summary(proposal_id: int):
         summary = outreach_service.get_outreach_summary(proposal_id)
         return item_response(summary)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.get("/outreach/by-proposal/{proposal_id}/last-contact")
@@ -137,7 +137,7 @@ async def get_last_contact(proposal_id: int):
             return {"message": "No contact history found", "proposal_id": proposal_id}
         return item_response(contact)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.get("/outreach/by-proposal/{proposal_id}/by-type/{contact_type}")
@@ -152,7 +152,7 @@ async def get_outreach_by_type(proposal_id: int, contact_type: str):
         response["count"] = len(records)  # Backward compat
         return response
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 # ============================================================================
@@ -173,7 +173,7 @@ async def search_outreach(
         response["count"] = len(results)  # Backward compat
         return response
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 # ============================================================================
@@ -191,7 +191,7 @@ async def get_outreach(outreach_id: int):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.post("/outreach")
@@ -201,7 +201,7 @@ async def create_outreach(request: CreateOutreachRequest):
         outreach_id = outreach_service.create_outreach(request.dict())
         return action_response(True, data={"outreach_id": outreach_id}, message="Outreach created")
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.patch("/outreach/{outreach_id}")
@@ -219,7 +219,7 @@ async def update_outreach(outreach_id: int, request: UpdateOutreachRequest):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.delete("/outreach/{outreach_id}")
@@ -233,7 +233,7 @@ async def delete_outreach(outreach_id: int):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.post("/outreach/bulk-from-emails")
@@ -246,4 +246,4 @@ async def bulk_create_from_emails(request: BulkFromEmailsRequest):
         )
         return action_response(True, data={"created": count}, message=f"Created {count} outreach records")
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")

@@ -117,7 +117,7 @@ async def get_staff(
         return list_response(staff, len(staff))
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 # ============================================================================
@@ -153,7 +153,7 @@ async def get_pms():
         return list_response(pms, len(pms))
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.post("/team/pms")
@@ -187,7 +187,7 @@ async def create_pm(request: CreatePMRequest):
         )
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.get("/team/pm-workload")
@@ -306,7 +306,7 @@ async def get_pm_workload():
         }
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.get("/team/unassigned-projects")
@@ -338,7 +338,7 @@ async def get_unassigned_projects():
         return list_response(projects, len(projects))
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 # ============================================================================
@@ -446,7 +446,7 @@ async def get_projects_by_pm(pm_id: int):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.put("/projects/{project_code}/assign-pm")
@@ -490,7 +490,7 @@ async def assign_pm_to_project(project_code: str, request: AssignPMRequest):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.delete("/projects/{project_code}/assign-pm")
@@ -516,4 +516,4 @@ async def unassign_pm_from_project(project_code: str):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")

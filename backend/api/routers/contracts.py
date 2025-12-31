@@ -84,7 +84,7 @@ async def get_all_contracts(
         contracts = result.get("items", [])
         return list_response(contracts, result.get("total", len(contracts)))
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.get("/contracts/stats")
@@ -94,7 +94,7 @@ async def get_contract_stats():
         stats = contract_service.get_contract_stats()
         return item_response(stats)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.get("/contracts/expiring-soon")
@@ -104,7 +104,7 @@ async def get_contracts_expiring_soon(days: int = Query(90, ge=1, le=365)):
         contracts = contract_service.get_contracts_expiring_soon(days=days)
         return list_response(contracts, len(contracts))
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.get("/contracts/monthly-summary")
@@ -114,7 +114,7 @@ async def get_monthly_fee_summary():
         summary = contract_service.get_monthly_fee_summary()
         return item_response(summary)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 # ============================================================================
@@ -132,7 +132,7 @@ async def get_contracts_by_project(project_code: str):
         response["count"] = len(contracts)  # Backward compat
         return response
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.get("/contracts/by-project/{project_code}/latest")
@@ -146,7 +146,7 @@ async def get_latest_contract(project_code: str):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.get("/contracts/by-project/{project_code}/terms")
@@ -160,7 +160,7 @@ async def get_contract_terms(project_code: str):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.post("/contracts/by-project/{project_code}/terms")
@@ -170,7 +170,7 @@ async def create_contract_terms(project_code: str, request: CreateContractTermsR
         result = contract_service.create_contract_terms(project_code, request.dict())
         return action_response(True, data=result, message="Contract terms created")
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.get("/contracts/by-project/{project_code}/fee-breakdown")
@@ -184,7 +184,7 @@ async def get_fee_breakdown(project_code: str):
         response["count"] = len(breakdown)  # Backward compat
         return response
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.post("/contracts/by-project/{project_code}/fee-breakdown")
@@ -199,7 +199,7 @@ async def create_fee_breakdown(project_code: str, request: CreateFeeBreakdownReq
         )
         return action_response(True, data=result, message="Fee breakdown created")
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.get("/contracts/by-project/{project_code}/versions")
@@ -213,7 +213,7 @@ async def get_contract_versions(project_code: str):
         response["count"] = len(versions)  # Backward compat
         return response
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 # ============================================================================
@@ -230,7 +230,7 @@ async def get_all_project_families():
         response["count"] = len(families)  # Backward compat
         return response
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.get("/contracts/families/{project_code}")
@@ -240,7 +240,7 @@ async def get_project_family(project_code: str):
         family = contract_service.get_project_family(project_code)
         return item_response(family)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.post("/contracts/families/link")
@@ -254,7 +254,7 @@ async def link_projects(request: LinkProjectsRequest):
         )
         return action_response(True, data=result, message="Projects linked")
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 # ============================================================================
@@ -268,4 +268,4 @@ async def get_pending_imports(limit: int = Query(50, ge=1, le=200)):
         pending = contract_service.list_pending_imports(limit=limit)
         return list_response(pending, len(pending))
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")

@@ -173,7 +173,7 @@ async def get_tasks(
         return response
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.get("/tasks/stats")
@@ -242,7 +242,7 @@ async def get_task_stats():
         }
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.get("/tasks/overdue")
@@ -276,7 +276,7 @@ async def get_overdue_tasks():
         return response
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 # ============================================================================
@@ -328,7 +328,7 @@ async def create_task(request: CreateTaskRequest):
         return action_response(True, data={"task": task, "task_id": task_id}, message="Task created")
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 # ============================================================================
@@ -384,7 +384,7 @@ async def get_staff():
         }
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 # ============================================================================
@@ -447,7 +447,7 @@ async def get_task(task_id: int):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.put("/tasks/{task_id}")
@@ -574,7 +574,7 @@ async def update_task(task_id: int, request: UpdateTaskRequest):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.put("/tasks/{task_id}/status")
@@ -613,7 +613,7 @@ async def update_task_status(task_id: int, request: UpdateTaskStatusRequest):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.post("/tasks/{task_id}/complete")
@@ -697,7 +697,7 @@ async def complete_task(task_id: int):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.post("/tasks/{task_id}/snooze")
@@ -726,7 +726,7 @@ async def snooze_task(task_id: int, request: SnoozeTaskRequest):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 # ============================================================================
@@ -782,4 +782,4 @@ async def get_project_tasks(
         return response
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")

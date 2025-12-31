@@ -111,7 +111,7 @@ async def get_suggestions(
             "offset": offset,
         }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.get("/suggestions/stats")
@@ -181,7 +181,7 @@ async def get_suggestion_stats():
         response.update(stats)  # Flatten at root for frontend
         return response
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.get("/suggestions/grouped")
@@ -200,7 +200,7 @@ async def get_suggestions_grouped(
         result = email_orchestrator.get_suggestions_grouped(status=status)
         return result
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 # ============================================================================
@@ -259,7 +259,7 @@ async def approve_suggestion(suggestion_id: int, request: Optional[SuggestionApp
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.post("/suggestions/{suggestion_id}/reject")
@@ -279,7 +279,7 @@ async def reject_suggestion(suggestion_id: int, request: Optional[SuggestionReje
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.post("/suggestions/bulk-approve")
@@ -312,7 +312,7 @@ async def bulk_approve_suggestions(request: BulkApproveRequest):
             message=f"Approved {approved_count} suggestions"
         )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.post("/suggestions/bulk-approve-by-ids")
@@ -346,7 +346,7 @@ async def bulk_approve_by_ids(request: BulkApproveByIdsRequest):
             message=f"Approved {approved_count} of {len(request.suggestion_ids)} suggestions"
         )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.post("/suggestions/bulk-reject")
@@ -380,7 +380,7 @@ async def bulk_reject_suggestions(request: BulkRejectRequest):
             message=f"Rejected {rejected_count} of {len(request.suggestion_ids)} suggestions"
         )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.post("/suggestions/{suggestion_id}/correct")
@@ -485,7 +485,7 @@ async def correct_suggestion(
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 # ============================================================================
@@ -542,7 +542,7 @@ async def get_email_link_suggestions(
             "offset": offset
         }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.post("/suggestions/{suggestion_id}/approve-email-link")
@@ -626,7 +626,7 @@ async def approve_email_link_suggestion(suggestion_id: int):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 # ============================================================================
@@ -684,7 +684,7 @@ async def get_transcript_link_suggestions(
             "offset": offset
         }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.post("/suggestions/{suggestion_id}/approve-transcript-link")
@@ -758,7 +758,7 @@ async def approve_transcript_link_suggestion(suggestion_id: int):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 # ============================================================================
@@ -775,7 +775,7 @@ async def get_intel_suggestions(limit: int = Query(20, ge=1, le=100)):
         response["count"] = len(suggestions)  # Backward compat
         return response
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.post("/intel/suggestions/{suggestion_id}/decision")
@@ -796,7 +796,7 @@ async def record_suggestion_decision(
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.get("/intel/patterns")
@@ -808,7 +808,7 @@ async def get_learned_patterns():
         response["patterns"] = patterns  # Backward compat
         return response
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.get("/intel/decisions")
@@ -821,7 +821,7 @@ async def get_recent_decisions(limit: int = Query(50, ge=1, le=200)):
         response["count"] = len(decisions)  # Backward compat
         return response
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 # ============================================================================
@@ -894,7 +894,7 @@ async def get_suggestion_preview(suggestion_id: int):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.post("/suggestions/{suggestion_id}/rollback")
@@ -978,7 +978,7 @@ async def rollback_suggestion(suggestion_id: int):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.get("/suggestions/{suggestion_id}/source")
@@ -1116,7 +1116,7 @@ async def get_suggestion_source(suggestion_id: int):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 # ============================================================================
@@ -1580,7 +1580,7 @@ async def reject_with_correction(
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.post("/suggestions/{suggestion_id}/approve-with-context")
@@ -1735,7 +1735,7 @@ async def approve_with_context(
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 # ============================================================================
@@ -1802,7 +1802,7 @@ async def get_patterns(
             "offset": offset
         }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.get("/patterns/stats")
@@ -1856,7 +1856,7 @@ async def get_pattern_stats():
             "top_patterns": top_patterns
         }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.post("/patterns")
@@ -1921,7 +1921,7 @@ async def create_pattern(request: PatternCreateRequest):
     except sqlite3.IntegrityError:
         raise HTTPException(status_code=400, detail="A pattern with this key and target already exists")
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.put("/patterns/{pattern_id}")
@@ -1975,7 +1975,7 @@ async def update_pattern(pattern_id: int, request: PatternUpdateRequest):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.delete("/patterns/{pattern_id}")
@@ -1999,7 +1999,7 @@ async def delete_pattern(pattern_id: int):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.get("/patterns/{pattern_id}")
@@ -2043,7 +2043,7 @@ async def get_pattern(pattern_id: int):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 # ============================================================================
@@ -2317,7 +2317,7 @@ async def get_suggestion_full_context(suggestion_id: int):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.get("/suggestion-tags")
@@ -2343,7 +2343,7 @@ async def get_suggestion_tags():
         }
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.post("/suggestions/{suggestion_id}/save-feedback")
@@ -2401,7 +2401,7 @@ async def save_suggestion_feedback(
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 # ============================================================================
@@ -2439,7 +2439,7 @@ async def get_contact_context(email: str):
             "display_info": display_info
         }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.get("/contact-context")
@@ -2494,7 +2494,7 @@ async def list_contact_contexts(
             "offset": offset
         }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.get("/contact-context-stats")
@@ -2508,7 +2508,7 @@ async def get_contact_context_stats():
             **stats
         }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.post("/contact-context/{email}/update")
@@ -2562,7 +2562,7 @@ async def update_contact_context(
             message="Contact context updated"
         )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.get("/multi-project-contacts")
@@ -2577,7 +2577,7 @@ async def get_multi_project_contacts():
             "count": len(contacts)
         }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 # ============================================================================
@@ -2597,7 +2597,7 @@ async def get_context_aware_status():
             "context_stats": service.get_context_stats(),
         }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.post("/suggestions/context-aware/toggle")
@@ -2615,7 +2615,7 @@ async def toggle_context_aware(enable: bool = True):
             "message": f"Context-aware suggestions {'enabled' if enable else 'disabled'}"
         }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.post("/suggestions/context-aware/generate")
@@ -2648,7 +2648,7 @@ async def generate_context_aware_suggestions(
             **result
         }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.get("/suggestions/context-aware/context")
@@ -2678,7 +2678,7 @@ async def get_context_bundle():
             "sample_proposals": bundle.get("active_proposals", [])[:5],
         }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.post("/suggestions/context-aware/refresh-context")
@@ -2696,7 +2696,7 @@ async def refresh_context_bundle():
             **result
         }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.get("/suggestions/context-aware/usage")
@@ -2716,4 +2716,4 @@ async def get_gpt_usage_stats(
             **stats
         }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")

@@ -98,7 +98,7 @@ async def get_all_deliverables(
         response["count"] = len(deliverables)  # Backward compat
         return response
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.get("/deliverables/overdue")
@@ -108,7 +108,7 @@ async def get_overdue_deliverables():
         overdue = deliverables_service.get_overdue_deliverables()
         return list_response(overdue, len(overdue))
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.get("/deliverables/upcoming")
@@ -118,7 +118,7 @@ async def get_upcoming_deliverables(days: int = Query(14, ge=1, le=90)):
         upcoming = deliverables_service.get_upcoming_deliverables(days_ahead=days)
         return list_response(upcoming, len(upcoming))
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.get("/deliverables/alerts")
@@ -131,7 +131,7 @@ async def get_deliverable_alerts():
         response["count"] = len(alerts)  # Backward compat
         return response
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.get("/deliverables/by-project/{project_code}")
@@ -147,7 +147,7 @@ async def get_deliverables_by_project(project_code: str):
         response["phase_status"] = phase_status  # Backward compat
         return response
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 # ============================================================================
@@ -164,7 +164,7 @@ async def get_pm_workload(pm: Optional[str] = Query(None, description="Filter by
         response["count"] = len(workload)  # Backward compat
         return response
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.get("/deliverables/pm-list")
@@ -177,7 +177,7 @@ async def get_pm_list():
         response["count"] = len(pms)  # Backward compat
         return response
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 # ============================================================================
@@ -200,7 +200,7 @@ async def create_deliverable(request: CreateDeliverableRequest):
         )
         return action_response(True, data={"deliverable_id": deliverable_id}, message="Deliverable created")
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.patch("/deliverables/{deliverable_id}/status")
@@ -219,7 +219,7 @@ async def update_deliverable_status(deliverable_id: int, request: UpdateDelivera
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.get("/deliverables/{deliverable_id}")
@@ -233,7 +233,7 @@ async def get_deliverable(deliverable_id: int):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.patch("/deliverables/{deliverable_id}")
@@ -250,7 +250,7 @@ async def update_deliverable(deliverable_id: int, request: UpdateDeliverableRequ
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.delete("/deliverables/{deliverable_id}")
@@ -264,7 +264,7 @@ async def delete_deliverable(deliverable_id: int):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 # ============================================================================
@@ -278,7 +278,7 @@ async def get_project_phase_status(project_code: str):
         status = deliverables_service.get_project_phase_status(project_code)
         return item_response(status)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.post("/deliverables/project/{project_code}/generate-milestones")
@@ -288,7 +288,7 @@ async def generate_project_milestones(project_code: str):
         result = deliverables_service.generate_project_milestones(project_code)
         return action_response(True, data=result, message="Milestones generated")
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.get("/lifecycle-phases")

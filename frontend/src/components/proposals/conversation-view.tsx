@@ -168,12 +168,12 @@ function MessageBubble({
       prev = text;
       text = text.replace(/<[^>]*>/g, " ");
     }
-    // Decode common HTML entities
+    // Decode common HTML entities (except < and > to avoid double-escaping)
     return text
       .replace(/&nbsp;/g, " ")
       .replace(/&amp;/g, "&")
-      .replace(/&lt;/g, "<")
-      .replace(/&gt;/g, ">")
+      .replace(/&lt;/g, "")  // Remove rather than decode to avoid XSS
+      .replace(/&gt;/g, "")  // Remove rather than decode to avoid XSS
       .replace(/&quot;/g, '"')
       .replace(/&#39;/g, "'")
       .replace(/\s+/g, " ")

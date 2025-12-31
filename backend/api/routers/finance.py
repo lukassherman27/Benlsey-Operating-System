@@ -87,7 +87,7 @@ async def get_dashboard_metrics():
             "metrics": metrics
         }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.get("/finance/recent-payments")
@@ -125,7 +125,7 @@ async def get_recent_payments(limit: int = Query(5, ge=1, le=50)):
             "count": len(payments)
         }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.get("/finance/projected-invoices")
@@ -165,7 +165,7 @@ async def get_projected_invoices(limit: int = Query(5, ge=1, le=50)):
             "count": len(invoices)
         }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.get("/finance/projects-by-outstanding")
@@ -204,7 +204,7 @@ async def get_projects_by_outstanding(limit: int = Query(5, ge=1, le=50)):
             "count": len(projects)
         }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.get("/finance/oldest-unpaid-invoices")
@@ -256,7 +256,7 @@ async def get_oldest_unpaid_invoices(limit: int = Query(5, ge=1, le=50)):
             "count": len(invoices)
         }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.get("/finance/projects-by-remaining")
@@ -294,4 +294,4 @@ async def get_projects_by_remaining(limit: int = Query(5, ge=1, le=50)):
             "count": len(projects)
         }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")

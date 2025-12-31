@@ -68,7 +68,7 @@ async def get_training_stats():
         response.update(stats)  # Backward compat - flatten at root
         return response
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to fetch stats: {str(e)}")
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 # ============================================================================
@@ -98,7 +98,7 @@ async def get_unverified_training(
         response.update(result)  # Backward compat
         return response
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to fetch training data: {str(e)}")
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.get("/training/incorrect")
@@ -120,7 +120,7 @@ async def get_incorrect_predictions(
         response.update(result)  # Backward compat
         return response
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to fetch incorrect predictions: {str(e)}")
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.get("/training/{training_id}")
@@ -134,7 +134,7 @@ async def get_training_by_id(training_id: int):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to fetch training record: {str(e)}")
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.post("/training/{training_id}/verify")
@@ -156,7 +156,7 @@ async def verify_training(training_id: int, verification: TrainingVerification):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to verify training: {str(e)}")
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.post("/training/verify/bulk")
@@ -170,7 +170,7 @@ async def bulk_verify_training(bulk: BulkVerification):
         )
         return action_response(True, data={"verified_count": count, "training_ids": bulk.training_ids}, message=f"Verified {count} records")
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to bulk verify: {str(e)}")
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 # ============================================================================
@@ -193,9 +193,9 @@ async def log_user_feedback(request: FeedbackRequest):
         )
         return action_response(True, data=result, message="Feedback logged")
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail="An internal error occurred")
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.get("/training/feedback/stats")
@@ -210,7 +210,7 @@ async def get_feedback_stats(
         response.update(stats)  # Backward compat - flatten at root
         return response
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to get feedback stats: {str(e)}")
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.get("/training/feedback/corrections")
@@ -229,7 +229,7 @@ async def get_corrections_for_review(
         response["count"] = len(corrections)  # Backward compat
         return response
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to get corrections: {str(e)}")
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.get("/training/feedback/recent")
@@ -250,4 +250,4 @@ async def get_recent_feedback(
         response["count"] = len(feedback)  # Backward compat
         return response
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")

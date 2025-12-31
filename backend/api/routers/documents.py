@@ -39,7 +39,7 @@ async def get_all_documents(
         )
         return list_response(documents, len(documents))
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.get("/documents/search")
@@ -56,7 +56,7 @@ async def search_documents(
         response["count"] = len(results)  # Backward compat
         return response
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.get("/documents/stats")
@@ -66,7 +66,7 @@ async def get_document_stats():
         stats = document_service.get_document_stats()
         return item_response(stats)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.get("/documents/types")
@@ -79,7 +79,7 @@ async def get_document_types():
         response["count"] = len(types)  # Backward compat
         return response
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.get("/documents/recent")
@@ -92,7 +92,7 @@ async def get_recent_documents(
         documents = document_service.get_recent_documents(days=days, limit=limit)
         return list_response(documents, len(documents))
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.get("/documents/{document_id}")
@@ -106,7 +106,7 @@ async def get_document_by_id(document_id: int):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.get("/documents/by-project/{project_code}")
@@ -120,4 +120,4 @@ async def get_documents_by_project(project_code: str):
         response["count"] = len(documents)  # Backward compat
         return response
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")

@@ -33,7 +33,7 @@ async def get_invoice_stats():
         stats = financial_service.get_invoice_stats()
         return item_response(stats)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.get("/invoices/aging")
@@ -43,7 +43,7 @@ async def get_invoice_aging():
         aging = invoice_service.get_aging_breakdown()
         return item_response({"aging": aging})
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.get("/invoices/aging-breakdown")
@@ -53,7 +53,7 @@ async def get_detailed_aging_breakdown():
         breakdown = financial_service.get_invoice_aging_summary()
         return item_response({"breakdown": breakdown})
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 # ============================================================================
@@ -80,7 +80,7 @@ async def get_recent_invoices(limit: int = Query(20, ge=1, le=100)):
 
         return list_response(invoices, len(invoices))
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.get("/invoices/outstanding")
@@ -99,7 +99,7 @@ async def get_outstanding_invoices(
 
         return list_response(paginated, total, page, per_page)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.get("/invoices/outstanding-filtered")
@@ -137,7 +137,7 @@ async def get_filtered_outstanding(
 
         return list_response(paginated, total, page, per_page)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.get("/invoices/recent-paid")
@@ -150,7 +150,7 @@ async def get_recent_paid_invoices(limit: int = Query(20, ge=1, le=100)):
         response["count"] = len(invoices)  # Backward compat
         return response
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.get("/invoices/largest-outstanding")
@@ -163,7 +163,7 @@ async def get_largest_outstanding(limit: int = Query(10, ge=1, le=50)):
         response["count"] = len(invoices)  # Backward compat
         return response
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.get("/invoices/oldest-unpaid-invoices")
@@ -176,7 +176,7 @@ async def get_oldest_unpaid(limit: int = Query(10, ge=1, le=50)):
         response["count"] = len(invoices)  # Backward compat
         return response
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.get("/invoices/top-outstanding")
@@ -190,7 +190,7 @@ async def get_top_outstanding(limit: int = Query(10, ge=1, le=50)):
         response["count"] = len(invoices)  # Backward compat
         return response
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 # ============================================================================
@@ -207,7 +207,7 @@ async def get_project_invoices(project_code: str):
         response["count"] = len(invoices)  # Backward compat
         return response
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 # ============================================================================
@@ -231,7 +231,7 @@ async def create_invoice(request: InvoiceCreateRequest):
         invoice_id = invoice_service.create_invoice(invoice_data)
         return action_response(True, data={'invoice_id': invoice_id}, message="Invoice created")
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.put("/invoices/{invoice_number}")
@@ -281,7 +281,7 @@ async def update_invoice(invoice_number: str, request: InvoiceUpdateRequest):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 # ============================================================================
@@ -341,7 +341,7 @@ async def get_revenue_trends(months: int = Query(12, ge=1, le=24)):
             "count": len(trends)
         }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.get("/invoices/client-payment-behavior")
@@ -412,4 +412,4 @@ async def get_client_payment_behavior(limit: int = Query(10, ge=1, le=50)):
             "count": len(clients)
         }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")

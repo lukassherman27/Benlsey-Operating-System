@@ -109,7 +109,7 @@ async def list_meetings(
         response["meetings"] = formatted  # Backward compat
         return response
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to get meetings: {str(e)}")
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.post("/meetings")
@@ -135,7 +135,7 @@ async def create_meeting(
         })
         return action_response(True, data={"meeting_id": meeting_id}, message="Meeting created")
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to create meeting: {str(e)}")
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.post("/meetings/create")
@@ -169,7 +169,7 @@ async def create_meeting_json(request: CreateMeetingRequest):
 
         return action_response(True, data={"meeting_id": meeting_id}, message="Meeting created")
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to create meeting: {str(e)}")
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.get("/meetings/{meeting_id}/briefing")
@@ -183,7 +183,7 @@ async def get_meeting_briefing(meeting_id: int):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to generate briefing: {str(e)}")
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 # ============================================================================
@@ -202,7 +202,7 @@ async def add_meeting_from_chat(request: ChatMeetingRequest):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to process meeting request: {str(e)}")
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.get("/calendar/today")
@@ -215,7 +215,7 @@ async def get_today_meetings():
         response["count"] = len(meetings)  # Backward compat
         return response
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to get today's meetings: {str(e)}")
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.get("/calendar/upcoming")
@@ -229,7 +229,7 @@ async def get_upcoming_meetings(days: int = Query(default=7, ge=1, le=30)):
         response["days"] = days  # Backward compat
         return response
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to get upcoming meetings: {str(e)}")
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.get("/calendar/date/{date}")
@@ -243,7 +243,7 @@ async def get_meetings_for_date(date: str):
         response["date"] = date  # Backward compat
         return response
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to get meetings for {date}: {str(e)}")
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.get("/calendar/project/{project_code}")
@@ -257,4 +257,4 @@ async def get_project_meetings(project_code: str):
         response["project_code"] = project_code  # Backward compat
         return response
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to get meetings for {project_code}: {str(e)}")
+        raise HTTPException(status_code=500, detail="An internal error occurred")

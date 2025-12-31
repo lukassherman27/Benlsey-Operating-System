@@ -71,7 +71,7 @@ async def get_learning_stats():
             "approval_rate": approval_rate
         }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.get("/learning/patterns")
@@ -104,7 +104,7 @@ async def get_learning_patterns(pattern_type: Optional[str] = None):
             "count": len(patterns)
         }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.get("/learning/suggestions")
@@ -146,7 +146,7 @@ async def get_learning_suggestions(
             "count": len(suggestions)
         }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.post("/learning/suggestions/{suggestion_id}/approve")
@@ -178,7 +178,7 @@ async def approve_learning_suggestion(
             "applied": apply_changes and success
         }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.post("/learning/suggestions/{suggestion_id}/reject")
@@ -210,4 +210,4 @@ async def reject_learning_suggestion(
             "suggestion_id": suggestion_id
         }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")

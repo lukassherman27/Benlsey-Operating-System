@@ -78,7 +78,7 @@ async def get_proposal_context(project_code: str):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.get("/intelligence/proposals/needing-attention")
@@ -88,7 +88,7 @@ async def get_proposals_needing_attention():
         proposals = proposal_intelligence_service.get_proposals_needing_attention()
         return list_response(proposals, len(proposals))
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.get("/intelligence/weekly-summary")
@@ -98,7 +98,7 @@ async def get_weekly_summary():
         summary = proposal_intelligence_service.get_weekly_summary()
         return item_response(summary)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.post("/intelligence/proposals/{project_code}/follow-up-email")
@@ -112,7 +112,7 @@ async def generate_follow_up_email(project_code: str, request: GenerateFollowUpR
         )
         return item_response(email)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.post("/intelligence/proposals/{project_code}/answer")
@@ -125,7 +125,7 @@ async def answer_proposal_question(project_code: str, request: AnswerQuestionReq
         )
         return item_response(answer)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 # ============================================================================
@@ -145,7 +145,7 @@ async def get_follow_up_recommendations(
         )
         return list_response(proposals, len(proposals))
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.post("/intelligence/follow-ups/{proposal_id}/draft")
@@ -159,7 +159,7 @@ async def draft_follow_up_email(proposal_id: int, request: DraftFollowUpRequest)
         )
         return item_response(draft)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.post("/intelligence/follow-ups/run-daily")
@@ -169,7 +169,7 @@ async def run_daily_follow_up_analysis():
         result = follow_up_agent.run_daily_analysis()
         return action_response(True, data=result, message="Daily analysis completed")
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 # ============================================================================
@@ -187,7 +187,7 @@ async def get_learned_patterns(user_id: str = Query("bill", description="User ID
         response["user_id"] = user_id  # Backward compat
         return response
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.get("/intelligence/learning/suggestions")
@@ -201,7 +201,7 @@ async def get_learning_suggestions(user_id: str = Query("bill", description="Use
         response["user_id"] = user_id  # Backward compat
         return response
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.get("/intelligence/learning/query-patterns")
@@ -214,7 +214,7 @@ async def analyze_query_patterns(
         patterns = user_learning_service.analyze_query_patterns(user_id=user_id, days=days)
         return item_response(patterns)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.post("/intelligence/learning/log-query")
@@ -229,7 +229,7 @@ async def log_user_query(request: LogQueryRequest):
         )
         return action_response(True, message="Query logged")
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.post("/intelligence/learning/patterns/{pattern_id}/response")
@@ -239,4 +239,4 @@ async def record_suggestion_response(pattern_id: int, accepted: bool = Query(...
         user_learning_service.record_suggestion_response(pattern_id=pattern_id, accepted=accepted)
         return action_response(True, message="Response recorded")
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")

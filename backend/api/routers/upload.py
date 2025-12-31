@@ -53,7 +53,7 @@ async def upload_file(
         )
         return {"success": True, "message": "File uploaded successfully", **result}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Upload failed: {str(e)}")
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.get("/{file_id}/download")
@@ -64,9 +64,9 @@ async def get_download_url(file_id: int):
         result = await service.get_download_url(file_id)
         return {"success": True, **result}
     except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
+        raise HTTPException(status_code=404, detail="An internal error occurred")
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to get download URL: {str(e)}")
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.get("/by-project/{project_code}")
@@ -81,7 +81,7 @@ async def get_files_by_project(project_code: str, category: Optional[str] = None
         response["count"] = len(files)
         return response
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.delete("/{file_id}")
@@ -96,7 +96,7 @@ async def delete_uploaded_file(file_id: int):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.get("/config")

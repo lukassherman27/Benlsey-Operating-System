@@ -191,7 +191,7 @@ async def get_active_projects(
         response["count"] = len(projects)  # Backward compat
         return response
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.get("/projects/linking-list")
@@ -222,7 +222,7 @@ async def get_projects_for_linking():
         response["count"] = len(projects)  # Backward compat
         return response
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 # ============================================================================
@@ -251,7 +251,7 @@ async def get_project(project_code: str):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.get("/projects/{project_code}/financial-summary")
@@ -357,7 +357,7 @@ async def get_project_financial_summary(project_code: str):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 # ============================================================================
@@ -428,7 +428,7 @@ async def get_project_contacts(project_code: str):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 # ============================================================================
@@ -446,7 +446,7 @@ async def get_project_scope(project_code: str):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.get("/projects/{project_code}/contract")
@@ -460,7 +460,7 @@ async def get_project_contract(project_code: str):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.get("/projects/{project_code}/fee-breakdown")
@@ -474,7 +474,7 @@ async def get_project_fee_breakdown(project_code: str):
         response["breakdowns"] = breakdown  # Frontend expects this key
         return response
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.get("/projects/{project_code}/phases")
@@ -572,7 +572,7 @@ async def get_project_phases(project_code: str):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to get project phases: {str(e)}")
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.get("/projects/{project_code}/timeline")
@@ -653,7 +653,7 @@ async def get_project_timeline(project_code: str):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.get("/projects/{project_code}/hierarchy")
@@ -761,7 +761,7 @@ async def get_project_hierarchy(project_code: str):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 # ============================================================================
@@ -873,7 +873,7 @@ async def get_project_phase_timeline(project_code: str):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to get phase timeline: {str(e)}")
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.patch("/projects/{project_code}/phase-timeline")
@@ -912,7 +912,7 @@ async def update_project_phase_timeline(project_code: str, request: PhaseTimelin
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to update phase timeline: {str(e)}")
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.get("/phase-fees")
@@ -949,7 +949,7 @@ async def get_all_phase_fees(
             "count": len(fees)
         }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.post("/phase-fees")
@@ -993,7 +993,7 @@ async def create_phase_fee(request: CreatePhaseFeeRequest):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.put("/phase-fees/{breakdown_id}")
@@ -1035,7 +1035,7 @@ async def update_phase_fee(breakdown_id: str, request: UpdatePhaseFeeRequest):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.delete("/phase-fees/{breakdown_id}")
@@ -1057,7 +1057,7 @@ async def delete_phase_fee(breakdown_id: str):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 # ============================================================================
@@ -1305,7 +1305,7 @@ async def get_unified_timeline(
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 # ============================================================================
 # PROJECT TEAM ENDPOINT
@@ -1381,7 +1381,7 @@ async def get_project_team(project_code: str):
         }
         
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to get project team: {str(e)}")
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.get("/projects/{project_code}/schedule")
@@ -1448,7 +1448,7 @@ async def get_project_schedule(project_code: str, days: int = 30):
         }
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to get project schedule: {str(e)}")
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.get("/projects/{project_code}/schedule-team")
@@ -1472,7 +1472,7 @@ async def get_project_schedule_team(project_code: str):
         conn.close()
         return {"success": True, "project_code": project_code, "team": team, "count": len(team)}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to get schedule team: {str(e)}")
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 # ============================================================================
@@ -1538,7 +1538,7 @@ async def get_staff_list():
         }
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to get staff list: {str(e)}")
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.get("/projects/{project_code}/assignments")
@@ -1605,7 +1605,7 @@ async def get_project_assignments(project_code: str):
         }
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to get project assignments: {str(e)}")
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 class AddTeamMemberRequest(BaseModel):
@@ -1665,7 +1665,7 @@ async def add_project_assignment(project_code: str, request: AddTeamMemberReques
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to add team member: {str(e)}")
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 class UpdateTeamMemberRequest(BaseModel):
@@ -1727,7 +1727,7 @@ async def update_project_assignment(
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to update assignment: {str(e)}")
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.delete("/projects/{project_code}/assignments/{assignment_id}")
@@ -1762,7 +1762,7 @@ async def remove_project_assignment(project_code: str, assignment_id: int):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to remove assignment: {str(e)}")
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 # ============================================================================
@@ -1840,7 +1840,7 @@ async def submit_daily_work(project_code: str, request: DailyWorkSubmission):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to submit daily work: {str(e)}")
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.get("/projects/{project_code}/daily-work")
@@ -1932,7 +1932,7 @@ async def get_project_daily_work(
         }
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to get daily work: {str(e)}")
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.get("/daily-work/{daily_work_id}")
@@ -1963,7 +1963,7 @@ async def get_daily_work_detail(daily_work_id: int):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to get daily work: {str(e)}")
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.patch("/daily-work/{daily_work_id}/review")
@@ -2010,7 +2010,7 @@ async def review_daily_work(daily_work_id: int, request: DailyWorkReview):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to review daily work: {str(e)}")
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.patch("/daily-work/{daily_work_id}")
@@ -2051,7 +2051,7 @@ async def update_daily_work(daily_work_id: int, request: DailyWorkSubmission):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to update daily work: {str(e)}")
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.delete("/daily-work/{daily_work_id}")
@@ -2075,7 +2075,7 @@ async def delete_daily_work(daily_work_id: int):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to delete daily work: {str(e)}")
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 # ============================================================================
@@ -2104,7 +2104,7 @@ async def get_project_progress(project_code: str):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to get progress: {str(e)}")
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 class UpdatePhaseProgressRequest(BaseModel):
@@ -2145,7 +2145,7 @@ async def update_phase_progress(
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to update progress: {str(e)}")
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.get("/projects/progress-summary")
@@ -2175,4 +2175,4 @@ async def get_projects_progress_summary(
         }
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to get progress summary: {str(e)}")
+        raise HTTPException(status_code=500, detail="An internal error occurred")

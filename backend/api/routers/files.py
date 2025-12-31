@@ -76,7 +76,7 @@ async def get_files_by_proposal(
         response["count"] = len(files)  # Backward compat
         return response
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.get("/files/by-proposal/{proposal_id}/workspace")
@@ -86,7 +86,7 @@ async def get_workspace_summary(proposal_id: int):
         summary = file_service.get_workspace_summary(proposal_id)
         return item_response(summary)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.get("/files/by-proposal/{proposal_id}/by-type/{file_type}")
@@ -101,7 +101,7 @@ async def get_files_by_type(proposal_id: int, file_type: str):
         response["count"] = len(files)  # Backward compat
         return response
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.get("/files/by-proposal/{proposal_id}/by-category/{category}")
@@ -116,7 +116,7 @@ async def get_files_by_category(proposal_id: int, category: str):
         response["count"] = len(files)  # Backward compat
         return response
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.get("/files/by-proposal/{proposal_id}/versions/{filename}")
@@ -131,7 +131,7 @@ async def get_file_versions(proposal_id: int, filename: str):
         response["count"] = len(versions)  # Backward compat
         return response
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.get("/files/by-proposal/{proposal_id}/search")
@@ -149,7 +149,7 @@ async def search_files(
         response["count"] = len(files)  # Backward compat
         return response
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.get("/files/by-milestone/{milestone_id}")
@@ -163,7 +163,7 @@ async def get_files_by_milestone(milestone_id: int):
         response["count"] = len(files)  # Backward compat
         return response
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 # ============================================================================
@@ -181,7 +181,7 @@ async def get_file(file_id: int):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.post("/files")
@@ -191,7 +191,7 @@ async def create_file(request: CreateFileRequest):
         file_id = file_service.create_file(request.dict())
         return action_response(True, data={"file_id": file_id}, message="File created")
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.patch("/files/{file_id}")
@@ -209,7 +209,7 @@ async def update_file(file_id: int, request: UpdateFileRequest):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.patch("/files/{file_id}/mark-latest")
@@ -223,7 +223,7 @@ async def mark_as_latest(file_id: int):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.delete("/files/{file_id}")
@@ -237,7 +237,7 @@ async def delete_file(file_id: int):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.post("/files/bulk-update-onedrive")
@@ -247,7 +247,7 @@ async def bulk_update_onedrive_paths(request: BulkUpdateOnedriveRequest):
         count = file_service.bulk_update_onedrive_paths(request.updates)
         return action_response(True, data={"updated": count}, message=f"Updated {count} files")
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 # ============================================================================
@@ -281,7 +281,7 @@ async def upload_file(
         )
         return {"success": True, "message": "File uploaded successfully", **result}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Upload failed: {str(e)}")
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.get("/files/download/{file_id}")
@@ -291,9 +291,9 @@ async def get_download_url(file_id: int):
         result = await onedrive_service.get_download_url(file_id)
         return {"success": True, **result}
     except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
+        raise HTTPException(status_code=404, detail="An internal error occurred")
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to get download URL: {str(e)}")
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.get("/files/by-project/{project_code}")
@@ -307,7 +307,7 @@ async def get_files_by_project(project_code: str, category: Optional[str] = None
         response["count"] = len(files)
         return response
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.delete("/files/uploaded/{file_id}")
@@ -321,7 +321,7 @@ async def delete_uploaded_file(file_id: int):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.get("/files/config")

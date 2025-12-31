@@ -149,7 +149,7 @@ async def get_system_health():
             response.update(health_data)  # Backward compat - flatten at root
             return response
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to get system health: {str(e)}")
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.get("/admin/system-stats")
@@ -282,7 +282,7 @@ async def get_system_stats():
             response.update(stats_data)  # Backward compat - flatten at root
             return response
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to get system stats: {str(e)}")
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 # ============================================================================
@@ -308,7 +308,7 @@ async def get_validation_suggestions(
         response.update(result)  # Backward compat
         return response
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to get validation suggestions: {str(e)}")
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.get("/admin/validation/suggestions/{suggestion_id}")
@@ -322,7 +322,7 @@ async def get_validation_suggestion(suggestion_id: int):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to get suggestion: {str(e)}")
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.post("/admin/validation/suggestions/{suggestion_id}/approve")
@@ -340,7 +340,7 @@ async def approve_validation_suggestion(suggestion_id: int, request: ApproveSugg
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to approve suggestion: {str(e)}")
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.post("/admin/validation/suggestions/{suggestion_id}/deny")
@@ -358,7 +358,7 @@ async def deny_validation_suggestion(suggestion_id: int, request: DenySuggestion
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to deny suggestion: {str(e)}")
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 # ============================================================================
@@ -388,7 +388,7 @@ async def get_email_links(
         response.update(result)  # Backward compat
         return response
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to get email links: {str(e)}")
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.post("/admin/email-links")
@@ -406,7 +406,7 @@ async def create_manual_email_link(request: CreateEmailLinkRequest):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to create manual link: {str(e)}")
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.patch("/admin/email-links/{link_id}")
@@ -426,7 +426,7 @@ async def update_email_link(link_id: int, request: UpdateEmailLinkRequest):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to update email link: {str(e)}")
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.delete("/admin/email-links/{link_id}")
@@ -443,7 +443,7 @@ async def unlink_email(
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to unlink email: {str(e)}")
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 # ============================================================================
@@ -472,7 +472,7 @@ async def list_manual_overrides(
         response["count"] = len(overrides)  # Backward compat
         return response
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to list overrides: {str(e)}")
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.post("/manual-overrides")
@@ -491,7 +491,7 @@ async def create_manual_override(request: ManualOverrideCreate):
         )
         return action_response(True, data={"override_id": override_id}, message="Override created")
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to create override: {str(e)}")
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.get("/manual-overrides/{override_id}")
@@ -505,7 +505,7 @@ async def get_manual_override(override_id: int):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to get override: {str(e)}")
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.patch("/manual-overrides/{override_id}")
@@ -528,7 +528,7 @@ async def update_manual_override(override_id: int, request: ManualOverrideUpdate
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to update override: {str(e)}")
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.post("/manual-overrides/{override_id}/apply")
@@ -542,7 +542,7 @@ async def apply_manual_override(override_id: int):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to apply override: {str(e)}")
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 # ============================================================================

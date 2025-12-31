@@ -57,7 +57,7 @@ async def get_emails(
             per_page
         )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.get("/emails/stats")
@@ -67,7 +67,7 @@ async def get_email_stats():
         stats = email_service.get_email_stats()
         return item_response(stats)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.get("/emails/inbox-stats")
@@ -120,7 +120,7 @@ async def get_inbox_stats():
             }
         }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.get("/emails/import-stats")
@@ -135,7 +135,7 @@ async def get_import_stats():
         stats = email_orchestrator.get_import_stats()
         return stats
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.post("/emails/process-batch")
@@ -156,7 +156,7 @@ async def process_email_batch(
         result = email_orchestrator.process_new_emails(limit=limit, hours=hours)
         return result
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.get("/emails/uncategorized")
@@ -174,7 +174,7 @@ async def get_uncategorized_emails(
             per_page
         )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.get("/emails/recent")
@@ -184,7 +184,7 @@ async def get_recent_emails(limit: int = Query(20, ge=1, le=100)):
         emails = email_service.get_recent_emails(limit=limit)
         return list_response(emails, len(emails))
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.get("/emails/categories")
@@ -194,7 +194,7 @@ async def get_email_categories():
         categories = email_service.get_categories()
         return list_response(categories, len(categories))
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.get("/emails/categories/list")
@@ -218,7 +218,7 @@ async def get_emails_pending_approval(
             per_page
         )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.get("/emails/validation-queue")
@@ -236,7 +236,7 @@ async def get_validation_queue(
         )
         return result  # Already in correct format with success, counts, emails
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 # ============================================================================
@@ -259,7 +259,7 @@ async def get_review_queue(
         result = email_intelligence_service.get_review_queue(limit=limit)
         return result
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.post("/emails/bulk-approve")
@@ -500,7 +500,7 @@ async def get_email(email_id: int):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.get("/emails/{email_id}/details")
@@ -514,7 +514,7 @@ async def get_email_details(email_id: int):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 # ============================================================================
@@ -537,7 +537,7 @@ async def update_email_category_endpoint(email_id: int, request: EmailCategoryRe
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.post("/emails/{email_id}/link")
@@ -555,7 +555,7 @@ async def link_email_to_project(email_id: int, request: EmailLinkRequest):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.delete("/emails/{email_id}/link")
@@ -569,7 +569,7 @@ async def unlink_email_from_project(email_id: int):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.post("/emails/{email_id}/approve-category")
@@ -583,7 +583,7 @@ async def approve_email_category(email_id: int):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.post("/emails/{email_id}/reject-category")
@@ -597,7 +597,7 @@ async def reject_email_category(email_id: int):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.post("/emails/{email_id}/read")
@@ -607,7 +607,7 @@ async def mark_email_read(email_id: int):
         result = email_service.mark_as_read(email_id)
         return action_response(True, message="Marked as read")
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.post("/emails/{email_id}/confirm-link")
@@ -650,7 +650,7 @@ async def confirm_email_link(
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.post("/emails/{email_id}/extract-scheduling")
@@ -692,7 +692,7 @@ async def extract_scheduling_data(email_id: int):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 # ============================================================================
@@ -715,7 +715,7 @@ async def bulk_update_category(request: BulkCategoryRequest):
             message=f"Updated {result.get('updated', 0)} emails"
         )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 # ============================================================================
@@ -742,7 +742,7 @@ async def get_project_emails(
             per_page
         )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 # ============================================================================
@@ -770,7 +770,7 @@ async def get_project_emails_alt(
             "count": len(emails)
         }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.post("/emails/scan-sent-proposals")
@@ -873,7 +873,7 @@ async def process_sent_emails(
             }
         }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.get("/emails/project/{project_code}/summary")
@@ -973,4 +973,4 @@ async def get_project_email_summary(
         }
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")

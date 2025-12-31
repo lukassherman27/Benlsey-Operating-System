@@ -113,7 +113,7 @@ async def list_rfis(
 
         return list_response(rfis, len(rfis))
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to get RFIs: {str(e)}")
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.get("/rfis/overdue")
@@ -123,7 +123,7 @@ async def get_overdue_rfis():
         overdue = rfi_service.get_overdue_rfis()
         return list_response(overdue, len(overdue))
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to get overdue RFIs: {str(e)}")
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.get("/rfis/stats")
@@ -147,7 +147,7 @@ async def get_rfi_stats():
         response.update(formatted_stats)  # Backward compat - flatten at root
         return response
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to get RFI stats: {str(e)}")
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.get("/rfis/by-project/{project_code}")
@@ -162,7 +162,7 @@ async def get_rfis_by_project(project_code: str):
         response["rfis"] = rfis  # Backward compat
         return response
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to get RFIs: {str(e)}")
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 # ============================================================================
@@ -190,7 +190,7 @@ async def create_rfi(
         })
         return action_response(True, data={"rfi_id": rfi_id}, message="RFI created")
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to create RFI: {str(e)}")
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.get("/rfis/{rfi_id}")
@@ -204,7 +204,7 @@ async def get_rfi_detail(rfi_id: int):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to get RFI: {str(e)}")
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.patch("/rfis/{rfi_id}")
@@ -227,7 +227,7 @@ async def update_rfi(rfi_id: int, request: RFIUpdateRequest):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to update RFI: {str(e)}")
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.delete("/rfis/{rfi_id}")
@@ -241,7 +241,7 @@ async def delete_rfi(rfi_id: int):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to delete RFI: {str(e)}")
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 # ============================================================================
@@ -259,7 +259,7 @@ async def mark_rfi_responded(rfi_id: int):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to mark RFI responded: {str(e)}")
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.post("/rfis/{rfi_id}/close")
@@ -273,7 +273,7 @@ async def close_rfi(rfi_id: int):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to close RFI: {str(e)}")
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.post("/rfis/{rfi_id}/assign")
@@ -287,7 +287,7 @@ async def assign_rfi_to_pm(rfi_id: int, request: RFIAssignRequest):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to assign RFI: {str(e)}")
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 # ============================================================================
@@ -313,7 +313,7 @@ async def scan_for_rfis(
         response["candidates"] = filtered  # Backward compat
         return response
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to scan for RFIs: {str(e)}")
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.post("/rfis/extract-from-email/{email_id}")
@@ -357,7 +357,7 @@ async def extract_rfi_from_email(
                 message=result.get('message', 'Could not create RFI')
             )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to extract RFI: {str(e)}")
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.post("/rfis/process-batch")
@@ -405,4 +405,4 @@ async def process_rfi_batch(
             message=f"Processed {len(candidates)} candidates, created {len(created)} RFIs"
         )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to process RFI batch: {str(e)}")
+        raise HTTPException(status_code=500, detail="An internal error occurred")

@@ -64,9 +64,9 @@ async def list_proposals(
         )
         return result
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail="Invalid request")
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to get proposals: {str(e)}")
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.get("/proposals/stats")
@@ -76,7 +76,7 @@ async def get_proposal_stats():
         stats = proposal_service.get_dashboard_stats()
         return stats
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to get proposal stats: {str(e)}")
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.get("/proposals/at-risk")
@@ -134,7 +134,7 @@ async def get_at_risk_proposals(
             return list_response(data, total, page, per_page)
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to get at-risk proposals: {str(e)}")
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.get("/proposals/needs-follow-up")
@@ -190,7 +190,7 @@ async def get_needs_follow_up_proposals(
             return response
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to get follow-up proposals: {str(e)}")
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.get("/proposals/weekly-changes")
@@ -202,7 +202,7 @@ async def get_weekly_changes(
         result = proposal_service.get_weekly_changes(days=days)
         return result
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to get weekly changes: {str(e)}")
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.get("/proposals/needs-attention")
@@ -311,7 +311,7 @@ async def get_proposals_needs_attention():
             }
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to get proposals needing attention: {str(e)}")
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.post("/proposals", status_code=201)
@@ -381,7 +381,7 @@ async def create_proposal(request: CreateProposalRequest):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to create proposal: {str(e)}")
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 # ============================================================================
@@ -395,7 +395,7 @@ async def get_tracker_stats():
         stats = proposal_tracker_service.get_stats()
         return {"success": True, "stats": stats}  # Frontend expects {success, stats}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to get tracker stats: {str(e)}")
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.get("/proposal-tracker/list")
@@ -419,7 +419,7 @@ async def get_tracker_list(
         )
         return result
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to get tracker list: {str(e)}")
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.get("/proposal-tracker/disciplines")
@@ -429,7 +429,7 @@ async def get_tracker_disciplines():
         disciplines = proposal_tracker_service.get_discipline_stats()
         return {"success": True, "disciplines": disciplines}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to get disciplines: {str(e)}")
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.get("/proposal-tracker/countries")
@@ -439,7 +439,7 @@ async def get_tracker_countries():
         countries = proposal_tracker_service.get_countries_list()
         return {"success": True, "countries": countries}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to get countries: {str(e)}")
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.get("/proposal-tracker/{project_code}")
@@ -455,7 +455,7 @@ async def get_tracker_proposal(project_code: str):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to get proposal: {str(e)}")
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.put("/proposal-tracker/{project_code}")
@@ -469,7 +469,7 @@ async def update_tracker_proposal(project_code: str, updates: dict):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to update proposal: {str(e)}")
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.get("/proposal-tracker/{project_code}/history")
@@ -481,7 +481,7 @@ async def get_tracker_history(project_code: str):
         response["history"] = history  # Backward compat
         return response
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to get history: {str(e)}")
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.get("/proposal-tracker/{project_code}/emails")
@@ -493,7 +493,7 @@ async def get_tracker_emails(project_code: str):
         response["emails"] = emails  # Backward compat
         return response
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to get emails: {str(e)}")
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 # ============================================================================
@@ -526,7 +526,7 @@ async def get_proposal_versions(project_code: str):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to get versions: {str(e)}")
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.get("/proposals/{project_code}/fee-history")
@@ -549,7 +549,7 @@ async def get_proposal_fee_history(project_code: str):
             "count": len(history)
         }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to get fee history: {str(e)}")
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.get("/proposals/search/by-client")
@@ -584,7 +584,7 @@ async def search_proposals_by_client(
 
         return result
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to search proposals: {str(e)}")
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 # ============================================================================
@@ -716,7 +716,7 @@ async def get_proposal_timeline(
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to get proposal timeline: {str(e)}")
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.get("/proposals/{project_code}/conversation")
@@ -793,7 +793,7 @@ async def get_proposal_conversation(project_code: str):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to get proposal conversation: {str(e)}")
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.get("/proposals/{project_code}/stakeholders")
@@ -892,7 +892,7 @@ async def get_proposal_stakeholders(project_code: str):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to get proposal stakeholders: {str(e)}")
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.get("/proposals/{project_code}/documents")
@@ -949,7 +949,7 @@ async def get_proposal_documents(project_code: str):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to get proposal documents: {str(e)}")
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.get("/proposals/{project_code}/briefing")
@@ -1052,7 +1052,7 @@ async def get_proposal_briefing(project_code: str):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to get proposal briefing: {str(e)}")
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.get("/proposals/{project_code}/story")
@@ -1073,11 +1073,11 @@ async def get_proposal_story(project_code: str):
     try:
         return story_service.get_story(project_code)
     except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
+        raise HTTPException(status_code=404, detail="Invalid request")
     except Exception as e:
         import traceback
         traceback.print_exc()
-        raise HTTPException(status_code=500, detail=f"Failed to get proposal story: {str(e)}")
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.get("/proposals/summary")
@@ -1209,7 +1209,7 @@ async def get_proposals_summary():
         }
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to get proposals summary: {str(e)}")
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.post("/proposals/{project_code}/chat")

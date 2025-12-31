@@ -120,7 +120,7 @@ async def get_transcripts(
             "transcripts": transcripts,
         }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.get("/meeting-transcripts/stats")
@@ -159,7 +159,7 @@ async def get_transcript_stats():
 
         return item_response(stats)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.get("/meeting-transcripts/orphaned")
@@ -201,7 +201,7 @@ async def get_orphaned_transcripts():
             "message": f"Found {len(orphaned)} orphaned transcripts needing review"
         }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.get("/meeting-transcripts/{transcript_id}")
@@ -236,7 +236,7 @@ async def get_transcript(transcript_id: int):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.get("/meeting-transcripts/by-project/{project_code}")
@@ -269,7 +269,7 @@ async def get_transcripts_by_project(project_code: str):
         response["transcripts"] = transcripts
         return response
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.get("/projects/{project_code}/transcripts")
@@ -322,7 +322,7 @@ async def get_project_transcripts(project_code: str):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 # ============================================================================
@@ -421,7 +421,7 @@ async def update_transcript(
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 # ============================================================================
@@ -566,7 +566,7 @@ async def save_claude_summary(transcript_id: int, request: ClaudeSummaryRequest)
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 # ============================================================================
@@ -617,4 +617,4 @@ async def consolidate_transcripts(
         }
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Consolidation failed: {str(e)}")
+        raise HTTPException(status_code=500, detail="An internal error occurred")

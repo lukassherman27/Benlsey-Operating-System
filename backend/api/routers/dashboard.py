@@ -244,7 +244,7 @@ async def get_dashboard_stats(role: Optional[str] = Query(None, description="Rol
         response.update(stats)  # Backward compat - flatten at root
         return response
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to get dashboard stats: {str(e)}")
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 def get_period_dates(period: str, start_date: Optional[str] = None, end_date: Optional[str] = None):
@@ -621,7 +621,7 @@ async def get_dashboard_kpis(
             "trend_period_days": 30
         }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to calculate KPIs: {str(e)}")
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.get("/dashboard/decision-tiles")
@@ -691,7 +691,7 @@ async def get_decision_tiles():
 
         return {"tiles": tiles, "count": len(tiles)}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 # ============================================================================
@@ -803,7 +803,7 @@ async def get_daily_briefing():
             "total_active": len(proposals)
         }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.get("/dashboard/meetings")
@@ -828,7 +828,7 @@ async def get_dashboard_meetings():
 
         return {"meetings": meetings, "count": len(meetings)}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.get("/dashboard/actions")
@@ -1121,7 +1121,7 @@ async def get_action_items():
         }
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 # ============================================================================
@@ -1303,6 +1303,6 @@ async def get_portfolio_exceptions():
         }
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
     finally:
         conn.close()

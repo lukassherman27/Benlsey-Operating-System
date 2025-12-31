@@ -73,7 +73,7 @@ async def list_milestones(
             milestones = milestone_service.get_upcoming_milestones(days_ahead=90)
         return list_response(milestones, len(milestones))
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.get("/milestones/overdue")
@@ -83,7 +83,7 @@ async def get_overdue_milestones():
         overdue = milestone_service.get_overdue_milestones()
         return list_response(overdue, len(overdue))
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.get("/milestones/upcoming")
@@ -93,7 +93,7 @@ async def get_upcoming_milestones(days: int = Query(30, ge=1, le=180)):
         upcoming = milestone_service.get_upcoming_milestones(days_ahead=days)
         return list_response(upcoming, len(upcoming))
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.get("/milestones/{milestone_id}")
@@ -107,7 +107,7 @@ async def get_milestone(milestone_id: int):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.get("/milestones/by-proposal/{proposal_id}")
@@ -121,7 +121,7 @@ async def get_milestones_by_proposal(proposal_id: int):
         response["count"] = len(milestones)  # Backward compat
         return response
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.get("/milestones/by-proposal/{proposal_id}/timeline")
@@ -131,7 +131,7 @@ async def get_milestone_timeline(proposal_id: int):
         timeline = milestone_service.get_timeline_data(proposal_id)
         return item_response(timeline)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 # ============================================================================
@@ -145,7 +145,7 @@ async def create_milestone(request: CreateMilestoneRequest):
         milestone_id = milestone_service.create_milestone(request.dict())
         return action_response(True, data={"milestone_id": milestone_id}, message="Milestone created")
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.patch("/milestones/{milestone_id}")
@@ -163,7 +163,7 @@ async def update_milestone(milestone_id: int, request: UpdateMilestoneRequest):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.patch("/milestones/{milestone_id}/status")
@@ -181,7 +181,7 @@ async def update_milestone_status(milestone_id: int, request: UpdateMilestoneSta
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
 @router.delete("/milestones/{milestone_id}")
@@ -195,4 +195,4 @@ async def delete_milestone(milestone_id: int):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="An internal error occurred")
