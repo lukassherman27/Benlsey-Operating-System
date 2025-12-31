@@ -1,0 +1,117 @@
+# Bensley Operations Platform - Production Docker Compose
+#
+# Usage:
+#   docker-compose -f docker-compose.prod.yml up -d
+#
+# Prerequisites:
+#   1. SSL certificates in ./certbot/conf/live/YOUR_DOMAIN/
+#   2. DH parameters in ./certbot/conf/ssl-dhparams.pem
+#   3. .env file with production settings
+#
+# First-time SSL setup:
+#   1. Comment out the 443 server block in nginx config temporarily
+#   2. Run: docker-compose -f docker-compose.prod.yml up -d
+#   3. Run certbot: docker-compose -f docker-compose.prod.yml run --rm certbot certonly --webroot -w /var/www/certbot -d YOUR_DOMAIN
+#   4. Uncomment the 443 block and restart nginx
+
+version: '3.8'
+
+services:
+  # Nginx reverse proxy with SSL termination
+  nginx:
+    image: nginx:alpine
+    container_name: bensley-nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/ssl.conf:/etc/nginx/ssl.conf:ro
+      - ./nginx/sites:/etc/nginx/sites-enabled:ro
+      - ./certbot/conf:/etc/letsencrypt:ro
+      - ./certbot/www:/var/www/certbot:ro
+      - ./certbot/conf/ssl-dhparams.pem:/etc/ssl/certs/dhparam.pem:ro
+    depends_on:
+      - backend
+      - frontend
+    restart: unless-stopped
+    networks:
+      - bensley-network
+    healthcheck:
+      test: ["CMD", "nginx", "-t"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # FastAPI Backend
+  backend:
+    build:
+      context: ../backend
+      dockerfile: Dockerfile
+    container_name: bensley-backend
+    expose:
+      - "8000"
+    environment:
+      - ENV=production
+      - DEBUG=false
+      - DATABASE_URL=sqlite:///./database/bensley_master.db
+    env_file:
+      - ../.env
+    volumes:
+      - ../database:/app/database
+    restart: unless-stopped
+    networks:
+      - bensley-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Next.js Frontend
+  frontend:
+    build:
+      context: ../frontend
+      dockerfile: Dockerfile
+    container_name: bensley-frontend
+    expose:
+      - "3002"
+    environment:
+      - NODE_ENV=production
+      - PORT=3002
+    env_file:
+      - ../.env
+    restart: unless-stopped
+    networks:
+      - bensley-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3002"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # Certbot for SSL certificate management
+  certbot:
+    image: certbot/certbot
+    container_name: bensley-certbot
+    volumes:
+      - ./certbot/conf:/etc/letsencrypt
+      - ./certbot/www:/var/www/certbot
+    # To obtain initial certificate:
+    # docker-compose -f docker-compose.prod.yml run --rm certbot certonly --webroot -w /var/www/certbot -d YOUR_DOMAIN
+    #
+    # To renew certificates (add to cron):
+    # docker-compose -f docker-compose.prod.yml run --rm certbot renew
+    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done;'"
+    networks:
+      - bensley-network
+
+networks:
+  bensley-network:
+    driver: bridge
+
+volumes:
+  certbot-conf:
+  certbot-www:
