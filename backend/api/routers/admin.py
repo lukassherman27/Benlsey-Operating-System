@@ -1263,7 +1263,7 @@ async def consolidate_transcripts(request: ConsolidateTranscriptsRequest = None)
     except Exception as e:
         return {
             "success": False,
-            "error": str(e)
+            "error": "An internal error occurred while consolidating transcripts"
         }
 
 
@@ -1294,9 +1294,10 @@ async def generate_transcript_title(transcript_id: int):
 
         return result
     except Exception as e:
+        logger.exception("Error generating transcript title for id=%d", transcript_id)
         return {
             "success": False,
-            "error": str(e),
+            "error": "An internal error occurred while generating transcript title",
             "transcript_id": transcript_id
         }
 
@@ -1321,9 +1322,10 @@ async def consolidate_single_meeting(base_filename: str, dry_run: bool = Query(F
 
         return result
     except Exception as e:
+        logger.exception("Error consolidating meeting: %s", base_filename)
         return {
             "success": False,
-            "error": str(e),
+            "error": "An internal error occurred while consolidating meeting",
             "base_filename": base_filename
         }
 
@@ -1353,9 +1355,10 @@ async def match_transcript_participants(transcript_id: int):
 
         return result
     except Exception as e:
+        logger.exception("Error matching participants for transcript id=%d", transcript_id)
         return {
             "success": False,
-            "error": str(e),
+            "error": "An internal error occurred while matching participants",
             "transcript_id": transcript_id
         }
 
@@ -1379,9 +1382,10 @@ async def match_all_transcript_participants():
 
         return result
     except Exception as e:
+        logger.exception("Error matching all transcript participants")
         return {
             "success": False,
-            "error": str(e)
+            "error": "An internal error occurred while matching participants"
         }
 
 
@@ -1415,9 +1419,10 @@ async def get_thread_details(thread_id: str):
             **result
         }
     except Exception as e:
+        logger.exception("Error getting thread details for thread_id=%s", thread_id)
         return {
             "success": False,
-            "error": str(e),
+            "error": "An internal error occurred while getting thread details",
             "thread_id": thread_id
         }
 
@@ -1477,9 +1482,10 @@ async def list_threads(
             "count": len(threads)
         }
     except Exception as e:
+        logger.exception("Error listing threads")
         return {
             "success": False,
-            "error": str(e)
+            "error": "An internal error occurred while listing threads"
         }
 
 
@@ -1518,8 +1524,9 @@ async def get_email_thread_context(email_id: int):
             "suggested_link_from_thread": suggested_link
         }
     except Exception as e:
+        logger.exception("Error getting thread context for email_id=%d", email_id)
         return {
             "success": False,
-            "error": str(e),
+            "error": "An internal error occurred while getting thread context",
             "email_id": email_id
         }

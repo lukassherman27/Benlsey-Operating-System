@@ -156,13 +156,30 @@ function MessageBubble({
     timeDisplay = email.date?.substring(11, 16) || "";
   }
 
-  // Clean body text
+  // Clean body text - extract plain text from potential HTML content
   const bodyText = email.body_preview || email.body_full || "";
-  // Remove excessive whitespace and HTML
-  const cleanedBody = bodyText
-    .replace(/<[^>]+>/g, "")
-    .replace(/\s+/g, " ")
-    .trim();
+  // Use a safer approach: strip tags iteratively to handle nested/malformed HTML,
+  // then decode common HTML entities and normalize whitespace
+  const stripHtmlTags = (html: string): string => {
+    let text = html;
+    // Keep stripping until no more tags found (handles nested tags)
+    let prev = "";
+    while (prev !== text) {
+      prev = text;
+      text = text.replace(/<[^>]*>/g, " ");
+    }
+    // Decode common HTML entities
+    return text
+      .replace(/&nbsp;/g, " ")
+      .replace(/&amp;/g, "&")
+      .replace(/&lt;/g, "<")
+      .replace(/&gt;/g, ">")
+      .replace(/&quot;/g, '"')
+      .replace(/&#39;/g, "'")
+      .replace(/\s+/g, " ")
+      .trim();
+  };
+  const cleanedBody = stripHtmlTags(bodyText);
 
   return (
     <div className={cn(

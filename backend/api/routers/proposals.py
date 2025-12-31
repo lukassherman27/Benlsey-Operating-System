@@ -17,10 +17,13 @@ from fastapi import APIRouter, HTTPException, Query
 from typing import Optional
 from datetime import datetime
 import sqlite3
+import logging
 
 from api.services import proposal_service, proposal_tracker_service
 from api.dependencies import DB_PATH
 from services.proposal_detail_story_service import ProposalDetailStoryService
+
+logger = logging.getLogger(__name__)
 
 # Initialize story service
 story_service = ProposalDetailStoryService(DB_PATH)
@@ -1538,4 +1541,5 @@ Guidelines:
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Chat failed: {str(e)}")
+        logger.exception("Error in proposal chat")
+        raise HTTPException(status_code=500, detail="Chat failed due to an internal error")
