@@ -31,6 +31,7 @@ import { BensleyTeamCard } from "@/components/project/bensley-team-card";
 import { ProjectContactsCard } from "@/components/project/project-contacts-card";
 import { ProjectMeetingsCard } from "@/components/project/project-meetings-card";
 import { ProjectEmailsCard } from "@/components/project/project-emails-card";
+import { ProjectInvoicesCard } from "@/components/project/project-invoices-card";
 import { ProjectHealthBanner, calculateProjectHealth } from "@/components/project/project-health-banner";
 import { RFIDeliverablesPanel } from "@/components/project/rfi-deliverables-panel";
 import { WorkVsInvoiceWidget } from "@/components/project/work-vs-invoice-widget";
@@ -447,10 +448,19 @@ export default function ProjectDetailPage({
                 </Card>
               </div>
 
-              {/* Communication Preview */}
-              <div className="grid gap-6 lg:grid-cols-2">
+              {/* Communication & Financial Preview */}
+              <div className="grid gap-6 lg:grid-cols-3">
                 <ProjectEmailsCard projectCode={projectCode} limit={5} />
                 <ProjectMeetingsCard projectCode={projectCode} />
+                <ProjectInvoicesCard
+                  projectCode={projectCode}
+                  limit={5}
+                  onViewAll={() => {
+                    // Switch to Finance tab
+                    const financeTab = document.querySelector('[value="finance"]') as HTMLButtonElement;
+                    financeTab?.click();
+                  }}
+                />
               </div>
 
               {/* Activity Timeline */}

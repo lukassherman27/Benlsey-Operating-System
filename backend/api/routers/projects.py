@@ -2176,3 +2176,198 @@ async def get_projects_progress_summary(
 
     except Exception as e:
         raise HTTPException(status_code=500, detail="An internal error occurred")
+
+
+# ============================================================================
+# PROJECT HEALTH ENDPOINT (Issue #197)
+# ============================================================================
+
+@router.get("/projects/{project_code}/health")
+async def get_project_health(project_code: str):
+    """
+    Calculate and return project health score.
+
+    Health is a weighted average of:
+    - Invoice payment status (30%) - overdue invoices reduce score
+    - RFI response time (20%) - open RFIs > 14 days reduce score
+    - Activity recency (20%) - days since last email activity
+    - Deliverable status (30%) - overdue deliverables reduce score
+
+    Returns:
+    - health_score: 0-100
+    - status: "healthy" (>70), "warning" (40-70), "critical" (<40)
+    - issues: List of specific problems
+    - metrics: Breakdown by category
+    """
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+
+        # Get project_id
+        cursor.execute("SELECT project_id FROM projects WHERE project_code = ?", (project_code,))
+        project = cursor.fetchone()
+        if not project:
+            conn.close()
+            raise HTTPException(status_code=404, detail=f"Project {project_code} not found")
+
+        project_id = project['project_id']
+        issues = []
+
+        # 1. Invoice Health (30%)
+        cursor.execute("""
+            SELECT
+                COUNT(*) as overdue_count,
+                COALESCE(SUM(invoice_amount - COALESCE(payment_amount, 0)), 0) as overdue_amount
+            FROM invoices
+            WHERE project_id = ?
+              AND status NOT IN ('paid', 'cancelled')
+              AND due_date < date('now')
+        """, (project_id,))
+        invoice_data = cursor.fetchone()
+        overdue_invoices = invoice_data['overdue_count'] or 0
+        overdue_amount = invoice_data['overdue_amount'] or 0
+
+        if overdue_invoices > 0:
+            invoice_health = max(0, 100 - (overdue_invoices * 25))
+            issues.append({
+                "type": "overdue_invoice",
+                "message": f"{overdue_invoices} invoice{'s' if overdue_invoices > 1 else ''} overdue (${overdue_amount:,.0f})",
+                "severity": "high" if overdue_invoices > 2 or overdue_amount > 50000 else "medium"
+            })
+        else:
+            invoice_health = 100
+
+        # 2. RFI Health (20%)
+        cursor.execute("""
+            SELECT COUNT(*) as open_rfis,
+                   SUM(CASE WHEN julianday('now') - julianday(created_at) > 14 THEN 1 ELSE 0 END) as stale_rfis
+            FROM rfis
+            WHERE project_id = ? AND status = 'open'
+        """, (project_id,))
+        rfi_data = cursor.fetchone()
+        open_rfis = rfi_data['open_rfis'] or 0
+        stale_rfis = rfi_data['stale_rfis'] or 0
+
+        if stale_rfis > 0:
+            rfi_health = max(0, 100 - (stale_rfis * 20))
+            issues.append({
+                "type": "stale_rfi",
+                "message": f"{stale_rfis} RFI{'s' if stale_rfis > 1 else ''} open > 14 days",
+                "severity": "medium"
+            })
+        elif open_rfis > 3:
+            rfi_health = 80
+            issues.append({
+                "type": "open_rfis",
+                "message": f"{open_rfis} open RFIs pending response",
+                "severity": "low"
+            })
+        else:
+            rfi_health = 100
+
+        # 3. Activity Health (20%)
+        cursor.execute("""
+            SELECT MAX(e.date) as last_email_date
+            FROM emails e
+            JOIN email_project_links epl ON e.email_id = epl.email_id
+            WHERE epl.project_code = ?
+        """, (project_code,))
+        activity_data = cursor.fetchone()
+        last_email = activity_data['last_email_date'] if activity_data else None
+
+        if last_email:
+            from datetime import datetime
+            try:
+                last_date = datetime.fromisoformat(last_email.replace('Z', '+00:00'))
+                days_since = (datetime.now(last_date.tzinfo) - last_date).days if last_date.tzinfo else (datetime.now() - last_date).days
+            except:
+                days_since = 30
+
+            if days_since > 30:
+                activity_health = max(0, 100 - ((days_since - 30) * 2))
+                issues.append({
+                    "type": "inactive",
+                    "message": f"No email activity in {days_since} days",
+                    "severity": "medium" if days_since > 60 else "low"
+                })
+            elif days_since > 14:
+                activity_health = 80
+            else:
+                activity_health = 100
+        else:
+            activity_health = 50
+            issues.append({
+                "type": "no_emails",
+                "message": "No email activity linked to project",
+                "severity": "low"
+            })
+
+        # 4. Deliverable Health (30%)
+        cursor.execute("""
+            SELECT
+                COUNT(*) as overdue_count
+            FROM deliverables
+            WHERE project_id = ?
+              AND status NOT IN ('delivered', 'approved', 'cancelled')
+              AND due_date < date('now')
+        """, (project_id,))
+        deliverable_data = cursor.fetchone()
+        overdue_deliverables = deliverable_data['overdue_count'] or 0
+
+        if overdue_deliverables > 0:
+            deliverable_health = max(0, 100 - (overdue_deliverables * 15))
+            issues.append({
+                "type": "overdue_deliverable",
+                "message": f"{overdue_deliverables} deliverable{'s' if overdue_deliverables > 1 else ''} overdue",
+                "severity": "high" if overdue_deliverables > 3 else "medium"
+            })
+        else:
+            deliverable_health = 100
+
+        conn.close()
+
+        # Calculate weighted health score
+        health_score = round(
+            (invoice_health * 0.30) +
+            (rfi_health * 0.20) +
+            (activity_health * 0.20) +
+            (deliverable_health * 0.30)
+        )
+
+        # Determine status
+        if health_score >= 70:
+            status = "healthy"
+        elif health_score >= 40:
+            status = "warning"
+        else:
+            status = "critical"
+
+        # Sort issues by severity
+        severity_order = {"high": 0, "medium": 1, "low": 2}
+        issues.sort(key=lambda x: severity_order.get(x.get("severity", "low"), 2))
+
+        return {
+            "success": True,
+            "project_code": project_code,
+            "health_score": health_score,
+            "status": status,
+            "issues": issues,
+            "metrics": {
+                "invoice_health": invoice_health,
+                "rfi_health": rfi_health,
+                "activity_health": activity_health,
+                "deliverable_health": deliverable_health
+            },
+            "weights": {
+                "invoice": 0.30,
+                "rfi": 0.20,
+                "activity": 0.20,
+                "deliverable": 0.30
+            }
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="An internal error occurred")
