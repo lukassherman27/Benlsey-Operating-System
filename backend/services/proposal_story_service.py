@@ -115,38 +115,38 @@ class ProposalStoryService(BaseService):
                         except:
                             activity[field] = []
 
-            # Get pending action items
+            # Get pending action items from tasks table (unified action items)
             cursor.execute("""
                 SELECT
-                    action_id,
-                    action_text,
-                    action_category,
+                    task_id as action_id,
+                    title as action_text,
+                    category as action_category,
                     due_date,
-                    assigned_to,
+                    assignee as assigned_to,
                     priority,
                     status,
                     created_at
-                FROM proposal_action_items
+                FROM tasks
                 WHERE proposal_id = ? AND status = 'pending'
                 ORDER BY
                     CASE priority
                         WHEN 'high' THEN 1
-                        WHEN 'normal' THEN 2
+                        WHEN 'medium' THEN 2
                         WHEN 'low' THEN 3
                     END,
                     due_date ASC NULLS LAST
             """, (proposal_id,))
             pending_actions = [dict(row) for row in cursor.fetchall()]
 
-            # Get completed action items (last 10)
+            # Get completed action items from tasks table (last 10)
             cursor.execute("""
                 SELECT
-                    action_id,
-                    action_text,
-                    action_category,
+                    task_id as action_id,
+                    title as action_text,
+                    category as action_category,
                     completed_at,
-                    completion_notes
-                FROM proposal_action_items
+                    description as completion_notes
+                FROM tasks
                 WHERE proposal_id = ? AND status = 'completed'
                 ORDER BY completed_at DESC
                 LIMIT 10
@@ -421,7 +421,7 @@ class ProposalStoryService(BaseService):
                     p.last_sentiment,
                     p.days_since_contact,
                     (SELECT COUNT(*) FROM proposal_activities WHERE proposal_id = p.proposal_id) as activity_count,
-                    (SELECT COUNT(*) FROM proposal_action_items WHERE proposal_id = p.proposal_id AND status = 'pending') as pending_count
+                    (SELECT COUNT(*) FROM tasks WHERE proposal_id = p.proposal_id AND status = 'pending') as pending_count
                 FROM proposals p
                 WHERE p.proposal_id = ?
             """, (proposal_id,))
