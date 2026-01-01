@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+    Bensley Monday Morning Report - launchd Configuration (#301)
+
+    Sends weekly proposal report email every Monday at 7:00 AM.
+
+    INSTALLATION:
+    1. Copy this file to ~/Library/LaunchAgents/
+    2. Load the agent: launchctl load ~/Library/LaunchAgents/com.bensley.monday-report.plist
+    3. Verify: launchctl list | grep bensley
+
+    MANUAL TEST:
+    launchctl start com.bensley.monday-report
+
+    VIEW LOGS:
+    cat /tmp/bensley-monday-report.out.log
+    cat /tmp/bensley-monday-report.err.log
+
+    UNINSTALL:
+    launchctl unload ~/Library/LaunchAgents/com.bensley.monday-report.plist
+    rm ~/Library/LaunchAgents/com.bensley.monday-report.plist
+-->
+<plist version="1.0">
+<dict>
+    <!-- Unique identifier for this job -->
+    <key>Label</key>
+    <string>com.bensley.monday-report</string>
+
+    <!-- Program to run -->
+    <key>ProgramArguments</key>
+    <array>
+        <string>/usr/bin/python3</string>
+        <string>/Users/lukassherman/Library/CloudStorage/OneDrive-Personal/Bensley/Benlsey-Operating-System/scripts/core/send_monday_report.py</string>
+    </array>
+
+    <!-- Schedule: Monday at 7:00 AM -->
+    <key>StartCalendarInterval</key>
+    <dict>
+        <!-- Weekday: 0=Sunday, 1=Monday, ..., 6=Saturday -->
+        <key>Weekday</key>
+        <integer>1</integer>
+        <key>Hour</key>
+        <integer>7</integer>
+        <key>Minute</key>
+        <integer>0</integer>
+    </dict>
+
+    <!-- Working directory -->
+    <key>WorkingDirectory</key>
+    <string>/Users/lukassherman/Library/CloudStorage/OneDrive-Personal/Bensley/Benlsey-Operating-System</string>
+
+    <!-- Environment variables -->
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/usr/local/bin:/usr/bin:/bin:/opt/homebrew/bin</string>
+        <key>PYTHONPATH</key>
+        <string>/Users/lukassherman/Library/CloudStorage/OneDrive-Personal/Bensley/Benlsey-Operating-System</string>
+    </dict>
+
+    <!-- Log output -->
+    <key>StandardOutPath</key>
+    <string>/tmp/bensley-monday-report.out.log</string>
+    <key>StandardErrorPath</key>
+    <string>/tmp/bensley-monday-report.err.log</string>
+
+    <!-- Run immediately if computer was asleep during scheduled time -->
+    <key>StartOnMount</key>
+    <false/>
+
+    <!-- Keep the job loaded -->
+    <key>KeepAlive</key>
+    <false/>
+
+    <!-- Nice value (lower = higher priority) -->
+    <key>Nice</key>
+    <integer>5</integer>
+</dict>
+</plist>
