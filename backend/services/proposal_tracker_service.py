@@ -534,6 +534,9 @@ class ProposalTrackerService(BaseService):
             'ball_in_court', 'waiting_for', 'remarks', 'status',
             # Action tracking (Issue #95)
             'action_owner', 'action_source', 'next_action', 'next_action_date',
+            # Quick actions (Issue #300)
+            'won_date', 'lost_date', 'lost_reason', 'lost_to_competitor',
+            'contract_signed_date', 'internal_notes',
         }
 
         # Filter to allowed fields
@@ -570,6 +573,42 @@ class ProposalTrackerService(BaseService):
             """
 
             cursor.execute(sql, values)
+
+            # Log status change to history if status changed (Issue #300)
+            if 'status' in db_fields and current.get('current_status') != db_fields['status']:
+                old_status = current.get('current_status', '')
+                new_status = db_fields['status']
+
+                # Determine date for status change
+                if new_status == 'Contract Signed':
+                    status_date = db_fields.get('contract_signed_date') or db_fields.get('won_date') or datetime.now().strftime('%Y-%m-%d')
+                elif new_status == 'Lost':
+                    status_date = db_fields.get('lost_date') or datetime.now().strftime('%Y-%m-%d')
+                else:
+                    status_date = datetime.now().strftime('%Y-%m-%d')
+
+                # Build notes for status change
+                notes_parts = []
+                if new_status == 'Lost' and 'lost_reason' in db_fields:
+                    notes_parts.append(f"Reason: {db_fields['lost_reason']}")
+                if 'lost_to_competitor' in db_fields and db_fields['lost_to_competitor']:
+                    notes_parts.append(f"Competitor: {db_fields['lost_to_competitor']}")
+                if 'internal_notes' in updates and updates['internal_notes']:
+                    notes_parts.append(updates['internal_notes'])
+
+                cursor.execute("""
+                    INSERT INTO proposal_status_history
+                    (proposal_id, project_code, old_status, new_status, status_date, changed_by, source, notes)
+                    VALUES (?, ?, ?, ?, ?, 'user', 'quick_action', ?)
+                """, (
+                    current.get('id'),
+                    project_code,
+                    old_status,
+                    new_status,
+                    status_date,
+                    '; '.join(notes_parts) if notes_parts else None
+                ))
+
             conn.commit()
 
             return {

@@ -973,6 +973,13 @@ export interface ProposalTrackerUpdateRequest {
   ball_in_court?: 'us' | 'them' | 'mutual';
   action_needed?: string;
   action_owner?: string;
+  // Won/Lost quick action fields (#300)
+  won_date?: string;
+  lost_date?: string;
+  lost_reason?: string;
+  lost_to_competitor?: string;
+  contract_signed_date?: string;
+  internal_notes?: string;
 }
 
 // Admin - Email Links types

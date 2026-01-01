@@ -7,6 +7,11 @@ import { api } from "@/lib/api";
 import { ProposalTrackerItem, DisciplineFilter } from "@/lib/types";
 import { ProposalQuickEditDialog } from "@/components/proposal-quick-edit-dialog";
 import { PriorityBanner } from "@/components/proposals/priority-banner";
+import {
+  MarkWonDialog,
+  MarkLostDialog,
+  CreateFollowUpDialog,
+} from "@/components/proposals/quick-action-dialogs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -51,6 +56,7 @@ import {
   BookmarkPlus,
   Trash2,
   MoreHorizontal,
+  CalendarPlus,
 } from "lucide-react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -161,6 +167,12 @@ function ProposalTrackerContent() {
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
   const [followUpDialogOpen, setFollowUpDialogOpen] = useState(false);
   const [followUpEmail, setFollowUpEmail] = useState<{ subject: string; body: string; projectName: string } | null>(null);
+
+  // Quick action dialog state
+  const [markWonDialogOpen, setMarkWonDialogOpen] = useState(false);
+  const [markLostDialogOpen, setMarkLostDialogOpen] = useState(false);
+  const [createFollowUpDialogOpen, setCreateFollowUpDialogOpen] = useState(false);
+  const [quickActionProposal, setQuickActionProposal] = useState<ProposalTrackerItem | null>(null);
 
   // Saved filter views
   const [savedViews, setSavedViews] = useState<SavedFilterView[]>([]);
@@ -1201,12 +1213,8 @@ function ProposalTrackerContent() {
                                     <DropdownMenuSeparator />
                                     <DropdownMenuItem
                                       onClick={() => {
-                                        if (confirm(`Mark "${proposal.project_name}" as WON?`)) {
-                                          updateStatusMutation.mutate({
-                                            projectCode: proposal.project_code,
-                                            newStatus: "Contract Signed",
-                                          });
-                                        }
+                                        setQuickActionProposal(proposal);
+                                        setMarkWonDialogOpen(true);
                                       }}
                                       className="text-emerald-600"
                                     >
@@ -1215,17 +1223,23 @@ function ProposalTrackerContent() {
                                     </DropdownMenuItem>
                                     <DropdownMenuItem
                                       onClick={() => {
-                                        if (confirm(`Mark "${proposal.project_name}" as LOST?`)) {
-                                          updateStatusMutation.mutate({
-                                            projectCode: proposal.project_code,
-                                            newStatus: "Lost",
-                                          });
-                                        }
+                                        setQuickActionProposal(proposal);
+                                        setMarkLostDialogOpen(true);
                                       }}
                                       className="text-red-600"
                                     >
                                       <Ban className="h-4 w-4 mr-2" />
                                       Mark Lost
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem
+                                      onClick={() => {
+                                        setQuickActionProposal(proposal);
+                                        setCreateFollowUpDialogOpen(true);
+                                      }}
+                                      className="text-blue-600"
+                                    >
+                                      <CalendarPlus className="h-4 w-4 mr-2" />
+                                      Create Follow-up
                                     </DropdownMenuItem>
                                   </>
                                 )}
@@ -1327,6 +1341,23 @@ function ProposalTrackerContent() {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Quick Action Dialogs */}
+      <MarkWonDialog
+        proposal={quickActionProposal}
+        open={markWonDialogOpen}
+        onOpenChange={setMarkWonDialogOpen}
+      />
+      <MarkLostDialog
+        proposal={quickActionProposal}
+        open={markLostDialogOpen}
+        onOpenChange={setMarkLostDialogOpen}
+      />
+      <CreateFollowUpDialog
+        proposal={quickActionProposal}
+        open={createFollowUpDialogOpen}
+        onOpenChange={setCreateFollowUpDialogOpen}
+      />
     </div>
   );
 }
