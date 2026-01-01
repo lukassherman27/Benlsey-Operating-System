@@ -12,26 +12,20 @@ Every Monday morning, the system:
 
 ## Quick Start
 
-### 1. Configure Gmail App Password
+### 1. Add to .env
 
-You need a Gmail account with 2-Step Verification enabled.
-
-1. Go to [Google App Passwords](https://myaccount.google.com/apppasswords)
-2. Select "Mail" and "Other (Bensley Reports)"
-3. Copy the 16-character password
-
-### 2. Add to .env
+Uses the same Bensley mail server as email sync:
 
 ```bash
 # In your project .env file:
-SMTP_HOST=smtp.gmail.com
+SMTP_HOST=tmail.bensley.com
 SMTP_PORT=465
-SMTP_USER=your-gmail@gmail.com
-SMTP_PASSWORD=xxxx-xxxx-xxxx-xxxx
+SMTP_USER=lukas@bensley.com
+SMTP_PASSWORD=your_password_here
 REPORT_EMAIL_TO=lukas@bensley.com
 ```
 
-### 3. Test Email Sending
+### 2. Test Email Sending
 
 ```bash
 # Send a test email
@@ -44,7 +38,7 @@ python scripts/core/send_monday_report.py --dry-run
 python scripts/core/send_monday_report.py
 ```
 
-### 4. Install the Schedule
+### 3. Install the Schedule
 
 ```bash
 # Copy plist to LaunchAgents
@@ -73,14 +67,12 @@ cat /tmp/bensley-monday-report.err.log
 ### "SMTP not configured" Error
 
 Make sure your `.env` file has:
-- `SMTP_USER` - Your Gmail address
-- `SMTP_PASSWORD` - The 16-character App Password (not your regular password!)
+- `SMTP_USER` - Your Bensley email address
+- `SMTP_PASSWORD` - Your email password
 
 ### "Authentication failed" Error
 
-1. Verify 2-Step Verification is enabled on your Google account
-2. Generate a new App Password
-3. Make sure you're using the App Password, not your Google password
+Verify your email credentials are correct - same as you use for email sync.
 
 ### Email Not Received
 

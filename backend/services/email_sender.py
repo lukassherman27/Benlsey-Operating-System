@@ -2,13 +2,13 @@
 Email Sender Service - Send HTML emails via SMTP (#301)
 
 Simple SMTP email sender for automated reports.
-Uses Gmail SMTP with App Password by default.
+Uses Bensley Axigen mail server by default.
 
 Configuration via environment variables:
-- SMTP_HOST: SMTP server (default: smtp.gmail.com)
+- SMTP_HOST: SMTP server (default: tmail.bensley.com)
 - SMTP_PORT: SMTP port (default: 465 for SSL)
 - SMTP_USER: Email account username
-- SMTP_PASSWORD: Email account password (App Password for Gmail)
+- SMTP_PASSWORD: Email account password
 - REPORT_EMAIL_TO: Default recipient for reports
 """
 
@@ -43,7 +43,7 @@ class EmailSender:
             username: SMTP username (default from SMTP_USER env)
             password: SMTP password (default from SMTP_PASSWORD env)
         """
-        self.host = host or os.getenv('SMTP_HOST', 'smtp.gmail.com')
+        self.host = host or os.getenv('SMTP_HOST', 'tmail.bensley.com')
         self.port = port or int(os.getenv('SMTP_PORT', '465'))
         self.username = username or os.getenv('SMTP_USER', '')
         self.password = password or os.getenv('SMTP_PASSWORD', '')
