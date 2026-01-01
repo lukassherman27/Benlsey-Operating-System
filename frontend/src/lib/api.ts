@@ -2016,6 +2016,12 @@ export const api = {
       { method: "DELETE" }
     ),
 
+  bulkDeleteUnusedPatterns: (maxUses: number = 0) =>
+    request<{ success: boolean; message: string }>(
+      `/api/patterns/bulk/unused?max_uses=${maxUses}`,
+      { method: "DELETE" }
+    ),
+
   // Contacts API
   getContacts: (params: {
     search?: string;

@@ -54,6 +54,10 @@ import {
   Check,
   TrendingUp,
   Activity,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
+  AlertTriangle,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -90,11 +94,19 @@ const PATTERN_TYPE_LABELS: Record<string, string> = {
   sender_name_to_proposal: "Sender Name -> Proposal",
 };
 
+type SortField = "times_used" | "confidence" | "created_at" | "pattern_key";
+type SortOrder = "asc" | "desc";
+
 export default function PatternsPage() {
   const queryClient = useQueryClient();
   const [filterType, setFilterType] = useState<string>("all");
   const [filterActive, setFilterActive] = useState<string>("all");
+  const [filterUsage, setFilterUsage] = useState<string>("all");
+  const [filterProject, setFilterProject] = useState<string>("all");
   const [searchTerm, setSearchTerm] = useState("");
+  const [sortField, setSortField] = useState<SortField>("times_used");
+  const [sortOrder, setSortOrder] = useState<SortOrder>("desc");
+  const [bulkDeleteConfirmOpen, setBulkDeleteConfirmOpen] = useState(false);
 
   // Dialog states
   const [editDialogOpen, setEditDialogOpen] = useState(false);
@@ -193,21 +205,85 @@ export default function PatternsPage() {
     },
   });
 
+  // Bulk delete mutation
+  const bulkDeleteMutation = useMutation({
+    mutationFn: (maxUses: number) => api.bulkDeleteUnusedPatterns(maxUses),
+    onSuccess: (data) => {
+      toast.success(data.message);
+      queryClient.invalidateQueries({ queryKey: ["patterns"] });
+      queryClient.invalidateQueries({ queryKey: ["pattern-stats"] });
+      setBulkDeleteConfirmOpen(false);
+    },
+    onError: (error: Error) => {
+      toast.error(`Bulk delete failed: ${error.message}`);
+    },
+  });
+
   const patterns = patternsQuery.data?.patterns || [];
   const stats = statsQuery.data?.stats;
   const projectOptions = projectsQuery.data?.projects || [];
 
-  // Filter patterns by search term
-  const filteredPatterns = patterns.filter((p) => {
-    if (!searchTerm) return true;
-    const search = searchTerm.toLowerCase();
-    return (
-      p.pattern_key.toLowerCase().includes(search) ||
-      p.target_code?.toLowerCase().includes(search) ||
-      p.target_name?.toLowerCase().includes(search) ||
-      p.notes?.toLowerCase().includes(search)
-    );
-  });
+  // Get unique project codes for filter
+  const uniqueProjects = [...new Set(patterns.map((p) => p.target_code).filter(Boolean))].sort();
+
+  // Count unused patterns
+  const unusedCount = patterns.filter((p) => p.times_used === 0).length;
+
+  // Filter and sort patterns
+  const filteredPatterns = patterns
+    .filter((p) => {
+      // Search filter
+      if (searchTerm) {
+        const search = searchTerm.toLowerCase();
+        const matchesSearch =
+          p.pattern_key.toLowerCase().includes(search) ||
+          p.target_code?.toLowerCase().includes(search) ||
+          p.target_name?.toLowerCase().includes(search) ||
+          p.notes?.toLowerCase().includes(search);
+        if (!matchesSearch) return false;
+      }
+      // Usage filter
+      if (filterUsage !== "all") {
+        if (filterUsage === "unused" && p.times_used !== 0) return false;
+        if (filterUsage === "low" && (p.times_used === 0 || p.times_used > 5)) return false;
+        if (filterUsage === "high" && p.times_used < 10) return false;
+      }
+      // Project filter
+      if (filterProject !== "all" && p.target_code !== filterProject) return false;
+      return true;
+    })
+    .sort((a, b) => {
+      let comparison = 0;
+      switch (sortField) {
+        case "times_used":
+          comparison = a.times_used - b.times_used;
+          break;
+        case "confidence":
+          comparison = a.confidence - b.confidence;
+          break;
+        case "created_at":
+          comparison = new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+          break;
+        case "pattern_key":
+          comparison = a.pattern_key.localeCompare(b.pattern_key);
+          break;
+      }
+      return sortOrder === "desc" ? -comparison : comparison;
+    });
+
+  const handleSort = (field: SortField) => {
+    if (sortField === field) {
+      setSortOrder(sortOrder === "asc" ? "desc" : "asc");
+    } else {
+      setSortField(field);
+      setSortOrder("desc");
+    }
+  };
+
+  const SortIcon = ({ field }: { field: SortField }) => {
+    if (sortField !== field) return <ArrowUpDown className="h-3 w-3 ml-1 opacity-50" />;
+    return sortOrder === "asc" ? <ArrowUp className="h-3 w-3 ml-1" /> : <ArrowDown className="h-3 w-3 ml-1" />;
+  };
 
   const openEditDialog = (pattern: Pattern) => {
     setSelectedPattern(pattern);
@@ -249,6 +325,17 @@ export default function PatternsPage() {
           </div>
         </div>
         <div className="flex items-center gap-2">
+          {unusedCount > 0 && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setBulkDeleteConfirmOpen(true)}
+              className="text-amber-600 border-amber-200 hover:bg-amber-50"
+            >
+              <AlertTriangle className="h-4 w-4 mr-1" />
+              Clean Up ({unusedCount} unused)
+            </Button>
+          )}
           <Button
             variant="outline"
             size="sm"
@@ -330,8 +417,8 @@ export default function PatternsPage() {
       {/* Filters */}
       <Card>
         <CardContent className="pt-6">
-          <div className="flex items-center gap-4">
-            <div className="flex-1">
+          <div className="flex flex-wrap items-center gap-4">
+            <div className="flex-1 min-w-[200px]">
               <Input
                 placeholder="Search patterns..."
                 value={searchTerm}
@@ -339,11 +426,11 @@ export default function PatternsPage() {
                 className="max-w-xs"
               />
             </div>
-            <div className="flex items-center gap-4">
+            <div className="flex flex-wrap items-center gap-3">
               <div className="flex items-center gap-2">
                 <Label className="text-sm text-slate-500">Type:</Label>
                 <Select value={filterType} onValueChange={setFilterType}>
-                  <SelectTrigger className="w-[180px]">
+                  <SelectTrigger className="w-[160px]">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -357,9 +444,39 @@ export default function PatternsPage() {
                 </Select>
               </div>
               <div className="flex items-center gap-2">
+                <Label className="text-sm text-slate-500">Usage:</Label>
+                <Select value={filterUsage} onValueChange={setFilterUsage}>
+                  <SelectTrigger className="w-[130px]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All</SelectItem>
+                    <SelectItem value="unused">Unused (0)</SelectItem>
+                    <SelectItem value="low">Low (1-5)</SelectItem>
+                    <SelectItem value="high">High (10+)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex items-center gap-2">
+                <Label className="text-sm text-slate-500">Project:</Label>
+                <Select value={filterProject} onValueChange={setFilterProject}>
+                  <SelectTrigger className="w-[150px]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="max-h-[300px]">
+                    <SelectItem value="all">All Projects</SelectItem>
+                    {uniqueProjects.map((code) => (
+                      <SelectItem key={code} value={code}>
+                        {code}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex items-center gap-2">
                 <Label className="text-sm text-slate-500">Status:</Label>
                 <Select value={filterActive} onValueChange={setFilterActive}>
-                  <SelectTrigger className="w-[120px]">
+                  <SelectTrigger className="w-[100px]">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -401,11 +518,35 @@ export default function PatternsPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead className="w-[50px]">Active</TableHead>
-                  <TableHead>Pattern</TableHead>
+                  <TableHead>
+                    <button
+                      onClick={() => handleSort("pattern_key")}
+                      className="flex items-center hover:text-slate-900"
+                    >
+                      Pattern
+                      <SortIcon field="pattern_key" />
+                    </button>
+                  </TableHead>
                   <TableHead>Target</TableHead>
-                  <TableHead className="text-center">Used</TableHead>
+                  <TableHead className="text-center">
+                    <button
+                      onClick={() => handleSort("times_used")}
+                      className="flex items-center justify-center w-full hover:text-slate-900"
+                    >
+                      Used
+                      <SortIcon field="times_used" />
+                    </button>
+                  </TableHead>
                   <TableHead className="text-center">Success</TableHead>
-                  <TableHead className="text-center">Confidence</TableHead>
+                  <TableHead className="text-center">
+                    <button
+                      onClick={() => handleSort("confidence")}
+                      className="flex items-center justify-center w-full hover:text-slate-900"
+                    >
+                      Confidence
+                      <SortIcon field="confidence" />
+                    </button>
+                  </TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -676,12 +817,12 @@ export default function PatternsPage() {
             <AlertDialogDescription>
               Are you sure you want to delete this pattern? This action cannot be undone.
               {selectedPattern && (
-                <div className="mt-3 p-3 bg-slate-50 rounded-lg border">
-                  <p className="font-medium text-slate-900">{selectedPattern.pattern_key}</p>
-                  <p className="text-sm text-slate-500">
+                <span className="block mt-3 p-3 bg-slate-50 rounded-lg border">
+                  <span className="font-medium text-slate-900 block">{selectedPattern.pattern_key}</span>
+                  <span className="text-sm text-slate-500">
                     Links to: {selectedPattern.target_code}
-                  </p>
-                </div>
+                  </span>
+                </span>
               )}
             </AlertDialogDescription>
           </AlertDialogHeader>
@@ -702,6 +843,50 @@ export default function PatternsPage() {
                 <Trash2 className="h-4 w-4 mr-2" />
               )}
               Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Bulk Delete Unused Patterns Dialog */}
+      <AlertDialog open={bulkDeleteConfirmOpen} onOpenChange={setBulkDeleteConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-amber-500" />
+              Clean Up Unused Patterns
+            </AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-3">
+                <p>
+                  This will permanently delete all patterns that have never been used
+                  to match an email. These patterns are not providing value and may be
+                  outdated.
+                </p>
+                <div className="p-3 bg-amber-50 rounded-lg border border-amber-200">
+                  <p className="font-medium text-amber-800">
+                    {unusedCount} pattern{unusedCount !== 1 ? "s" : ""} will be deleted
+                  </p>
+                  <p className="text-sm text-amber-600 mt-1">
+                    This action cannot be undone.
+                  </p>
+                </div>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => bulkDeleteMutation.mutate(0)}
+              disabled={bulkDeleteMutation.isPending}
+              className="bg-amber-600 hover:bg-amber-700"
+            >
+              {bulkDeleteMutation.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              ) : (
+                <Trash2 className="h-4 w-4 mr-2" />
+              )}
+              Delete {unusedCount} Unused Patterns
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
