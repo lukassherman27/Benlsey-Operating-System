@@ -568,35 +568,52 @@ class PatternFirstLinker(BaseService):
                 # Create link_review suggestion for pattern feedback loop
                 # This allows human review to update times_correct/times_rejected
                 if needs_review and target_type in ("proposal", "project"):
-                    suggested_data = {
-                        "email_id": email_id,
-                        "link_type": target_type,
-                        f"{target_type}_id": target_id,
-                        "project_code": target_code,
-                        "project_name": target_name,
-                        "pattern_matched": pattern_id,
-                        "match_type": match_type,
-                        "confidence": confidence,
-                    }
-                    self.execute_update("""
-                        INSERT INTO ai_suggestions
-                        (source_type, source_id, suggestion_type, title, description,
-                         suggested_data, confidence_score, project_code, proposal_id,
-                         status, created_at)
-                        VALUES ('email', ?, 'link_review', ?, ?,
-                                ?, ?, ?, ?, 'pending', datetime('now'))
-                    """, (
-                        email_id,
-                        f"Review: {target_code or target_type + ' #' + str(target_id)}",
-                        f"Pattern match ({match_type}) needs review",
-                        json.dumps(suggested_data),
-                        confidence,
-                        target_code,
-                        target_id if target_type == "proposal" else None,
-                    ))
-                    logger.debug(
-                        f"Created link_review for email {email_id}, pattern {pattern_id}"
-                    )
+                    # FIX #316: Check for existing link suggestions (link_review OR email_link)
+                    # to prevent duplicates from pattern linker + GPT
+                    existing = self.execute_query("""
+                        SELECT suggestion_id FROM ai_suggestions
+                        WHERE source_id = ?
+                        AND suggestion_type IN ('link_review', 'email_link')
+                        AND project_code = ?
+                        AND status = 'pending'
+                        LIMIT 1
+                    """, (email_id, target_code), fetch_one=True)
+
+                    if existing:
+                        logger.debug(
+                            f"Skip link_review for email {email_id}: "
+                            f"existing suggestion {existing['suggestion_id']}"
+                        )
+                    else:
+                        suggested_data = {
+                            "email_id": email_id,
+                            "link_type": target_type,
+                            f"{target_type}_id": target_id,
+                            "project_code": target_code,
+                            "project_name": target_name,
+                            "pattern_matched": pattern_id,
+                            "match_type": match_type,
+                            "confidence": confidence,
+                        }
+                        self.execute_update("""
+                            INSERT INTO ai_suggestions
+                            (source_type, source_id, suggestion_type, title, description,
+                             suggested_data, confidence_score, project_code, proposal_id,
+                             status, created_at)
+                            VALUES ('email', ?, 'link_review', ?, ?,
+                                    ?, ?, ?, ?, 'pending', datetime('now'))
+                        """, (
+                            email_id,
+                            f"Review: {target_code or target_type + ' #' + str(target_id)}",
+                            f"Pattern match ({match_type}) needs review",
+                            json.dumps(suggested_data),
+                            confidence,
+                            target_code,
+                            target_id if target_type == "proposal" else None,
+                        ))
+                        logger.debug(
+                            f"Created link_review for email {email_id}, pattern {pattern_id}"
+                        )
 
             return True
         except Exception as e:
@@ -785,6 +802,24 @@ class PatternFirstLinker(BaseService):
                         target_name = target_name or project["project_name"]
 
                 if not target_id:
+                    continue
+
+                # FIX #316: Check for existing link suggestions (link_review OR email_link)
+                # to prevent duplicates from pattern linker + GPT
+                existing = self.execute_query("""
+                    SELECT suggestion_id FROM ai_suggestions
+                    WHERE source_id = ?
+                    AND suggestion_type IN ('link_review', 'email_link')
+                    AND project_code = ?
+                    AND status = 'pending'
+                    LIMIT 1
+                """, (email_id, code), fetch_one=True)
+
+                if existing:
+                    logger.debug(
+                        f"Skip email_link for email {email_id} → {code}: "
+                        f"existing suggestion {existing['suggestion_id']}"
+                    )
                     continue
 
                 # Build FULL context for review

@@ -905,20 +905,47 @@ class SuggestionWriter(BaseService):
         suggestion_type: str,
         project_code: Optional[str] = None,
     ) -> bool:
-        """Check if a similar suggestion already exists"""
-        query = """
-            SELECT COUNT(*) as count FROM ai_suggestions
-            WHERE source_id = ? AND suggestion_type = ?
-            AND status = 'pending'
         """
-        params = [email_id, suggestion_type]
+        Check if a similar suggestion already exists.
 
-        if project_code:
-            query += " AND project_code = ?"
-            params.append(project_code)
+        For link-type suggestions (email_link, link_review), checks across
+        BOTH types to prevent duplicates from pattern linker + GPT (#316).
+        """
+        # Link-type suggestions should be deduplicated across types
+        # Pattern linker creates 'link_review', GPT creates 'email_link'
+        link_types = ("email_link", "link_review")
 
-        result = self.execute_query(query, tuple(params), fetch_one=True)
-        return result.get("count", 0) > 0
+        if suggestion_type in link_types:
+            # Check for ANY link suggestion for this email+project
+            query = """
+                SELECT COUNT(*) as count FROM ai_suggestions
+                WHERE source_id = ?
+                AND suggestion_type IN ('email_link', 'link_review')
+                AND status = 'pending'
+            """
+            params = [email_id]
+
+            if project_code:
+                query += " AND project_code = ?"
+                params.append(project_code)
+
+            result = self.execute_query(query, tuple(params), fetch_one=True)
+            return result.get("count", 0) > 0
+        else:
+            # Standard check for non-link suggestions
+            query = """
+                SELECT COUNT(*) as count FROM ai_suggestions
+                WHERE source_id = ? AND suggestion_type = ?
+                AND status = 'pending'
+            """
+            params = [email_id, suggestion_type]
+
+            if project_code:
+                query += " AND project_code = ?"
+                params.append(project_code)
+
+            result = self.execute_query(query, tuple(params), fetch_one=True)
+            return result.get("count", 0) > 0
 
     # ==================================================================
     # NEW: Task/Meeting/Deliverable/Commitment Suggestion Methods
