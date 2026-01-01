@@ -366,3 +366,75 @@ async def delete_contact(contact_id: int):
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail="An internal error occurred")
+
+
+# ============================================================================
+# CONTACT ENRICHMENT ENDPOINTS (Issue #19)
+# ============================================================================
+
+@router.post("/contacts/{contact_id}/enrich")
+async def enrich_contact(contact_id: int):
+    """
+    Enrich a contact by parsing email signatures.
+    Extracts phone, company, title, LinkedIn from emails sent by this contact.
+    Creates update_contact suggestions for human review.
+    """
+    try:
+        from services.signature_parser_service import SignatureParserService
+
+        conn = sqlite3.connect(DB_PATH)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        cursor.execute("SELECT contact_id, email, name FROM contacts WHERE contact_id = ?", (contact_id,))
+        contact = cursor.fetchone()
+        conn.close()
+
+        if not contact:
+            raise HTTPException(status_code=404, detail="Contact not found")
+
+        service = SignatureParserService(db_path=DB_PATH)
+        result = service.enrich_contact_from_emails(
+            contact_id=contact['contact_id'],
+            contact_email=contact['email'],
+            create_suggestions=True
+        )
+
+        return action_response(
+            result.get('success', False),
+            data=result,
+            message=f"Enrichment complete. Found data in {result.get('emails_with_signatures', 0)} emails."
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Enrichment failed: {str(e)}")
+
+
+@router.post("/contacts/enrich-batch")
+async def enrich_contacts_batch(
+    limit: int = Query(50, ge=1, le=200, description="Max contacts to process"),
+    proposal_related: bool = Query(True, description="Prioritize proposal-related contacts")
+):
+    """
+    Batch enrich contacts that are missing data.
+    Prioritizes contacts linked to proposals by default.
+    Creates update_contact suggestions for each contact with extractable data.
+    """
+    try:
+        from services.signature_parser_service import SignatureParserService
+
+        service = SignatureParserService(db_path=DB_PATH)
+        result = service.batch_enrich_contacts(
+            proposal_related_first=proposal_related,
+            limit=limit
+        )
+
+        return action_response(
+            True,
+            data=result,
+            message=f"Processed {result['total_processed']} contacts. "
+                    f"Enriched: {result['enriched']}, "
+                    f"Suggestions created: {result['suggestions_created']}"
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Batch enrichment failed: {str(e)}")
