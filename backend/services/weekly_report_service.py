@@ -23,7 +23,13 @@ logger = logging.getLogger(__name__)
 
 
 class WeeklyReportService(BaseService):
-    """Generate weekly proposal reports for Bill."""
+    """Generate weekly proposal reports for Bill.
+
+    Enhanced version includes:
+    - Meeting summaries from transcripts
+    - Invoice aging highlights
+    - Decisions needed section
+    """
 
     def generate_report(
         self,
@@ -66,7 +72,11 @@ class WeeklyReportService(BaseService):
                 'pipeline_outlook': self._get_pipeline_outlook(cursor),
                 'activity_summary': self._get_activity_summary(cursor, start_date, end_date),
                 'top_opportunities': self._get_top_opportunities(cursor),
-                'stalled_proposals': self._get_stalled_proposals(cursor)
+                'stalled_proposals': self._get_stalled_proposals(cursor),
+                # New sections for #320
+                'meeting_summaries': self._get_meeting_summaries(cursor, start_date, end_date),
+                'invoice_aging': self._get_invoice_aging(cursor),
+                'decisions_needed': self._get_decisions_needed(cursor)
             }
 
             return report
@@ -394,6 +404,196 @@ class WeeklyReportService(BaseService):
         """, (days, limit))
         return [dict(row) for row in cursor.fetchall()]
 
+    def _get_meeting_summaries(
+        self,
+        cursor,
+        start_date: str,
+        end_date: str,
+        limit: int = 5
+    ) -> Dict[str, Any]:
+        """Get meeting summaries from transcripts for the period."""
+        # Meetings this week
+        cursor.execute("""
+            SELECT
+                mt.id,
+                mt.meeting_title,
+                mt.meeting_date,
+                mt.recorded_date,
+                mt.meeting_type,
+                mt.participants,
+                mt.sentiment,
+                COALESCE(mt.polished_summary, mt.summary) as summary,
+                mt.key_points,
+                mt.action_items,
+                p.project_code,
+                p.project_name,
+                p.project_value
+            FROM meeting_transcripts mt
+            LEFT JOIN proposals p ON mt.proposal_id = p.proposal_id
+            WHERE (mt.meeting_date >= ? OR mt.recorded_date >= ?)
+              AND (mt.meeting_date <= ? OR mt.recorded_date <= ?)
+            ORDER BY COALESCE(mt.meeting_date, mt.recorded_date) DESC
+            LIMIT ?
+        """, (start_date, start_date, end_date, end_date, limit))
+        meetings_this_week = [dict(row) for row in cursor.fetchall()]
+
+        # Total meeting stats
+        cursor.execute("""
+            SELECT
+                COUNT(*) as total_meetings,
+                COUNT(DISTINCT proposal_id) as proposals_with_meetings
+            FROM meeting_transcripts
+            WHERE (meeting_date >= ? OR recorded_date >= ?)
+              AND (meeting_date <= ? OR recorded_date <= ?)
+        """, (start_date, start_date, end_date, end_date))
+        stats = dict(cursor.fetchone())
+
+        # Recent action items from meetings
+        cursor.execute("""
+            SELECT
+                mt.action_items,
+                mt.meeting_title,
+                mt.meeting_date,
+                p.project_code
+            FROM meeting_transcripts mt
+            LEFT JOIN proposals p ON mt.proposal_id = p.proposal_id
+            WHERE mt.action_items IS NOT NULL
+              AND mt.action_items != ''
+            ORDER BY COALESCE(mt.meeting_date, mt.recorded_date) DESC
+            LIMIT 3
+        """)
+        recent_actions = [dict(row) for row in cursor.fetchall()]
+
+        return {
+            'meetings': meetings_this_week,
+            'count': stats['total_meetings'],
+            'proposals_with_meetings': stats['proposals_with_meetings'],
+            'recent_action_items': recent_actions
+        }
+
+    def _get_invoice_aging(self, cursor) -> Dict[str, Any]:
+        """Get invoice aging highlights for cash flow visibility."""
+        # Get aging breakdown from invoice_aging table
+        cursor.execute("""
+            SELECT
+                aging_category,
+                COUNT(*) as count,
+                SUM(outstanding_amount) as total
+            FROM invoice_aging
+            WHERE outstanding_amount > 0
+            GROUP BY aging_category
+            ORDER BY
+                CASE aging_category
+                    WHEN 'Over 90 Days' THEN 1
+                    WHEN '61-90 Days' THEN 2
+                    WHEN '31-60 Days' THEN 3
+                    WHEN '0-30 Days' THEN 4
+                    ELSE 5
+                END
+        """)
+        by_category = [dict(row) for row in cursor.fetchall()]
+
+        # Get critical invoices (over 90 days, sorted by amount)
+        cursor.execute("""
+            SELECT
+                ia.project_code,
+                ia.invoice_number,
+                ia.invoice_date,
+                ia.outstanding_amount,
+                ia.days_outstanding,
+                p.project_title as project_name
+            FROM invoice_aging ia
+            LEFT JOIN projects p ON ia.project_code = p.project_code
+            WHERE ia.aging_category = 'Over 90 Days'
+              AND ia.outstanding_amount > 0
+            ORDER BY ia.outstanding_amount DESC
+            LIMIT 5
+        """)
+        critical = [dict(row) for row in cursor.fetchall()]
+
+        # Calculate totals
+        total_outstanding = sum(cat.get('total', 0) or 0 for cat in by_category)
+        total_critical = sum(inv.get('outstanding_amount', 0) or 0 for inv in critical)
+        critical_count = len([c for c in by_category if c.get('aging_category') == 'Over 90 Days'])
+
+        return {
+            'by_category': by_category,
+            'critical_invoices': critical,
+            'total_outstanding': total_outstanding,
+            'total_critical': total_critical,
+            'critical_count': next((c['count'] for c in by_category if c.get('aging_category') == 'Over 90 Days'), 0)
+        }
+
+    def _get_decisions_needed(self, cursor, limit: int = 10) -> Dict[str, Any]:
+        """Get proposals requiring Bill's decision or input."""
+        # Proposals where ball is in our court + high value
+        cursor.execute("""
+            SELECT
+                project_code,
+                project_name,
+                project_value,
+                status,
+                action_needed,
+                action_due,
+                CAST(JULIANDAY('now') - JULIANDAY(COALESCE(last_contact_date, created_at)) AS INTEGER) as days_waiting,
+                win_probability,
+                health_score
+            FROM proposals
+            WHERE ball_in_court = 'us'
+              AND status NOT IN ('Contract Signed', 'Lost', 'Declined')
+              AND project_value > 0
+            ORDER BY project_value DESC
+            LIMIT ?
+        """, (limit,))
+        our_move = [dict(row) for row in cursor.fetchall()]
+
+        # Proposals needing fee recommendation (status = 'Fee Discussion')
+        cursor.execute("""
+            SELECT
+                project_code,
+                project_name,
+                project_value,
+                status,
+                action_needed,
+                country
+            FROM proposals
+            WHERE status IN ('Fee Discussion', 'Drafting Fee', 'Pricing Review')
+              AND status NOT IN ('Contract Signed', 'Lost', 'Declined')
+            ORDER BY project_value DESC
+            LIMIT 5
+        """)
+        fee_decisions = [dict(row) for row in cursor.fetchall()]
+
+        # Proposals at decision point (high probability, waiting)
+        cursor.execute("""
+            SELECT
+                project_code,
+                project_name,
+                project_value,
+                status,
+                win_probability,
+                action_needed,
+                ball_in_court
+            FROM proposals
+            WHERE win_probability >= 70
+              AND status NOT IN ('Contract Signed', 'Lost', 'Declined', 'On Hold')
+              AND ball_in_court = 'them'
+            ORDER BY project_value DESC
+            LIMIT 5
+        """)
+        close_to_win = [dict(row) for row in cursor.fetchall()]
+
+        return {
+            'our_move': our_move,
+            'our_move_count': len(our_move),
+            'our_move_value': sum(p.get('project_value', 0) or 0 for p in our_move),
+            'fee_decisions': fee_decisions,
+            'fee_decisions_count': len(fee_decisions),
+            'close_to_win': close_to_win,
+            'close_to_win_count': len(close_to_win),
+            'close_to_win_value': sum(p.get('project_value', 0) or 0 for p in close_to_win)
+        }
+
     def get_quick_stats(self) -> Dict[str, Any]:
         """Get quick stats for dashboard card."""
         with self.get_connection() as conn:
@@ -474,6 +674,10 @@ class WeeklyReportService(BaseService):
         pipeline = report['pipeline_outlook']
         top_opps = report['top_opportunities']
         stalled = report['stalled_proposals']
+        # New sections for #320
+        meetings = report.get('meeting_summaries', {})
+        invoice_aging = report.get('invoice_aging', {})
+        decisions = report.get('decisions_needed', {})
 
         # Calculate some insights
         total_at_risk_value = attention.get('at_risk_value', 0) + attention.get('overdue_value', 0)
@@ -548,6 +752,78 @@ class WeeklyReportService(BaseService):
                 <div style="font-size: 12px; color: #64748b;">{status.get('status', 'Unknown')}</div>
                 <div style="font-size: 13px; color: #3b82f6; font-weight: 600;">{fmt_money(status.get('value', 0))}</div>
             </div>
+            """
+
+        # Build meeting summaries HTML
+        meetings_html = ""
+        for mtg in meetings.get('meetings', [])[:5]:
+            sentiment = mtg.get('sentiment', 'neutral')
+            sentiment_icon = "🟢" if sentiment == 'positive' else ("🟡" if sentiment == 'neutral' else "🔴")
+            summary = (mtg.get('summary') or 'No summary available')[:200]
+            # Clean for HTML
+            summary = summary.replace('<', '&lt;').replace('>', '&gt;')
+            meetings_html += f"""
+            <div style="padding: 12px; border-left: 3px solid #3b82f6; margin-bottom: 12px; background: #f8fafc;">
+                <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                    <strong style="color: #0f172a;">{mtg.get('project_code', '')} — {(mtg.get('meeting_title') or 'Meeting')[:40]}</strong>
+                    <span style="color: #64748b; font-size: 12px;">{fmt_date(mtg.get('meeting_date') or mtg.get('recorded_date'))} {sentiment_icon}</span>
+                </div>
+                <p style="margin: 0; color: #64748b; font-size: 13px; line-height: 1.5;">{summary}...</p>
+            </div>
+            """
+
+        # Build invoice aging HTML
+        aging_html = ""
+        for cat in invoice_aging.get('by_category', []):
+            cat_name = cat.get('aging_category', 'Unknown')
+            is_critical = cat_name == 'Over 90 Days'
+            bg_color = "#fef2f2" if is_critical else ("#fffbeb" if '61-90' in cat_name else "#f8fafc")
+            text_color = "#dc2626" if is_critical else ("#d97706" if '61-90' in cat_name else "#0f172a")
+            aging_html += f"""
+            <div style="display: inline-block; margin: 8px; padding: 16px; background: {bg_color}; border-radius: 8px; text-align: center; min-width: 120px;">
+                <div style="font-size: 20px; font-weight: 700; color: {text_color};">{fmt_money(cat.get('total', 0))}</div>
+                <div style="font-size: 12px; color: #64748b; margin-top: 4px;">{cat_name}</div>
+                <div style="font-size: 11px; color: #94a3b8;">{cat.get('count', 0)} invoices</div>
+            </div>
+            """
+
+        # Build critical invoices HTML
+        critical_invoices_html = ""
+        for inv in invoice_aging.get('critical_invoices', [])[:5]:
+            critical_invoices_html += f"""
+            <tr style="background: #fef2f2;">
+                <td style="padding: 10px; border-bottom: 1px solid #fecaca;">
+                    <strong>{inv.get('project_code', '')}</strong>
+                </td>
+                <td style="padding: 10px; border-bottom: 1px solid #fecaca;">
+                    {inv.get('invoice_number', '')}
+                </td>
+                <td style="padding: 10px; border-bottom: 1px solid #fecaca; text-align: right; color: #dc2626; font-weight: 600;">
+                    {fmt_money(inv.get('outstanding_amount', 0))}
+                </td>
+                <td style="padding: 10px; border-bottom: 1px solid #fecaca; text-align: center;">
+                    {inv.get('days_outstanding', 0)} days
+                </td>
+            </tr>
+            """
+
+        # Build decisions needed HTML
+        decisions_html = ""
+        for dec in decisions.get('our_move', [])[:5]:
+            action = (dec.get('action_needed') or 'Decision needed')[:50]
+            decisions_html += f"""
+            <tr>
+                <td style="padding: 10px; border-bottom: 1px solid #e2e8f0;">
+                    <strong>{dec.get('project_code', '')}</strong><br>
+                    <span style="color: #64748b; font-size: 12px;">{(dec.get('project_name') or '')[:30]}</span>
+                </td>
+                <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; text-align: right;">
+                    {fmt_money(dec.get('project_value', 0))}
+                </td>
+                <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; color: #64748b; font-size: 13px;">
+                    {action}
+                </td>
+            </tr>
             """
 
         # Build the full HTML
@@ -651,6 +927,70 @@ class WeeklyReportService(BaseService):
                 {status_html}
             </div>
         </div>
+
+        <!-- Decisions Needed (NEW #320) -->
+        {f'''
+        <div style="background: white; border-radius: 12px; padding: 24px; margin-bottom: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); border-left: 4px solid #8b5cf6;">
+            <h2 style="margin: 0 0 16px 0; font-size: 18px; color: #0f172a;">🤔 Decisions Needed</h2>
+            <p style="margin: 0 0 16px 0; color: #64748b; font-size: 14px;">
+                {decisions.get('our_move_count', 0)} proposals in our court ({fmt_money(decisions.get('our_move_value', 0))}) •
+                {decisions.get('close_to_win_count', 0)} close to win ({fmt_money(decisions.get('close_to_win_value', 0))})
+            </p>
+            <table style="width: 100%; border-collapse: collapse;">
+                <thead>
+                    <tr style="background: #f8fafc;">
+                        <th style="padding: 10px; text-align: left; font-size: 12px; color: #64748b; text-transform: uppercase;">Project</th>
+                        <th style="padding: 10px; text-align: right; font-size: 12px; color: #64748b; text-transform: uppercase;">Value</th>
+                        <th style="padding: 10px; text-align: left; font-size: 12px; color: #64748b; text-transform: uppercase;">Action Needed</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {decisions_html}
+                </tbody>
+            </table>
+        </div>
+        ''' if decisions_html else ''}
+
+        <!-- Meeting Summaries (NEW #320) -->
+        {f'''
+        <div style="background: white; border-radius: 12px; padding: 24px; margin-bottom: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+            <h2 style="margin: 0 0 16px 0; font-size: 18px; color: #0f172a;">📝 Meeting Summaries</h2>
+            <p style="margin: 0 0 16px 0; color: #64748b; font-size: 14px;">
+                {meetings.get('count', 0)} meetings this week across {meetings.get('proposals_with_meetings', 0)} proposals
+            </p>
+            {meetings_html}
+        </div>
+        ''' if meetings_html else ''}
+
+        <!-- Invoice Aging (NEW #320) -->
+        {f'''
+        <div style="background: white; border-radius: 12px; padding: 24px; margin-bottom: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); border-left: 4px solid #f59e0b;">
+            <h2 style="margin: 0 0 16px 0; font-size: 18px; color: #0f172a;">💰 Cash Flow: Outstanding Invoices</h2>
+            <p style="margin: 0 0 16px 0; color: #64748b; font-size: 14px;">
+                Total outstanding: <strong style="color: #0f172a;">{fmt_money(invoice_aging.get('total_outstanding', 0))}</strong> •
+                Critical (90+ days): <strong style="color: #dc2626;">{fmt_money(invoice_aging.get('total_critical', 0))}</strong>
+            </p>
+            <div style="text-align: center; margin-bottom: 16px;">
+                {aging_html}
+            </div>
+            ''' + (f'''
+            <h3 style="margin: 16px 0 12px 0; font-size: 14px; color: #dc2626;">Critical Invoices (90+ Days)</h3>
+            <table style="width: 100%; border-collapse: collapse;">
+                <thead>
+                    <tr style="background: #fef2f2;">
+                        <th style="padding: 8px; text-align: left; font-size: 11px; color: #64748b; text-transform: uppercase;">Project</th>
+                        <th style="padding: 8px; text-align: left; font-size: 11px; color: #64748b; text-transform: uppercase;">Invoice</th>
+                        <th style="padding: 8px; text-align: right; font-size: 11px; color: #64748b; text-transform: uppercase;">Amount</th>
+                        <th style="padding: 8px; text-align: center; font-size: 11px; color: #64748b; text-transform: uppercase;">Age</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {critical_invoices_html}
+                </tbody>
+            </table>
+            ''' if critical_invoices_html else '') + '''
+        </div>
+        ''' if aging_html else ''}
 
         <!-- Footer -->
         <div style="text-align: center; padding: 24px; color: #64748b; font-size: 13px;">
