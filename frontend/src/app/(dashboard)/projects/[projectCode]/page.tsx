@@ -41,6 +41,7 @@ import { WeeklyScheduleGrid } from "@/components/project/weekly-schedule-grid";
 import { PhaseTimeline } from "@/components/project/phase-timeline";
 import { DailyWorkSubmissionForm, DailyWorkList, DailyWorkReviewInterface } from "@/components/daily-work";
 import { DeliverablesTable, AddDeliverableForm } from "@/components/deliverables";
+import { TaskDisciplineView } from "@/components/projects/task-discipline-view";
 import { ds } from "@/lib/design-system";
 import { cn } from "@/lib/utils";
 
@@ -599,6 +600,9 @@ export default function ProjectDetailPage({
 
             {/* TASKS TAB */}
             <TabsContent value="tasks" className="space-y-6 mt-6">
+              {/* Tasks by Discipline */}
+              <TaskDisciplineView projectCode={projectCode} />
+
               {/* RFI/Deliverables Panel */}
               <RFIDeliverablesPanel
                 rfis={(projectDetail?.rfis as Array<{rfi_id: number; rfi_number?: string; subject: string; status: "open" | "answered" | "closed"; submitted_date: string; response_date?: string | null; days_open?: number}>) ?? []}
@@ -606,7 +610,7 @@ export default function ProjectDetailPage({
                 projectCode={projectCode}
               />
 
-              {/* Tasks Card */}
+              {/* Quick Kanban View */}
               <TaskMiniKanban projectCode={projectCode} />
             </TabsContent>
 

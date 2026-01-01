@@ -39,6 +39,8 @@ class CreateTaskRequest(BaseModel):
     project_code: Optional[str] = None
     proposal_id: Optional[int] = None
     assignee: Optional[str] = "us"
+    discipline: Optional[str] = None  # Interior, Landscape, Lighting, FFE, General
+    phase: Optional[str] = None  # SD, DD, CD, CA
 
 
 class UpdateTaskRequest(BaseModel):
@@ -50,6 +52,8 @@ class UpdateTaskRequest(BaseModel):
     due_date: Optional[str] = None
     assignee: Optional[str] = None
     task_type: Optional[str] = None
+    discipline: Optional[str] = None  # Interior, Landscape, Lighting, FFE, General
+    phase: Optional[str] = None  # SD, DD, CD, CA
 
 
 class UpdateTaskStatusRequest(BaseModel):
@@ -97,6 +101,8 @@ async def get_tasks(
     proposal_id: Optional[int] = Query(None, description="Filter by proposal ID"),
     due_before: Optional[str] = Query(None, description="Filter tasks due before date (YYYY-MM-DD)"),
     due_after: Optional[str] = Query(None, description="Filter tasks due after date (YYYY-MM-DD)"),
+    discipline: Optional[str] = Query(None, description="Filter by discipline (Interior, Landscape, Lighting, FFE, General)"),
+    phase: Optional[str] = Query(None, description="Filter by phase (SD, DD, CD, CA)"),
     limit: int = Query(100, ge=1, le=500, description="Max tasks to return"),
     offset: int = Query(0, ge=0, description="Offset for pagination")
 ):
@@ -132,6 +138,14 @@ async def get_tasks(
         if due_after:
             conditions.append("due_date > ?")
             params.append(due_after)
+
+        if discipline:
+            conditions.append("discipline = ?")
+            params.append(discipline)
+
+        if phase:
+            conditions.append("phase = ?")
+            params.append(phase)
 
         where_clause = " AND ".join(conditions) if conditions else "1=1"
 
@@ -279,6 +293,80 @@ async def get_overdue_tasks():
         raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
+@router.get("/tasks/by-discipline")
+async def get_tasks_by_discipline(
+    project_code: Optional[str] = Query(None, description="Filter by project code"),
+    include_completed: bool = Query(False, description="Include completed tasks")
+):
+    """Get tasks grouped by discipline for a project"""
+    try:
+        conn = get_db()
+        cursor = conn.cursor()
+
+        # Build base query
+        conditions = []
+        params = []
+
+        if project_code:
+            conditions.append("project_code = ?")
+            params.append(project_code)
+
+        if not include_completed:
+            conditions.append("status NOT IN ('completed', 'cancelled')")
+
+        where_clause = " AND ".join(conditions) if conditions else "1=1"
+
+        cursor.execute(f"""
+            SELECT * FROM tasks
+            WHERE {where_clause}
+            ORDER BY
+                discipline,
+                phase,
+                CASE WHEN due_date IS NULL THEN 1 ELSE 0 END,
+                due_date ASC,
+                CASE priority
+                    WHEN 'critical' THEN 0
+                    WHEN 'high' THEN 1
+                    WHEN 'medium' THEN 2
+                    ELSE 3
+                END
+        """, params)
+
+        tasks = [row_to_dict(row) for row in cursor.fetchall()]
+
+        # Group by discipline
+        disciplines = ['Interior', 'Landscape', 'Lighting', 'FFE', 'General', None]
+        grouped = {}
+        for disc in disciplines:
+            disc_name = disc or 'Unassigned'
+            grouped[disc_name] = [t for t in tasks if t.get('discipline') == disc]
+
+        # Get counts by discipline
+        cursor.execute(f"""
+            SELECT
+                COALESCE(discipline, 'Unassigned') as discipline,
+                COUNT(*) as count
+            FROM tasks
+            WHERE {where_clause}
+            GROUP BY discipline
+        """, params)
+        counts = {row['discipline']: row['count'] for row in cursor.fetchall()}
+
+        conn.close()
+
+        return {
+            "success": True,
+            "tasks": tasks,
+            "grouped": grouped,
+            "counts": counts,
+            "total": len(tasks),
+            "project_code": project_code
+        }
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="An internal error occurred")
+
+
 # ============================================================================
 # CREATE TASK
 # ============================================================================
@@ -304,8 +392,9 @@ async def create_task(request: CreateTaskRequest):
         cursor.execute("""
             INSERT INTO tasks (
                 title, description, task_type, priority, status,
-                due_date, project_code, proposal_id, assignee, created_at
-            ) VALUES (?, ?, ?, ?, 'pending', ?, ?, ?, ?, datetime('now'))
+                due_date, project_code, proposal_id, assignee, created_at,
+                discipline, phase
+            ) VALUES (?, ?, ?, ?, 'pending', ?, ?, ?, ?, datetime('now'), ?, ?)
         """, [
             request.title,
             request.description,
@@ -314,7 +403,9 @@ async def create_task(request: CreateTaskRequest):
             request.due_date,
             request.project_code,
             proposal_id,
-            request.assignee or 'us'
+            request.assignee or 'us',
+            request.discipline,
+            request.phase
         ])
 
         task_id = cursor.lastrowid
@@ -508,6 +599,20 @@ async def update_task(task_id: int, request: UpdateTaskRequest):
         if request.task_type is not None:
             updates.append("task_type = ?")
             params.append(request.task_type)
+
+        if request.discipline is not None:
+            valid_disciplines = ('Interior', 'Landscape', 'Lighting', 'FFE', 'General', '')
+            if request.discipline and request.discipline not in valid_disciplines:
+                raise HTTPException(status_code=400, detail=f"Invalid discipline: {request.discipline}")
+            updates.append("discipline = ?")
+            params.append(request.discipline if request.discipline else None)
+
+        if request.phase is not None:
+            valid_phases = ('SD', 'DD', 'CD', 'CA', '')
+            if request.phase and request.phase not in valid_phases:
+                raise HTTPException(status_code=400, detail=f"Invalid phase: {request.phase}")
+            updates.append("phase = ?")
+            params.append(request.phase if request.phase else None)
 
         if not updates:
             conn.close()
