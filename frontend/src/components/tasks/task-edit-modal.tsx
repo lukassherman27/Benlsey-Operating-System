@@ -43,7 +43,25 @@ interface Task {
   source_meeting_id: number | null;
   created_at: string;
   completed_at: string | null;
+  discipline: string | null;
+  phase: string | null;
 }
+
+// Discipline and Phase options
+const DISCIPLINES = [
+  { value: "Interior", label: "Interior Architecture" },
+  { value: "Landscape", label: "Landscape Design" },
+  { value: "Lighting", label: "Lighting Design" },
+  { value: "FFE", label: "FF&E" },
+  { value: "General", label: "General" },
+];
+
+const PHASES = [
+  { value: "SD", label: "SD - Schematic Design" },
+  { value: "DD", label: "DD - Design Development" },
+  { value: "CD", label: "CD - Construction Docs" },
+  { value: "CA", label: "CA - Construction Admin" },
+];
 
 interface TaskEditModalProps {
   open: boolean;
@@ -70,6 +88,8 @@ export function TaskEditModal({
     assignee: "us",
     task_type: "action_item",
     project_code: defaultProjectCode || "",
+    discipline: "",
+    phase: "",
   });
 
   // Fetch staff for assignee dropdown
@@ -96,6 +116,8 @@ export function TaskEditModal({
         assignee: task.assignee || "us",
         task_type: task.task_type || "action_item",
         project_code: task.project_code || "",
+        discipline: task.discipline || "",
+        phase: task.phase || "",
       });
     } else if (mode === "create") {
       setFormData({
@@ -107,6 +129,8 @@ export function TaskEditModal({
         assignee: "us",
         task_type: "action_item",
         project_code: defaultProjectCode || "",
+        discipline: "",
+        phase: "",
       });
     }
   }, [task, mode, defaultProjectCode, open]);
@@ -323,6 +347,51 @@ export function TaskEditModal({
                 ))}
               </SelectContent>
             </Select>
+          </div>
+
+          {/* Discipline & Phase (for project work categorization) */}
+          <div className="grid grid-cols-2 gap-4">
+            {/* Discipline */}
+            <div className="space-y-2">
+              <Label>Discipline</Label>
+              <Select
+                value={formData.discipline || "__none__"}
+                onValueChange={(v) => setFormData({ ...formData, discipline: v === "__none__" ? "" : v })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select discipline" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">Not specified</SelectItem>
+                  {DISCIPLINES.map((d) => (
+                    <SelectItem key={d.value} value={d.value}>
+                      {d.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Phase */}
+            <div className="space-y-2">
+              <Label>Phase</Label>
+              <Select
+                value={formData.phase || "__none__"}
+                onValueChange={(v) => setFormData({ ...formData, phase: v === "__none__" ? "" : v })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select phase" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">Not specified</SelectItem>
+                  {PHASES.map((p) => (
+                    <SelectItem key={p.value} value={p.value}>
+                      {p.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
 
           {/* Source info (edit mode only) */}
