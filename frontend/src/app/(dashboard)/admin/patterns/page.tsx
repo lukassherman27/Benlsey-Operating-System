@@ -97,6 +97,12 @@ const PATTERN_TYPE_LABELS: Record<string, string> = {
 type SortField = "times_used" | "confidence" | "created_at" | "pattern_key";
 type SortOrder = "asc" | "desc";
 
+// Moved outside component to fix react-hooks/static-components error
+function SortIcon({ field, sortField, sortOrder }: { field: SortField; sortField: SortField; sortOrder: SortOrder }) {
+  if (sortField !== field) return <ArrowUpDown className="h-3 w-3 ml-1 opacity-50" />;
+  return sortOrder === "asc" ? <ArrowUp className="h-3 w-3 ml-1" /> : <ArrowDown className="h-3 w-3 ml-1" />;
+}
+
 export default function PatternsPage() {
   const queryClient = useQueryClient();
   const [filterType, setFilterType] = useState<string>("all");
@@ -278,11 +284,6 @@ export default function PatternsPage() {
       setSortField(field);
       setSortOrder("desc");
     }
-  };
-
-  const SortIcon = ({ field }: { field: SortField }) => {
-    if (sortField !== field) return <ArrowUpDown className="h-3 w-3 ml-1 opacity-50" />;
-    return sortOrder === "asc" ? <ArrowUp className="h-3 w-3 ml-1" /> : <ArrowDown className="h-3 w-3 ml-1" />;
   };
 
   const openEditDialog = (pattern: Pattern) => {
@@ -524,7 +525,7 @@ export default function PatternsPage() {
                       className="flex items-center hover:text-slate-900"
                     >
                       Pattern
-                      <SortIcon field="pattern_key" />
+                      <SortIcon field="pattern_key" sortField={sortField} sortOrder={sortOrder} />
                     </button>
                   </TableHead>
                   <TableHead>Target</TableHead>
@@ -534,7 +535,7 @@ export default function PatternsPage() {
                       className="flex items-center justify-center w-full hover:text-slate-900"
                     >
                       Used
-                      <SortIcon field="times_used" />
+                      <SortIcon field="times_used" sortField={sortField} sortOrder={sortOrder} />
                     </button>
                   </TableHead>
                   <TableHead className="text-center">Success</TableHead>
@@ -544,7 +545,7 @@ export default function PatternsPage() {
                       className="flex items-center justify-center w-full hover:text-slate-900"
                     >
                       Confidence
-                      <SortIcon field="confidence" />
+                      <SortIcon field="confidence" sortField={sortField} sortOrder={sortOrder} />
                     </button>
                   </TableHead>
                   <TableHead className="text-right">Actions</TableHead>
