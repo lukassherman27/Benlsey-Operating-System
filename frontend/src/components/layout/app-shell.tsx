@@ -53,6 +53,7 @@ type NavItem = {
 const navItems: NavItem[] = [
   { href: "/my-day", label: "My Day", icon: Sun },
   { href: "/", label: "Dashboard", icon: Home },
+  { href: "/executive", label: "Executive", icon: LayoutDashboard },
   { href: "/tasks", label: "Tasks", icon: CheckSquare },
   {
     href: "/tracker",
