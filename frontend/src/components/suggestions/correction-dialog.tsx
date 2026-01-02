@@ -437,19 +437,6 @@ export function CorrectionDialog({
     ...projectOptions.map(p => ({ ...p, type: 'project' as const })),
   ], [projectOptions, proposalOptions]);
 
-  // Debug: Log what we're receiving
-  useEffect(() => {
-    if (open) {
-      console.log('[CorrectionDialog] Received options:', {
-        projectOptions: projectOptions.length,
-        proposalOptions: proposalOptions.length,
-        allOptions: allOptions.length,
-        sampleProject: projectOptions[0],
-        sampleProposal: proposalOptions[0],
-      });
-    }
-  }, [open, projectOptions, proposalOptions, allOptions]);
-
   // Filter options based on search (show all, user can scroll)
   const filteredOptions = useMemo(() =>
     allOptions.filter(

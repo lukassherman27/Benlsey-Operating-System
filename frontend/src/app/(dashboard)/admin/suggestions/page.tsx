@@ -330,23 +330,6 @@ export default function SuggestionsPage() {
     name: p.project_name || p.project_code,
   }));
 
-  // Debug proposals loading
-  useEffect(() => {
-    console.log('[DEBUG] proposalsQuery:', {
-      status: proposalsQuery.status,
-      isLoading: proposalsQuery.isLoading,
-      isFetching: proposalsQuery.isFetching,
-      isError: proposalsQuery.isError,
-      error: proposalsQuery.error,
-      dataKeys: proposalsQuery.data ? Object.keys(proposalsQuery.data) : null,
-      dataLength: proposalsQuery.data?.data?.length,
-      rawData: proposalsQuery.data,
-      proposalOptionsLength: proposalOptions.length,
-      sampleProposal: proposalOptions[0],
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [proposalsQuery.status, proposalsQuery.data, proposalOptions]);
-
   // Enhanced reject with correction mutation
   const rejectWithCorrectionMutation = useMutation({
     mutationFn: (data: {

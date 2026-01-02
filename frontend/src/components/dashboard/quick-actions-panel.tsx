@@ -40,8 +40,6 @@ export function QuickActionsPanel({ projectCode, variant = "full" }: QuickAction
     // Simulate action processing
     setTimeout(() => {
       setProcessing(null);
-      // In a real implementation, this would call an API endpoint
-      console.log(`Action ${actionId} executed for project ${projectCode || "all"}`);
     }, 1500);
   };
 

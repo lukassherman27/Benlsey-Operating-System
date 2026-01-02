@@ -1,32 +1,47 @@
 /**
- * NextAuth.js Middleware (DISABLED)
+ * NextAuth.js Middleware
  *
- * Authentication middleware is temporarily disabled until:
- * 1. All staff users have passwords set
- * 2. Auth flow is fully tested
- *
- * Once ready, replace this with the protected version.
- *
- * Issue #185 - Auth system not fully configured
+ * Protects all routes except public ones (login, api/auth).
+ * Redirects unauthenticated users to /login.
  */
 
+import { auth } from "@/lib/auth";
 import { NextResponse } from "next/server";
-import type { NextRequest } from "next/server";
 
-export function middleware(_request: NextRequest) {
-  // Allow all requests through without auth check
+export default auth((req) => {
+  const { nextUrl } = req;
+  const isLoggedIn = !!req.auth;
+
+  // Public routes that don't require auth
+  const publicRoutes = ["/login", "/api/auth"];
+  const isPublicRoute = publicRoutes.some((route) =>
+    nextUrl.pathname.startsWith(route)
+  );
+
+  // Allow public routes
+  if (isPublicRoute) {
+    return NextResponse.next();
+  }
+
+  // Redirect to login if not authenticated
+  if (!isLoggedIn) {
+    const loginUrl = new URL("/login", nextUrl.origin);
+    loginUrl.searchParams.set("callbackUrl", nextUrl.pathname);
+    return NextResponse.redirect(loginUrl);
+  }
+
   return NextResponse.next();
-}
+});
 
-// Minimal matcher to avoid unnecessary overhead
 export const config = {
   matcher: [
     /*
-     * Match only specific paths that would need auth later:
-     * - Protected API routes (if any)
-     * - Dashboard routes
-     * Exclude: static files, images, public routes
+     * Match all paths except:
+     * - _next/static (static files)
+     * - _next/image (image optimization)
+     * - favicon.ico
+     * - public assets
      */
-    "/((?!_next/static|_next/image|favicon.ico).*)",
+    "/((?!_next/static|_next/image|favicon.ico|.*\\.png$|.*\\.jpg$|.*\\.svg$).*)",
   ],
 };
