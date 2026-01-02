@@ -13,14 +13,14 @@ Endpoints:
     ... and more
 """
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Depends
 from typing import Optional
 from datetime import datetime
 import sqlite3
 import logging
 
 from api.services import proposal_service, proposal_tracker_service
-from api.dependencies import DB_PATH
+from api.dependencies import DB_PATH, get_current_user
 from services.proposal_detail_story_service import ProposalDetailStoryService
 
 logger = logging.getLogger(__name__)
@@ -323,8 +323,11 @@ async def get_proposals_needs_attention():
 
 
 @router.post("/proposals", status_code=201)
-async def create_proposal(request: CreateProposalRequest):
-    """Create a new proposal. Returns standardized action response."""
+async def create_proposal(
+    request: CreateProposalRequest,
+    current_user: dict = Depends(get_current_user)
+):
+    """Create a new proposal. Returns standardized action response. Requires authentication."""
     try:
         with proposal_service.get_connection() as conn:
             cursor = conn.cursor()
@@ -467,8 +470,12 @@ async def get_tracker_proposal(project_code: str):
 
 
 @router.put("/proposal-tracker/{project_code}")
-async def update_tracker_proposal(project_code: str, updates: dict):
-    """Update proposal in tracker. Returns standardized action response."""
+async def update_tracker_proposal(
+    project_code: str,
+    updates: dict,
+    current_user: dict = Depends(get_current_user)
+):
+    """Update proposal in tracker. Returns standardized action response. Requires authentication."""
     try:
         result = proposal_tracker_service.update_proposal(project_code, updates)
         if not result:
@@ -1221,11 +1228,16 @@ async def get_proposals_summary():
 
 
 @router.post("/proposals/{project_code}/chat")
-async def chat_about_proposal(project_code: str, request: dict):
+async def chat_about_proposal(
+    project_code: str,
+    request: dict,
+    current_user: dict = Depends(get_current_user)
+):
     """
     Chat/ask questions about a specific proposal.
     Searches emails and proposal data to answer questions.
     Supports conversation history for follow-up questions.
+    Requires authentication.
 
     NEW: Detects correction requests like "fix John's email to john@new.com"
     and auto-creates suggestions for review.
