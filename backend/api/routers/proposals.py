@@ -735,14 +735,21 @@ async def get_proposal_timeline(
 
 
 @router.get("/proposals/{project_code}/conversation")
-async def get_proposal_conversation(project_code: str):
+async def get_proposal_conversation(
+    project_code: str,
+    page: int = Query(1, ge=1, description="Page number"),
+    per_page: int = Query(50, ge=1, le=200, description="Items per page"),
+    include_body: bool = Query(False, description="Include full email body (expensive)")
+):
     """
     Get conversation view for a proposal - emails formatted for iMessage-style display.
 
     Returns emails with sender_category (bill/brian/lukas/mink/client) and
     body content for conversation threading. Excludes internal emails.
 
-    Example: GET /api/proposals/25%20BK-033/conversation
+    Pagination added to handle large email threads efficiently.
+
+    Example: GET /api/proposals/25%20BK-033/conversation?page=1&per_page=50
     """
     try:
         conn = sqlite3.connect(DB_PATH)
@@ -759,9 +766,24 @@ async def get_proposal_conversation(project_code: str):
 
         proposal_id = proposal_row['proposal_id']
 
+        # Get total count first
+        cursor.execute("""
+            SELECT COUNT(*) FROM emails e
+            JOIN email_proposal_links epl ON e.email_id = epl.email_id
+            WHERE epl.proposal_id = ?
+              AND (e.email_direction IS NULL
+                   OR e.email_direction NOT IN ('internal_to_internal', 'INTERNAL'))
+        """, (proposal_id,))
+        total = cursor.fetchone()[0]
+
+        # Calculate offset
+        offset = (page - 1) * per_page
+
         # Get emails with sender_category for conversation view
         # Exclude internal-to-internal emails to show only external correspondence
-        cursor.execute("""
+        # Only include body_full if explicitly requested (reduces payload)
+        body_select = "e.body_full," if include_body else ""
+        cursor.execute(f"""
             SELECT
                 e.email_id,
                 e.date,
@@ -778,7 +800,7 @@ async def get_proposal_conversation(project_code: str):
                     END
                 ) as sender_category,
                 COALESCE(e.snippet, SUBSTR(e.body_full, 1, 300)) as body_preview,
-                e.body_full,
+                {body_select}
                 e.has_attachments,
                 e.email_direction
             FROM emails e
@@ -787,7 +809,8 @@ async def get_proposal_conversation(project_code: str):
               AND (e.email_direction IS NULL
                    OR e.email_direction NOT IN ('internal_to_internal', 'INTERNAL'))
             ORDER BY e.date ASC
-        """, (proposal_id,))
+            LIMIT ? OFFSET ?
+        """, (proposal_id, per_page, offset))
 
         emails = []
         for row in cursor.fetchall():
@@ -802,7 +825,10 @@ async def get_proposal_conversation(project_code: str):
             "success": True,
             "project_code": project_code,
             "emails": emails,
-            "total": len(emails)
+            "total": total,
+            "page": page,
+            "per_page": per_page,
+            "total_pages": (total + per_page - 1) // per_page
         }
 
     except HTTPException:

@@ -103,76 +103,119 @@ create_or_find_issue() {
 }
 
 # -----------------------------------------------------------------------------
-# PHASE 1: AUDITS
+# PHASE 1: AUDITS (Multi-Agent)
+# -----------------------------------------------------------------------------
+# Assignment by strength:
+#   - CODEX  → Security audit, code quality (built for this)
+#   - GEMINI → Architecture review, API consistency (broad analysis)
+#   - CLAUDE → UX audit, data audit (has MCP database access)
 # -----------------------------------------------------------------------------
 
 run_audits() {
-    print_header "🔍 PHASE 1: RUNNING AUDITS"
+    print_header "🔍 PHASE 1: MULTI-AGENT AUDITS"
 
     mkdir -p "$REPO_ROOT/.claude/audits"
 
-    echo "Running 4 parallel audits..."
-    echo "  • UX Audit"
-    echo "  • Code Audit"
-    echo "  • Data Audit"
-    echo "  • API Audit"
+    echo "Running 4 parallel audits across 3 AI agents..."
+    echo "  🤖 Claude  → UX Audit (understands UI patterns)"
+    echo "  🤖 Claude  → Data Audit (has MCP database access)"
+    echo "  🦊 Codex   → Security & Code Audit (built for this)"
+    echo "  💎 Gemini  → Architecture & API Audit (broad analysis)"
     echo ""
 
-    # UX Audit
+    # Check which tools are available
+    HAVE_CODEX=$(command -v codex &> /dev/null && echo "yes" || echo "no")
+    HAVE_GEMINI=$(command -v gemini &> /dev/null && echo "yes" || echo "no")
+
+    if [ "$HAVE_CODEX" = "no" ]; then
+        print_warning "Codex not installed - Claude will handle security audit"
+    fi
+    if [ "$HAVE_GEMINI" = "no" ]; then
+        print_warning "Gemini not installed - Claude will handle API audit"
+    fi
+
+    # UX Audit - CLAUDE (best at understanding UI patterns)
     (
+        echo "  Starting UX audit (Claude)..."
         claude -p "Audit the $FEATURE feature UX. Check frontend/src/app/(dashboard)/ for relevant pages. What works? What's confusing? What's missing? Output as markdown with headers: What Works, UX Issues, Missing Features, Quick Wins." \
             --output-format text > "$REPO_ROOT/.claude/audits/${FEATURE}_ux.md" 2>/dev/null
+        echo "  ✓ UX audit complete"
     ) &
+    PID_UX=$!
 
-    # Code Audit
+    # Data Audit - CLAUDE (has MCP database access)
     (
-        claude -p "Audit the $FEATURE feature code quality. Check backend/api/routers/ and frontend components. Look for: security issues, bugs, performance problems, dead code. Output as markdown with headers: Security Issues, Bugs, Performance, Code Quality, Recommendations." \
-            --output-format text > "$REPO_ROOT/.claude/audits/${FEATURE}_code.md" 2>/dev/null
-    ) &
-
-    # Data Audit
-    (
+        echo "  Starting Data audit (Claude)..."
         claude -p "Audit the $FEATURE data using MCP database access. Check record counts, data quality, null fields, orphaned records. Output as markdown with headers: Record Counts, Data Quality Issues, Missing Data, Recommendations." \
             --output-format text > "$REPO_ROOT/.claude/audits/${FEATURE}_data.md" 2>/dev/null
+        echo "  ✓ Data audit complete"
     ) &
+    PID_DATA=$!
 
-    # API Audit
+    # Security & Code Audit - CODEX (or Claude fallback)
     (
-        claude -p "Audit the $FEATURE API endpoints in backend/api/routers/. Check authentication, validation, error handling, response consistency. Output as markdown with headers: Endpoints Reviewed, Auth Gaps, Validation Issues, Missing Endpoints, Recommendations." \
-            --output-format text > "$REPO_ROOT/.claude/audits/${FEATURE}_api.md" 2>/dev/null
+        echo "  Starting Security audit (Codex)..."
+        if [ "$HAVE_CODEX" = "yes" ]; then
+            # Codex uses 'exec' subcommand for non-interactive mode
+            codex exec "Audit the $FEATURE feature for security and code quality. Check backend/api/routers/ and frontend components. Look for: SQL injection, XSS, auth bypass, hardcoded secrets, performance issues, dead code. Output as markdown with headers: Security Issues, Bugs Found, Performance Concerns, Code Quality, Recommendations." \
+                > "$REPO_ROOT/.claude/audits/${FEATURE}_security.md" 2>/dev/null
+        else
+            claude -p "Audit the $FEATURE feature for security and code quality. Check backend/api/routers/ and frontend components. Look for: SQL injection, XSS, auth bypass, hardcoded secrets, performance issues, dead code. Output as markdown with headers: Security Issues, Bugs Found, Performance Concerns, Code Quality, Recommendations." \
+                --output-format text > "$REPO_ROOT/.claude/audits/${FEATURE}_security.md" 2>/dev/null
+        fi
+        echo "  ✓ Security audit complete"
     ) &
+    PID_SECURITY=$!
 
-    # Wait for all
-    wait
+    # Architecture & API Audit - GEMINI (or Claude fallback)
+    (
+        echo "  Starting API audit (Gemini)..."
+        if [ "$HAVE_GEMINI" = "yes" ]; then
+            # Gemini uses positional prompt for non-interactive mode
+            gemini "Audit the $FEATURE API endpoints in backend/api/routers/. Analyze: endpoint consistency, REST conventions, error handling patterns, authentication coverage, request/response schemas. Output as markdown with headers: Endpoints Reviewed, Architecture Issues, Auth Gaps, Validation Issues, Missing Endpoints, Recommendations." \
+                > "$REPO_ROOT/.claude/audits/${FEATURE}_api.md" 2>/dev/null
+        else
+            claude -p "Audit the $FEATURE API endpoints in backend/api/routers/. Analyze: endpoint consistency, REST conventions, error handling patterns, authentication coverage, request/response schemas. Output as markdown with headers: Endpoints Reviewed, Architecture Issues, Auth Gaps, Validation Issues, Missing Endpoints, Recommendations." \
+                --output-format text > "$REPO_ROOT/.claude/audits/${FEATURE}_api.md" 2>/dev/null
+        fi
+        echo "  ✓ API audit complete"
+    ) &
+    PID_API=$!
+
+    # Wait for all with progress
+    echo ""
+    echo "⏳ Waiting for all audits to complete..."
+    wait $PID_UX $PID_DATA $PID_SECURITY $PID_API
 
     print_success "All audits complete"
 
     # Combine and post
     echo "Posting findings to Issue #$ISSUE..."
 
-    COMBINED="# 🔍 Automated Audit Results
+    COMBINED="# 🔍 Multi-Agent Audit Results
 
 **Feature:** $FEATURE
 **Timestamp:** $(date)
+**Agents Used:** Claude (UX, Data) | Codex (Security) | Gemini (API)
 
 ---
 
-## UX Audit
+## 🎨 UX Audit (Claude)
 $(cat "$REPO_ROOT/.claude/audits/${FEATURE}_ux.md" 2>/dev/null || echo "Failed")
 
 ---
 
-## Code Audit
-$(cat "$REPO_ROOT/.claude/audits/${FEATURE}_code.md" 2>/dev/null || echo "Failed")
-
----
-
-## Data Audit
+## 📊 Data Audit (Claude)
 $(cat "$REPO_ROOT/.claude/audits/${FEATURE}_data.md" 2>/dev/null || echo "Failed")
 
 ---
 
-## API Audit
+## 🔒 Security & Code Audit (Codex)
+$(cat "$REPO_ROOT/.claude/audits/${FEATURE}_security.md" 2>/dev/null || echo "Failed")
+
+---
+
+## 🏗️ Architecture & API Audit (Gemini)
 $(cat "$REPO_ROOT/.claude/audits/${FEATURE}_api.md" 2>/dev/null || echo "Failed")
 
 ---
