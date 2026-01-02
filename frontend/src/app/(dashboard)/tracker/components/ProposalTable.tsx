@@ -29,6 +29,12 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
   FileText,
   Loader2,
   Pencil,
@@ -45,6 +51,7 @@ import {
   MoreHorizontal,
   CalendarPlus,
   AlertCircle,
+  HelpCircle,
 } from "lucide-react";
 import { formatCurrency, cn } from "@/lib/utils";
 import {
@@ -311,11 +318,34 @@ export function ProposalTable({
                     Days {getSortIcon("days")}
                   </span>
                 </TableHead>
-                <TableHead
-                  className={cn("text-center w-[90px]", ds.typography.captionBold)}
-                  title="Health / Win% / Sentiment"
-                >
-                  Score
+                <TableHead className={cn("text-center w-[90px]", ds.typography.captionBold)}>
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <span className="flex items-center justify-center gap-1 cursor-help">
+                          Score
+                          <HelpCircle className="h-3 w-3 text-slate-400" />
+                        </span>
+                      </TooltipTrigger>
+                      <TooltipContent side="top" className="max-w-xs text-xs">
+                        <div className="space-y-1.5">
+                          <p className="font-semibold">Score Legend:</p>
+                          <div className="flex items-center gap-2">
+                            <span className="inline-flex items-center justify-center w-5 h-5 rounded bg-emerald-100 text-emerald-700 text-[10px] font-bold">70</span>
+                            <span>Health (0-100): Activity & responsiveness</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-[10px] font-semibold text-emerald-600">60%</span>
+                            <span>Win Probability: Likelihood of closing</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-emerald-100 text-emerald-700 text-[8px] font-bold">+</span>
+                            <span>Sentiment: + positive, ! concerned, - negative</span>
+                          </div>
+                        </div>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
                 </TableHead>
                 <TableHead className={cn("min-w-[140px]", ds.typography.captionBold)}>
                   Action Needed
