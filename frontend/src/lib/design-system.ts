@@ -356,6 +356,36 @@ export function getActivityColor(days: number): { bg: string; text: string; labe
 }
 
 // =============================================================================
+// PROPOSAL STATUS COLORS (Single source of truth)
+// =============================================================================
+export const proposalStatusColors: Record<string, { bg: string; fill: string; text: string }> = {
+  "First Contact": { bg: "bg-blue-50", fill: "bg-blue-400", text: "text-blue-700" },
+  "Proposal Prep": { bg: "bg-yellow-50", fill: "bg-yellow-500", text: "text-yellow-700" },
+  "Proposal Sent": { bg: "bg-amber-50", fill: "bg-amber-500", text: "text-amber-700" },
+  "Negotiation": { bg: "bg-purple-50", fill: "bg-purple-500", text: "text-purple-700" },
+  "On Hold": { bg: "bg-gray-100", fill: "bg-gray-400", text: "text-gray-600" },
+  "Contract Signed": { bg: "bg-emerald-50", fill: "bg-emerald-500", text: "text-emerald-700" },
+  "Lost": { bg: "bg-red-50", fill: "bg-red-400", text: "text-red-600" },
+  "Declined": { bg: "bg-rose-50", fill: "bg-rose-400", text: "text-rose-600" },
+  "Dormant": { bg: "bg-slate-100", fill: "bg-slate-400", text: "text-slate-500" },
+};
+
+// All valid proposal statuses
+export const ALL_PROPOSAL_STATUSES = [
+  "First Contact",
+  "Proposal Prep",
+  "Proposal Sent",
+  "Negotiation",
+  "On Hold",
+  "Contract Signed",
+  "Lost",
+  "Declined",
+  "Dormant",
+] as const;
+
+export type ProposalStatusType = typeof ALL_PROPOSAL_STATUSES[number];
+
+// =============================================================================
 // EXPORTS
 // =============================================================================
 

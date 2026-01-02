@@ -112,6 +112,15 @@ class ProposalTrackerService(BaseService):
             """)
             stats['overdue_count'] = cursor.fetchone()['overdue']
 
+            # Ball with us count (active proposals where we need to act)
+            cursor.execute("""
+                SELECT COUNT(*) as ball_with_us
+                FROM proposals
+                WHERE ball_in_court = 'us'
+                AND status NOT IN ('Contract Signed', 'Lost', 'Declined', 'Dormant', 'Cancelled')
+            """)
+            stats['ball_with_us_count'] = cursor.fetchone()['ball_with_us']
+
             # COMPREHENSIVE STATS from proposals table
             # Total proposals (all time, all statuses)
             cursor.execute("""

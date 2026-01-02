@@ -207,24 +207,28 @@ export function ProposalStory({ projectCode }: ProposalStoryProps) {
   return (
     <div className="space-y-6">
       {/* ===== EXECUTIVE SUMMARY ===== */}
-      {(correspondence_summary || remarks) && (
-        <Card className="border-2 border-slate-200 bg-gradient-to-br from-slate-50 to-white">
-          <CardHeader className="pb-2">
-            <CardTitle className="flex items-center gap-2 text-lg">
-              <FileText className="h-5 w-5 text-slate-600" />
-              Executive Summary
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="prose prose-sm max-w-none text-slate-700">
-              {correspondence_summary ? (
-                <p className="leading-relaxed">{correspondence_summary}</p>
-              ) : remarks ? (
-                <p className="leading-relaxed">{remarks}</p>
-              ) : (
-                <p className="text-slate-400 italic">No summary available yet.</p>
-              )}
-            </div>
+      <Card className="border-2 border-slate-200 bg-gradient-to-br from-slate-50 to-white">
+        <CardHeader className="pb-2">
+          <CardTitle className="flex items-center gap-2 text-lg">
+            <FileText className="h-5 w-5 text-slate-600" />
+            Executive Summary
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="prose prose-sm max-w-none text-slate-700">
+            {correspondence_summary ? (
+              <p className="leading-relaxed">{correspondence_summary}</p>
+            ) : remarks ? (
+              <p className="leading-relaxed">{remarks}</p>
+            ) : (
+              <div className="text-center py-4">
+                <p className="text-slate-400 italic mb-2">No summary available yet.</p>
+                <p className="text-xs text-slate-400">
+                  A summary will be generated once emails are linked to this proposal.
+                </p>
+              </div>
+            )}
+          </div>
 
             {/* Ball in Court / Next Action */}
             {(ballInCourt || waitingFor || suggestedAction) && (
@@ -258,7 +262,6 @@ export function ProposalStory({ projectCode }: ProposalStoryProps) {
             )}
           </CardContent>
         </Card>
-      )}
 
       {/* ===== TWO COLUMN GRID: ACTION ITEMS + STAKEHOLDER STATUS ===== */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
