@@ -41,24 +41,89 @@ import {
 } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 
+// RBAC Role Types - mirrors backend/api/dependencies.py
+type UserRole = "staff" | "pm" | "finance" | "admin" | "executive";
+
 type NavItem = {
   href: string;
   label: string;
   icon: React.ElementType;
   disabled?: boolean;
+  allowedRoles?: UserRole[]; // If undefined, accessible to all authenticated users
   subItems?: { href: string; label: string; icon: React.ElementType }[];
 };
 
+/**
+ * Compute user roles from session data.
+ * Mirrors backend logic in backend/api/dependencies.py get_user_roles()
+ */
+function getUserRoles(session: {
+  user?: {
+    department?: string;
+    seniority?: string;
+    is_pm?: boolean;
+  };
+} | null): Set<UserRole> {
+  const roles: Set<UserRole> = new Set(["staff"]);
+
+  if (!session?.user) return roles;
+
+  const { department, seniority, is_pm } = session.user;
+
+  // Executive: Leadership department with Owner/Principal seniority
+  if (department === "Leadership" && (seniority === "Owner" || seniority === "Principal")) {
+    roles.add("executive");
+    roles.add("admin");
+    roles.add("finance");
+    roles.add("pm");
+    return roles;
+  }
+
+  // Admin: Director-level in Leadership/Operations/Admin, or Operations/Admin department
+  if ((department === "Leadership" || department === "Operations" || department === "Admin") && seniority === "Director") {
+    roles.add("admin");
+    roles.add("finance");
+    roles.add("pm");
+  }
+  if (department === "Operations" || department === "Admin") {
+    roles.add("admin");
+  }
+
+  // Finance: Finance department
+  if (department === "Finance") {
+    roles.add("finance");
+  }
+
+  // PM: is_pm flag
+  if (is_pm) {
+    roles.add("pm");
+  }
+
+  return roles;
+}
+
+/**
+ * Check if user has any of the allowed roles
+ */
+function hasAccess(userRoles: Set<UserRole>, allowedRoles?: UserRole[]): boolean {
+  if (!allowedRoles || allowedRoles.length === 0) return true; // No restriction = all can access
+  return allowedRoles.some(role => userRoles.has(role));
+}
+
 // Navigation structure - Full navigation with dropdowns
+// Role restrictions:
+// - No allowedRoles = accessible to all authenticated users
+// - allowedRoles array = user must have at least one of the specified roles
 const navItems: NavItem[] = [
-  { href: "/my-day", label: "My Day", icon: Sun },
-  { href: "/", label: "Dashboard", icon: Home },
-  { href: "/executive", label: "Executive", icon: LayoutDashboard },
-  { href: "/tasks", label: "Tasks", icon: CheckSquare },
+  { href: "/my-day", label: "My Day", icon: Sun }, // All users
+  { href: "/", label: "Dashboard", icon: Home }, // All users
+  { href: "/executive", label: "Executive", icon: LayoutDashboard, allowedRoles: ["executive", "admin"] },
+  { href: "/tasks", label: "Tasks", icon: CheckSquare }, // All users
   {
     href: "/tracker",
     label: "Proposals",
     icon: ListChecks,
+    allowedRoles: ["pm", "executive", "admin"], // Bill's daily tool - not for designers
     subItems: [
       { href: "/tracker", label: "Pipeline Tracker", icon: ListChecks },
       { href: "/overview", label: "Overview", icon: LayoutDashboard },
@@ -67,7 +132,7 @@ const navItems: NavItem[] = [
   {
     href: "/projects",
     label: "Projects",
-    icon: FolderKanban,
+    icon: FolderKanban, // All users - backend filters by PM assignment
     subItems: [
       { href: "/projects", label: "All Projects", icon: FolderKanban },
       { href: "/rfis", label: "RFIs", icon: HelpCircle },
@@ -77,6 +142,7 @@ const navItems: NavItem[] = [
     href: "/team",
     label: "Team",
     icon: Users,
+    allowedRoles: ["pm", "executive", "admin"], // Management only
     subItems: [
       { href: "/team", label: "PM Workload", icon: UserCog },
       { href: "/contacts", label: "Contacts", icon: Contact },
@@ -85,18 +151,19 @@ const navItems: NavItem[] = [
   {
     href: "/meetings",
     label: "Meetings",
-    icon: Calendar,
+    icon: Calendar, // All users
     subItems: [
       { href: "/meetings", label: "Calendar", icon: Calendar },
       { href: "/recorder", label: "Recorder", icon: Mic },
     ]
   },
-  { href: "/finance", label: "Finance", icon: DollarSign },
-  { href: "/analytics", label: "Analytics", icon: BarChart3 },
+  { href: "/finance", label: "Finance", icon: DollarSign, allowedRoles: ["finance", "executive", "admin"] },
+  { href: "/analytics", label: "Analytics", icon: BarChart3, allowedRoles: ["executive", "admin"] },
   {
     href: "/admin",
     label: "Admin",
     icon: Settings,
+    allowedRoles: ["admin"], // Lukas/Operations only
     subItems: [
       { href: "/emails/review", label: "Email Review", icon: Mail },
       { href: "/admin/suggestions", label: "AI Review", icon: Sparkles },
@@ -112,6 +179,12 @@ export default function AppShell({ children }: PropsWithChildren) {
   const [expandedItems, setExpandedItems] = useState<string[]>([]);
   const [mobileOpen, setMobileOpen] = useState(false);
 
+  // Compute user roles for RBAC filtering
+  const userRoles = getUserRoles(session);
+
+  // Filter nav items based on user roles
+  const filteredNavItems = navItems.filter(item => hasAccess(userRoles, item.allowedRoles));
+
   const handleLogout = () => {
     signOut({ callbackUrl: "/login" });
   };
@@ -123,9 +196,10 @@ export default function AppShell({ children }: PropsWithChildren) {
   };
 
   // Navigation content render function (reused in desktop sidebar and mobile sheet)
+  // Uses filteredNavItems which is filtered based on user roles
   const renderNavContent = (onItemClick?: () => void) => (
     <nav className={cn(ds.gap.tight, "space-y-1")}>
-      {navItems.map((item) => {
+      {filteredNavItems.map((item) => {
         const Icon = item.icon;
         const isActive =
           item.href === "/"
