@@ -153,6 +153,23 @@ export function ProposalTable({
     },
   });
 
+  // Clear action mutation (mark done)
+  const clearActionMutation = useMutation({
+    mutationFn: ({ projectCode }: { projectCode: string }) =>
+      api.updateProposalTracker(projectCode, {
+        action_needed: null,
+        action_due: null,
+      }),
+    onSuccess: () => {
+      toast.success("Action marked as done");
+      queryClient.invalidateQueries({ queryKey: ["proposalTrackerList"] });
+      queryClient.invalidateQueries({ queryKey: ["proposalTrackerStats"] });
+    },
+    onError: (err: unknown) => {
+      toast.error(err instanceof Error ? err.message : "Failed to clear action");
+    },
+  });
+
   // Get sort icon
   const getSortIcon = (field: SortField) => {
     if (sortField !== field) {
@@ -386,28 +403,46 @@ export function ProposalTable({
                         </SelectContent>
                       </Select>
                     </TableCell>
-                    <TableCell className="text-center">
+                    <TableCell className="text-center" onClick={(e) => e.stopPropagation()}>
                       {proposal.ball_in_court === "us" ? (
-                        <span
-                          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700"
-                          title="Ball in our court"
+                        <button
+                          type="button"
+                          onClick={() => flipBallMutation.mutate({
+                            projectCode: proposal.project_code,
+                            currentBall: "us",
+                          })}
+                          disabled={flipBallMutation.isPending}
+                          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700 hover:bg-red-200 transition-colors cursor-pointer"
+                          title="Click to flip ball to client"
                         >
                           Us
-                        </span>
+                        </button>
                       ) : proposal.ball_in_court === "them" ? (
-                        <span
-                          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700"
-                          title="Waiting on client"
+                        <button
+                          type="button"
+                          onClick={() => flipBallMutation.mutate({
+                            projectCode: proposal.project_code,
+                            currentBall: "them",
+                          })}
+                          disabled={flipBallMutation.isPending}
+                          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700 hover:bg-green-200 transition-colors cursor-pointer"
+                          title="Click to flip ball to us"
                         >
                           Them
-                        </span>
+                        </button>
                       ) : proposal.ball_in_court === "mutual" ? (
-                        <span
-                          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-700"
-                          title="Mutual action needed"
+                        <button
+                          type="button"
+                          onClick={() => flipBallMutation.mutate({
+                            projectCode: proposal.project_code,
+                            currentBall: "mutual",
+                          })}
+                          disabled={flipBallMutation.isPending}
+                          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-700 hover:bg-amber-200 transition-colors cursor-pointer"
+                          title="Click to flip ball"
                         >
                           Both
-                        </span>
+                        </button>
                       ) : (
                         <span className="text-slate-400">—</span>
                       )}
@@ -501,38 +536,52 @@ export function ProposalTable({
                         )}
                       </div>
                     </TableCell>
-                    <TableCell className={cn("max-w-[300px]", ds.typography.caption)}>
+                    <TableCell
+                      className={cn("max-w-[300px]", ds.typography.caption)}
+                      onClick={(e) => e.stopPropagation()}
+                    >
                       {proposal.action_needed ? (
-                        <div className="flex flex-col gap-0.5">
-                          <span
-                            className={cn(
-                              "block truncate",
-                              proposal.action_due && new Date(proposal.action_due) < new Date()
-                                ? "text-red-700 font-medium"
-                                : proposal.health_score && proposal.health_score < 50
-                                  ? "text-amber-700"
-                                  : ds.textColors.secondary
-                            )}
-                            title={proposal.action_needed}
+                        <div className="flex items-start gap-1">
+                          <button
+                            type="button"
+                            onClick={() => clearActionMutation.mutate({ projectCode: proposal.project_code })}
+                            disabled={clearActionMutation.isPending}
+                            className="flex-shrink-0 mt-0.5 w-4 h-4 rounded border border-slate-300 hover:bg-emerald-100 hover:border-emerald-400 transition-colors flex items-center justify-center group"
+                            title="Mark action as done"
                           >
-                            {proposal.action_needed}
-                          </span>
-                          {proposal.action_due && (
+                            <CheckCheck className="h-2.5 w-2.5 text-slate-400 group-hover:text-emerald-600" />
+                          </button>
+                          <div className="flex flex-col gap-0.5 min-w-0">
                             <span
                               className={cn(
-                                "text-[10px]",
-                                new Date(proposal.action_due) < new Date()
-                                  ? "text-red-600 font-semibold"
-                                  : "text-slate-400"
+                                "block truncate",
+                                proposal.action_due && new Date(proposal.action_due) < new Date()
+                                  ? "text-red-700 font-medium"
+                                  : proposal.health_score && proposal.health_score < 50
+                                    ? "text-amber-700"
+                                    : ds.textColors.secondary
                               )}
+                              title={proposal.action_needed}
                             >
-                              {new Date(proposal.action_due) < new Date() ? "OVERDUE: " : "Due: "}
-                              {new Date(proposal.action_due).toLocaleDateString("en-US", {
-                                month: "short",
-                                day: "numeric",
-                              })}
+                              {proposal.action_needed}
                             </span>
-                          )}
+                            {proposal.action_due && (
+                              <span
+                                className={cn(
+                                  "text-[10px]",
+                                  new Date(proposal.action_due) < new Date()
+                                    ? "text-red-600 font-semibold"
+                                    : "text-slate-400"
+                                )}
+                              >
+                                {new Date(proposal.action_due) < new Date() ? "OVERDUE: " : "Due: "}
+                                {new Date(proposal.action_due).toLocaleDateString("en-US", {
+                                  month: "short",
+                                  day: "numeric",
+                                })}
+                              </span>
+                            )}
+                          </div>
                         </div>
                       ) : proposal.current_remark ? (
                         <span
