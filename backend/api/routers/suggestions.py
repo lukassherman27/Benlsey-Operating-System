@@ -10,7 +10,7 @@ Endpoints:
     ... and more
 """
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Depends
 from typing import Optional
 import sqlite3
 import json
@@ -18,7 +18,7 @@ import json
 from api.services import admin_service, ai_learning_service, email_orchestrator
 from backend.services.suggestion_handlers import HandlerRegistry, ChangePreview
 from backend.services.contact_context_service import get_contact_context_service
-from api.dependencies import DB_PATH
+from api.dependencies import DB_PATH, get_current_user
 from api.models import (
     SuggestionApproveRequest, SuggestionRejectRequest, BulkApproveRequest,
     BulkRejectRequest, BulkApproveByIdsRequest, SuggestionRejectWithCorrectionRequest,
@@ -208,13 +208,18 @@ async def get_suggestions_grouped(
 # ============================================================================
 
 @router.post("/suggestions/{suggestion_id}/approve")
-async def approve_suggestion(suggestion_id: int, request: Optional[SuggestionApproveRequest] = None):
-    """Approve an AI suggestion from ai_suggestions table"""
+async def approve_suggestion(
+    suggestion_id: int,
+    request: Optional[SuggestionApproveRequest] = None,
+    current_user: dict = Depends(get_current_user)
+):
+    """Approve an AI suggestion from ai_suggestions table. Requires authentication."""
     try:
         # Use ai_learning_service which works with ai_suggestions table
+        reviewed_by = current_user.get("email", "api")
         result = ai_learning_service.approve_suggestion(
             suggestion_id,
-            reviewed_by="api",
+            reviewed_by=reviewed_by,
             apply_changes=True
         )
         if not result.get('success'):
@@ -263,14 +268,19 @@ async def approve_suggestion(suggestion_id: int, request: Optional[SuggestionApp
 
 
 @router.post("/suggestions/{suggestion_id}/reject")
-async def reject_suggestion(suggestion_id: int, request: Optional[SuggestionRejectRequest] = None):
-    """Reject an AI suggestion"""
+async def reject_suggestion(
+    suggestion_id: int,
+    request: Optional[SuggestionRejectRequest] = None,
+    current_user: dict = Depends(get_current_user)
+):
+    """Reject an AI suggestion. Requires authentication."""
     try:
         reason = request.reason if request else None
+        reviewed_by = current_user.get("email", "api")
         # Use ai_learning_service which has the reject_suggestion method
         result = ai_learning_service.reject_suggestion(
             suggestion_id,
-            reviewed_by="api",
+            reviewed_by=reviewed_by,
             reason=reason
         )
         if not result.get('success'):
@@ -283,8 +293,11 @@ async def reject_suggestion(suggestion_id: int, request: Optional[SuggestionReje
 
 
 @router.post("/suggestions/bulk-approve")
-async def bulk_approve_suggestions(request: BulkApproveRequest):
-    """Bulk approve suggestions above confidence threshold"""
+async def bulk_approve_suggestions(
+    request: BulkApproveRequest,
+    current_user: dict = Depends(get_current_user)
+):
+    """Bulk approve suggestions above confidence threshold. Requires authentication."""
     try:
         conn = sqlite3.connect(DB_PATH)
         conn.row_factory = sqlite3.Row
