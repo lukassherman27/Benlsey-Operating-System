@@ -327,6 +327,126 @@ async def get_proposals_needs_attention():
         raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
+@router.get("/proposals/review-queue")
+async def get_bill_review_queue(
+    min_value: float = Query(0, ge=0, description="Minimum project value filter"),
+    limit: int = Query(20, ge=1, le=50, description="Max proposals to return")
+):
+    """
+    Bill's Review Queue - High-value proposals needing decisions.
+
+    Optimized for quick Go/No-Go decisions:
+    - Proposals where ball is in our court
+    - Sorted by value (highest first)
+    - Includes quick action context
+    - Excludes: Lost, Contract Signed, Declined, On Hold
+
+    Use with PUT /proposal-tracker/{project_code} to update:
+    - status: "Lost" with lost_reason, lost_to_competitor
+    - status: "Contract Signed" with won_date
+    - ball_in_court: "them" (waiting on client)
+    """
+    try:
+        with proposal_service.get_connection() as conn:
+            cursor = conn.cursor()
+
+            cursor.execute("""
+                SELECT
+                    p.proposal_id,
+                    p.project_code,
+                    p.project_name,
+                    p.client_company,
+                    p.status,
+                    p.project_value,
+                    p.ball_in_court,
+                    p.action_needed,
+                    p.waiting_for,
+                    p.next_action,
+                    p.next_action_date,
+                    p.win_probability,
+                    p.days_since_contact,
+                    p.last_contact_date,
+                    p.country,
+                    p.is_landscape,
+                    p.is_architect,
+                    p.is_interior,
+                    p.remarks,
+                    CASE
+                        WHEN p.next_action_date < date('now') THEN 'overdue'
+                        WHEN p.next_action_date = date('now') THEN 'today'
+                        WHEN p.next_action_date <= date('now', '+7 days') THEN 'this_week'
+                        ELSE 'upcoming'
+                    END as urgency
+                FROM proposals p
+                WHERE p.ball_in_court = 'us'
+                AND p.status NOT IN ('Lost', 'Contract Signed', 'Declined', 'On Hold', 'Dormant')
+                AND (p.project_value >= ? OR p.project_value IS NULL)
+                ORDER BY
+                    CASE WHEN p.next_action_date < date('now') THEN 0 ELSE 1 END,
+                    p.project_value DESC NULLS LAST,
+                    p.next_action_date ASC NULLS LAST
+                LIMIT ?
+            """, [min_value, limit])
+
+            proposals = []
+            for row in cursor.fetchall():
+                proposal = dict(row)
+                # Build discipline tags
+                disciplines = []
+                if proposal.get('is_landscape'):
+                    disciplines.append('Landscape')
+                if proposal.get('is_architect'):
+                    disciplines.append('Architecture')
+                if proposal.get('is_interior'):
+                    disciplines.append('Interior')
+                proposal['disciplines'] = disciplines
+
+                # Suggested actions based on status
+                if proposal['status'] == 'First Contact':
+                    proposal['suggested_actions'] = ['Schedule call', 'Send intro', 'Pass']
+                elif proposal['status'] == 'Proposal Sent':
+                    proposal['suggested_actions'] = ['Follow up', 'Revise proposal', 'Mark lost']
+                elif proposal['status'] == 'Negotiation':
+                    proposal['suggested_actions'] = ['Close deal', 'Revise terms', 'Walk away']
+                else:
+                    proposal['suggested_actions'] = ['Follow up', 'Update status', 'Snooze']
+
+                proposals.append(proposal)
+
+            # Summary stats
+            cursor.execute("""
+                SELECT
+                    COUNT(*) as total_our_ball,
+                    SUM(COALESCE(project_value, 0)) as total_value,
+                    SUM(CASE WHEN next_action_date < date('now') THEN 1 ELSE 0 END) as overdue_count
+                FROM proposals
+                WHERE ball_in_court = 'us'
+                AND status NOT IN ('Lost', 'Contract Signed', 'Declined', 'On Hold', 'Dormant')
+            """)
+            stats = dict(cursor.fetchone())
+
+            return {
+                "success": True,
+                "queue": proposals,
+                "count": len(proposals),
+                "summary": {
+                    "total_in_queue": stats['total_our_ball'],
+                    "total_pipeline_value": stats['total_value'],
+                    "overdue_actions": stats['overdue_count']
+                },
+                "quick_actions": {
+                    "mark_won": "PUT /proposal-tracker/{code} with status='Contract Signed', won_date",
+                    "mark_lost": "PUT /proposal-tracker/{code} with status='Lost', lost_reason, lost_to_competitor",
+                    "pass_ball": "PUT /proposal-tracker/{code} with ball_in_court='them', waiting_for",
+                    "snooze": "PUT /proposal-tracker/{code} with next_action_date"
+                },
+                "generated_at": datetime.now().isoformat()
+            }
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="An internal error occurred")
+
+
 @router.post("/proposals", status_code=201)
 async def create_proposal(
     request: CreateProposalRequest,
