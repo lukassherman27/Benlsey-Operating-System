@@ -47,7 +47,7 @@ async def list_proposals(
     is_active_project: Optional[bool] = None,
     page: int = Query(1, ge=1),
     per_page: int = Query(20, ge=1, le=100),
-    sort_by: str = Query("health_score", regex="^(proposal_id|project_code|project_title|status|health_score|days_since_contact|is_active_project|created_at|updated_at)$"),
+    sort_by: str = Query("health_score", regex="^(proposal_id|project_code|project_name|status|health_score|days_since_contact|is_active_project|created_at|updated_at)$"),
     sort_order: str = Query("ASC", regex="^(ASC|DESC)$")
 ):
     """

@@ -11,23 +11,21 @@ Provides:
 - PATCH /action-items/{action_id} - Update action item (complete, assign, etc.)
 """
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Depends
 from pydantic import BaseModel
 from typing import Optional, List
 from datetime import datetime, date
 import sqlite3
-import os
 import json
+
+from api.dependencies import DB_PATH, get_db_connection
 
 router = APIRouter(prefix="/api/activities", tags=["activities"])
 
-DB_PATH = os.getenv("DATABASE_PATH", "database/bensley_master.db")
-
 
 def get_db():
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    return conn
+    """Get database connection for this router."""
+    return get_db_connection()
 
 
 # Pydantic models
