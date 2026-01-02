@@ -177,6 +177,19 @@ function ProposalTrackerContent() {
       });
     }
 
+    // Needs Attention filter (overdue OR ball with us)
+    if (activeMetric === "attention") {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const terminalStatuses = ["Contract Signed", "Lost", "Declined", "Dormant"];
+      result = result.filter((p) => {
+        if (terminalStatuses.includes(p.current_status)) return false;
+        const isOverdue = p.action_due && new Date(p.action_due) < today;
+        const isBallWithUs = p.ball_in_court === "us";
+        return isOverdue || isBallWithUs;
+      });
+    }
+
     // Sorting
     if (sortField) {
       result = [...result].sort((a, b) => {

@@ -1,7 +1,7 @@
 "use client";
 
 import { Card, CardContent } from "@/components/ui/card";
-import { CheckCircle2, XCircle, TrendingUp } from "lucide-react";
+import { CheckCircle2, XCircle, TrendingUp, AlertTriangle } from "lucide-react";
 import { formatCurrency, cn } from "@/lib/utils";
 
 interface ProposalStats {
@@ -15,6 +15,9 @@ interface ProposalStats {
   lost_value?: number;
   active_proposals_count?: number;
   active_proposals_value?: number;
+  overdue_count?: number;
+  needs_followup?: number;
+  ball_with_us_count?: number;
 }
 
 interface ProposalStatsCardsProps {
@@ -26,8 +29,11 @@ interface ProposalStatsCardsProps {
 export function ProposalStatsCards({ stats, activeMetric, onMetricClick }: ProposalStatsCardsProps) {
   if (!stats) return null;
 
+  // Calculate needs attention count (overdue + ball with us)
+  const needsAttentionCount = (stats.overdue_count || 0) + (stats.ball_with_us_count || 0);
+
   return (
-    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+    <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
       {/* Total Pipeline */}
       <Card
         className={cn(
@@ -87,6 +93,27 @@ export function ProposalStatsCards({ stats, activeMetric, onMetricClick }: Propo
           </p>
           <p className="text-sm font-semibold text-red-600">
             {formatCurrency(stats.lost_value || 0)}
+          </p>
+        </CardContent>
+      </Card>
+
+      {/* Needs Attention */}
+      <Card
+        className={cn(
+          "border-amber-200 bg-amber-50/50 cursor-pointer transition-all hover:shadow-md",
+          activeMetric === "attention" && "ring-2 ring-amber-400"
+        )}
+        onClick={() => onMetricClick("attention")}
+      >
+        <CardContent className="pt-4">
+          <p className="text-xs font-medium text-amber-600 uppercase tracking-wide flex items-center gap-1">
+            <AlertTriangle className="h-3 w-3" /> Needs Attention
+          </p>
+          <p className="text-2xl font-bold text-amber-700 mt-1">
+            {needsAttentionCount}
+          </p>
+          <p className="text-xs text-amber-600">
+            {stats.overdue_count || 0} overdue · {stats.ball_with_us_count || 0} our move
           </p>
         </CardContent>
       </Card>
