@@ -13,14 +13,19 @@ Endpoints:
     ... and more
 """
 
-from fastapi import APIRouter, HTTPException, Query, Depends
+from fastapi import APIRouter, HTTPException, Query, Depends, Request
 from typing import Optional
 from datetime import datetime
 import sqlite3
 import logging
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 
 from api.services import proposal_service, proposal_tracker_service
 from api.dependencies import DB_PATH, get_current_user
+
+# Rate limiter for AI-heavy endpoints
+limiter = Limiter(key_func=get_remote_address)
 from services.proposal_detail_story_service import ProposalDetailStoryService
 
 logger = logging.getLogger(__name__)
@@ -1254,9 +1259,11 @@ async def get_proposals_summary():
 
 
 @router.post("/proposals/{project_code}/chat")
+@limiter.limit("10/minute")
 async def chat_about_proposal(
+    request: Request,  # Required for rate limiter
     project_code: str,
-    request: dict,
+    body: dict,
     current_user: dict = Depends(get_current_user)
 ):
     """
@@ -1286,9 +1293,9 @@ async def chat_about_proposal(
     import json
     from openai import OpenAI
 
-    question = request.get("question", "")
-    use_ai = request.get("use_ai", True)
-    history = request.get("history", [])  # Conversation history
+    question = body.get("question", "")
+    use_ai = body.get("use_ai", True)
+    history = body.get("history", [])  # Conversation history
 
     if not question:
         raise HTTPException(status_code=400, detail="Question is required")
