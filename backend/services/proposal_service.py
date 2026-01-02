@@ -492,6 +492,17 @@ class ProposalService(BaseService):
             avg_row['avg_health'] if avg_row and avg_row['avg_health'] is not None else None
         )
 
+        # Add by_status breakdown for pipeline view
+        by_status_sql = """
+            SELECT current_status, COUNT(*) as count
+            FROM proposals
+            WHERE current_status NOT IN ('Lost', 'Declined', 'Dormant', 'Contract Signed', 'Cancelled')
+            GROUP BY current_status
+            ORDER BY count DESC
+        """
+        by_status_rows = self.execute_query(by_status_sql, (), fetch_one=False)
+        stats['by_status'] = {row['current_status']: row['count'] for row in (by_status_rows or [])}
+
         return stats
 
     def search_proposals(self, query: str) -> List[Dict[str, Any]]:
