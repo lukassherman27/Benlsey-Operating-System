@@ -13,12 +13,13 @@ Endpoints:
     ... and more
 """
 
-from fastapi import APIRouter, HTTPException, Query, Depends
+from fastapi import APIRouter, HTTPException, Query, Depends, Request
 from typing import Optional
 from datetime import datetime
 import sqlite3
 import logging
 
+from api.rate_limit import limiter
 from api.services import proposal_service, proposal_tracker_service
 from api.dependencies import DB_PATH, get_current_user
 from services.proposal_detail_story_service import ProposalDetailStoryService
@@ -44,7 +45,8 @@ async def list_proposals(
     page: int = Query(1, ge=1),
     per_page: int = Query(20, ge=1, le=100),
     sort_by: str = Query("health_score", regex="^(proposal_id|project_code|project_title|status|health_score|days_since_contact|is_active_project|created_at|updated_at)$"),
-    sort_order: str = Query("ASC", regex="^(ASC|DESC)$")
+    sort_order: str = Query("ASC", regex="^(ASC|DESC)$"),
+    current_user: dict = Depends(get_current_user)
 ):
     """
     List all proposals with optional filtering and pagination.
@@ -73,8 +75,8 @@ async def list_proposals(
 
 
 @router.get("/proposals/stats")
-async def get_proposal_stats():
-    """Get proposal statistics. Returns standardized response format."""
+async def get_proposal_stats(current_user: dict = Depends(get_current_user)):
+    """Get proposal statistics. Returns standardized response format. Requires authentication."""
     try:
         stats = proposal_service.get_dashboard_stats()
         # Standardize response format (Issue #126)
@@ -87,7 +89,8 @@ async def get_proposal_stats():
 async def get_at_risk_proposals(
     limit: int = Query(10, ge=1, le=100),
     page: int = Query(1, ge=1),
-    per_page: int = Query(20, ge=1, le=100)
+    per_page: int = Query(20, ge=1, le=100),
+    current_user: dict = Depends(get_current_user)
 ):
     """Get proposals at risk (health_score < 50). Returns standardized response."""
     try:
@@ -146,7 +149,8 @@ async def get_needs_follow_up_proposals(
     min_days: int = Query(14, ge=1),
     limit: int = Query(10, ge=1, le=100),
     page: int = Query(1, ge=1),
-    per_page: int = Query(20, ge=1, le=100)
+    per_page: int = Query(20, ge=1, le=100),
+    current_user: dict = Depends(get_current_user)
 ):
     """Get proposals needing follow-up (no contact in X days). Returns standardized response."""
     try:
@@ -199,9 +203,10 @@ async def get_needs_follow_up_proposals(
 
 @router.get("/proposals/weekly-changes")
 async def get_weekly_changes(
-    days: int = Query(7, ge=1, le=90, description="Number of days to look back")
+    days: int = Query(7, ge=1, le=90, description="Number of days to look back"),
+    current_user: dict = Depends(get_current_user)
 ):
-    """Get proposal pipeline changes for Bill's weekly reports"""
+    """Get proposal pipeline changes for Bill's weekly reports. Requires authentication."""
     try:
         result = proposal_service.get_weekly_changes(days=days)
         return result
@@ -210,7 +215,7 @@ async def get_weekly_changes(
 
 
 @router.get("/proposals/needs-attention")
-async def get_proposals_needs_attention():
+async def get_proposals_needs_attention(current_user: dict = Depends(get_current_user)):
     """
     Get proposals needing follow-up, grouped by urgency tier.
 
@@ -396,8 +401,8 @@ async def create_proposal(
 # ============================================================================
 
 @router.get("/proposal-tracker/stats")
-async def get_tracker_stats():
-    """Get proposal tracker statistics"""
+async def get_tracker_stats(current_user: dict = Depends(get_current_user)):
+    """Get proposal tracker statistics. Requires authentication."""
     try:
         stats = proposal_tracker_service.get_stats()
         return {"success": True, "stats": stats}  # Frontend expects {success, stats}
@@ -407,6 +412,7 @@ async def get_tracker_stats():
 
 @router.get("/proposal-tracker/list")
 async def get_tracker_list(
+    current_user: dict = Depends(get_current_user),
     status: Optional[str] = None,
     discipline: Optional[str] = None,
     country: Optional[str] = None,
@@ -430,8 +436,8 @@ async def get_tracker_list(
 
 
 @router.get("/proposal-tracker/disciplines")
-async def get_tracker_disciplines():
-    """Get distinct disciplines for filter dropdown"""
+async def get_tracker_disciplines(current_user: dict = Depends(get_current_user)):
+    """Get distinct disciplines for filter dropdown. Requires authentication."""
     try:
         disciplines = proposal_tracker_service.get_discipline_stats()
         return {"success": True, "disciplines": disciplines}
@@ -440,8 +446,8 @@ async def get_tracker_disciplines():
 
 
 @router.get("/proposal-tracker/countries")
-async def get_tracker_countries():
-    """Get distinct countries for filter dropdown"""
+async def get_tracker_countries(current_user: dict = Depends(get_current_user)):
+    """Get distinct countries for filter dropdown. Requires authentication."""
     try:
         countries = proposal_tracker_service.get_countries_list()
         return {"success": True, "countries": countries}
@@ -450,8 +456,8 @@ async def get_tracker_countries():
 
 
 @router.get("/proposal-tracker/{project_code}")
-async def get_tracker_proposal(project_code: str):
-    """Get single proposal details for tracker. Returns standardized response."""
+async def get_tracker_proposal(project_code: str, current_user: dict = Depends(get_current_user)):
+    """Get single proposal details for tracker. Returns standardized response. Requires authentication."""
     try:
         proposal = proposal_tracker_service.get_proposal_by_code(project_code)
         if not proposal:
@@ -484,8 +490,8 @@ async def update_tracker_proposal(
 
 
 @router.get("/proposal-tracker/{project_code}/history")
-async def get_tracker_history(project_code: str):
-    """Get proposal status history. Returns standardized list response."""
+async def get_tracker_history(project_code: str, current_user: dict = Depends(get_current_user)):
+    """Get proposal status history. Returns standardized list response. Requires authentication."""
     try:
         history = proposal_tracker_service.get_status_history(project_code)
         response = list_response(history, len(history))
@@ -496,8 +502,8 @@ async def get_tracker_history(project_code: str):
 
 
 @router.get("/proposal-tracker/{project_code}/emails")
-async def get_tracker_emails(project_code: str):
-    """Get emails linked to proposal. Returns standardized list response."""
+async def get_tracker_emails(project_code: str, current_user: dict = Depends(get_current_user)):
+    """Get emails linked to proposal. Returns standardized list response. Requires authentication."""
     try:
         emails = proposal_tracker_service.get_email_intelligence(project_code)
         response = list_response(emails, len(emails))
@@ -512,9 +518,9 @@ async def get_tracker_emails(project_code: str):
 # ============================================================================
 
 @router.get("/proposals/{project_code}/versions")
-async def get_proposal_versions(project_code: str):
+async def get_proposal_versions(project_code: str, current_user: dict = Depends(get_current_user)):
     """
-    Get all versions of a proposal with documents and fee history.
+    Get all versions of a proposal with documents and fee history. Requires authentication.
 
     Returns:
         - project_code, project_name, client info
@@ -541,9 +547,9 @@ async def get_proposal_versions(project_code: str):
 
 
 @router.get("/proposals/{project_code}/fee-history")
-async def get_proposal_fee_history(project_code: str):
+async def get_proposal_fee_history(project_code: str, current_user: dict = Depends(get_current_user)):
     """
-    Get fee change timeline for a proposal.
+    Get fee change timeline for a proposal. Requires authentication.
 
     Returns list of fee changes with dates, from initial to current.
     """
@@ -566,7 +572,8 @@ async def get_proposal_fee_history(project_code: str):
 @router.get("/proposals/search/by-client")
 async def search_proposals_by_client(
     client: str = Query(..., min_length=2, description="Client name to search"),
-    include_versions: bool = Query(False, description="Include version counts")
+    include_versions: bool = Query(False, description="Include version counts"),
+    current_user: dict = Depends(get_current_user)
 ):
     """
     Search proposals by client name or company.
@@ -605,7 +612,8 @@ async def search_proposals_by_client(
 @router.get("/proposals/{project_code}/timeline")
 async def get_proposal_timeline(
     project_code: str,
-    limit: int = Query(50, ge=1, le=500, description="Number of items to return")
+    limit: int = Query(50, ge=1, le=500, description="Number of items to return"),
+    current_user: dict = Depends(get_current_user)
 ):
     """
     Get unified timeline for a proposal combining emails, meetings, and events.
@@ -731,9 +739,9 @@ async def get_proposal_timeline(
 
 
 @router.get("/proposals/{project_code}/conversation")
-async def get_proposal_conversation(project_code: str):
+async def get_proposal_conversation(project_code: str, current_user: dict = Depends(get_current_user)):
     """
-    Get conversation view for a proposal - emails formatted for iMessage-style display.
+    Get conversation view for a proposal - emails formatted for iMessage-style display. Requires authentication.
 
     Returns emails with sender_category (bill/brian/lukas/mink/client) and
     body content for conversation threading. Excludes internal emails.
@@ -808,9 +816,9 @@ async def get_proposal_conversation(project_code: str):
 
 
 @router.get("/proposals/{project_code}/stakeholders")
-async def get_proposal_stakeholders(project_code: str):
+async def get_proposal_stakeholders(project_code: str, current_user: dict = Depends(get_current_user)):
     """
-    Get stakeholders/contacts for a proposal.
+    Get stakeholders/contacts for a proposal. Requires authentication.
 
     Returns list of contacts with their role, company, email, etc.
     If proposal_stakeholders table is empty, derives contacts from emails.
@@ -907,8 +915,8 @@ async def get_proposal_stakeholders(project_code: str):
 
 
 @router.get("/proposals/{project_code}/documents")
-async def get_proposal_documents(project_code: str):
-    """Get documents/attachments for a proposal"""
+async def get_proposal_documents(project_code: str, current_user: dict = Depends(get_current_user)):
+    """Get documents/attachments for a proposal. Requires authentication."""
     try:
         conn = sqlite3.connect(DB_PATH)
         conn.row_factory = sqlite3.Row
@@ -964,8 +972,8 @@ async def get_proposal_documents(project_code: str):
 
 
 @router.get("/proposals/{project_code}/briefing")
-async def get_proposal_briefing(project_code: str):
-    """Get briefing data for a proposal including client info, financials, and milestones"""
+async def get_proposal_briefing(project_code: str, current_user: dict = Depends(get_current_user)):
+    """Get briefing data for a proposal including client info, financials, and milestones. Requires authentication."""
     try:
         conn = sqlite3.connect(DB_PATH)
         conn.row_factory = sqlite3.Row
@@ -1067,9 +1075,9 @@ async def get_proposal_briefing(project_code: str):
 
 
 @router.get("/proposals/{project_code}/story")
-async def get_proposal_story(project_code: str):
+async def get_proposal_story(project_code: str, current_user: dict = Depends(get_current_user)):
     """
-    Get the COMPLETE story/timeline of a proposal.
+    Get the COMPLETE story/timeline of a proposal. Requires authentication.
 
     Returns:
     - Full proposal metadata including remarks, correspondence_summary
@@ -1092,8 +1100,8 @@ async def get_proposal_story(project_code: str):
 
 
 @router.get("/proposals/summary")
-async def get_proposals_summary():
-    """Get proposals summary for dashboard - pipeline value, activity, meetings, etc."""
+async def get_proposals_summary(current_user: dict = Depends(get_current_user)):
+    """Get proposals summary for dashboard - pipeline value, activity, meetings, etc. Requires authentication."""
     try:
         conn = sqlite3.connect(DB_PATH)
         conn.row_factory = sqlite3.Row
