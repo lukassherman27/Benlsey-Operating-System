@@ -13,12 +13,13 @@ Endpoints:
     ... and more
 """
 
-from fastapi import APIRouter, HTTPException, Query, Depends
+from fastapi import APIRouter, HTTPException, Query, Depends, Request
 from typing import Optional
 from datetime import datetime
 import sqlite3
 import logging
 
+from api.rate_limit import limiter
 from api.services import proposal_service, proposal_tracker_service
 from api.dependencies import DB_PATH, get_current_user
 from services.proposal_detail_story_service import ProposalDetailStoryService
