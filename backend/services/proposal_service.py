@@ -581,7 +581,7 @@ class ProposalService(BaseService):
             SELECT
                 proposal_id,
                 project_code,
-                project_title,
+                project_name,
                 client_company,
                 project_value as fee,
                 status,
@@ -596,7 +596,7 @@ class ProposalService(BaseService):
         status_changes_sql = """
             SELECT
                 p.project_code,
-                p.project_title,
+                p.project_name,
                 COALESCE(pr.client_company, 'Unknown'),
                 c.old_value as previous_status,
                 c.new_value as new_status,
@@ -616,7 +616,7 @@ class ProposalService(BaseService):
             SELECT
                 proposal_id,
                 project_code,
-                project_title,
+                project_name,
                 client_company,
                 CAST(JULIANDAY('now') - JULIANDAY(COALESCE(last_contact_date, created_at)) AS INTEGER) as days_since_contact,
                 last_contact_date
@@ -633,7 +633,7 @@ class ProposalService(BaseService):
             SELECT DISTINCT
                 p.project_id,
                 p.project_code,
-                p.project_title,
+                p.project_name,
                 COALESCE(pr.client_company, 'Unknown'),
                 p.project_value as fee,
                 COALESCE(p.contract_signed_date, c.changed_at) as signed_date
