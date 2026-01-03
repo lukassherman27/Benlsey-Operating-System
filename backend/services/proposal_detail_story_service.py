@@ -14,10 +14,18 @@ Generates the complete story/timeline of a proposal including:
 """
 
 import json
+import os
 import re
 from datetime import datetime
 from typing import Dict, List, Any, Optional, Set
 from .base_service import BaseService
+
+
+def _redact_path(path: Optional[str]) -> Optional[str]:
+    """Redact file path to filename only for security (Issue #385)."""
+    if not path:
+        return None
+    return os.path.basename(path)
 
 import logging
 logger = logging.getLogger(__name__)
@@ -64,6 +72,18 @@ class ProposalDetailStoryService(BaseService):
             threads = self._group_into_threads(all_emails)
             current_status = self._calculate_current_status(proposal, all_emails)
 
+            # Security: Redact file paths from attachments/documents (#385)
+            def redact_doc_paths(docs: List[Dict]) -> List[Dict]:
+                """Redact filepath fields in document lists."""
+                redacted = []
+                for doc in docs:
+                    d = dict(doc)
+                    for path_field in ['filepath', 'file_path', 'local_path']:
+                        if path_field in d:
+                            d[path_field] = _redact_path(d.get(path_field))
+                    redacted.append(d)
+                return redacted
+
             return {
                 "success": True,
                 "project_code": project_code,
@@ -83,8 +103,8 @@ class ProposalDetailStoryService(BaseService):
                 "first_contact_date": proposal.get("first_contact_date"),
                 "proposal_sent_date": proposal.get("proposal_sent_date"),
                 "timeline": timeline,
-                "proposal_versions": formal_docs,
-                "proposal_attachments": proposal_docs,
+                "proposal_versions": redact_doc_paths(formal_docs),
+                "proposal_attachments": redact_doc_paths(proposal_docs),
                 "events": events,
                 "threads": threads,
                 "action_items": action_items,
@@ -267,7 +287,7 @@ class ProposalDetailStoryService(BaseService):
                 "title": f"Proposal Document: {doc['filename'][:60]}...",
                 "summary": f"Sent via: {doc.get('subject')}",
                 "attachment_id": doc["attachment_id"],
-                "filepath": doc.get("filepath")
+                "filepath": _redact_path(doc.get("filepath"))  # Security: redact full path (#385)
             })
 
         # Add formal documents

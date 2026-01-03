@@ -798,6 +798,9 @@ async def get_proposal_conversation(project_code: str, current_user: dict = Depe
             email_dict = dict(row)
             # Convert has_attachments to boolean
             email_dict['has_attachments'] = bool(email_dict.get('has_attachments'))
+            # Security: Remove full body from API response (Issue #385)
+            # Use body_preview instead for conversation display
+            email_dict.pop('body_full', None)
             emails.append(email_dict)
 
         conn.close()

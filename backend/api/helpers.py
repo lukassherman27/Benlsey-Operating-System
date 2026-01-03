@@ -18,6 +18,143 @@ Owner: Backend Builder Agent
 
 from typing import Any, Optional, List, Union
 from datetime import datetime
+import os
+
+
+# ============================================================================
+# SECURITY REDACTION UTILITIES (Issue #385)
+# ============================================================================
+
+def redact_path(path: Optional[str]) -> Optional[str]:
+    """
+    Redact file system paths to only show filename.
+
+    Strips full paths like /Users/lukassherman/... to just the filename.
+    Prevents exposing internal file system structure in API responses.
+
+    Args:
+        path: Full file path or None
+
+    Returns:
+        Just the filename, or None if path was None
+
+    Example:
+        redact_path("/Users/lukas/docs/proposal.pdf") -> "proposal.pdf"
+    """
+    if not path:
+        return None
+    return os.path.basename(path)
+
+
+def redact_email_body(body: Optional[str], max_length: int = 200) -> Optional[str]:
+    """
+    Redact email body to a safe preview length.
+
+    Truncates email body content to prevent exposing sensitive information
+    in API responses. Full email bodies may contain confidential details.
+
+    Args:
+        body: Full email body text or None
+        max_length: Maximum characters to return (default 200)
+
+    Returns:
+        Truncated preview with "..." if truncated, or None if body was None
+
+    Example:
+        redact_email_body("Very long email content...", 50) -> "Very long email content..."
+    """
+    if not body:
+        return None
+    if len(body) <= max_length:
+        return body
+    return body[:max_length].rstrip() + "..."
+
+
+def redact_dict_paths(data: dict, path_fields: List[str] = None) -> dict:
+    """
+    Redact path fields in a dictionary.
+
+    Args:
+        data: Dictionary containing data
+        path_fields: List of field names that contain paths to redact.
+                    Defaults to common path field names.
+
+    Returns:
+        Dictionary with paths redacted to filenames only
+    """
+    if path_fields is None:
+        path_fields = ['file_path', 'local_path', 'attachment_path', 'full_path']
+
+    result = data.copy()
+    for field in path_fields:
+        if field in result and result[field]:
+            result[field] = redact_path(result[field])
+    return result
+
+
+def redact_dict_body(data: dict, body_fields: List[str] = None, max_length: int = 200) -> dict:
+    """
+    Redact email body fields in a dictionary.
+
+    Args:
+        data: Dictionary containing data
+        body_fields: List of field names that contain email bodies to redact.
+                    Defaults to common body field names.
+        max_length: Maximum length for body previews
+
+    Returns:
+        Dictionary with body fields truncated
+    """
+    if body_fields is None:
+        body_fields = ['body_full', 'body', 'email_body', 'content']
+
+    result = data.copy()
+    for field in body_fields:
+        if field in result and result[field]:
+            result[field] = redact_email_body(result[field], max_length)
+    return result
+
+
+def redact_email_response(email: dict, body_max_length: int = 200) -> dict:
+    """
+    Apply all redaction rules to an email response dictionary.
+
+    Redacts:
+    - File paths (to filename only)
+    - Full email bodies (to preview)
+
+    Args:
+        email: Email dictionary from database
+        body_max_length: Maximum length for body fields
+
+    Returns:
+        Redacted email dictionary safe for API response
+    """
+    result = email.copy()
+
+    # Redact paths
+    result = redact_dict_paths(result)
+
+    # Redact bodies
+    result = redact_dict_body(result, max_length=body_max_length)
+
+    return result
+
+
+def redact_list_response(items: List[dict], redact_fn=None) -> List[dict]:
+    """
+    Apply redaction to a list of items.
+
+    Args:
+        items: List of dictionaries to redact
+        redact_fn: Optional custom redaction function. Defaults to redact_email_response.
+
+    Returns:
+        List of redacted items
+    """
+    if redact_fn is None:
+        redact_fn = redact_email_response
+    return [redact_fn(item) for item in items]
 
 
 def list_response(
