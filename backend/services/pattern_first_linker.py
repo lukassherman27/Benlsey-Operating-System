@@ -698,7 +698,7 @@ class PatternFirstLinker(BaseService):
                 AND NOT EXISTS (
                     SELECT 1 FROM email_project_links eprl WHERE eprl.email_id = e.email_id
                 )
-                AND date LIKE '2025-%'
+                AND date >= strftime('%Y-01-01', 'now')
                 ORDER BY date ASC
                 LIMIT ?
             """, (limit,))
