@@ -58,7 +58,7 @@ class ProposalDetailStoryService(BaseService):
 
             # 3. Build derived data
             timeline = self._build_timeline(
-                cursor, all_emails, proposal_docs, formal_docs, events, status_history
+                all_emails, proposal_docs, formal_docs, events, status_history
             )
             action_items = self._extract_action_items(proposal, all_emails)
             threads = self._group_into_threads(all_emails)
@@ -145,7 +145,8 @@ class ProposalDetailStoryService(BaseService):
         cursor.execute("""
             SELECT
                 ea.attachment_id, ea.email_id, ea.filename, ea.filepath,
-                ea.mime_type, ea.document_type, e.date as email_date, e.subject
+                ea.mime_type, ea.document_type, e.date as email_date, e.subject,
+                e.email_direction
             FROM email_attachments ea
             JOIN emails e ON ea.email_id = e.email_id
             WHERE ea.proposal_id = ?
@@ -228,7 +229,6 @@ class ProposalDetailStoryService(BaseService):
 
     def _build_timeline(
         self,
-        cursor,
         all_emails: List[Dict],
         proposal_docs: List[Dict],
         formal_docs: List[Dict],
@@ -257,13 +257,9 @@ class ProposalDetailStoryService(BaseService):
 
         # Add proposal version attachments (external-facing only)
         for doc in proposal_docs:
-            cursor.execute(
-                "SELECT email_direction FROM emails WHERE email_id = ?",
-                (doc["email_id"],)
-            )
-            email_row = cursor.fetchone()
-            if email_row and email_row["email_direction"] == "internal_to_internal":
-                continue  # Skip internal drafts
+            # Skip internal drafts - email_direction is included in the initial query
+            if doc.get("email_direction") == "internal_to_internal":
+                continue
 
             timeline.append({
                 "type": "proposal_version",

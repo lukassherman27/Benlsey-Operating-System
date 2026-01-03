@@ -145,43 +145,56 @@ class ProposalTrackerService(BaseService):
             stats['active_proposals_count'] = active_row['active_proposals_count']
             stats['active_proposals_value'] = active_row['active_proposals_value']
 
-            # Contracts signed in 2025
+            # Contracts signed this year (dynamic)
+            current_year = datetime.now().year
+            current_year_start = f"{current_year}-01-01"
+            last_year_start = f"{current_year - 1}-01-01"
+
             cursor.execute("""
                 SELECT
-                    COUNT(*) as signed_2025_count,
-                    COALESCE(SUM(project_value), 0) as signed_2025_value
+                    COUNT(*) as signed_current_year_count,
+                    COALESCE(SUM(project_value), 0) as signed_current_year_value
                 FROM proposals
                 WHERE status = 'Contract Signed'
-                AND contract_signed_date >= '2025-01-01'
-            """)
-            signed_2025_row = dict(cursor.fetchone())
-            stats['signed_2025_count'] = signed_2025_row['signed_2025_count']
-            stats['signed_2025_value'] = signed_2025_row['signed_2025_value']
+                AND contract_signed_date >= ?
+            """, (current_year_start,))
+            signed_current_row = dict(cursor.fetchone())
+            stats['signed_current_year_count'] = signed_current_row['signed_current_year_count']
+            stats['signed_current_year_value'] = signed_current_row['signed_current_year_value']
+            # Keep old keys for backwards compatibility
+            stats['signed_2025_count'] = stats['signed_current_year_count']
+            stats['signed_2025_value'] = stats['signed_current_year_value']
 
-            # Proposals sent in 2025 (from proposals table for full history)
+            # Proposals sent this year (from proposals table for full history)
             cursor.execute("""
                 SELECT
-                    COUNT(*) as sent_2025_count,
-                    COALESCE(SUM(project_value), 0) as sent_2025_value
+                    COUNT(*) as sent_current_year_count,
+                    COALESCE(SUM(project_value), 0) as sent_current_year_value
                 FROM proposals
-                WHERE proposal_sent_date >= '2025-01-01'
-            """)
-            sent_2025_row = dict(cursor.fetchone())
-            stats['sent_2025_count'] = sent_2025_row['sent_2025_count']
-            stats['sent_2025_value'] = sent_2025_row['sent_2025_value']
+                WHERE proposal_sent_date >= ?
+            """, (current_year_start,))
+            sent_current_row = dict(cursor.fetchone())
+            stats['sent_current_year_count'] = sent_current_row['sent_current_year_count']
+            stats['sent_current_year_value'] = sent_current_row['sent_current_year_value']
+            # Keep old keys for backwards compatibility
+            stats['sent_2025_count'] = stats['sent_current_year_count']
+            stats['sent_2025_value'] = stats['sent_current_year_value']
 
-            # Proposals sent in 2024
+            # Proposals sent last year
             cursor.execute("""
                 SELECT
-                    COUNT(*) as sent_2024_count,
-                    COALESCE(SUM(project_value), 0) as sent_2024_value
+                    COUNT(*) as sent_last_year_count,
+                    COALESCE(SUM(project_value), 0) as sent_last_year_value
                 FROM proposals
-                WHERE proposal_sent_date >= '2024-01-01'
-                AND proposal_sent_date < '2025-01-01'
-            """)
-            sent_2024_row = dict(cursor.fetchone())
-            stats['sent_2024_count'] = sent_2024_row['sent_2024_count']
-            stats['sent_2024_value'] = sent_2024_row['sent_2024_value']
+                WHERE proposal_sent_date >= ?
+                AND proposal_sent_date < ?
+            """, (last_year_start, current_year_start))
+            sent_last_row = dict(cursor.fetchone())
+            stats['sent_last_year_count'] = sent_last_row['sent_last_year_count']
+            stats['sent_last_year_value'] = sent_last_row['sent_last_year_value']
+            # Keep old keys for backwards compatibility
+            stats['sent_2024_count'] = stats['sent_last_year_count']
+            stats['sent_2024_value'] = stats['sent_last_year_value']
 
             # Won (Contract Signed) - all time
             cursor.execute("""
