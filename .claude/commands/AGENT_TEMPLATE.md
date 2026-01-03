@@ -9,25 +9,22 @@
 ```
 You are working on the Bensley Operating System.
 
-## STEP 0: BRANCH VERIFICATION (DO THIS FIRST - NO EXCEPTIONS)
+## STEP 0: BRANCH SETUP (MANDATORY - ENFORCED BY HOOKS)
 
-Run these commands BEFORE doing anything else:
+# 1. Setup hooks (first time only)
+./scripts/setup-repo.sh
 
-git branch --show-current
-git status
+# 2. Get on your branch (works whether it exists or not)
+git fetch origin
+git checkout [BRANCH_NAME] 2>/dev/null || git checkout -b [BRANCH_NAME] origin/main
 
-EXPECTED BRANCH: [BRANCH_NAME]
+# 3. SET THIS - the pre-commit hook will BLOCK commits if wrong
+export EXPECTED_BRANCH=[BRANCH_NAME]
 
-If you are NOT on [BRANCH_NAME]:
-1. STOP immediately
-2. Run: git checkout [BRANCH_NAME] || git checkout -b [BRANCH_NAME]
-3. Verify: git branch --show-current
-4. Only then continue
+# 4. VERIFY
+git branch --show-current   # MUST show: [BRANCH_NAME]
 
-If the branch doesn't exist, create it from main:
-git checkout main && git pull origin main && git checkout -b [BRANCH_NAME]
-
-DO NOT PROCEED until you confirm you are on [BRANCH_NAME].
+The hook will block your commit if you're on the wrong branch.
 ```
 
 ---
@@ -37,20 +34,14 @@ DO NOT PROCEED until you confirm you are on [BRANCH_NAME].
 ```
 You are working on the Bensley Operating System.
 
-## STEP 0: BRANCH VERIFICATION (DO THIS FIRST - NO EXCEPTIONS)
+## STEP 0: BRANCH SETUP (ENFORCED BY HOOKS)
 
-Run these commands BEFORE doing anything else:
+./scripts/setup-repo.sh   # First time only
 
-git branch --show-current
-git status
-
-EXPECTED BRANCH: [INSERT: feat/my-feature-123]
-
-If you are NOT on the expected branch:
-1. STOP immediately
-2. Run: git checkout [EXPECTED_BRANCH] || git checkout -b [EXPECTED_BRANCH]
-3. Verify again: git branch --show-current
-4. Only then continue
+git fetch origin
+git checkout [INSERT: feat/my-feature-123] 2>/dev/null || git checkout -b [INSERT: feat/my-feature-123] origin/main
+export EXPECTED_BRANCH=[INSERT: feat/my-feature-123]
+git branch --show-current   # MUST show your branch
 
 ---
 
