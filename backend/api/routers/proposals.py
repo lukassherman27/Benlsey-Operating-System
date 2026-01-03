@@ -27,11 +27,7 @@ logger = logging.getLogger(__name__)
 
 # Initialize story service
 story_service = ProposalDetailStoryService(DB_PATH)
-from api.models import (
-    CreateProposalRequest,
-    UpdateProposalRequest,
-    ProposalStatusUpdateRequest,
-)
+from api.models import CreateProposalRequest
 from api.helpers import list_response, item_response, action_response
 
 router = APIRouter(prefix="/api", tags=["proposals"])
