@@ -4,6 +4,32 @@
 
 ---
 
+## RULE #1: VERIFY YOUR BRANCH (BEFORE ANYTHING ELSE)
+
+```bash
+# RUN THIS FIRST - EVERY SESSION - NO EXCEPTIONS
+git branch --show-current
+git status
+```
+
+**If you're on the wrong branch, STOP and fix it:**
+```bash
+git checkout <correct-branch>
+# OR create it:
+git checkout main && git pull && git checkout -b <correct-branch>
+```
+
+**BEFORE EVERY COMMIT:**
+```bash
+git branch --show-current  # VERIFY THIS MATCHES YOUR ISSUE
+git add -A && git commit -m "type(scope): description #ISSUE"
+```
+
+> **WHY THIS RULE EXISTS:** Agents keep committing to wrong branches, wasting hours of work.
+> A pre-commit hook blocks commits to main, but YOU must verify you're on the RIGHT feature branch.
+
+---
+
 ## Agent Workflow (MANDATORY)
 
 Every task follows this sequence:
