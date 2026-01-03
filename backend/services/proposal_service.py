@@ -220,7 +220,7 @@ class ProposalService(BaseService):
 
         # Validate sort parameters to prevent SQL injection
         allowed_columns = [
-            'proposal_id', 'project_code', 'project_title', 'status',
+            'proposal_id', 'project_code', 'project_name', 'status',
             'health_score', 'days_since_contact', 'is_active_project',
             'created_at', 'updated_at'
         ]
@@ -276,13 +276,12 @@ class ProposalService(BaseService):
             SELECT
                 proposal_id,
                 project_code,
-                project_title,
+                project_name,
                 health_score,
                 days_since_contact,
                 status
             FROM proposals
             WHERE health_score < ?
-            AND is_active_project = 1
         """
         params: List[Any] = [threshold]
         statuses = self._resolve_statuses(None, self.DEFAULT_ACTIVE_STATUSES)
@@ -519,12 +518,12 @@ class ProposalService(BaseService):
             SELECT
                 proposal_id,
                 project_code,
-                project_title,
+                project_name,
                 status,
                 health_score,
                 is_active_project
             FROM proposals
-            WHERE (project_code LIKE ? OR project_title LIKE ?)
+            WHERE (project_code LIKE ? OR project_name LIKE ?)
         """
         search_term = f"%{query}%"
         params: List[Any] = [search_term, search_term]
