@@ -87,6 +87,89 @@ async def get_proposal_stats():
         raise HTTPException(status_code=500, detail="An internal error occurred")
 
 
+@router.get("/proposals/data-quality")
+async def get_data_quality():
+    """
+    Get data quality metrics for proposals.
+
+    Issue #365: Returns counts of proposals with missing data to help
+    identify records needing attention.
+    """
+    try:
+        with proposal_service.get_connection() as conn:
+            cursor = conn.cursor()
+
+            # Total proposals
+            cursor.execute("SELECT COUNT(*) FROM proposals")
+            total = cursor.fetchone()[0]
+
+            # Missing fee data
+            cursor.execute("""
+                SELECT COUNT(*) FROM proposals
+                WHERE total_fee_usd IS NULL OR total_fee_usd = 0
+            """)
+            missing_fee = cursor.fetchone()[0]
+
+            # Missing email links (email_proposal_links.proposal_id refs proposal_tracker.id)
+            cursor.execute("""
+                SELECT COUNT(*) FROM proposal_tracker pt
+                WHERE pt.id NOT IN (
+                    SELECT DISTINCT proposal_id FROM email_proposal_links
+                )
+            """)
+            missing_emails = cursor.fetchone()[0]
+
+            # Get total tracker entries for percentage
+            cursor.execute("SELECT COUNT(*) FROM proposal_tracker")
+            total_tracker = cursor.fetchone()[0]
+
+            # Tracker entries older than 7 days with no emails (needs attention)
+            cursor.execute("""
+                SELECT COUNT(*) FROM proposal_tracker pt
+                WHERE pt.id NOT IN (
+                    SELECT DISTINCT proposal_id FROM email_proposal_links
+                )
+                AND julianday('now') - julianday(pt.created_at) > 7
+            """)
+            stale_unlinked = cursor.fetchone()[0]
+
+            # Missing status
+            cursor.execute("""
+                SELECT COUNT(*) FROM proposals
+                WHERE status IS NULL OR status = ''
+            """)
+            missing_status = cursor.fetchone()[0]
+
+            return {
+                "success": True,
+                "total_proposals": total,
+                "total_tracker_entries": total_tracker,
+                "quality_issues": {
+                    "missing_fee": {
+                        "count": missing_fee,
+                        "percent": round(missing_fee * 100 / total, 1) if total > 0 else 0
+                    },
+                    "missing_emails": {
+                        "count": missing_emails,
+                        "percent": round(missing_emails * 100 / total_tracker, 1) if total_tracker > 0 else 0,
+                        "description": "Tracker entries without linked emails"
+                    },
+                    "stale_unlinked": {
+                        "count": stale_unlinked,
+                        "description": "Tracker entries >7 days old with no linked emails"
+                    },
+                    "missing_status": {
+                        "count": missing_status
+                    }
+                },
+                "health_score": round((total - missing_fee) * 100 / total + (total_tracker - missing_emails) * 100 / total_tracker, 1) / 2 if total > 0 and total_tracker > 0 else 0
+            }
+
+    except Exception as e:
+        logger.exception("Error getting data quality metrics")
+        raise HTTPException(status_code=500, detail="An internal error occurred")
+
+
 @router.get("/proposals/at-risk")
 async def get_at_risk_proposals(
     limit: int = Query(10, ge=1, le=100),
@@ -329,6 +412,13 @@ async def create_proposal(
 ):
     """Create a new proposal. Returns standardized action response. Requires authentication."""
     try:
+        # Issue #365: Data quality warning for missing fee
+        if not request.estimated_fee_usd or request.estimated_fee_usd == 0:
+            logger.warning(
+                f"DATA_QUALITY: Creating proposal {request.project_code} without estimated_fee_usd. "
+                f"Title: {request.project_title}, Client: {request.client_name}"
+            )
+
         with proposal_service.get_connection() as conn:
             cursor = conn.cursor()
 
@@ -477,6 +567,12 @@ async def update_tracker_proposal(
 ):
     """Update proposal in tracker. Returns standardized action response. Requires authentication."""
     try:
+        # Issue #365: Data quality warning if clearing project_value
+        if 'project_value' in updates and (not updates['project_value'] or updates['project_value'] == 0):
+            logger.warning(
+                f"DATA_QUALITY: Updating proposal {project_code} with empty project_value"
+            )
+
         result = proposal_tracker_service.update_proposal(project_code, updates)
         if not result:
             raise HTTPException(status_code=404, detail=f"Proposal {project_code} not found")
