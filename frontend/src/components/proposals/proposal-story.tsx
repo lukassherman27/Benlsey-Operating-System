@@ -25,6 +25,7 @@ import {
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
+import Link from "next/link";
 
 // Types
 interface StoryData {
@@ -186,6 +187,31 @@ export function ProposalStory({ projectCode }: ProposalStoryProps) {
   }
 
   const { correspondence_summary, internal_notes, timeline, action_items, current_status, remarks } = data;
+
+  const hasStory =
+    Boolean(correspondence_summary || internal_notes || remarks) ||
+    (timeline?.length || 0) > 0 ||
+    (action_items?.length || 0) > 0;
+
+  if (!hasStory) {
+    return (
+      <Card className="border-slate-200">
+        <CardContent className="py-10 text-center space-y-3">
+          <AlertCircle className="mx-auto h-10 w-10 text-slate-400" />
+          <p className="text-lg font-semibold text-slate-800">No story data yet</p>
+          <p className="text-sm text-slate-500 max-w-md mx-auto">
+            Link emails and run extraction to build the proposal timeline, key milestones,
+            and action items.
+          </p>
+          <div className="flex justify-center gap-2 pt-2">
+            <Button asChild variant="outline">
+              <Link href="/emails/review">Review Email Links</Link>
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
 
   // Filter timeline - skip garbage first contact summaries
   const cleanTimeline = timeline.filter(event => {

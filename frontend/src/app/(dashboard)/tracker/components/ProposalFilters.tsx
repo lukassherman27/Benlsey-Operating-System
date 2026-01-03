@@ -46,6 +46,7 @@ interface ProposalFiltersProps {
   onStatusFilterChange: (value: ProposalStatus | "all") => void;
   ownerFilter: string;
   onOwnerFilterChange: (value: string) => void;
+  ownerStats?: Record<string, number> | null;
   disciplineFilter: DisciplineFilter;
   onDisciplineFilterChange: (value: DisciplineFilter) => void;
   disciplineData: DisciplineData | undefined;
@@ -64,6 +65,7 @@ export function ProposalFilters({
   onStatusFilterChange,
   ownerFilter,
   onOwnerFilterChange,
+  ownerStats,
   disciplineFilter,
   onDisciplineFilterChange,
   disciplineData,
@@ -75,6 +77,8 @@ export function ProposalFilters({
   onClearFilters,
 }: ProposalFiltersProps) {
   const hasActiveFilters = search || statusFilter !== "all" || ownerFilter !== "all" || disciplineFilter !== "all" || activeMetric;
+  const ownerKeys = ownerStats ? Object.keys(ownerStats) : [];
+  const hasOwnerData = ownerKeys.length > 0;
 
   return (
     <Card className={cn(ds.borderRadius.card, "border-slate-200/70")}>
@@ -108,16 +112,18 @@ export function ProposalFilters({
           </Select>
 
           {/* Owner Filter */}
-          <Select value={ownerFilter} onValueChange={onOwnerFilterChange}>
+          <Select value={ownerFilter} onValueChange={onOwnerFilterChange} disabled={!hasOwnerData}>
             <SelectTrigger className="w-[100px] h-8 text-sm">
               <SelectValue placeholder="Owner" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All</SelectItem>
-              <SelectItem value="bill">Bill</SelectItem>
-              <SelectItem value="brian">Brian</SelectItem>
-              <SelectItem value="lukas">Lukas</SelectItem>
-              <SelectItem value="mink">Mink</SelectItem>
+              <SelectItem value="all">
+                {hasOwnerData ? "All" : "Owners not set"}
+              </SelectItem>
+              <SelectItem value="bill">Bill ({ownerStats?.bill || 0})</SelectItem>
+              <SelectItem value="brian">Brian ({ownerStats?.brian || 0})</SelectItem>
+              <SelectItem value="lukas">Lukas ({ownerStats?.lukas || 0})</SelectItem>
+              <SelectItem value="mink">Mink ({ownerStats?.mink || 0})</SelectItem>
             </SelectContent>
           </Select>
 

@@ -6,6 +6,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { MarkLostDialog } from "@/components/proposals/quick-action-dialogs";
 import { QuickReviewModal } from "./QuickReviewModal";
+import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -126,6 +127,19 @@ export function ProposalTable({
   // Quick Review modal state
   const [quickReviewOpen, setQuickReviewOpen] = useState(false);
   const [quickReviewProposal, setQuickReviewProposal] = useState<ProposalTrackerItem | null>(null);
+
+  const ballValues = new Set(
+    proposals
+      .map((p) => p.ball_in_court)
+      .filter((value): value is string => !!value)
+  );
+  const showBall = ballValues.size > 1;
+
+  const getProjectName = (proposal: ProposalTrackerItem) =>
+    proposal.project_name || proposal.project_code || "Untitled";
+
+  const formatValue = (value?: number | null) =>
+    value ? formatCurrency(value) : "Not set";
 
   // Quick status update mutation
   const updateStatusMutation = useMutation({
@@ -277,8 +291,181 @@ export function ProposalTable({
   return (
     <Card className={cn(ds.borderRadius.card, "border-slate-200/70")}>
       <CardContent className={ds.spacing.spacious}>
-        <div className={cn("rounded-md border border-slate-200 overflow-x-auto", ds.borderRadius.card)}>
-          <Table className="min-w-[900px]">
+        <div className="space-y-4">
+          {/* Mobile Cards */}
+          <div className="space-y-3 lg:hidden">
+            {proposals.map((proposal) => {
+              const projectName = getProjectName(proposal);
+              const today = new Date();
+              today.setHours(0, 0, 0, 0);
+              const isOverdue =
+                proposal.action_due &&
+                new Date(proposal.action_due) < today &&
+                !["Contract Signed", "Lost", "Declined", "Dormant"].includes(proposal.current_status);
+              const isOurMove =
+                showBall &&
+                proposal.ball_in_court === "us" &&
+                !["Contract Signed", "Lost", "Declined", "Dormant"].includes(proposal.current_status);
+
+              return (
+                <Card
+                  key={proposal.id}
+                  className={cn(
+                    "border-slate-200 cursor-pointer",
+                    ds.hover.subtle,
+                    isOverdue && "bg-red-50/50",
+                    !isOverdue && isOurMove && "bg-amber-50/30"
+                  )}
+                  onClick={() => router.push(`/proposals/${encodeURIComponent(proposal.project_code)}`)}
+                >
+                  <CardContent className="p-4 space-y-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="text-xs font-mono text-slate-500">{proposal.project_code}</p>
+                        <p className="text-base font-semibold text-slate-900 truncate">{projectName}</p>
+                      </div>
+                      <Badge
+                        className={cn(
+                          "text-xs",
+                          proposalStatusColors[proposal.current_status]?.bg || "bg-slate-50",
+                          proposalStatusColors[proposal.current_status]?.text || "text-slate-600"
+                        )}
+                      >
+                        {proposal.current_status}
+                      </Badge>
+                    </div>
+
+                    <div className="flex flex-wrap gap-2 text-xs text-slate-500">
+                      <span>Value: {formatValue(proposal.project_value)}</span>
+                      <span>Days: {proposal.days_in_current_status ?? "—"}</span>
+                      {showBall && (
+                        <span>Ball: {proposal.ball_in_court || "—"}</span>
+                      )}
+                    </div>
+
+                    {proposal.action_needed && (
+                      <p className="text-sm text-slate-600">
+                        Next: {proposal.action_needed}
+                      </p>
+                    )}
+
+                    <div className="flex items-center justify-between pt-2 border-t border-slate-100">
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setQuickReviewProposal(proposal);
+                            setQuickReviewOpen(true);
+                          }}
+                          className="h-7 w-7 p-0 text-amber-600 hover:text-amber-700 hover:bg-amber-50"
+                          title="Quick Review"
+                        >
+                          <Zap className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onEditProposal(proposal);
+                          }}
+                          className="h-7 w-7 p-0"
+                          title="Edit"
+                        >
+                          <Pencil className="h-3.5 w-3.5" />
+                        </Button>
+                        {(proposal.ball_in_court === "us" || (proposal.days_in_current_status || 0) > 7) && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onDraftEmail(proposal.id, projectName);
+                            }}
+                            disabled={isDraftingEmail}
+                            className="h-7 w-7 p-0 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                            title="Draft email"
+                          >
+                            {isDraftingEmail ? (
+                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                            ) : (
+                              <Mail className="h-3.5 w-3.5" />
+                            )}
+                          </Button>
+                        )}
+                      </div>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={(e) => e.stopPropagation()}>
+                            <MoreHorizontal className="h-3.5 w-3.5" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-40">
+                          <DropdownMenuItem
+                            onClick={() =>
+                              flipBallMutation.mutate({
+                                projectCode: proposal.project_code,
+                                currentBall: proposal.ball_in_court || "them",
+                              })
+                            }
+                          >
+                            <ArrowLeftRight className="h-4 w-4 mr-2" />
+                            Flip Ball
+                          </DropdownMenuItem>
+                          {proposal.ball_in_court === "us" && (
+                            <DropdownMenuItem
+                              onClick={() =>
+                                markFollowedUpMutation.mutate({
+                                  projectCode: proposal.project_code,
+                                })
+                              }
+                            >
+                              <CheckCheck className="h-4 w-4 mr-2" />
+                              Mark Followed Up
+                            </DropdownMenuItem>
+                          )}
+                          {!["Contract Signed", "Lost", "Declined", "Dormant"].includes(
+                            proposal.current_status
+                          ) && (
+                            <>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem
+                                onClick={() => onMarkWon(proposal)}
+                                className="text-emerald-600"
+                              >
+                                <Trophy className="h-4 w-4 mr-2" />
+                                Mark Won
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={() => onMarkLost(proposal)}
+                                className="text-red-600"
+                              >
+                                <Ban className="h-4 w-4 mr-2" />
+                                Mark Lost
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={() => onCreateFollowUp(proposal)}
+                                className="text-blue-600"
+                              >
+                                <CalendarPlus className="h-4 w-4 mr-2" />
+                                Follow Up
+                              </DropdownMenuItem>
+                            </>
+                          )}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+
+          {/* Desktop Table */}
+          <div className={cn("rounded-md border border-slate-200 overflow-x-auto hidden lg:block", ds.borderRadius.card)}>
+            <Table className="min-w-[900px]">
             <TableHeader>
               <TableRow>
                 <TableHead className={cn("w-[90px]", ds.typography.captionBold)}>
@@ -309,9 +496,11 @@ export function ProposalTable({
                     Status {getSortIcon("status")}
                   </span>
                 </TableHead>
-                <TableHead className={cn("text-center w-[45px]", ds.typography.captionBold)}>
-                  Ball
-                </TableHead>
+                {showBall && (
+                  <TableHead className={cn("text-center w-[45px]", ds.typography.captionBold)}>
+                    Ball
+                  </TableHead>
+                )}
                 <TableHead
                   className={cn("text-center w-[40px]", ds.typography.captionBold)}
                   title="Owner"
@@ -367,6 +556,7 @@ export function ProposalTable({
             </TableHeader>
             <TableBody>
               {proposals.map((proposal) => {
+                const projectName = getProjectName(proposal);
                 const activityColor = getActivityColor(proposal.days_in_current_status);
                 const today = new Date();
                 today.setHours(0, 0, 0, 0);
@@ -401,12 +591,12 @@ export function ProposalTable({
                       {proposal.project_code}
                     </TableCell>
                     <TableCell className={cn("max-w-[200px]", ds.typography.body, ds.textColors.primary)}>
-                      <span className="block truncate text-sm" title={proposal.project_name}>
-                        {proposal.project_name}
+                      <span className="block truncate text-sm" title={projectName}>
+                        {projectName}
                       </span>
                     </TableCell>
                     <TableCell className={cn("text-right whitespace-nowrap text-sm", ds.textColors.primary)}>
-                      {formatCurrency(proposal.project_value)}
+                      {formatValue(proposal.project_value)}
                     </TableCell>
                     <TableCell onClick={(e) => e.stopPropagation()}>
                       <Select
@@ -451,50 +641,52 @@ export function ProposalTable({
                         </SelectContent>
                       </Select>
                     </TableCell>
-                    <TableCell className="text-center" onClick={(e) => e.stopPropagation()}>
-                      {proposal.ball_in_court === "us" ? (
-                        <button
-                          type="button"
-                          onClick={() => flipBallMutation.mutate({
-                            projectCode: proposal.project_code,
-                            currentBall: "us",
-                          })}
-                          disabled={flipBallMutation.isPending}
-                          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700 hover:bg-red-200 transition-colors cursor-pointer"
-                          title="Click to flip ball to client"
-                        >
-                          Us
-                        </button>
-                      ) : proposal.ball_in_court === "them" ? (
-                        <button
-                          type="button"
-                          onClick={() => flipBallMutation.mutate({
-                            projectCode: proposal.project_code,
-                            currentBall: "them",
-                          })}
-                          disabled={flipBallMutation.isPending}
-                          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700 hover:bg-green-200 transition-colors cursor-pointer"
-                          title="Click to flip ball to us"
-                        >
-                          Them
-                        </button>
-                      ) : proposal.ball_in_court === "mutual" ? (
-                        <button
-                          type="button"
-                          onClick={() => flipBallMutation.mutate({
-                            projectCode: proposal.project_code,
-                            currentBall: "mutual",
-                          })}
-                          disabled={flipBallMutation.isPending}
-                          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-700 hover:bg-amber-200 transition-colors cursor-pointer"
-                          title="Click to flip ball"
-                        >
-                          Both
-                        </button>
-                      ) : (
-                        <span className="text-slate-400">—</span>
-                      )}
-                    </TableCell>
+                    {showBall && (
+                      <TableCell className="text-center" onClick={(e) => e.stopPropagation()}>
+                        {proposal.ball_in_court === "us" ? (
+                          <button
+                            type="button"
+                            onClick={() => flipBallMutation.mutate({
+                              projectCode: proposal.project_code,
+                              currentBall: "us",
+                            })}
+                            disabled={flipBallMutation.isPending}
+                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700 hover:bg-red-200 transition-colors cursor-pointer"
+                            title="Click to flip ball to client"
+                          >
+                            Us
+                          </button>
+                        ) : proposal.ball_in_court === "them" ? (
+                          <button
+                            type="button"
+                            onClick={() => flipBallMutation.mutate({
+                              projectCode: proposal.project_code,
+                              currentBall: "them",
+                            })}
+                            disabled={flipBallMutation.isPending}
+                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700 hover:bg-green-200 transition-colors cursor-pointer"
+                            title="Click to flip ball to us"
+                          >
+                            Them
+                          </button>
+                        ) : proposal.ball_in_court === "mutual" ? (
+                          <button
+                            type="button"
+                            onClick={() => flipBallMutation.mutate({
+                              projectCode: proposal.project_code,
+                              currentBall: "mutual",
+                            })}
+                            disabled={flipBallMutation.isPending}
+                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-700 hover:bg-amber-200 transition-colors cursor-pointer"
+                            title="Click to flip ball"
+                          >
+                            Both
+                          </button>
+                        ) : (
+                          <span className="text-slate-400">—</span>
+                        )}
+                      </TableCell>
+                    )}
                     <TableCell className="text-center">
                       {proposal.action_owner ? (
                         <div
@@ -674,7 +866,7 @@ export function ProposalTable({
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => onDraftEmail(proposal.id, proposal.project_name)}
+                            onClick={() => onDraftEmail(proposal.id, projectName)}
                             disabled={isDraftingEmail}
                             className="h-7 w-7 p-0 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
                             title="Draft email"
@@ -755,6 +947,7 @@ export function ProposalTable({
               })}
             </TableBody>
           </Table>
+        </div>
         </div>
 
         {/* Pagination */}
