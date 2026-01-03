@@ -31,14 +31,15 @@ import {
 } from "lucide-react";
 
 interface ConversationEmail {
-  email_id: number;
+  email_id: number | string;
   date: string;
   subject: string;
   sender_email: string;
   sender_category: "bill" | "brian" | "lukas" | "mink" | "bensley_other" | "client";
   body_preview?: string;
+  body_full?: string | null;
   has_attachments?: boolean;
-  email_direction?: string;
+  email_direction?: string | null;
 }
 
 interface ConversationViewProps {
@@ -440,7 +441,7 @@ export function ConversationView({ projectCode }: ConversationViewProps) {
   }, [filteredEmails, currentPage]);
 
   // Reset to page 1 when filters change
-  const handleFilterChange = (setter: (value: string) => void, value: string) => {
+  const handleFilterChange = <T extends string>(setter: React.Dispatch<React.SetStateAction<T>>, value: T) => {
     setter(value);
     setCurrentPage(1);
   };
@@ -553,7 +554,7 @@ export function ConversationView({ projectCode }: ConversationViewProps) {
           </div>
           <Select
             value={senderFilter}
-            onValueChange={(v) => handleFilterChange(setSenderFilter, v)}
+            onValueChange={(v) => handleFilterChange(setSenderFilter, v as "all" | "bensley" | "client")}
           >
             <SelectTrigger className="w-[140px]">
               <SelectValue placeholder="Sender" />
@@ -566,7 +567,7 @@ export function ConversationView({ projectCode }: ConversationViewProps) {
           </Select>
           <Select
             value={dateFilter}
-            onValueChange={(v) => handleFilterChange(setDateFilter, v)}
+            onValueChange={(v) => handleFilterChange(setDateFilter, v as "all" | "7days" | "30days" | "90days")}
           >
             <SelectTrigger className="w-[130px]">
               <SelectValue placeholder="Date" />
@@ -616,15 +617,18 @@ export function ConversationView({ projectCode }: ConversationViewProps) {
 
                 {/* Messages for this date */}
                 <div className="space-y-3">
-                  {group.emails.map((email) => (
-                    <MessageBubble
-                      key={email.email_id}
-                      email={email}
-                      isExpanded={expandedEmails.has(email.email_id)}
-                      onToggle={() => toggleEmail(email.email_id)}
-                      searchTerm={searchTerm}
-                    />
-                  ))}
+                  {group.emails.map((email) => {
+                    const emailId = typeof email.email_id === 'string' ? parseInt(email.email_id, 10) : email.email_id;
+                    return (
+                      <MessageBubble
+                        key={email.email_id}
+                        email={email}
+                        isExpanded={expandedEmails.has(emailId)}
+                        onToggle={() => toggleEmail(emailId)}
+                        searchTerm={searchTerm}
+                      />
+                    );
+                  })}
                 </div>
               </div>
             ))}

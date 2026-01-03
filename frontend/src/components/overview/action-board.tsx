@@ -149,9 +149,9 @@ export function ActionBoard({ proposals, isLoading }: ActionBoardProps) {
                 <p className="text-sm text-slate-400">All clear!</p>
               </div>
             ) : (
-              items.map((proposal) => (
+              items.map((proposal, index) => (
                 <ActionCard
-                  key={proposal.id}
+                  key={proposal.id ?? proposal.project_code ?? index}
                   proposal={proposal}
                   onClick={() => handleClick(proposal.project_code)}
                 />

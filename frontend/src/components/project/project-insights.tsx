@@ -390,9 +390,9 @@ export function ProjectInsights({ projectCode, projectDetail, invoices }: Projec
                     {(member.full_name as string)?.charAt(0) || "?"}
                   </div>
                   <span className="text-slate-700">{member.full_name as string}</span>
-                  {member.phase && (
+                  {member.phase != null && (
                     <Badge variant="outline" className="text-xs">
-                      {member.phase as string}
+                      {member.phase as React.ReactNode}
                     </Badge>
                   )}
                 </div>

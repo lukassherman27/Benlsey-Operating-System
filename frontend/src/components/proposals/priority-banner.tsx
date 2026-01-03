@@ -108,9 +108,9 @@ export function PriorityBanner({ proposals, onFilterFollowup, onFilterMyMove }: 
                 <p className="text-sm text-slate-500">All caught up!</p>
               ) : (
                 <div className="space-y-2">
-                  {overdueItems.slice(0, 3).map((item) => (
+                  {overdueItems.slice(0, 3).map((item, index) => (
                     <div
-                      key={item.id}
+                      key={item.id ?? item.project_code ?? index}
                       className="flex items-center justify-between text-sm cursor-pointer hover:bg-slate-50 rounded p-1 -m-1"
                       onClick={() => router.push(`/proposals/${encodeURIComponent(item.project_code)}`)}
                     >
@@ -169,9 +169,9 @@ export function PriorityBanner({ proposals, onFilterFollowup, onFilterMyMove }: 
                 </p>
               ) : (
                 <div className="space-y-2">
-                  {myMoveItems.slice(0, 3).map((item) => (
+                  {myMoveItems.slice(0, 3).map((item, index) => (
                     <div
-                      key={item.id}
+                      key={item.id ?? item.project_code ?? index}
                       className="flex items-center justify-between text-sm cursor-pointer hover:bg-slate-50 rounded p-1 -m-1"
                       onClick={() => router.push(`/proposals/${encodeURIComponent(item.project_code)}`)}
                     >

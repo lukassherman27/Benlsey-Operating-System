@@ -9,6 +9,37 @@ import { Users, Calendar, Briefcase } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ds } from "@/lib/design-system";
 
+interface StaffSummary {
+  name: string;
+  hours: number;
+  phases: string[];
+  role?: string;
+  department?: string;
+  days_worked?: number;
+}
+
+interface ScheduleResponse {
+  success: boolean;
+  project_code: string;
+  days: number;
+  entries: Array<{
+    entry_id: number;
+    schedule_date: string;
+    staff_name: string | null;
+    discipline: string | null;
+    phase: string | null;
+    activity_type: string | null;
+    hours_worked: number | null;
+  }>;
+  summary: {
+    total_hours: number;
+    unique_staff: number;
+  };
+  staff_summary?: StaffSummary[];
+  unique_staff?: number;
+  total_entries?: number;
+}
+
 interface ScheduleCardProps {
   projectCode: string;
   days?: number;
@@ -18,12 +49,12 @@ interface ScheduleCardProps {
 export function ScheduleCard({ projectCode, days = 90, className }: ScheduleCardProps) {
   const scheduleQuery = useQuery({
     queryKey: ["project-schedule", projectCode, days],
-    queryFn: () => api.getProjectSchedule(projectCode, days),
+    queryFn: () => api.getProjectSchedule(projectCode, days) as unknown as Promise<ScheduleResponse>,
     staleTime: 1000 * 60 * 5,
   });
 
   const schedule = scheduleQuery.data;
-  const staffSummary = schedule?.staff_summary ?? [];
+  const staffSummary: StaffSummary[] = schedule?.staff_summary ?? [];
 
   if (scheduleQuery.isLoading) {
     return (

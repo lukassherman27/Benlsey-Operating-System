@@ -71,7 +71,7 @@ export function ProjectInvoicesCard({ projectCode, limit = 5, onViewAll }: Proje
     staleTime: 1000 * 60 * 5,
   });
 
-  const allInvoices: Invoice[] = (data?.invoices ?? []) as Invoice[];
+  const allInvoices: Invoice[] = (data?.invoices ?? []) as unknown as Invoice[];
   const invoices = allInvoices.slice(0, limit);
   const totalCount = allInvoices.length;
 

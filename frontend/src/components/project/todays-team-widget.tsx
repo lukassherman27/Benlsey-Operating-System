@@ -57,11 +57,11 @@ export function TodaysTeamWidget({ projectCode, className }: TodaysTeamWidgetPro
   // Group entries by date
   const entriesByDate: Record<string, StaffEntry[]> = {};
   entries.forEach((entry) => {
-    const date = entry.work_date;
+    const date = entry.schedule_date;
     if (!entriesByDate[date]) {
       entriesByDate[date] = [];
     }
-    entriesByDate[date].push(entry as StaffEntry);
+    entriesByDate[date].push(entry as unknown as StaffEntry);
   });
 
   // Get most recent date with entries

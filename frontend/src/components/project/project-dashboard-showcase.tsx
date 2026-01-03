@@ -174,9 +174,9 @@ export function ProjectDashboardShowcase({ projectCode, className }: ProjectDash
         {/* Health Score */}
         <Card className={cn(
           "border-2",
-          data.project.healthStatus === "healthy" && "bg-emerald-50 border-emerald-200",
-          data.project.healthStatus === "at_risk" && "bg-amber-50 border-amber-200",
-          data.project.healthStatus === "critical" && "bg-red-50 border-red-200"
+          (data.project.healthStatus as string) === "healthy" && "bg-emerald-50 border-emerald-200",
+          (data.project.healthStatus as string) === "at_risk" && "bg-amber-50 border-amber-200",
+          (data.project.healthStatus as string) === "critical" && "bg-red-50 border-red-200"
         )}>
           <CardContent className="pt-4">
             <div className="flex items-center justify-between">

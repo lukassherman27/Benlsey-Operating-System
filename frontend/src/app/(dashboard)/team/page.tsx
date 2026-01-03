@@ -4,6 +4,23 @@ import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { api } from "@/lib/api";
+
+// Local interface for PM workload data used in this page
+interface PMWorkloadData {
+  pm_id?: number;
+  pm_name: string;
+  pm_email?: string | null;
+  office?: string | null;
+  project_count: number;
+  open_task_count: number;
+  overdue_count: number;
+  health_status: 'on_track' | 'warning' | 'at_risk';
+  projects?: Array<{
+    project_id: number;
+    project_code: string;
+    project_title: string | null;
+  }>;
+}
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -123,16 +140,27 @@ export default function TeamPage() {
     },
   });
 
-  const pmWorkloads = workloadQuery.data?.data ?? [];
+  // Transform workload data to match local interface
+  const pmWorkloads: PMWorkloadData[] = useMemo(() => {
+    const workloads = workloadQuery.data?.workload ?? [];
+    return workloads.map((w, i) => ({
+      pm_id: i,
+      pm_name: w.pm_name,
+      project_count: w.total_deliverables,
+      open_task_count: w.pending_count + w.in_progress_count,
+      overdue_count: w.overdue_count,
+      health_status: w.overdue_count > 2 ? 'at_risk' : w.overdue_count > 0 ? 'warning' : 'on_track' as const,
+    }));
+  }, [workloadQuery.data]);
   const unassignedProjects = unassignedQuery.data?.data ?? [];
   const pms = pmsQuery.data?.data ?? [];
 
   // Calculate totals
   const totals = useMemo(() => ({
     totalPMs: pmWorkloads.length,
-    totalProjects: pmWorkloads.reduce((sum, pm) => sum + pm.project_count, 0),
-    totalOpenTasks: pmWorkloads.reduce((sum, pm) => sum + pm.open_task_count, 0),
-    totalOverdue: pmWorkloads.reduce((sum, pm) => sum + pm.overdue_count, 0),
+    totalProjects: pmWorkloads.reduce((sum: number, pm: PMWorkloadData) => sum + pm.project_count, 0),
+    totalOpenTasks: pmWorkloads.reduce((sum: number, pm: PMWorkloadData) => sum + pm.open_task_count, 0),
+    totalOverdue: pmWorkloads.reduce((sum: number, pm: PMWorkloadData) => sum + pm.overdue_count, 0),
     unassigned: unassignedProjects.length,
   }), [pmWorkloads, unassignedProjects]);
 
@@ -271,14 +299,14 @@ export default function TeamPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {pmWorkloads.map((pm) => (
+                  {pmWorkloads.map((pm: PMWorkloadData) => (
                     <TableRow
                       key={pm.pm_id}
                       className={cn(
                         "cursor-pointer hover:bg-slate-50 transition-colors",
                         selectedPM === pm.pm_id && "bg-blue-50"
                       )}
-                      onClick={() => setSelectedPM(selectedPM === pm.pm_id ? null : pm.pm_id)}
+                      onClick={() => setSelectedPM(selectedPM === pm.pm_id ? null : pm.pm_id ?? null)}
                     >
                       <TableCell>
                         <div className="flex items-center gap-3">
@@ -499,7 +527,7 @@ export default function TeamPage() {
                 <SelectValue placeholder="Select a PM" />
               </SelectTrigger>
               <SelectContent>
-                {pms.map((pm) => (
+                {pms.map((pm: { staff_id: number; first_name: string; nickname: string | null; office: string | null }) => (
                   <SelectItem key={pm.staff_id} value={String(pm.staff_id)}>
                     <div className="flex items-center gap-2">
                       <div className="h-6 w-6 rounded-full bg-blue-100 flex items-center justify-center">

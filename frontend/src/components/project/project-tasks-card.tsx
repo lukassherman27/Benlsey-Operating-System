@@ -76,9 +76,9 @@ const getUrgencyStyle = (dueDate?: string, status?: string) => {
 };
 
 export function ProjectTasksCard({ projectCode, maxItems = 5 }: ProjectTasksCardProps) {
-  const { data, isLoading, error } = useQuery<DeliverablesResponse>({
+  const { data, isLoading, error } = useQuery({
     queryKey: ["deliverables", projectCode],
-    queryFn: () => api.getDeliverables({ project_code: projectCode }),
+    queryFn: () => api.getDeliverables({ project_code: projectCode }) as Promise<DeliverablesResponse>,
   });
 
   if (isLoading) {

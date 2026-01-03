@@ -33,10 +33,16 @@ interface Task {
   status: string;
   due_date: string | null;
   project_code: string | null;
+  proposal_id?: number | null;
   assignee: string | null;
+  source_suggestion_id?: number | null;
+  source_email_id?: number | null;
+  source_transcript_id?: number | null;
+  source_meeting_id?: number | null;
   discipline: string | null;
   phase: string | null;
   created_at: string;
+  completed_at?: string | null;
 }
 
 interface TaskDisciplineViewProps {
@@ -367,7 +373,7 @@ export function TaskDisciplineView({ projectCode }: TaskDisciplineViewProps) {
       <TaskEditModal
         open={modalOpen}
         onOpenChange={setModalOpen}
-        task={selectedTask}
+        task={selectedTask as Parameters<typeof TaskEditModal>[0]['task']}
         defaultProjectCode={projectCode}
         mode={modalMode}
       />
