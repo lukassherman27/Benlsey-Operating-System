@@ -19,7 +19,7 @@ from typing import Dict, List, Tuple, Optional
 
 # Database path
 import os
-DB_PATH = os.getenv('BENSLEY_DB_PATH', 'database/bensley_master.db')
+DB_PATH = os.getenv('DATABASE_PATH', 'database/bensley_master.db')
 
 # Team lead emails
 TEAM_LEADS = {

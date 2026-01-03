@@ -22,7 +22,7 @@ sys.path.insert(0, str(project_root))
 
 # Set test database path (uses production db for now - read-only tests)
 os.environ.setdefault(
-    'BENSLEY_DB_PATH',
+    'DATABASE_PATH',
     str(project_root / "database" / "bensley_master.db")
 )
 

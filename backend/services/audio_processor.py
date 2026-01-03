@@ -19,7 +19,7 @@ from pathlib import Path
 
 from openai import OpenAI
 
-DB_PATH = os.getenv('BENSLEY_DB_PATH', 'database/bensley_master.db')
+DB_PATH = os.getenv('DATABASE_PATH', 'database/bensley_master.db')
 AUDIO_STORAGE_PATH = Path(os.getenv('AUDIO_STORAGE_PATH', 'uploads/audio'))
 
 
