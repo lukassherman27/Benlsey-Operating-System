@@ -24,7 +24,7 @@ class ProjectCreator:
             # Resolve relative to this file's location (backend/services/ -> root/data)
             self.base_path = Path(__file__).parent.parent.parent / "data"
 
-        self.db_path = os.getenv('BENSLEY_DB_PATH') or str(self.base_path.parent / "database" / "bensley_master.db")
+        self.db_path = os.getenv('DATABASE_PATH') or str(self.base_path.parent / "database" / "bensley_master.db")
         self.data_root = self.base_path.parent
 
     def create_project(self, project_code, project_title, client_name, operator_name=None,
