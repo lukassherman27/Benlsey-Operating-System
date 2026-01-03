@@ -9,13 +9,14 @@ Endpoints:
     ... and more
 """
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Request
 from typing import Optional
 from pydantic import BaseModel, Field
 
 from api.services import query_service, proposal_query_service
 from api.models import QueryRequest, QueryFeedbackRequest
 from api.helpers import list_response, item_response, action_response
+from api.rate_limit import limiter
 
 router = APIRouter(prefix="/api", tags=["query"])
 
@@ -25,12 +26,13 @@ router = APIRouter(prefix="/api", tags=["query"])
 # ============================================================================
 
 @router.post("/query/ask")
-async def ask_query(request: QueryRequest):
+@limiter.limit("20/minute")
+async def ask_query(request: Request, query_request: QueryRequest):
     """Process a natural language query"""
     try:
         result = query_service.process_query(
-            query=request.query,
-            context=request.context
+            query=query_request.query,
+            context=query_request.context
         )
         return item_response(result)
     except Exception as e:
@@ -48,12 +50,13 @@ async def ask_query_get(q: str = Query(..., description="Natural language query"
 
 
 @router.post("/query/ask-enhanced")
-async def ask_enhanced_query(request: QueryRequest):
+@limiter.limit("10/minute")
+async def ask_enhanced_query(request: Request, query_request: QueryRequest):
     """Process query with enhanced AI analysis"""
     try:
         result = query_service.process_enhanced_query(
-            query=request.query,
-            context=request.context
+            query=query_request.query,
+            context=query_request.context
         )
         return item_response(result)
     except Exception as e:
@@ -61,12 +64,13 @@ async def ask_enhanced_query(request: QueryRequest):
 
 
 @router.post("/query/chat")
-async def chat_query(request: dict):
+@limiter.limit("15/minute")
+async def chat_query(request: Request, body: dict):
     """Process a chat-style conversation query with conversation history"""
     try:
-        question = request.get("question", "")
-        conversation_history = request.get("conversation_history", [])
-        use_ai = request.get("use_ai", True)
+        question = body.get("question", "")
+        conversation_history = body.get("conversation_history", [])
+        use_ai = body.get("use_ai", True)
 
         # Format conversation history as string for the service
         conversation_context = None
