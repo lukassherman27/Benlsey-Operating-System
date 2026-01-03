@@ -126,8 +126,8 @@ class InvoiceService:
                 i.invoice_date,
                 i.description,
                 i.status,
-                p.project_code,
-                p.project_title
+                COALESCE(i.project_code, p.project_code) as project_code,
+                COALESCE(p.project_title, i.project_code) as project_title
             FROM invoices i
             LEFT JOIN projects p ON i.project_code = p.project_code
             WHERE i.status = 'paid'
@@ -154,11 +154,11 @@ class InvoiceService:
                 i.due_date,
                 i.description,
                 i.status,
-                p.project_code,
-                p.project_title,
-                pfb.discipline,
-                pfb.phase,
-                pfb.scope,
+                COALESCE(i.project_code, p.project_code) as project_code,
+                COALESCE(p.project_title, i.project_code) as project_title,
+                i.discipline,
+                i.phase,
+                NULL as scope,
                 CASE
                     WHEN i.due_date IS NOT NULL THEN
                         CAST(julianday('now') - julianday(i.due_date) AS INTEGER)
@@ -167,7 +167,6 @@ class InvoiceService:
                 END as days_overdue
             FROM invoices i
             LEFT JOIN projects p ON i.project_code = p.project_code
-            LEFT JOIN project_fee_breakdown pfb ON i.breakdown_id = pfb.breakdown_id
             WHERE i.status IN ('sent', 'overdue', 'outstanding')
             ORDER BY i.invoice_amount DESC
             LIMIT ?

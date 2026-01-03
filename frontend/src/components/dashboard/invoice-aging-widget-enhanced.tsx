@@ -73,17 +73,38 @@ interface TransformedAgingData {
 }
 
 export function InvoiceAgingWidgetEnhanced({ compact = false, showExport = true }: InvoiceAgingWidgetProps) {
-  const { data, isLoading, error } = useQuery({
+  // Fetch aging breakdown
+  const { data: agingResponse, isLoading: agingLoading, error: agingError } = useQuery({
     queryKey: ["invoice-aging"],
     queryFn: api.getInvoiceAging,
     refetchInterval: 1000 * 60 * 5,
   });
 
+  // Fetch recent paid invoices
+  const { data: recentPaidResponse, isLoading: recentLoading } = useQuery({
+    queryKey: ["recent-paid-invoices"],
+    queryFn: () => api.getRecentPaidInvoices(5),
+    refetchInterval: 1000 * 60 * 5,
+  });
+
+  // Fetch largest outstanding invoices
+  const { data: largestOutstandingResponse, isLoading: outstandingLoading } = useQuery({
+    queryKey: ["largest-outstanding-invoices"],
+    queryFn: () => api.getLargestOutstandingInvoices(10),
+    refetchInterval: 1000 * 60 * 5,
+  });
+
+  const isLoading = agingLoading || recentLoading || outstandingLoading;
+  const error = agingError;
+
   // Transform API response to widget format
-  // API returns: { data: { aging: { "0_to_10", "10_to_30", "30_to_90", "over_90" } }, aging: {...} }
-  // Widget expects: { aging_breakdown: { under_30, "30_to_90", over_90 }, summary: {...} }
-  const apiData = data as unknown as { data?: { aging?: AgingApiResponse }; aging?: AgingApiResponse; recent_paid?: PaidInvoice[]; largest_outstanding?: OutstandingInvoice[] } | undefined;
-  const rawAging = apiData?.data?.aging || apiData?.aging;
+  const apiData = agingResponse as unknown as { data?: { aging?: AgingApiResponse }; aging?: AgingApiResponse } | undefined;
+  const rawAging = apiData?.data?.aging || (apiData as unknown as AgingApiResponse);
+
+  // Extract recent_paid and largest_outstanding from their responses
+  const recentPaid = (recentPaidResponse as unknown as { data?: PaidInvoice[] })?.data || [];
+  const largestOutstanding = (largestOutstandingResponse as unknown as { data?: OutstandingInvoice[] })?.data || [];
+
   const agingData: TransformedAgingData | null = rawAging ? (() => {
     const under30Amt = (rawAging["0_to_10"]?.amount || 0) + (rawAging["10_to_30"]?.amount || 0);
     const under30Cnt = (rawAging["0_to_10"]?.count || 0) + (rawAging["10_to_30"]?.count || 0);
@@ -101,8 +122,8 @@ export function InvoiceAgingWidgetEnhanced({ compact = false, showExport = true 
         total_outstanding_amount: under30Amt + mid90Amt + over90Amt,
         total_outstanding_count: under30Cnt + mid90Cnt + over90Cnt,
       },
-      recent_paid: apiData?.recent_paid,
-      largest_outstanding: apiData?.largest_outstanding,
+      recent_paid: recentPaid,
+      largest_outstanding: largestOutstanding,
     };
   })() : null;
 
