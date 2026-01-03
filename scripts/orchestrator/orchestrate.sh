@@ -8,14 +8,14 @@
 # Commands:
 #   audit <area>         Run multi-agent audit (system, proposals, emails, etc.)
 #   build <issue>        Full build workflow for an issue
-#   research <topic>     Research a topic with Gemini
+#   consolidate <type>   Merge findings from all agents
 #   status               Check current orchestration status
 #   clean                Clean up worktrees and context
 #
 # Examples:
 #   orc audit system
 #   orc build 356
-#   orc research "proposal UI best practices"
+#   orc consolidate audit
 #   orc status
 # ============================================================================
 
@@ -357,6 +357,103 @@ EOF
 }
 
 # ============================================================================
+# COMMAND: CONSOLIDATE
+# ============================================================================
+
+cmd_consolidate() {
+    local type="${1:-audit}"
+
+    print_header "CONSOLIDATE FINDINGS: $type"
+
+    # Get session ID from current session
+    local session_id=""
+    if [ -f "$CONTEXT_DIR/agent-status.json" ]; then
+        session_id=$(python3 -c "import json; print(json.load(open('$CONTEXT_DIR/agent-status.json')).get('session_id', ''))" 2>/dev/null || echo "")
+    fi
+
+    if [ -z "$session_id" ]; then
+        print_error "No active session found. Run 'orc audit <area>' first."
+        exit 1
+    fi
+
+    print_step "Session: $session_id"
+    echo ""
+
+    # Check for findings
+    local findings_count=0
+    for agent in claude codex gemini; do
+        local finding_file="$CONTEXT_DIR/findings/${agent}-${type}-*.md"
+        if ls $finding_file 1>/dev/null 2>&1; then
+            findings_count=$((findings_count + 1))
+            print_success "Found findings from $agent"
+        else
+            print_warning "No findings from $agent"
+        fi
+    done
+
+    if [ $findings_count -eq 0 ]; then
+        print_error "No findings to consolidate."
+        exit 1
+    fi
+
+    echo ""
+
+    # Create consolidated output
+    local output_file="$CONTEXT_DIR/consolidated/${type}-summary-$(date +%Y%m%d-%H%M%S).md"
+    local timestamp=$(get_timestamp)
+
+    cat > "$output_file" << EOF
+# Consolidated ${type^} Summary
+
+**Session:** $session_id
+**Generated:** $timestamp
+**Agents:** $findings_count
+
+---
+
+EOF
+
+    # Append each agent's findings
+    for agent in claude codex gemini; do
+        local finding_pattern="$CONTEXT_DIR/findings/${agent}-${type}-*.md"
+        local finding_file=$(ls $finding_pattern 2>/dev/null | head -1)
+
+        if [ -f "$finding_file" ]; then
+            cat >> "$output_file" << EOF
+
+## ${agent^} Findings
+
+$(cat "$finding_file")
+
+---
+
+EOF
+            print_step "Added ${agent} findings"
+        fi
+    done
+
+    echo ""
+    print_success "Consolidated report: $output_file"
+    echo ""
+
+    # Update session phase
+    if [ -f "$CONTEXT_DIR/agent-status.json" ]; then
+        python3 << EOF
+import json
+with open('$CONTEXT_DIR/agent-status.json', 'r') as f:
+    data = json.load(f)
+data['phase'] = 'consolidated'
+with open('$CONTEXT_DIR/agent-status.json', 'w') as f:
+    json.dump(data, f, indent=2)
+EOF
+    fi
+
+    echo "View report:"
+    echo "  cat $output_file"
+    echo ""
+}
+
+# ============================================================================
 # COMMAND: CLEAN
 # ============================================================================
 
@@ -397,6 +494,9 @@ COMMANDS:
   build <issue>     Initialize build workflow for an issue
                     Creates session, sets goal, guides through phases
 
+  consolidate       Merge findings from all agents into single report
+                    Run after agents complete their audits
+
   status            Show current session status, available agents, worktrees
 
   clean             Remove context files and prune worktrees
@@ -406,6 +506,7 @@ COMMANDS:
 EXAMPLES:
   orc audit system
   orc audit proposals
+  orc consolidate audit
   orc build 356
   orc status
   orc clean
@@ -433,6 +534,9 @@ main() {
             ;;
         build)
             cmd_build "$@"
+            ;;
+        consolidate)
+            cmd_consolidate "$@"
             ;;
         status)
             cmd_status "$@"
