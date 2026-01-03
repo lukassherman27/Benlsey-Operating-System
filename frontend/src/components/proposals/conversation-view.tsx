@@ -5,16 +5,29 @@ import { api } from "@/lib/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { cn } from "@/lib/utils";
-import { format, isToday, isYesterday, parseISO, differenceInDays } from "date-fns";
-import { useState } from "react";
+import { format, isToday, isYesterday, parseISO, differenceInDays, subDays, isAfter } from "date-fns";
+import { useState, useMemo } from "react";
 import {
   MessageCircle,
   Paperclip,
   ChevronDown,
   ChevronUp,
+  ChevronLeft,
+  ChevronRight,
   Clock,
   User,
+  Search,
+  X,
 } from "lucide-react";
 
 interface ConversationEmail {
@@ -24,7 +37,6 @@ interface ConversationEmail {
   sender_email: string;
   sender_category: "bill" | "brian" | "lukas" | "mink" | "bensley_other" | "client";
   body_preview?: string;
-  body_full?: string;
   has_attachments?: boolean;
   email_direction?: string;
 }
@@ -32,6 +44,8 @@ interface ConversationEmail {
 interface ConversationViewProps {
   projectCode: string;
 }
+
+const EMAILS_PER_PAGE = 20;
 
 // Group emails by date
 function groupEmailsByDate(emails: ConversationEmail[]) {
@@ -132,15 +146,31 @@ function getAvatarColor(category: string): string {
   }
 }
 
+// Highlight search matches in text
+function highlightText(text: string, searchTerm: string): React.ReactNode {
+  if (!searchTerm.trim()) return text;
+
+  const regex = new RegExp(`(${searchTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+  const parts = text.split(regex);
+
+  return parts.map((part, i) =>
+    regex.test(part) ? (
+      <mark key={i} className="bg-yellow-200 text-yellow-900 rounded px-0.5">{part}</mark>
+    ) : part
+  );
+}
+
 // Message bubble component
 function MessageBubble({
   email,
   isExpanded,
-  onToggle
+  onToggle,
+  searchTerm,
 }: {
   email: ConversationEmail;
   isExpanded: boolean;
   onToggle: () => void;
+  searchTerm: string;
 }) {
   const isBensley = isBensleyPerson(email.sender_category);
   const senderName = getSenderName(email);
@@ -156,8 +186,8 @@ function MessageBubble({
     timeDisplay = email.date?.substring(11, 16) || "";
   }
 
-  // Clean body text - extract plain text from potential HTML content
-  const bodyText = email.body_preview || email.body_full || "";
+  // Clean body text - use body_preview only (security: never expose body_full)
+  const bodyText = email.body_preview || "";
   // Use a safer approach: strip tags iteratively to handle nested/malformed HTML,
   // then decode common HTML entities and normalize whitespace
   const stripHtmlTags = (html: string): string => {
@@ -223,15 +253,15 @@ function MessageBubble({
             "font-medium text-sm mb-1",
             isBensley ? "text-blue-100" : "text-slate-600"
           )}>
-            {email.subject || "(No subject)"}
+            {searchTerm ? highlightText(email.subject || "(No subject)", searchTerm) : (email.subject || "(No subject)")}
           </p>
 
-          {/* Body preview or full */}
+          {/* Body preview */}
           <p className={cn(
             "text-sm",
             isExpanded ? "" : "line-clamp-3"
           )}>
-            {cleanedBody || "(No content)"}
+            {searchTerm ? highlightText(cleanedBody || "(No content)", searchTerm) : (cleanedBody || "(No content)")}
           </p>
 
           {/* Expand/collapse indicator */}
@@ -303,8 +333,49 @@ function WaitingIndicator({
   );
 }
 
+// Pagination component
+function Pagination({
+  currentPage,
+  totalPages,
+  onPageChange,
+}: {
+  currentPage: number;
+  totalPages: number;
+  onPageChange: (page: number) => void;
+}) {
+  if (totalPages <= 1) return null;
+
+  return (
+    <div className="flex items-center justify-center gap-2 pt-3 border-t">
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={() => onPageChange(currentPage - 1)}
+        disabled={currentPage === 1}
+      >
+        <ChevronLeft className="h-4 w-4" />
+      </Button>
+      <span className="text-sm text-slate-600">
+        Page {currentPage} of {totalPages}
+      </span>
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={() => onPageChange(currentPage + 1)}
+        disabled={currentPage === totalPages}
+      >
+        <ChevronRight className="h-4 w-4" />
+      </Button>
+    </div>
+  );
+}
+
 export function ConversationView({ projectCode }: ConversationViewProps) {
   const [expandedEmails, setExpandedEmails] = useState<Set<number>>(new Set());
+  const [searchTerm, setSearchTerm] = useState("");
+  const [senderFilter, setSenderFilter] = useState<"all" | "bensley" | "client">("all");
+  const [dateFilter, setDateFilter] = useState<"all" | "7days" | "30days" | "90days">("all");
+  const [currentPage, setCurrentPage] = useState(1);
 
   const { data, isLoading, isError, error } = useQuery({
     queryKey: ["proposal-conversation", projectCode],
@@ -323,6 +394,65 @@ export function ConversationView({ projectCode }: ConversationViewProps) {
       return next;
     });
   };
+
+  // Filter and search emails
+  const filteredEmails = useMemo(() => {
+    let emails = data?.emails || [];
+
+    // Apply sender filter
+    if (senderFilter === "bensley") {
+      emails = emails.filter(e => isBensleyPerson(e.sender_category));
+    } else if (senderFilter === "client") {
+      emails = emails.filter(e => !isBensleyPerson(e.sender_category));
+    }
+
+    // Apply date filter
+    if (dateFilter !== "all") {
+      const daysMap = { "7days": 7, "30days": 30, "90days": 90 };
+      const cutoffDate = subDays(new Date(), daysMap[dateFilter]);
+      emails = emails.filter(e => {
+        try {
+          return isAfter(parseISO(e.date), cutoffDate);
+        } catch {
+          return false;
+        }
+      });
+    }
+
+    // Apply search filter
+    if (searchTerm.trim()) {
+      const term = searchTerm.toLowerCase();
+      emails = emails.filter(e =>
+        e.subject?.toLowerCase().includes(term) ||
+        e.body_preview?.toLowerCase().includes(term) ||
+        e.sender_email?.toLowerCase().includes(term)
+      );
+    }
+
+    return emails;
+  }, [data?.emails, senderFilter, dateFilter, searchTerm]);
+
+  // Paginate emails
+  const totalPages = Math.ceil(filteredEmails.length / EMAILS_PER_PAGE);
+  const paginatedEmails = useMemo(() => {
+    const start = (currentPage - 1) * EMAILS_PER_PAGE;
+    return filteredEmails.slice(start, start + EMAILS_PER_PAGE);
+  }, [filteredEmails, currentPage]);
+
+  // Reset to page 1 when filters change
+  const handleFilterChange = (setter: (value: string) => void, value: string) => {
+    setter(value);
+    setCurrentPage(1);
+  };
+
+  const clearFilters = () => {
+    setSearchTerm("");
+    setSenderFilter("all");
+    setDateFilter("all");
+    setCurrentPage(1);
+  };
+
+  const hasActiveFilters = searchTerm || senderFilter !== "all" || dateFilter !== "all";
 
   if (isLoading) {
     return (
@@ -362,15 +492,15 @@ export function ConversationView({ projectCode }: ConversationViewProps) {
     );
   }
 
-  const emails = data?.emails || [];
-  const emailGroups = groupEmailsByDate(emails);
-  const lastEmail = emails[emails.length - 1];
+  const allEmails = data?.emails || [];
+  const emailGroups = groupEmailsByDate(paginatedEmails);
+  const lastEmail = allEmails[allEmails.length - 1];
 
   // Count by sender type
-  const bensleyCount = emails.filter(e => isBensleyPerson(e.sender_category)).length;
-  const clientCount = emails.filter(e => !isBensleyPerson(e.sender_category)).length;
+  const bensleyCount = allEmails.filter(e => isBensleyPerson(e.sender_category)).length;
+  const clientCount = allEmails.filter(e => !isBensleyPerson(e.sender_category)).length;
 
-  if (emails.length === 0) {
+  if (allEmails.length === 0) {
     return (
       <Card>
         <CardHeader>
@@ -409,41 +539,108 @@ export function ConversationView({ projectCode }: ConversationViewProps) {
             </Badge>
           </div>
         </div>
+
+        {/* Search and Filters */}
+        <div className="flex flex-col sm:flex-row gap-2 mt-3">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+            <Input
+              placeholder="Search emails..."
+              value={searchTerm}
+              onChange={(e) => handleFilterChange(setSearchTerm, e.target.value)}
+              className="pl-9"
+            />
+          </div>
+          <Select
+            value={senderFilter}
+            onValueChange={(v) => handleFilterChange(setSenderFilter, v)}
+          >
+            <SelectTrigger className="w-[140px]">
+              <SelectValue placeholder="Sender" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All senders</SelectItem>
+              <SelectItem value="bensley">From us</SelectItem>
+              <SelectItem value="client">From client</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select
+            value={dateFilter}
+            onValueChange={(v) => handleFilterChange(setDateFilter, v)}
+          >
+            <SelectTrigger className="w-[130px]">
+              <SelectValue placeholder="Date" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All time</SelectItem>
+              <SelectItem value="7days">Last 7 days</SelectItem>
+              <SelectItem value="30days">Last 30 days</SelectItem>
+              <SelectItem value="90days">Last 90 days</SelectItem>
+            </SelectContent>
+          </Select>
+          {hasActiveFilters && (
+            <Button variant="ghost" size="icon" onClick={clearFilters} title="Clear filters">
+              <X className="h-4 w-4" />
+            </Button>
+          )}
+        </div>
+
+        {/* Filter summary */}
+        {hasActiveFilters && (
+          <p className="text-xs text-slate-500 mt-2">
+            Showing {filteredEmails.length} of {allEmails.length} emails
+          </p>
+        )}
       </CardHeader>
 
       <CardContent className="space-y-4">
         {/* Waiting indicator at top */}
-        <WaitingIndicator lastEmail={lastEmail} emails={emails} />
+        <WaitingIndicator lastEmail={lastEmail} emails={allEmails} />
 
         {/* Conversation timeline */}
-        <div className="space-y-6 max-h-[600px] overflow-y-auto pr-2">
-          {emailGroups.map((group) => (
-            <div key={group.date}>
-              {/* Date separator */}
-              <div className="flex items-center justify-center mb-4">
-                <div className="bg-slate-100 text-slate-600 text-xs font-medium px-3 py-1 rounded-full">
-                  {group.label}
+        {paginatedEmails.length === 0 ? (
+          <div className="text-center py-8 text-muted-foreground">
+            <Search className="h-8 w-8 mx-auto mb-2 opacity-50" />
+            <p>No emails match your filters</p>
+          </div>
+        ) : (
+          <div className="space-y-6 max-h-[600px] overflow-y-auto pr-2">
+            {emailGroups.map((group) => (
+              <div key={group.date}>
+                {/* Date separator */}
+                <div className="flex items-center justify-center mb-4">
+                  <div className="bg-slate-100 text-slate-600 text-xs font-medium px-3 py-1 rounded-full">
+                    {group.label}
+                  </div>
+                </div>
+
+                {/* Messages for this date */}
+                <div className="space-y-3">
+                  {group.emails.map((email) => (
+                    <MessageBubble
+                      key={email.email_id}
+                      email={email}
+                      isExpanded={expandedEmails.has(email.email_id)}
+                      onToggle={() => toggleEmail(email.email_id)}
+                      searchTerm={searchTerm}
+                    />
+                  ))}
                 </div>
               </div>
+            ))}
+          </div>
+        )}
 
-              {/* Messages for this date */}
-              <div className="space-y-3">
-                {group.emails.map((email) => (
-                  <MessageBubble
-                    key={email.email_id}
-                    email={email}
-                    isExpanded={expandedEmails.has(email.email_id)}
-                    onToggle={() => toggleEmail(email.email_id)}
-                  />
-                ))}
-              </div>
-            </div>
-          ))}
-        </div>
+        {/* Pagination */}
+        <Pagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onPageChange={setCurrentPage}
+        />
 
         {/* Footer with total count */}
         <div className="text-center text-xs text-slate-400 pt-2 border-t">
-          {emails.length} message{emails.length !== 1 ? "s" : ""} in this conversation
+          {allEmails.length} message{allEmails.length !== 1 ? "s" : ""} in this conversation
         </div>
       </CardContent>
     </Card>
