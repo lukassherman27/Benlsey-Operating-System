@@ -6,7 +6,6 @@ Issue #365 - Fills missing proposal data where possible
 Usage:
     python scripts/core/backfill_proposal_data.py --dry-run    # Preview changes (default)
     python scripts/core/backfill_proposal_data.py --execute    # Create suggestions
-    python scripts/core/backfill_proposal_data.py --execute --link-emails  # Also link high-confidence emails
 
 What this script does:
     1. Matches emails to proposals by project name/contact email
@@ -20,6 +19,7 @@ Why suggestions instead of auto-linking:
 """
 
 import argparse
+import os
 import re
 import sqlite3
 import sys
@@ -28,8 +28,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
-# Database path
-DB_PATH = Path(__file__).parent.parent.parent / "database" / "bensley_master.db"
+# Database path - use env var or default
+DB_PATH = Path(os.getenv('DATABASE_PATH', Path(__file__).parent.parent.parent / "database" / "bensley_master.db"))
 
 
 @dataclass
@@ -205,49 +205,13 @@ def create_suggestions(cursor, matches: list[EmailMatch], execute: bool) -> int:
     return created
 
 
-def create_direct_links(cursor, matches: list[EmailMatch], min_confidence: float = 0.85) -> int:
-    """Create direct email-proposal links for high-confidence matches."""
-    linked = 0
-
-    for match in matches:
-        if match.confidence < min_confidence:
-            continue
-
-        # Check if link already exists
-        cursor.execute("""
-            SELECT link_id FROM email_proposal_links
-            WHERE email_id = ? AND proposal_id = ?
-        """, (match.email_id, match.proposal_id))
-
-        if cursor.fetchone():
-            continue
-
-        cursor.execute("""
-            INSERT INTO email_proposal_links (
-                email_id, proposal_id, confidence_score, match_method, match_reason, created_at
-            ) VALUES (?, ?, ?, ?, ?, ?)
-        """, (
-            match.email_id,
-            match.proposal_id,
-            match.confidence,
-            f"backfill_{match.match_method}",
-            match.match_reason,
-            datetime.now().isoformat()
-        ))
-        linked += 1
-
-    return linked
-
-
 def main():
     parser = argparse.ArgumentParser(description="Backfill missing proposal data")
     group = parser.add_mutually_exclusive_group()
     group.add_argument("--dry-run", action="store_true", default=True,
                        help="Preview changes without modifying database (default)")
     group.add_argument("--execute", action="store_true",
-                       help="Actually create suggestions/links")
-    parser.add_argument("--link-emails", action="store_true",
-                       help="Directly link high-confidence emails (>=0.85)")
+                       help="Actually create suggestions")
     args = parser.parse_args()
 
     execute = args.execute
@@ -301,7 +265,7 @@ def main():
     low_conf = [m for m in all_matches if m.confidence < 0.6]
 
     print("By confidence level:")
-    print(f"  - High (>=0.85): {len(high_conf)} - can auto-link")
+    print(f"  - High (>=0.85): {len(high_conf)} - needs review")
     print(f"  - Medium (0.6-0.85): {len(medium_conf)} - needs review")
     print(f"  - Low (<0.6): {len(low_conf)} - needs review")
     print()
@@ -321,17 +285,9 @@ def main():
         # Create suggestions for review
         suggestions_created = create_suggestions(cursor, all_matches, execute)
         print(f"Created {suggestions_created} AI suggestions for review")
-
-        # Optionally create direct links for high-confidence matches
-        if args.link_emails:
-            links_created = create_direct_links(cursor, all_matches)
-            print(f"Created {links_created} direct email-proposal links (confidence >= 0.85)")
-
         conn.commit()
     else:
         print(f"Would create {len(all_matches)} AI suggestions for review")
-        if args.link_emails:
-            print(f"Would create {len(high_conf)} direct links (confidence >= 0.85)")
 
     # Summary about project_value
     print()
@@ -370,7 +326,6 @@ def main():
     if not execute:
         print("To execute, run:")
         print("  python scripts/core/backfill_proposal_data.py --execute")
-        print("  python scripts/core/backfill_proposal_data.py --execute --link-emails")
 
     conn.close()
     print()

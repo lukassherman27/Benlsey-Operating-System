@@ -17,6 +17,7 @@ Reports:
 import argparse
 import csv
 import json
+import os
 import sqlite3
 import sys
 from dataclasses import dataclass, asdict
@@ -24,8 +25,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
-# Database path
-DB_PATH = Path(__file__).parent.parent.parent / "database" / "bensley_master.db"
+# Database path - use env var or default
+DB_PATH = Path(os.getenv('DATABASE_PATH', Path(__file__).parent.parent.parent / "database" / "bensley_master.db"))
 
 
 @dataclass

@@ -25,7 +25,7 @@ from collections import defaultdict
 PROJECT_ROOT = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
-DB_PATH = os.getenv('BENSLEY_DB_PATH', PROJECT_ROOT / 'database' / 'bensley_master.db')
+DB_PATH = os.getenv('DATABASE_PATH', PROJECT_ROOT / 'database' / 'bensley_master.db')
 
 
 class DataAuditor:

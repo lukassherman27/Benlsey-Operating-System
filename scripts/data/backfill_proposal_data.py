@@ -20,7 +20,7 @@ from pathlib import Path
 
 # Database path
 DB_PATH = os.environ.get(
-    'BENSLEY_DB_PATH',
+    'DATABASE_PATH',
     str(Path(__file__).parent.parent.parent / 'database' / 'bensley_master.db')
 )
 
