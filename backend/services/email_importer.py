@@ -27,7 +27,7 @@ class EmailImporter:
         self.port = int(os.getenv('EMAIL_PORT', 993))
         self.username = os.getenv('EMAIL_USERNAME')
         self.password = os.getenv('EMAIL_PASSWORD')
-        self.db_path = os.getenv('DATABASE_PATH', 'database/bensley_master.db')
+        self.db_path = os.getenv('BENSLEY_DB_PATH', 'database/bensley_master.db')
         self.attachments_dir = os.getenv('ATTACHMENTS_DIR', 'files/attachments')
 
     def connect(self):

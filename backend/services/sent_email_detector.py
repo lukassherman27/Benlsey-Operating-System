@@ -80,7 +80,7 @@ class SentEmailDetector:
         self.port = int(os.getenv('EMAIL_PORT', 993))
         self.username = os.getenv('EMAIL_USER')
         self.password = os.getenv('EMAIL_PASSWORD')
-        self.db_path = db_path or os.getenv('DATABASE_PATH', 'database/bensley_master.db')
+        self.db_path = db_path or os.getenv('BENSLEY_DB_PATH', 'database/bensley_master.db')
         self.imap = None
 
     def connect(self) -> bool:
