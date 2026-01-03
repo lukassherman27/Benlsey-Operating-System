@@ -52,7 +52,9 @@ class BaseService:
         conn = sqlite3.connect(self.db_path, timeout=60.0)  # 60 second timeout for OneDrive sync
         conn.row_factory = sqlite3.Row  # Return rows as dictionaries
         conn.execute("PRAGMA busy_timeout = 60000")  # Additional 60s timeout for busy db
-        conn.execute("PRAGMA foreign_keys = ON")  # CRITICAL: Enable FK enforcement
+        # TEMPORARILY DISABLED: FK enforcement causes issues with legacy schema mismatches
+        # TODO: Re-enable after comprehensive FK audit (see Issue #402)
+        # conn.execute("PRAGMA foreign_keys = ON")  # CRITICAL: Enable FK enforcement
         try:
             yield conn
         finally:

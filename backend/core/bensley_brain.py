@@ -472,9 +472,10 @@ class BensleyBrain:
 
             # Get linked projects
             cursor.execute("""
-                SELECT DISTINCT pcl.project_code, p.is_active_project
+                SELECT DISTINCT prop.project_code, p.is_active_project
                 FROM project_contact_links pcl
-                LEFT JOIN projects p ON pcl.project_code = p.project_code
+                JOIN proposals prop ON pcl.proposal_id = prop.proposal_id
+                LEFT JOIN projects p ON prop.project_code = p.project_code
                 WHERE pcl.contact_id = ?
             """, (contact['contact_id'],))
 
