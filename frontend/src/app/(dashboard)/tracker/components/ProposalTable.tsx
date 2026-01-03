@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { MarkLostDialog } from "@/components/proposals/quick-action-dialogs";
+import { QuickReviewModal } from "./QuickReviewModal";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -54,6 +55,7 @@ import {
   CalendarPlus,
   AlertCircle,
   HelpCircle,
+  Zap,
 } from "lucide-react";
 import { formatCurrency, cn } from "@/lib/utils";
 import {
@@ -120,6 +122,10 @@ export function ProposalTable({
   // Lost reason modal state (intercept status dropdown changes to "Lost")
   const [lostDialogOpen, setLostDialogOpen] = useState(false);
   const [lostDialogProposal, setLostDialogProposal] = useState<ProposalTrackerItem | null>(null);
+
+  // Quick Review modal state
+  const [quickReviewOpen, setQuickReviewOpen] = useState(false);
+  const [quickReviewProposal, setQuickReviewProposal] = useState<ProposalTrackerItem | null>(null);
 
   // Quick status update mutation
   const updateStatusMutation = useMutation({
@@ -638,6 +644,20 @@ export function ProposalTable({
                     </TableCell>
                     <TableCell className="text-center" onClick={(e) => e.stopPropagation()}>
                       <div className="flex items-center justify-center gap-0.5">
+                        {/* Quick Review button */}
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            setQuickReviewProposal(proposal);
+                            setQuickReviewOpen(true);
+                          }}
+                          className="h-7 w-7 p-0 text-amber-600 hover:text-amber-700 hover:bg-amber-50"
+                          title="Quick Review (Enter to save, Esc to close)"
+                        >
+                          <Zap className="h-3.5 w-3.5" />
+                        </Button>
+
                         {/* Edit button */}
                         <Button
                           variant="ghost"
@@ -772,6 +792,13 @@ export function ProposalTable({
         proposal={lostDialogProposal}
         open={lostDialogOpen}
         onOpenChange={setLostDialogOpen}
+      />
+
+      {/* Quick Review Modal - rapid proposal decisions */}
+      <QuickReviewModal
+        proposal={quickReviewProposal}
+        open={quickReviewOpen}
+        onOpenChange={setQuickReviewOpen}
       />
     </Card>
   );
