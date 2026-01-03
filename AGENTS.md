@@ -4,27 +4,26 @@
 
 ---
 
-## RULE #1: BRANCH SAFETY (ENFORCED)
+## RULE #1: USE THE LAUNCHER (ENFORCED)
 
-### First Time Setup
+### For Humans - Launch an Agent
 ```bash
-./scripts/setup-repo.sh   # Configures git hooks - RUN THIS FIRST
+./launch_agent.sh claude 370           # Claude works on issue #370
+./launch_agent.sh codex 370 --review 371  # Codex reviews PR #371
+./launch_agent.sh gemini 372           # Gemini works on issue #372
 ```
 
-### Every Session
+The launcher automatically:
+- Creates/switches to correct branch
+- Sets git author to agent name
+- Adds label to issue
+- Sets EXPECTED_BRANCH for hook enforcement
+
+### For Agents - Already Launched
+If you're an agent that was launched with the script above, just verify:
 ```bash
-# 1. Check where you are
-git branch --show-current
-
-# 2. Get on your branch (works whether it exists or not)
-git fetch origin
-git checkout feat/my-feature-123 2>/dev/null || git checkout -b feat/my-feature-123 origin/main
-
-# 3. SET THIS - the hook enforces it
-export EXPECTED_BRANCH=feat/my-feature-123
-
-# 4. Verify
-git branch --show-current  # MUST match your issue's branch
+git branch --show-current  # Should match your assigned branch
+echo $EXPECTED_BRANCH      # Should be set
 ```
 
 ### What's Enforced (Not Just Documented)
