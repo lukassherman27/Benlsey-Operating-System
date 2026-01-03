@@ -190,8 +190,8 @@ export function ProposalTable({
   const clearActionMutation = useMutation({
     mutationFn: ({ projectCode }: { projectCode: string }) =>
       api.updateProposalTracker(projectCode, {
-        action_needed: null,
-        action_due: null,
+        action_needed: undefined,
+        action_due: undefined,
       }),
     onSuccess: () => {
       toast.success("Action marked as done");

@@ -111,12 +111,6 @@ function ProposalTrackerContent() {
     setSavedViews(loadSavedViews());
   }, []);
 
-  useEffect(() => {
-    if (ownerFilter !== "all" && (!ownerStats || Object.keys(ownerStats).length === 0)) {
-      setOwnerFilter("all");
-    }
-  }, [ownerFilter, ownerStats]);
-
   // Handle URL params
   useEffect(() => {
     if (codeParam) {
@@ -154,6 +148,13 @@ function ProposalTrackerContent() {
   const stats = statsData?.stats as any;
   const ownerStats = stats?.action_by_owner || null;
   const proposals = useMemo(() => proposalsData?.proposals || [], [proposalsData]);
+
+  // Reset owner filter if no owner data available
+  useEffect(() => {
+    if (ownerFilter !== "all" && (!ownerStats || Object.keys(ownerStats).length === 0)) {
+      setOwnerFilter("all");
+    }
+  }, [ownerFilter, ownerStats]);
 
   // Filter and sort proposals
   const filteredProposals = useMemo(() => {

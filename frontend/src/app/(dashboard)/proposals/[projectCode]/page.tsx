@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
+import Link from "next/link";
 import { ProposalStory } from "@/components/proposals/proposal-story";
 import { TaskMiniKanban } from "@/components/tasks/task-mini-kanban";
 import { ProposalMeetings } from "@/components/proposals/proposal-meetings";

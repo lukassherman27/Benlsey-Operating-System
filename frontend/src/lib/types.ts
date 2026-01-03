@@ -972,6 +972,7 @@ export interface ProposalTrackerUpdateRequest {
   // Quick action fields (#134)
   ball_in_court?: 'us' | 'them' | 'mutual';
   action_needed?: string;
+  action_due?: string;
   action_owner?: string;
   // Won/Lost quick action fields (#300)
   won_date?: string;
