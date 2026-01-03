@@ -142,7 +142,7 @@ ARCHITECTURE
 ### Pre-Deployment Checklist
 
 ```
-[ ] Environment variables setup (BENSLEY_DB_PATH, API keys)
+[ ] Environment variables setup (DATABASE_PATH, API keys)
 [ ] HTTPS/TLS configured
 [ ] Authentication tested (NextAuth)
 [ ] CORS configured for production domains

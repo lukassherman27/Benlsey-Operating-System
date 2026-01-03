@@ -516,7 +516,7 @@ def main():
 
     # Get database path
     db_path = os.getenv(
-        'BENSLEY_DB_PATH',
+        'DATABASE_PATH',
         str(Path(__file__).parent / "database" / "bensley_master.db")
     )
 

@@ -160,7 +160,6 @@ Required production values:
 ```env
 # Database
 DATABASE_PATH=/home/bensley/bensley-operating-system/database/bensley_master.db
-BENSLEY_DB_PATH=/home/bensley/bensley-operating-system/database/bensley_master.db
 
 # API
 API_HOST=127.0.0.1
