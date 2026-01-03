@@ -13,7 +13,7 @@ from typing import List, Dict, Any, Optional
 from datetime import datetime, timedelta
 
 # Use correct database path - OneDrive master database
-DB_PATH = os.getenv('DATABASE_PATH', 'database/bensley_master.db')
+DB_PATH = os.getenv('BENSLEY_DB_PATH', 'database/bensley_master.db')
 
 
 class IntelligenceService:

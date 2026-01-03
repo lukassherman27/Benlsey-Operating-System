@@ -22,7 +22,7 @@ import re
 import logging
 
 import os
-DB_PATH = os.getenv('DATABASE_PATH', 'database/bensley_master.db')
+DB_PATH = os.getenv('BENSLEY_DB_PATH', 'database/bensley_master.db')
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)

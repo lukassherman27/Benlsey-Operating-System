@@ -35,7 +35,7 @@ from typing import Dict, Any, List, Optional, Tuple
 from datetime import datetime
 
 import os
-DB_PATH = os.getenv('DATABASE_PATH', 'database/bensley_master.db')
+DB_PATH = os.getenv('BENSLEY_DB_PATH', 'database/bensley_master.db')
 
 logger = logging.getLogger(__name__)
 

@@ -220,7 +220,7 @@ class ProposalService(BaseService):
 
         # Validate sort parameters to prevent SQL injection
         allowed_columns = [
-            'proposal_id', 'project_code', 'project_title', 'status',
+            'proposal_id', 'project_code', 'project_name', 'status',
             'health_score', 'days_since_contact', 'is_active_project',
             'created_at', 'updated_at'
         ]
@@ -276,13 +276,12 @@ class ProposalService(BaseService):
             SELECT
                 proposal_id,
                 project_code,
-                project_title,
+                project_name,
                 health_score,
                 days_since_contact,
                 status
             FROM proposals
             WHERE health_score < ?
-            AND is_active_project = 1
         """
         params: List[Any] = [threshold]
         statuses = self._resolve_statuses(None, self.DEFAULT_ACTIVE_STATUSES)
@@ -519,12 +518,12 @@ class ProposalService(BaseService):
             SELECT
                 proposal_id,
                 project_code,
-                project_title,
+                project_name,
                 status,
                 health_score,
                 is_active_project
             FROM proposals
-            WHERE (project_code LIKE ? OR project_title LIKE ?)
+            WHERE (project_code LIKE ? OR project_name LIKE ?)
         """
         search_term = f"%{query}%"
         params: List[Any] = [search_term, search_term]
@@ -582,7 +581,7 @@ class ProposalService(BaseService):
             SELECT
                 proposal_id,
                 project_code,
-                project_title,
+                project_name,
                 client_company,
                 project_value as fee,
                 status,
@@ -597,7 +596,7 @@ class ProposalService(BaseService):
         status_changes_sql = """
             SELECT
                 p.project_code,
-                p.project_title,
+                p.project_name,
                 COALESCE(pr.client_company, 'Unknown'),
                 c.old_value as previous_status,
                 c.new_value as new_status,
@@ -617,7 +616,7 @@ class ProposalService(BaseService):
             SELECT
                 proposal_id,
                 project_code,
-                project_title,
+                project_name,
                 client_company,
                 CAST(JULIANDAY('now') - JULIANDAY(COALESCE(last_contact_date, created_at)) AS INTEGER) as days_since_contact,
                 last_contact_date
@@ -634,7 +633,7 @@ class ProposalService(BaseService):
             SELECT DISTINCT
                 p.project_id,
                 p.project_code,
-                p.project_title,
+                p.project_name,
                 COALESCE(pr.client_company, 'Unknown'),
                 p.project_value as fee,
                 COALESCE(p.contract_signed_date, c.changed_at) as signed_date
