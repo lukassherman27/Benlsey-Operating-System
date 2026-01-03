@@ -158,7 +158,7 @@ class SentEmailLinker(BaseService):
                        c.name as contact_name, pcl.role
                 FROM contacts c
                 JOIN project_contact_links pcl ON c.contact_id = pcl.contact_id
-                JOIN proposals p ON pcl.project_code = p.project_code
+                JOIN proposals p ON pcl.proposal_id = p.proposal_id
                 WHERE LOWER(TRIM(c.email)) = ?
                 ORDER BY pcl.confidence_score DESC
                 LIMIT 1

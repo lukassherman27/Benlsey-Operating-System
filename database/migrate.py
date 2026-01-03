@@ -67,12 +67,24 @@ class MigrationRunner:
             return []
 
         migrations = []
+        versions_seen = {}  # Track versions to detect duplicates
+
         for file in sorted(self.migrations_dir.glob('*.sql')):
             # Extract version from filename (e.g., "001_name.sql" -> 1)
             match = re.match(r'(\d+)_(.+)\.sql$', file.name)
             if match:
                 version = int(match.group(1))
                 name = match.group(2)
+
+                # Check for duplicate version numbers
+                if version in versions_seen:
+                    print(f"⚠️  DUPLICATE VERSION {version:03d}:")
+                    print(f"     - {versions_seen[version]}")
+                    print(f"     - {name}")
+                    # Skip duplicate, keep first one found (alphabetically)
+                    continue
+
+                versions_seen[version] = name
                 migrations.append({
                     'version': version,
                     'name': name,
