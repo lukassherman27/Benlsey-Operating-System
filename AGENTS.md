@@ -4,29 +4,38 @@
 
 ---
 
-## RULE #1: VERIFY YOUR BRANCH (BEFORE ANYTHING ELSE)
+## RULE #1: BRANCH SAFETY (ENFORCED)
 
+### First Time Setup
 ```bash
-# RUN THIS FIRST - EVERY SESSION - NO EXCEPTIONS
+./scripts/setup-repo.sh   # Configures git hooks - RUN THIS FIRST
+```
+
+### Every Session
+```bash
+# 1. Check where you are
 git branch --show-current
-git status
+
+# 2. Get on your branch (works whether it exists or not)
+git fetch origin
+git checkout feat/my-feature-123 2>/dev/null || git checkout -b feat/my-feature-123 origin/main
+
+# 3. SET THIS - the hook enforces it
+export EXPECTED_BRANCH=feat/my-feature-123
+
+# 4. Verify
+git branch --show-current  # MUST match your issue's branch
 ```
 
-**If you're on the wrong branch, STOP and fix it:**
-```bash
-git checkout <correct-branch>
-# OR create it:
-git checkout main && git pull && git checkout -b <correct-branch>
-```
+### What's Enforced (Not Just Documented)
+| Protection | Mechanism |
+|------------|-----------|
+| No commits to main | `.githooks/pre-commit` blocks it |
+| No pushes to main | GitHub branch protection |
+| Wrong branch detection | EXPECTED_BRANCH env var |
+| PRs required | GitHub branch protection |
 
-**BEFORE EVERY COMMIT:**
-```bash
-git branch --show-current  # VERIFY THIS MATCHES YOUR ISSUE
-git add -A && git commit -m "type(scope): description #ISSUE"
-```
-
-> **WHY THIS RULE EXISTS:** Agents keep committing to wrong branches, wasting hours of work.
-> A pre-commit hook blocks commits to main, but YOU must verify you're on the RIGHT feature branch.
+> **DO NOT** run `git checkout main`. Stay on your feature branch.
 
 ---
 
@@ -128,9 +137,12 @@ chore/short-desc-ISSUE#   # Cleanup
 
 ### Before Starting:
 ```bash
-git checkout main
-git pull origin main
-git checkout -b feat/your-feature-123
+# Get on your branch (handles both new and existing branches)
+git fetch origin
+git checkout feat/your-feature-123 2>/dev/null || git checkout -b feat/your-feature-123 origin/main
+
+# Set expected branch for hook enforcement
+export EXPECTED_BRANCH=feat/your-feature-123
 ```
 
 ### Before Pushing:

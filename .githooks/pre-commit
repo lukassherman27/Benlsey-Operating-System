@@ -1,0 +1,63 @@
+#!/bin/bash
+# Pre-commit hook: ENFORCES branch safety
+# Install: git config core.hooksPath .githooks
+
+set -e
+
+BRANCH=$(git branch --show-current)
+
+# ============================================================
+# RULE 1: BLOCK COMMITS TO MAIN (NO EXCEPTIONS)
+# ============================================================
+if [ "$BRANCH" = "main" ] || [ "$BRANCH" = "master" ]; then
+    echo ""
+    echo "=============================================="
+    echo "  BLOCKED: Cannot commit to $BRANCH"
+    echo "=============================================="
+    echo ""
+    echo "  You must create a feature branch first:"
+    echo ""
+    echo "    git checkout -b feat/your-feature-123"
+    echo ""
+    echo "  Or switch to an existing branch:"
+    echo ""
+    echo "    git checkout feat/existing-branch"
+    echo ""
+    exit 1
+fi
+
+# ============================================================
+# RULE 2: VERIFY EXPECTED_BRANCH (if set)
+# ============================================================
+if [ -n "$EXPECTED_BRANCH" ]; then
+    if [ "$BRANCH" != "$EXPECTED_BRANCH" ]; then
+        echo ""
+        echo "=============================================="
+        echo "  BLOCKED: Wrong branch!"
+        echo "=============================================="
+        echo ""
+        echo "  Expected: $EXPECTED_BRANCH"
+        echo "  Actual:   $BRANCH"
+        echo ""
+        echo "  Switch to the correct branch:"
+        echo ""
+        echo "    git checkout $EXPECTED_BRANCH"
+        echo ""
+        exit 1
+    fi
+fi
+
+# ============================================================
+# RULE 3: WARN IF BRANCH DOESN'T FOLLOW CONVENTION
+# ============================================================
+if ! echo "$BRANCH" | grep -qE "^(feat|fix|chore|docs|refactor|test)/.*-[0-9]+$"; then
+    echo ""
+    echo "WARNING: Branch name doesn't follow convention"
+    echo "  Current: $BRANCH"
+    echo "  Expected: feat/short-desc-ISSUE# or fix/short-desc-ISSUE#"
+    echo ""
+    echo "  Continuing in 2 seconds... (Ctrl+C to abort)"
+    sleep 2
+fi
+
+echo "Committing to: $BRANCH"
