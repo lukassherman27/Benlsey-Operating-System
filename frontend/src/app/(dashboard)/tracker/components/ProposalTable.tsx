@@ -978,6 +978,7 @@ export function ProposalTable({
             </div>
           </div>
         )}
+        </div>
       </CardContent>
 
       {/* Lost Reason Dialog - triggered when status dropdown changes to "Lost" */}
