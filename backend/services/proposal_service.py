@@ -13,27 +13,24 @@ with status='proposal'. This service filters for proposal records.
 
 from typing import Optional, List, Dict, Any
 from .base_service import BaseService
+from .proposal_constants import (
+    DEFAULT_ACTIVE_STATUSES,
+    LOST_STATUSES,
+    WON_STATUS,
+    SORTABLE_PROPOSAL_COLUMNS,
+)
+from .proposal_utils import (
+    resolve_statuses,
+    calculate_health_score,
+    get_health_recommendation,
+)
 
 
 class ProposalService(BaseService):
     """Service for proposal operations"""
 
-    # Real statuses from the database
-    DEFAULT_ACTIVE_STATUSES = [
-        'First Contact', 'Meeting Held', 'NDA Signed', 'Proposal Prep',
-        'Proposal Sent', 'Negotiation', 'On Hold'
-    ]
-    STATUS_ALIASES = {
-        'active': 'First Contact,Meeting Held,NDA Signed,Proposal Prep,Proposal Sent,Negotiation,On Hold',
-        'pipeline': 'First Contact,Meeting Held,Proposal Prep,Proposal Sent,Negotiation',
-        'won': 'Contract Signed',
-        'lost': 'Lost,Declined',
-        'dormant': 'Dormant',
-        'on_hold': 'On Hold',
-        # Legacy aliases for backward compatibility
-        'proposal': 'Proposal Sent',
-        'proposals': 'First Contact,Meeting Held,Proposal Prep,Proposal Sent,Negotiation',
-    }
+    # Use shared constants (kept as class attributes for backward compatibility)
+    DEFAULT_ACTIVE_STATUSES = DEFAULT_ACTIVE_STATUSES
 
     def _resolve_statuses(
         self,
@@ -43,37 +40,9 @@ class ProposalService(BaseService):
         """
         Normalize incoming status filters.
 
-        Args:
-            status: Optional comma-delimited status list (e.g. "proposal,active")
-            default_statuses: Default statuses when no explicit filter supplied
-
-        Returns:
-            List of normalized status strings. Empty list means "no filter".
+        Delegates to shared resolve_statuses utility.
         """
-        if not status:
-            return list(default_statuses or [])
-
-        statuses = []
-        for part in status.split(','):
-            value = part.strip()
-            if not value:
-                continue
-            lowered = value.lower()
-            if lowered in ('all', '*'):
-                return []
-            # Check if this is an alias that maps to multiple statuses
-            alias_value = self.STATUS_ALIASES.get(lowered)
-            if alias_value:
-                # Alias value may be comma-separated list of real statuses
-                for real_status in alias_value.split(','):
-                    if real_status.strip() and real_status.strip() not in statuses:
-                        statuses.append(real_status.strip())
-            else:
-                # Not an alias, use the value as-is
-                if value not in statuses:
-                    statuses.append(value)
-
-        return statuses
+        return resolve_statuses(status, default_statuses)
 
     def _enhance_proposal(self, proposal: Dict[str, Any]) -> Dict[str, Any]:
         """
@@ -103,52 +72,9 @@ class ProposalService(BaseService):
         """
         Calculate health score based on proposal data.
 
-        Scoring logic:
-        - Start at 100
-        - Deduct for days since contact
-        - Deduct if ball in court is 'us' and stale
-        - Bonus for active communication
-        - Consider status
+        Delegates to shared calculate_health_score utility.
         """
-        score = 100.0
-
-        # Days since contact penalty
-        days = proposal.get('days_since_contact')
-        if days is not None:
-            if days > 30:
-                score -= 40  # Critical
-            elif days > 14:
-                score -= 20  # At risk
-            elif days > 7:
-                score -= 10  # Needs attention
-
-        # Ball in court penalty (if ball is with us and we're not acting)
-        ball = proposal.get('ball_in_court', '').lower()
-        if ball == 'us':
-            if days is not None and days > 14:
-                score -= 20  # We're dropping the ball
-            elif days is not None and days > 7:
-                score -= 10
-
-        # Status-based adjustments
-        status = proposal.get('status', '')
-        if status in ('Lost', 'Declined'):
-            score = 0  # Terminal states
-        elif status == 'Contract Signed':
-            score = 100  # Won
-        elif status == 'Dormant':
-            score = 20  # Low but not dead
-        elif status == 'On Hold':
-            score = 40  # Paused
-
-        # Bonus for active communication
-        email_count = proposal.get('email_count', 0)
-        if email_count and email_count > 20:
-            score = min(100, score + 10)
-        elif email_count and email_count > 10:
-            score = min(100, score + 5)
-
-        return max(0, min(100, score))  # Clamp to 0-100
+        return calculate_health_score(proposal)
 
     def _enhance_proposals(self, proposals: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         """Enhance a list of proposals"""
@@ -415,18 +341,8 @@ class ProposalService(BaseService):
         }
 
     def _get_health_recommendation(self, health_score: Optional[float]) -> str:
-        """Get recommendation based on health score"""
-        if health_score is None:
-            return "Insufficient data to assess health"
-
-        if health_score >= 80:
-            return "Healthy - Continue current engagement"
-        elif health_score >= 60:
-            return "Moderate - Consider follow-up"
-        elif health_score >= 40:
-            return "At Risk - Immediate follow-up recommended"
-        else:
-            return "Critical - Urgent action required"
+        """Get recommendation based on health score."""
+        return get_health_recommendation(health_score)
 
     def get_dashboard_stats(self) -> Dict[str, Any]:
         """

@@ -1,6 +1,8 @@
 """
 Proposal Tracker Service
 Manages proposal tracking data, status updates, and reporting
+
+Refactored (#378) to use shared constants from proposal_constants.py.
 """
 
 from typing import Dict, List, Optional, Any
@@ -8,6 +10,15 @@ from datetime import datetime
 import sqlite3
 from pathlib import Path
 from .base_service import BaseService
+from .proposal_constants import (
+    ACTIVE_PIPELINE_STATUSES,
+    TERMINAL_STATUSES,
+    LOST_STATUSES,
+    WON_STATUS,
+    STATUS_ORDER,
+    UPDATABLE_PROPOSAL_FIELDS,
+    FIELD_NAME_MAPPING,
+)
 
 
 class ProposalTrackerService(BaseService):
@@ -525,31 +536,11 @@ class ProposalTrackerService(BaseService):
     ) -> Dict[str, Any]:
         """Update proposal fields - writes to proposals table (source of truth)"""
 
-        # Map tracker field names to proposals table field names
-        field_mapping = {
-            'current_status': 'status',
-            'current_remark': 'remarks',
-            'project_summary': 'scope_summary',
-            'waiting_on': 'waiting_for',
-            'next_steps': 'next_action',
-        }
-
-        allowed_fields = {
-            'project_name', 'project_value', 'country',
-            'current_status', 'current_remark', 'project_summary',
-            'waiting_on', 'next_steps',
-            'proposal_sent_date', 'first_contact_date',
-            'contact_person', 'contact_email', 'contact_phone',
-            'ball_in_court', 'waiting_for', 'remarks', 'status',
-            # Action tracking (Issue #95)
-            'action_owner', 'action_source', 'next_action', 'next_action_date',
-            # Quick actions (Issue #300)
-            'won_date', 'lost_date', 'lost_reason', 'lost_to_competitor',
-            'contract_signed_date', 'internal_notes',
-        }
+        # Use shared constants for field mapping and allowed fields
+        # (#378: Consolidated from inline definitions)
 
         # Filter to allowed fields
-        update_fields = {k: v for k, v in updates.items() if k in allowed_fields}
+        update_fields = {k: v for k, v in updates.items() if k in UPDATABLE_PROPOSAL_FIELDS}
 
         if not update_fields:
             return {'success': False, 'message': 'No valid fields to update'}
@@ -565,10 +556,10 @@ class ProposalTrackerService(BaseService):
             # Always update updated_at
             update_fields['updated_at'] = datetime.now().isoformat()
 
-            # Map field names for proposals table
+            # Map field names for proposals table using shared mapping
             db_fields = {}
             for k, v in update_fields.items():
-                db_key = field_mapping.get(k, k)
+                db_key = FIELD_NAME_MAPPING.get(k, k)
                 db_fields[db_key] = v
 
             # Build UPDATE query for proposals table
@@ -588,17 +579,17 @@ class ProposalTrackerService(BaseService):
                 old_status = current.get('current_status', '')
                 new_status = db_fields['status']
 
-                # Determine date for status change
-                if new_status == 'Contract Signed':
+                # Determine date for status change using shared constants
+                if new_status == WON_STATUS:
                     status_date = db_fields.get('contract_signed_date') or db_fields.get('won_date') or datetime.now().strftime('%Y-%m-%d')
-                elif new_status == 'Lost':
+                elif new_status in LOST_STATUSES:
                     status_date = db_fields.get('lost_date') or datetime.now().strftime('%Y-%m-%d')
                 else:
                     status_date = datetime.now().strftime('%Y-%m-%d')
 
                 # Build notes for status change
                 notes_parts = []
-                if new_status == 'Lost' and 'lost_reason' in db_fields:
+                if new_status in LOST_STATUSES and 'lost_reason' in db_fields:
                     notes_parts.append(f"Reason: {db_fields['lost_reason']}")
                 if 'lost_to_competitor' in db_fields and db_fields['lost_to_competitor']:
                     notes_parts.append(f"Competitor: {db_fields['lost_to_competitor']}")
