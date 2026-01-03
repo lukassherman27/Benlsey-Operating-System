@@ -220,7 +220,7 @@ class ProposalService(BaseService):
 
         # Validate sort parameters to prevent SQL injection
         allowed_columns = [
-            'proposal_id', 'project_code', 'project_title', 'status',
+            'proposal_id', 'project_code', 'project_name', 'status',
             'health_score', 'days_since_contact', 'is_active_project',
             'created_at', 'updated_at'
         ]

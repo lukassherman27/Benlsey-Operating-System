@@ -13,7 +13,7 @@ Endpoints:
     ... and more
 """
 
-from fastapi import APIRouter, HTTPException, Query, Depends
+from fastapi import APIRouter, HTTPException, Query, Depends, Request
 from typing import Optional
 from datetime import datetime
 import sqlite3
@@ -21,6 +21,7 @@ import logging
 
 from api.services import proposal_service, proposal_tracker_service
 from api.dependencies import DB_PATH, get_current_user
+from api.rate_limit import limiter
 from services.proposal_detail_story_service import ProposalDetailStoryService
 
 logger = logging.getLogger(__name__)
@@ -47,7 +48,7 @@ async def list_proposals(
     is_active_project: Optional[bool] = None,
     page: int = Query(1, ge=1),
     per_page: int = Query(20, ge=1, le=100),
-    sort_by: str = Query("health_score", regex="^(proposal_id|project_code|project_title|status|health_score|days_since_contact|is_active_project|created_at|updated_at)$"),
+    sort_by: str = Query("health_score", regex="^(proposal_id|project_code|project_name|status|health_score|days_since_contact|is_active_project|created_at|updated_at)$"),
     sort_order: str = Query("ASC", regex="^(ASC|DESC)$")
 ):
     """
@@ -1228,9 +1229,11 @@ async def get_proposals_summary():
 
 
 @router.post("/proposals/{project_code}/chat")
+@limiter.limit("10/minute")
 async def chat_about_proposal(
+    request: Request,  # Required for rate limiting
     project_code: str,
-    request: dict,
+    body: dict,  # Renamed from 'request' to avoid conflict
     current_user: dict = Depends(get_current_user)
 ):
     """
