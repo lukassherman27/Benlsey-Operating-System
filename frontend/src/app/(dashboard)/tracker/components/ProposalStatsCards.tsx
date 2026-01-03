@@ -18,6 +18,7 @@ interface ProposalStats {
   overdue_count?: number;
   needs_followup?: number;
   ball_with_us_count?: number;
+  waiting_on_client?: number;
 }
 
 interface ProposalStatsCardsProps {
@@ -30,7 +31,17 @@ export function ProposalStatsCards({ stats, activeMetric, onMetricClick }: Propo
   if (!stats) return null;
 
   // Calculate needs attention count (overdue + ball with us)
-  const needsAttentionCount = (stats.overdue_count || 0) + (stats.ball_with_us_count || 0);
+  const overdueCount = stats.overdue_count || 0;
+  const ballWithUsCount = stats.ball_with_us_count || 0;
+  const activeCount = stats.active_proposals_count || stats.total_proposals || 0;
+  const waitingOnClient = stats.waiting_on_client || 0;
+  const followupCount = stats.needs_followup || 0;
+  const ballLikelyDefault = ballWithUsCount > 0 && activeCount > 0 && ballWithUsCount >= activeCount && waitingOnClient === 0;
+  const attentionBase = overdueCount + (ballLikelyDefault ? 0 : ballWithUsCount);
+  const needsAttentionCount = attentionBase > 0 ? attentionBase : followupCount;
+  const attentionHint = ballLikelyDefault
+    ? `${followupCount} follow-ups`
+    : `${overdueCount} overdue · ${ballWithUsCount} our move`;
 
   return (
     <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
@@ -113,7 +124,7 @@ export function ProposalStatsCards({ stats, activeMetric, onMetricClick }: Propo
             {needsAttentionCount}
           </p>
           <p className="text-xs text-amber-600">
-            {stats.overdue_count || 0} overdue · {stats.ball_with_us_count || 0} our move
+            {attentionHint}
           </p>
         </CardContent>
       </Card>

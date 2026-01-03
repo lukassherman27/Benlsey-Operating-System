@@ -146,11 +146,28 @@ function ProposalTrackerContent() {
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const stats = statsData?.stats as any;
+  const ownerStats = stats?.action_by_owner || null;
   const proposals = useMemo(() => proposalsData?.proposals || [], [proposalsData]);
+
+  // Reset owner filter if no owner data available
+  useEffect(() => {
+    if (ownerFilter !== "all" && (!ownerStats || Object.keys(ownerStats).length === 0)) {
+      setOwnerFilter("all");
+    }
+  }, [ownerFilter, ownerStats]);
 
   // Filter and sort proposals
   const filteredProposals = useMemo(() => {
     let result = proposals;
+    const hasActionDue = result.some((p) => !!p.action_due);
+    const hasActionOwners = result.some((p) => !!p.action_owner);
+    const ballValues = new Set(
+      result
+        .map((p) => p.ball_in_court)
+        .filter((value): value is string => !!value)
+    );
+    const hasBallSignal = ballValues.size > 1;
+    const ballReliable = hasBallSignal || hasActionOwners;
 
     // Owner filter
     if (ownerFilter !== "all") {
@@ -184,9 +201,10 @@ function ProposalTrackerContent() {
       const terminalStatuses = ["Contract Signed", "Lost", "Declined", "Dormant"];
       result = result.filter((p) => {
         if (terminalStatuses.includes(p.current_status)) return false;
-        const isOverdue = p.action_due && new Date(p.action_due) < today;
-        const isBallWithUs = p.ball_in_court === "us";
-        return isOverdue || isBallWithUs;
+        const isOverdue = hasActionDue && p.action_due && new Date(p.action_due) < today;
+        const isBallWithUs = ballReliable && p.ball_in_court === "us";
+        const isStale = !hasActionDue && !ballReliable && (p.days_in_current_status || 0) > 14;
+        return isOverdue || isBallWithUs || isStale;
       });
     }
 
@@ -390,7 +408,7 @@ function ProposalTrackerContent() {
       {proposals.length > 0 && (
         <PriorityBanner
           proposals={proposals}
-          onFilterOverdue={() => setActiveMetric("overdue")}
+          onFilterFollowup={() => setActiveMetric("followup")}
           onFilterMyMove={() => setOwnerFilter("bill")}
         />
       )}
@@ -416,6 +434,7 @@ function ProposalTrackerContent() {
         onStatusFilterChange={(v) => { setStatusFilter(v); setPage(1); }}
         ownerFilter={ownerFilter}
         onOwnerFilterChange={(v) => { setOwnerFilter(v); setPage(1); }}
+        ownerStats={ownerStats}
         disciplineFilter={disciplineFilter}
         onDisciplineFilterChange={(v) => { setDisciplineFilter(v); setPage(1); }}
         disciplineData={disciplineData}

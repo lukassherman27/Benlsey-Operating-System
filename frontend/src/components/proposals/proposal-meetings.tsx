@@ -35,6 +35,7 @@ import {
   Loader2,
   FileText,
   CheckCircle2,
+  AlertCircle,
 } from "lucide-react";
 import { format, parseISO, isPast, isFuture, isToday } from "date-fns";
 import { cn } from "@/lib/utils";
@@ -135,7 +136,20 @@ export function ProposalMeetings({ projectCode }: ProposalMeetingsProps) {
   }
 
   if (error) {
-    return null;
+    return (
+      <Card className="border-slate-200">
+        <CardContent className="py-8 text-center space-y-2">
+          <AlertCircle className="mx-auto h-8 w-8 text-slate-400" />
+          <p className="text-sm font-semibold text-slate-700">Meetings not available yet</p>
+          <p className="text-xs text-slate-500">
+            Record a meeting to start capturing summaries and action items.
+          </p>
+          <Button asChild variant="outline" size="sm">
+            <Link href="/recorder">Open Recorder</Link>
+          </Button>
+        </CardContent>
+      </Card>
+    );
   }
 
   const meetings = (data?.meetings || []) as Meeting[];

@@ -10,31 +10,47 @@ import { ProposalTrackerItem } from "@/lib/types";
 
 interface PriorityBannerProps {
   proposals: ProposalTrackerItem[];
-  onFilterOverdue: () => void;
+  onFilterFollowup: () => void;
   onFilterMyMove: () => void;
 }
 
-export function PriorityBanner({ proposals, onFilterOverdue, onFilterMyMove }: PriorityBannerProps) {
+export function PriorityBanner({ proposals, onFilterFollowup, onFilterMyMove }: PriorityBannerProps) {
   const router = useRouter();
   const [expanded, setExpanded] = useState(true);
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
-  // Filter overdue items (action_due is past)
+  const terminalStatuses = ["Contract Signed", "Lost", "Declined", "Dormant"];
+  const hasActionDue = proposals.some((p) => !!p.action_due);
+  const hasActionOwners = proposals.some((p) => !!p.action_owner);
+  const ballValues = new Set(
+    proposals
+      .map((p) => p.ball_in_court)
+      .filter((value): value is string => !!value)
+  );
+  const hasBallSignal = ballValues.size > 1;
+
+  // Filter overdue items (action_due is past); fallback to stale follow-ups
   const overdueItems = proposals.filter((p) => {
-    if (!p.action_due) return false;
-    const dueDate = new Date(p.action_due);
-    return dueDate < today &&
-      !["Contract Signed", "Lost", "Declined", "Dormant"].includes(p.current_status);
+    if (terminalStatuses.includes(p.current_status)) return false;
+    if (hasActionDue && p.action_due) {
+      const dueDate = new Date(p.action_due);
+      return dueDate < today;
+    }
+    return (p.days_in_current_status || 0) > 14;
   });
 
   // Filter "Your Move" items (Bill's items that aren't overdue)
   const myMoveItems = proposals.filter((p) => {
-    if (!p.action_owner) return false;
-    const isOverdue = p.action_due && new Date(p.action_due) < today;
-    return p.action_owner === "bill" &&
-      !isOverdue &&
-      !["Contract Signed", "Lost", "Declined", "Dormant"].includes(p.current_status);
+    if (terminalStatuses.includes(p.current_status)) return false;
+    if (hasActionOwners) {
+      const isOverdue = p.action_due && new Date(p.action_due) < today;
+      return p.action_owner === "bill" && !isOverdue;
+    }
+    if (hasBallSignal) {
+      return p.ball_in_court === "us";
+    }
+    return false;
   });
 
   // Don't show banner if nothing needs attention
@@ -84,7 +100,7 @@ export function PriorityBanner({ proposals, onFilterOverdue, onFilterMyMove }: P
                   overdueItems.length > 0 ? "text-red-500" : "text-slate-400"
                 )} />
                 <span className="text-sm font-semibold text-slate-700">
-                  Overdue ({overdueItems.length})
+                  {hasActionDue ? "Overdue" : "Follow-ups (14+ days)"} ({overdueItems.length})
                 </span>
               </div>
 
@@ -99,11 +115,19 @@ export function PriorityBanner({ proposals, onFilterOverdue, onFilterMyMove }: P
                       onClick={() => router.push(`/proposals/${encodeURIComponent(item.project_code)}`)}
                     >
                       <div className="truncate flex-1">
-                        <span className="font-medium text-slate-900">{item.project_name}</span>
+                        <span className="font-medium text-slate-900">
+                          {item.project_name || item.project_code}
+                        </span>
                       </div>
-                      <span className="text-red-600 font-medium text-xs ml-2 whitespace-nowrap">
-                        {getDaysOverdue(item.action_due!)}d late
-                      </span>
+                      {hasActionDue && item.action_due ? (
+                        <span className="text-red-600 font-medium text-xs ml-2 whitespace-nowrap">
+                          {getDaysOverdue(item.action_due)}d late
+                        </span>
+                      ) : (
+                        <span className="text-red-600 font-medium text-xs ml-2 whitespace-nowrap">
+                          {item.days_in_current_status || 0}d stale
+                        </span>
+                      )}
                     </div>
                   ))}
                   {overdueItems.length > 3 && (
@@ -111,9 +135,9 @@ export function PriorityBanner({ proposals, onFilterOverdue, onFilterMyMove }: P
                       variant="link"
                       size="sm"
                       className="h-auto p-0 text-red-600"
-                      onClick={onFilterOverdue}
+                      onClick={onFilterFollowup}
                     >
-                      View all {overdueItems.length} overdue
+                      View all {overdueItems.length} follow-ups
                     </Button>
                   )}
                 </div>
@@ -133,12 +157,16 @@ export function PriorityBanner({ proposals, onFilterOverdue, onFilterMyMove }: P
                   myMoveItems.length > 0 ? "text-amber-500" : "text-slate-400"
                 )} />
                 <span className="text-sm font-semibold text-slate-700">
-                  Your Move ({myMoveItems.length})
+                  {hasActionOwners ? "Your Move" : hasBallSignal ? "Ball With Us" : "Ownership Not Set"} ({myMoveItems.length})
                 </span>
               </div>
 
               {myMoveItems.length === 0 ? (
-                <p className="text-sm text-slate-500">Nothing pending for you</p>
+                <p className="text-sm text-slate-500">
+                  {hasActionOwners || hasBallSignal
+                    ? "Nothing pending for you"
+                    : "Assign owners to show next actions"}
+                </p>
               ) : (
                 <div className="space-y-2">
                   {myMoveItems.slice(0, 3).map((item) => (
@@ -148,7 +176,9 @@ export function PriorityBanner({ proposals, onFilterOverdue, onFilterMyMove }: P
                       onClick={() => router.push(`/proposals/${encodeURIComponent(item.project_code)}`)}
                     >
                       <div className="truncate flex-1">
-                        <span className="font-medium text-slate-900">{item.project_name}</span>
+                        <span className="font-medium text-slate-900">
+                          {item.project_name || item.project_code}
+                        </span>
                       </div>
                       <span className="text-amber-600 text-xs ml-2 truncate max-w-[120px]">
                         {item.action_needed || "Needs action"}

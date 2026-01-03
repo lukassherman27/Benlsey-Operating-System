@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
+import Link from "next/link";
 import { ProposalStory } from "@/components/proposals/proposal-story";
 import { TaskMiniKanban } from "@/components/tasks/task-mini-kanban";
 import { ProposalMeetings } from "@/components/proposals/proposal-meetings";
@@ -71,6 +72,9 @@ export default function ProjectDetailPage() {
   const isLoading = proposalQuery.isLoading;
   const proposal = proposalQuery.data;
   const timeline = timelineQuery.data;
+  const displayName = proposal?.project_name || proposal?.project_code || projectCode;
+  const emailCount = timeline?.stats?.total_emails ?? 0;
+  const timelineCount = timeline?.stats?.timeline_events ?? 0;
 
   const formatDate = (value?: string | null) => {
     if (!value) return "Not set";
@@ -171,7 +175,7 @@ export default function ProjectDetailPage() {
               <div className="space-y-3 flex-1 min-w-0">
                 <div>
                   <h1 className="text-2xl sm:text-3xl font-bold break-words">
-                    {proposal?.project_name ?? "Unknown Project"}
+                    {displayName}
                   </h1>
                   <p className="text-lg text-muted-foreground break-words mt-1">
                     {proposal?.client_company || proposal?.client_name || "Client not specified"}
@@ -268,6 +272,22 @@ export default function ProjectDetailPage() {
           primaryContactEmail={proposal?.primary_contact_email}
           proposalId={proposal?.proposal_id}
         />
+
+        {(emailCount === 0 || timelineCount === 0) && (
+          <Card className="border-amber-200 bg-amber-50/60">
+            <CardContent className="py-4 flex flex-col gap-2">
+              <p className="text-sm font-semibold text-amber-800">Story data is still empty</p>
+              <p className="text-sm text-amber-700">
+                Link proposal emails to generate the timeline, summaries, and action items.
+              </p>
+              <div>
+                <Button asChild variant="outline" size="sm">
+                  <Link href="/emails/review">Review Email Links</Link>
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Horizontal Timeline - Visual proposal journey */}
         <Card className="border-slate-200">
