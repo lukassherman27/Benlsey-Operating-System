@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -46,14 +47,36 @@ interface ProposalStats {
 }
 
 export function ExecutiveDashboard() {
-  const lastUpdated = new Date();
+  const [lastUpdatedLabel, setLastUpdatedLabel] = useState("");
+  const [todayLabel, setTodayLabel] = useState("");
+
+  useEffect(() => {
+    const now = new Date();
+    setLastUpdatedLabel(format(now, "h:mm a"));
+    setTodayLabel(format(now, "EEEE, MMMM d, yyyy"));
+  }, []);
+
+  const emptyExecutiveStats: ExecutiveStats = {
+    role: "executive",
+    pipeline_value: 0,
+    active_projects_count: 0,
+    outstanding_invoices_total: 0,
+    overdue_invoices_count: 0,
+  };
+
+  const emptyProposalStats: ProposalStats = {
+    active_pipeline: 0,
+    total_proposals: 0,
+    by_status: {},
+    need_followup: 0,
+  };
 
   // Fetch executive-specific stats
   const statsQuery = useQuery({
     queryKey: ["executive-stats"],
     queryFn: async () => {
       const res = await api.getDashboardStats("executive");
-      return res.data as ExecutiveStats;
+      return (res as unknown as ExecutiveStats) || emptyExecutiveStats;
     },
     staleTime: 1000 * 60 * 5,
   });
@@ -63,7 +86,7 @@ export function ExecutiveDashboard() {
     queryKey: ["executive-proposal-stats"],
     queryFn: async () => {
       const res = await api.getProposalStats();
-      return res.data as ProposalStats;
+      return (res as unknown as ProposalStats) || emptyProposalStats;
     },
     staleTime: 1000 * 60 * 5,
   });
@@ -78,11 +101,11 @@ export function ExecutiveDashboard() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Executive Dashboard</h1>
-          <p className="text-sm text-slate-500">{format(new Date(), "EEEE, MMMM d, yyyy")}</p>
+          <p className="text-sm text-slate-500">{todayLabel || "—"}</p>
         </div>
         <div className="flex items-center gap-2 text-sm text-slate-500">
           <Clock className="h-4 w-4" />
-          <span>Updated {format(lastUpdated, "h:mm a")}</span>
+          <span>Updated {lastUpdatedLabel || "—"}</span>
           <button
             onClick={() => window.location.reload()}
             className="p-1 hover:bg-slate-100 rounded"

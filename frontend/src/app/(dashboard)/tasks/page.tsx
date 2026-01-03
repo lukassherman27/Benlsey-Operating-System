@@ -904,7 +904,7 @@ function TasksPageContent() {
       <TaskEditModal
         open={modalOpen}
         onOpenChange={setModalOpen}
-        task={selectedTask}
+        task={selectedTask as Parameters<typeof TaskEditModal>[0]['task']}
         mode={modalMode}
       />
     </div>

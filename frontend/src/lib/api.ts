@@ -2686,6 +2686,10 @@ export const api = {
       count: number;
     }>(`/api/projects/${encodeURIComponent(projectCode)}/team`),
 
+  // Project Milestones (stub - not yet implemented)
+  getProjectMilestones: (projectCode: string) =>
+    Promise.resolve({ success: true, milestones: [] as Array<{ id: number; title: string; status: string; due_date: string | null; is_overdue: number }> }),
+
   // ==========================================================================
   // TEAM & PM WORKLOAD API (Issue #192)
   // ==========================================================================

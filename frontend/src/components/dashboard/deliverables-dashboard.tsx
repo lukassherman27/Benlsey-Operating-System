@@ -33,20 +33,23 @@ import { useRouter } from 'next/navigation'
 
 interface Deliverable {
   deliverable_id: number
-  project_code: string
+  project_code: string | null
   project_name?: string
-  name: string
-  description?: string
+  project_title?: string | null
+  name?: string
+  deliverable_name: string | null
+  description?: string | null
   status: string
   priority: string
   due_date: string | null
   start_date?: string | null
   actual_completion_date?: string | null
   owner_staff_id?: number
-  assigned_pm?: string
+  assigned_pm?: string | null
   phase_id?: number
+  phase?: string | null
   phase_name?: string
-  deliverable_type?: string
+  deliverable_type?: string | null
 }
 
 const STATUS_CONFIG: Record<string, { color: string; bgColor: string; icon: React.ReactNode }> = {
@@ -93,7 +96,7 @@ export function DeliverablesDashboard() {
   // Fetch all deliverables
   const deliverablesQuery = useQuery({
     queryKey: ['deliverables', 'all'],
-    queryFn: () => api.getDeliverables(),
+    queryFn: () => api.getDeliverables() as Promise<{ deliverables: Deliverable[]; count: number }>,
     staleTime: 1000 * 60 * 5,
   })
 
@@ -132,10 +135,10 @@ export function DeliverablesDashboard() {
     if (search) {
       const searchLower = search.toLowerCase()
       filtered = filtered.filter(d =>
-        d.name.toLowerCase().includes(searchLower) ||
-        d.project_code.toLowerCase().includes(searchLower) ||
-        d.project_name?.toLowerCase().includes(searchLower) ||
-        d.assigned_pm?.toLowerCase().includes(searchLower)
+        (d.deliverable_name || d.name || '').toLowerCase().includes(searchLower) ||
+        (d.project_code || '').toLowerCase().includes(searchLower) ||
+        (d.project_name || d.project_title || '').toLowerCase().includes(searchLower) ||
+        (d.assigned_pm || '').toLowerCase().includes(searchLower)
       )
     }
 
@@ -295,8 +298,8 @@ export function DeliverablesDashboard() {
               <SelectContent>
                 <SelectItem value="all">All PMs</SelectItem>
                 {pmList.map((pm) => (
-                  <SelectItem key={pm.pm_name || 'unknown'} value={pm.pm_name || 'unknown'}>
-                    {pm.pm_name || 'Unassigned'}
+                  <SelectItem key={pm.full_name || 'unknown'} value={pm.full_name || 'unknown'}>
+                    {pm.full_name || 'Unassigned'}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -349,7 +352,7 @@ export function DeliverablesDashboard() {
                         ? "border-red-200 bg-red-50/50 hover:bg-red-50"
                         : "border-slate-200 hover:bg-slate-50"
                     )}
-                    onClick={() => router.push(`/projects/${encodeURIComponent(deliverable.project_code)}`)}
+                    onClick={() => deliverable.project_code && router.push(`/projects/${encodeURIComponent(deliverable.project_code)}`)}
                   >
                     {/* Status Icon */}
                     <div className={cn(
@@ -363,15 +366,15 @@ export function DeliverablesDashboard() {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
                         <span className="font-medium text-slate-900 truncate">
-                          {deliverable.name}
+                          {deliverable.deliverable_name || deliverable.name || 'Unnamed'}
                         </span>
                         <Badge variant="secondary" className="font-mono text-[10px] shrink-0">
-                          {deliverable.project_code}
+                          {deliverable.project_code || 'N/A'}
                         </Badge>
                       </div>
                       <div className="flex items-center gap-3 mt-1 text-xs text-slate-500">
-                        {deliverable.project_name && (
-                          <span className="truncate max-w-[200px]">{deliverable.project_name}</span>
+                        {(deliverable.project_name || deliverable.project_title) && (
+                          <span className="truncate max-w-[200px]">{deliverable.project_name || deliverable.project_title}</span>
                         )}
                         {deliverable.assigned_pm && (
                           <>
@@ -382,10 +385,10 @@ export function DeliverablesDashboard() {
                             </span>
                           </>
                         )}
-                        {deliverable.phase_name && (
+                        {(deliverable.phase_name || deliverable.phase) && (
                           <>
                             <span>•</span>
-                            <span>{deliverable.phase_name}</span>
+                            <span>{deliverable.phase_name || deliverable.phase}</span>
                           </>
                         )}
                       </div>

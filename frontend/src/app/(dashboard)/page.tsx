@@ -56,10 +56,7 @@ export default function DashboardPage() {
   // Fetch proposal stats for status breakdown
   const proposalStatsQuery = useQuery({
     queryKey: ["dashboard-proposal-stats"],
-    queryFn: async () => {
-      const res = await api.getProposalStats();
-      return res.data as ProposalStats;
-    },
+    queryFn: () => api.getProposalStats(),
     staleTime: 1000 * 60 * 5,
   });
 
@@ -243,7 +240,7 @@ export default function DashboardPage() {
                 {formatCurrency(proposals?.totalValue || 0)}
               </p>
               <p className="text-xs text-blue-600 mt-0.5">
-                {proposalStats?.active_pipeline || proposals?.active?.length || 0} active proposals
+                {proposalStats?.active_projects || proposals?.active?.length || 0} active proposals
               </p>
             </CardContent>
           </Card>
@@ -470,7 +467,7 @@ export default function DashboardPage() {
                         </div>
                         <div className="text-right flex-shrink-0">
                           <p className="text-xs text-blue-600">
-                            Sent {format(new Date((p as { proposal_sent_date: string }).proposal_sent_date), "MMM d")}
+                            Sent {format(new Date((p as unknown as { proposal_sent_date: string }).proposal_sent_date), "MMM d")}
                           </p>
                         </div>
                       </div>

@@ -10,6 +10,16 @@ import { Flag, Calendar, AlertTriangle, CheckCircle2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ds } from "@/lib/design-system";
 
+interface Milestone {
+  milestone_id?: number;
+  id?: number;
+  title: string;
+  status: string;
+  due_date: string | null;
+  is_overdue: number;
+  days_until?: number;
+}
+
 interface MilestonesCardProps {
   projectCode: string;
   className?: string;
@@ -72,8 +82,8 @@ export function MilestonesCard({ projectCode, className }: MilestonesCardProps) 
   }
 
   // Split into upcoming and completed
-  const upcoming = milestones.filter(m => m.status !== 'completed').slice(0, 5);
-  const overdue = milestones.filter(m => m.is_overdue === 1);
+  const upcoming = (milestones as Milestone[]).filter((m) => m.status !== 'completed').slice(0, 5);
+  const overdue = (milestones as Milestone[]).filter((m) => m.is_overdue === 1);
 
   return (
     <Card className={cn(ds.cards.default, className)}>

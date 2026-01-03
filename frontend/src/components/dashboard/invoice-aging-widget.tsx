@@ -151,7 +151,7 @@ export function InvoiceAgingWidget({ compact: _compact = false }: InvoiceAgingWi
               tickFormatter={(value) => `$${(value / 1000000).toFixed(1)}M`}
             />
             <Tooltip
-              formatter={(value: number) => [`$${value.toLocaleString()}`, "Amount"]}
+              formatter={(value) => [`$${(value as number).toLocaleString()}`, "Amount"]}
               labelFormatter={(label) => `Aging: ${label}`}
             />
             <Bar dataKey="amount" radius={[8, 8, 0, 0]}>

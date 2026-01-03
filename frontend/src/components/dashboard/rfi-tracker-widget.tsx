@@ -17,24 +17,29 @@ import { differenceInDays, format } from "date-fns";
 import { api } from "@/lib/api";
 
 interface RFI {
-  rfi_id: number;
-  project_code: string | null;
-  project_title: string | null;
-  rfi_number: string | null;
+  id?: number;
+  rfi_id?: number;
+  project_code?: string | null;
+  project_name?: string | null;
+  project_title?: string | null;
+  rfi_number?: string | null;
   subject: string | null;
   description?: string | null;
-  date_sent: string | null;
-  date_due: string | null;
+  date_sent?: string | null;
+  date_due?: string | null;
+  due_date?: string | null;
+  created_at?: string;
   status: string;
-  priority: string;
-  days_open: number | null;
-  days_overdue: number | null;
-  is_overdue: number;
+  priority?: string;
+  days_open?: number | null;
+  days_overdue?: number | null;
+  is_overdue?: number;
   assigned_pm?: string | null;
+  assigned_to?: string | null;
 }
 
 interface RFIResponse {
-  total: number;
+  total?: number;
   rfis: RFI[];
 }
 
@@ -46,9 +51,9 @@ export function RFITrackerWidget() {
     responseSent: false,
   });
 
-  const { data, isLoading, error } = useQuery<RFIResponse>({
+  const { data, isLoading, error } = useQuery({
     queryKey: ["rfis-open"],
-    queryFn: () => api.getRfis(),
+    queryFn: () => api.getRfis() as Promise<RFIResponse>,
     refetchInterval: 5 * 60 * 1000,
   });
 
