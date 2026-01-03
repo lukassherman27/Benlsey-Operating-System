@@ -232,7 +232,7 @@ export function AnalyticsCharts({ data, isLoading }: AnalyticsChartsProps) {
                     width={60}
                   />
                   <Tooltip
-                    formatter={(value: number) => [formatValue(value), "Pipeline"]}
+                    formatter={(value) => [formatValue(value as number), "Pipeline"]}
                     labelStyle={{ color: "#1e293b" }}
                     contentStyle={{ borderRadius: "8px", border: "1px solid #e2e8f0" }}
                   />
@@ -274,7 +274,7 @@ export function AnalyticsCharts({ data, isLoading }: AnalyticsChartsProps) {
                       width={45}
                     />
                     <Tooltip
-                      formatter={(value: number, name: string) => {
+                      formatter={(value, name) => {
                         if (name === "rate") return [`${value}%`, "Win Rate"];
                         return [value, name];
                       }}
@@ -326,7 +326,7 @@ export function AnalyticsCharts({ data, isLoading }: AnalyticsChartsProps) {
                     width={100}
                   />
                   <Tooltip
-                    formatter={(value: number) => [formatValue(value), "Value"]}
+                    formatter={(value) => [formatValue(value as number), "Value"]}
                     labelStyle={{ color: "#1e293b" }}
                     contentStyle={{ borderRadius: "8px", border: "1px solid #e2e8f0" }}
                   />
@@ -364,7 +364,7 @@ export function AnalyticsCharts({ data, isLoading }: AnalyticsChartsProps) {
                     width={45}
                   />
                   <Tooltip
-                    formatter={(value: number, name: string) => {
+                    formatter={(value, name) => {
                       if (name === "win_rate") return [`${value}%`, "Win Rate"];
                       return [value, name];
                     }}

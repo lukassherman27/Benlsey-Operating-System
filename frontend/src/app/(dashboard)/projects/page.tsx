@@ -626,7 +626,7 @@ export default function ProjectsPage() {
       <TaskEditModal
         open={taskModalOpen}
         onOpenChange={setTaskModalOpen}
-        task={selectedTask}
+        task={selectedTask as Parameters<typeof TaskEditModal>[0]['task']}
         mode={taskModalMode}
       />
     </div>

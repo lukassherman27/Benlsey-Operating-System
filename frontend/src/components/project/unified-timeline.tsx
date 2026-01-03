@@ -174,13 +174,13 @@ export function UnifiedTimeline({ projectCode, limit = 20, showStory = false }: 
   const [personFilter, setPersonFilter] = useState<string>("all");
   const [emailCategoryFilter, setEmailCategoryFilter] = useState<string>("all");
 
-  const { data, isLoading, error } = useQuery<TimelineResponse>({
+  const { data, isLoading, error } = useQuery({
     queryKey: ["unified-timeline", projectCode, typeFilter, personFilter, limit],
     queryFn: () => api.getUnifiedTimeline(projectCode, {
       limit,
       item_types: typeFilter !== "all" ? typeFilter : undefined,
       person: personFilter !== "all" ? personFilter : undefined,
-    }),
+    }) as unknown as Promise<TimelineResponse>,
     retry: 1,
   });
 

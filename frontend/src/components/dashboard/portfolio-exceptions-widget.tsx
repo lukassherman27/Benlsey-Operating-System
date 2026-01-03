@@ -12,9 +12,9 @@ interface ProjectException {
   project_code: string;
   project_name: string;
   issues: {
-    type: "overdue_invoice" | "overdue_deliverable" | "stale" | "unpaid" | "overdue_action";
+    type: string;
     label: string;
-    severity: "high" | "medium" | "low";
+    severity: string;
     value?: number;
     days?: number;
   }[];
@@ -28,9 +28,9 @@ interface ExceptionsResponse {
 }
 
 export function PortfolioExceptionsWidget() {
-  const { data, isLoading, error } = useQuery<ExceptionsResponse>({
+  const { data, isLoading, error } = useQuery({
     queryKey: ["portfolio-exceptions"],
-    queryFn: () => api.getPortfolioExceptions(),
+    queryFn: () => api.getPortfolioExceptions() as Promise<ExceptionsResponse>,
     refetchInterval: 5 * 60 * 1000,
   });
 

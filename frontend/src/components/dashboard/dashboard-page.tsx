@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   useMutation,
   useQuery,
@@ -161,6 +161,11 @@ export default function DashboardPage() {
   const [isAssistantOpen, setIsAssistantOpen] = useState(false);
   const [selectedSuggestion, setSelectedSuggestion] =
     useState<IntelligenceSuggestion | null>(null);
+  const [lastUpdated, setLastUpdated] = useState("");
+
+  useEffect(() => {
+    setLastUpdated(format(new Date(), "h:mm a"));
+  }, []);
 
   const queryClient = useQueryClient();
 
@@ -405,7 +410,7 @@ export default function DashboardPage() {
     </Badge>
   ) : (
     <Badge variant="secondary" className="rounded-full">
-      Updated {format(new Date(), "h:mm a")}
+      Updated {lastUpdated || "—"}
     </Badge>
   );
 

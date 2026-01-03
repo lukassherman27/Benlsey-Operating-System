@@ -25,7 +25,7 @@ export function ProjectKPICards({ projectCode }: ProjectKPICardsProps) {
 
   const deliverablesQuery = useQuery({
     queryKey: ["deliverables", "pm-list"],
-    queryFn: () => api.getPMDeliverables(),
+    queryFn: () => api.getDeliverables({}),
     staleTime: 1000 * 60 * 5,
     enabled: !projectCode,
   });
@@ -217,7 +217,7 @@ export function ProjectKPICards({ projectCode }: ProjectKPICardsProps) {
                 <Users className="h-3 w-3" /> Project Managers
               </p>
               <p className="text-2xl font-bold text-purple-700 mt-1">
-                {[...new Set(projects.map((p: { pm_name?: string }) => p.pm_name).filter(Boolean))].length}
+                {[...new Set(projects.map((p) => (p as unknown as { pm_name?: string }).pm_name).filter(Boolean))].length}
               </p>
             </div>
           </div>

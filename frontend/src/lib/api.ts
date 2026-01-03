@@ -1,5 +1,13 @@
 import { getSession } from "next-auth/react";
 
+// Custom error class for authentication errors
+export class AuthError extends Error {
+  constructor(message: string = "Authentication required") {
+    super(message);
+    this.name = "AuthError";
+  }
+}
+
 import {
   AnalyticsDashboard,
   AnalyticsTrends,
@@ -2686,39 +2694,13 @@ export const api = {
       count: number;
     }>(`/api/projects/${encodeURIComponent(projectCode)}/team`),
 
+  // Project Milestones (stub - not yet implemented)
+  getProjectMilestones: (projectCode: string) =>
+    Promise.resolve({ success: true, milestones: [] as Array<{ id: number; title: string; status: string; due_date: string | null; is_overdue: number }> }),
+
   // ==========================================================================
   // TEAM & PM WORKLOAD API (Issue #192)
   // ==========================================================================
-
-  getPMWorkload: () =>
-    request<{
-      success: boolean;
-      data: Array<{
-        pm_id: number;
-        pm_name: string;
-        pm_email: string | null;
-        office: string | null;
-        project_count: number;
-        open_task_count: number;
-        overdue_count: number;
-        health_status: 'on_track' | 'warning' | 'at_risk';
-        projects: Array<{
-          project_id: number;
-          project_code: string;
-          project_title: string | null;
-          status: string | null;
-          health_score: number | null;
-          client_name: string | null;
-        }>;
-      }>;
-      summary: {
-        total_pms: number;
-        total_projects_assigned: number;
-        total_open_tasks: number;
-        total_overdue: number;
-        unassigned_projects: number;
-      };
-    }>('/api/team/pm-workload'),
 
   getProjectsByPM: (pmId: number) =>
     request<{

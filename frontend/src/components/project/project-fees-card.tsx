@@ -93,9 +93,9 @@ const sortPhases = (phases: FeeBreakdown[]): FeeBreakdown[] => {
 export function ProjectFeesCard({ projectCode, contractValue = 0 }: ProjectFeesCardProps) {
   const [expandedDiscipline, setExpandedDiscipline] = useState<string | null>(null);
 
-  const { data, isLoading, error } = useQuery<FeeBreakdownResponse>({
+  const { data, isLoading, error } = useQuery({
     queryKey: ["fee-breakdown", projectCode],
-    queryFn: () => api.getProjectFeeBreakdowns(projectCode),
+    queryFn: () => api.getProjectFeeBreakdowns(projectCode) as Promise<FeeBreakdownResponse>,
   });
 
   if (isLoading) {

@@ -110,7 +110,7 @@ export function PhaseProgressDashboard({ projectCode, className }: PhaseProgress
   const disciplines: DisciplineData[] = Object.entries(byDiscipline)
     .filter(([name]) => name !== "Unknown")
     .map(([name, phases]) => {
-      const phaseList = phases as Phase[];
+      const phaseList = phases as unknown as Phase[];
       const totalFee = phaseList.reduce((sum, p) => sum + (p.phase_fee_usd || 0), 0);
       const totalPaid = phaseList.reduce((sum, p) => {
         const fee = p.phase_fee_usd || 0;

@@ -175,7 +175,7 @@ export function WeeklyScheduleGrid({ projectCode }: WeeklyScheduleGridProps) {
               <User className="h-4 w-4" />
               <span>{data?.summary?.staff_involved?.length ?? 0} team members</span>
             </div>
-            {data?.summary?.phases_worked?.length > 0 && (
+            {data?.summary?.phases_worked && data.summary.phases_worked.length > 0 && (
               <div className="flex items-center gap-1">
                 <Clock className="h-4 w-4" />
                 <span>Phases: {data.summary.phases_worked.join(", ")}</span>

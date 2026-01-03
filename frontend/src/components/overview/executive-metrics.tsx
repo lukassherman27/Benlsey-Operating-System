@@ -245,7 +245,7 @@ export function ExecutiveMetrics({ stats, proposals, isLoading }: ExecutiveMetri
             ) : (
               topOpportunities.map((p, idx) => (
                 <div
-                  key={p.id}
+                  key={p.id ?? p.project_code ?? idx}
                   className="flex items-center justify-between py-2 border-b border-slate-100 last:border-0"
                 >
                   <div className="flex items-center gap-3">

@@ -10,6 +10,19 @@ import { Flag, Calendar, AlertTriangle, CheckCircle2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ds } from "@/lib/design-system";
 
+interface Milestone {
+  milestone_id?: number;
+  id?: number;
+  title: string;
+  milestone_name?: string;
+  status: string;
+  due_date: string | null;
+  planned_date?: string | null;
+  is_overdue: number;
+  days_until?: number;
+  phase?: string;
+}
+
 interface MilestonesCardProps {
   projectCode: string;
   className?: string;
@@ -72,8 +85,8 @@ export function MilestonesCard({ projectCode, className }: MilestonesCardProps) 
   }
 
   // Split into upcoming and completed
-  const upcoming = milestones.filter(m => m.status !== 'completed').slice(0, 5);
-  const overdue = milestones.filter(m => m.is_overdue === 1);
+  const upcoming = (milestones as Milestone[]).filter((m) => m.status !== 'completed').slice(0, 5);
+  const overdue = (milestones as Milestone[]).filter((m) => m.is_overdue === 1);
 
   return (
     <Card className={cn(ds.cards.default, className)}>
@@ -129,7 +142,7 @@ export function MilestonesCard({ projectCode, className }: MilestonesCardProps) 
                         "text-xs",
                         isOverdue ? "text-red-600" : "text-slate-500"
                       )}>
-                        {formatDate(milestone.planned_date)}
+                        {formatDate(milestone.planned_date ?? null)}
                       </span>
                     </div>
                   </div>
@@ -141,7 +154,7 @@ export function MilestonesCard({ projectCode, className }: MilestonesCardProps) 
                     <span className="text-xs text-red-600 font-medium">
                       {Math.abs(daysUntil)} days late
                     </span>
-                  ) : daysUntil !== null ? (
+                  ) : daysUntil !== undefined ? (
                     <span className={cn(
                       "text-xs font-medium",
                       daysUntil <= 7 ? "text-amber-600" : "text-slate-600"

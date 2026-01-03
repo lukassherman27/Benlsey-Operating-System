@@ -294,7 +294,7 @@ export function ProposalTable({
         <div className="space-y-4">
           {/* Mobile Cards */}
           <div className="space-y-3 lg:hidden">
-            {proposals.map((proposal) => {
+            {proposals.map((proposal, index) => {
               const projectName = getProjectName(proposal);
               const today = new Date();
               today.setHours(0, 0, 0, 0);
@@ -309,7 +309,7 @@ export function ProposalTable({
 
               return (
                 <Card
-                  key={proposal.id}
+                  key={proposal.id ?? proposal.project_code ?? index}
                   className={cn(
                     "border-slate-200 cursor-pointer",
                     ds.hover.subtle,
@@ -555,7 +555,7 @@ export function ProposalTable({
               </TableRow>
             </TableHeader>
             <TableBody>
-              {proposals.map((proposal) => {
+              {proposals.map((proposal, index) => {
                 const projectName = getProjectName(proposal);
                 const activityColor = getActivityColor(proposal.days_in_current_status);
                 const today = new Date();
@@ -570,7 +570,7 @@ export function ProposalTable({
 
                 return (
                   <TableRow
-                    key={proposal.id}
+                    key={proposal.id ?? proposal.project_code ?? index}
                     className={cn(
                       "cursor-pointer",
                       ds.hover.subtle,
