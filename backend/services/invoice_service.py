@@ -126,10 +126,10 @@ class InvoiceService:
                 i.invoice_date,
                 i.description,
                 i.status,
-                p.project_code,
-                p.project_title
+                COALESCE(i.project_code, p.project_code) as project_code,
+                COALESCE(p.project_title, i.project_code) as project_title
             FROM invoices i
-            LEFT JOIN projects p ON i.project_id = p.project_id
+            LEFT JOIN projects p ON i.project_code = p.project_code
             WHERE i.status = 'paid'
             AND i.payment_date IS NOT NULL
             ORDER BY i.payment_date DESC
@@ -154,11 +154,11 @@ class InvoiceService:
                 i.due_date,
                 i.description,
                 i.status,
-                p.project_code,
-                p.project_title,
-                pfb.discipline,
-                pfb.phase,
-                pfb.scope,
+                COALESCE(i.project_code, p.project_code) as project_code,
+                COALESCE(p.project_title, i.project_code) as project_title,
+                i.discipline,
+                i.phase,
+                NULL as scope,
                 CASE
                     WHEN i.due_date IS NOT NULL THEN
                         CAST(julianday('now') - julianday(i.due_date) AS INTEGER)
@@ -166,8 +166,7 @@ class InvoiceService:
                         CAST(julianday('now') - julianday(i.invoice_date, '+30 days') AS INTEGER)
                 END as days_overdue
             FROM invoices i
-            LEFT JOIN projects p ON i.project_id = p.project_id
-            LEFT JOIN project_fee_breakdown pfb ON i.breakdown_id = pfb.breakdown_id
+            LEFT JOIN projects p ON i.project_code = p.project_code
             WHERE i.status IN ('sent', 'overdue', 'outstanding')
             ORDER BY i.invoice_amount DESC
             LIMIT ?
@@ -180,7 +179,7 @@ class InvoiceService:
 
     def get_aging_breakdown(self) -> Dict[str, Any]:
         """
-        Get invoice aging breakdown categorized by age
+        Get invoice aging breakdown categorized by age (active projects only)
         Returns counts and amounts for 0-10, 10-30, 30-90, and 90+ days
         """
         conn = self._get_connection()
@@ -198,16 +197,18 @@ class InvoiceService:
                 END as age_category
             FROM (
                 SELECT
-                    invoice_amount - COALESCE(payment_amount, 0) as outstanding_amount,
+                    i.invoice_amount - COALESCE(i.payment_amount, 0) as outstanding_amount,
                     CASE
-                        WHEN due_date IS NOT NULL THEN
-                            CAST(julianday('now') - julianday(due_date) AS INTEGER)
+                        WHEN i.due_date IS NOT NULL THEN
+                            CAST(julianday('now') - julianday(i.due_date) AS INTEGER)
                         ELSE
-                            CAST(julianday('now') - julianday(invoice_date, '+30 days') AS INTEGER)
+                            CAST(julianday('now') - julianday(i.invoice_date, '+30 days') AS INTEGER)
                     END as days_overdue
-                FROM invoices
-                WHERE status IN ('sent', 'overdue', 'outstanding')
-                  AND invoice_amount - COALESCE(payment_amount, 0) > 0
+                FROM invoices i
+                JOIN projects p ON i.project_code = p.project_code
+                WHERE p.is_active_project = 1
+                  AND i.status IN ('sent', 'overdue', 'outstanding')
+                  AND i.invoice_amount - COALESCE(i.payment_amount, 0) > 0
             )
             GROUP BY age_category
         """)

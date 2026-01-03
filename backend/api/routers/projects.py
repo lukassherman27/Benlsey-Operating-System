@@ -125,12 +125,13 @@ async def get_active_projects(
             SELECT
                 p.project_code,
                 p.project_title,
-                COALESCE(pr.client_company, c.company_name, p.project_title) as client_name,
+                COALESCE(pr.client_company, p.client_company, p.project_title) as client_name,
                 p.total_fee_usd as contract_value,
                 p.status,
-                p.current_phase as current_phase,
+                p.project_phase as current_phase,
                 p.project_id as project_id,
                 p.contract_signed_date,
+                p.country,
                 COALESCE(SUM(i.invoice_amount), 0) as total_invoiced,
                 COALESCE(SUM(i.payment_amount), 0) as paid_to_date_usd,
                 (p.total_fee_usd - COALESCE(SUM(i.payment_amount), 0)) as outstanding_usd,
@@ -141,7 +142,6 @@ async def get_active_projects(
                 END as percentage_invoiced
             FROM projects p
             LEFT JOIN proposals pr ON p.project_code = pr.project_code
-            LEFT JOIN clients c ON p.client_id = c.client_id
             LEFT JOIN invoices i ON p.project_id = i.project_id
             WHERE (p.is_active_project = 1 OR p.status IN ('active', 'active_project', 'Active'))
         """
@@ -159,8 +159,8 @@ async def get_active_projects(
             params = assigned
 
         base_query += """
-            GROUP BY p.project_id, p.project_code, p.project_title, pr.client_company, c.company_name,
-                     p.total_fee_usd, p.status, p.current_phase, p.contract_signed_date
+            GROUP BY p.project_id, p.project_code, p.project_title, pr.client_company, p.client_company,
+                     p.total_fee_usd, p.status, p.project_phase, p.contract_signed_date, p.country
             ORDER BY p.project_code DESC
         """
 
@@ -266,17 +266,16 @@ async def get_project_financial_summary(project_code: str):
         cursor.execute("""
             SELECT p.project_id, p.project_code, p.project_title,
                    p.project_title as project_name,
-                   COALESCE(c.company_name, p.project_title) as client_name,
+                   COALESCE(p.client_company, p.project_title) as client_name,
                    p.total_fee_usd as contract_value,
                    p.total_fee_usd as contract_value_usd,
                    p.total_fee_usd as total_fee_usd,
-                   p.current_phase,
+                   p.project_phase as current_phase,
                    p.status,
                    p.contract_signed_date,
                    p.city,
                    p.country
             FROM projects p
-            LEFT JOIN clients c ON p.client_id = c.client_id
             WHERE p.project_code = ?
         """, (project_code,))
 
@@ -309,22 +308,18 @@ async def get_project_financial_summary(project_code: str):
             raise HTTPException(status_code=404, detail=f"Project {project_code} not found")
 
         project = dict(project_row)
-        project_id = project.get('project_id')
 
-        # Get invoice totals (only if we have a project_id)
-        total_invoiced = 0
-        total_paid = 0
-        if project_id:
-            cursor.execute("""
-                SELECT
-                    COALESCE(SUM(invoice_amount), 0) as total_invoiced,
-                    COALESCE(SUM(payment_amount), 0) as total_paid
-                FROM invoices
-                WHERE project_id = ?
-            """, (project_id,))
-            totals = cursor.fetchone()
-            total_invoiced = totals['total_invoiced'] if totals else 0
-            total_paid = totals['total_paid'] if totals else 0
+        # Get invoice totals using project_code (project_id is NULL in invoices table)
+        cursor.execute("""
+            SELECT
+                COALESCE(SUM(invoice_amount), 0) as total_invoiced,
+                COALESCE(SUM(payment_amount), 0) as total_paid
+            FROM invoices
+            WHERE project_code = ?
+        """, (project_code,))
+        totals = cursor.fetchone()
+        total_invoiced = totals['total_invoiced'] if totals else 0
+        total_paid = totals['total_paid'] if totals else 0
 
         conn.close()
 

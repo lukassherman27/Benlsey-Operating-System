@@ -69,9 +69,9 @@ async def get_recent_invoices(limit: int = Query(20, ge=1, le=100)):
         conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
         cursor.execute("""
-            SELECT i.*, p.project_code, p.project_title
+            SELECT i.*, COALESCE(p.project_code, i.project_code) as project_code, p.project_title
             FROM invoices i
-            LEFT JOIN projects p ON i.project_id = p.project_id
+            LEFT JOIN projects p ON i.project_code = p.project_code
             ORDER BY i.invoice_date DESC
             LIMIT ?
         """, (limit,))
@@ -357,8 +357,8 @@ async def get_client_payment_behavior(limit: int = Query(10, ge=1, le=50)):
 
         cursor.execute("""
             SELECT
-                p.project_code,
-                p.project_title as project_name,
+                COALESCE(p.project_code, i.project_code) as project_code,
+                COALESCE(p.project_title, i.project_code) as project_name,
                 COUNT(i.invoice_id) as invoice_count,
                 COALESCE(SUM(i.invoice_amount), 0) as total_invoiced,
                 COALESCE(SUM(i.payment_amount), 0) as total_paid,
@@ -371,9 +371,9 @@ async def get_client_payment_behavior(limit: int = Query(10, ge=1, le=50)):
                 MIN(i.invoice_date) as first_invoice,
                 MAX(i.invoice_date) as last_invoice
             FROM invoices i
-            JOIN projects p ON i.project_id = p.project_id
+            LEFT JOIN projects p ON i.project_code = p.project_code
             WHERE i.invoice_amount > 0
-            GROUP BY p.project_id
+            GROUP BY i.project_code
             HAVING total_paid > 0
             ORDER BY total_paid DESC
             LIMIT ?
