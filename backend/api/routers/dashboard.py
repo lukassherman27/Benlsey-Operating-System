@@ -67,7 +67,7 @@ async def get_role_based_stats(role: str) -> dict:
             cursor.execute("""
                 SELECT COALESCE(SUM(i.invoice_amount - COALESCE(i.payment_amount, 0)), 0) as outstanding
                 FROM invoices i
-                JOIN projects p ON i.project_id = p.project_id
+                JOIN projects p ON i.project_code = p.project_code
                 WHERE p.is_active_project = 1
                 AND (i.invoice_amount - COALESCE(i.payment_amount, 0)) > 0
             """)
@@ -77,7 +77,7 @@ async def get_role_based_stats(role: str) -> dict:
             cursor.execute("""
                 SELECT COUNT(*) as count
                 FROM invoices i
-                JOIN projects p ON i.project_id = p.project_id
+                JOIN projects p ON i.project_code = p.project_code
                 WHERE p.is_active_project = 1
                 AND i.due_date < date('now')
                 AND (i.invoice_amount - COALESCE(i.payment_amount, 0)) > 0
@@ -133,7 +133,7 @@ async def get_role_based_stats(role: str) -> dict:
             cursor.execute("""
                 SELECT COALESCE(SUM(i.invoice_amount - COALESCE(i.payment_amount, 0)), 0) as outstanding
                 FROM invoices i
-                JOIN projects p ON i.project_id = p.project_id
+                JOIN projects p ON i.project_code = p.project_code
                 WHERE p.is_active_project = 1
                 AND (i.invoice_amount - COALESCE(i.payment_amount, 0)) > 0
             """)
@@ -143,7 +143,7 @@ async def get_role_based_stats(role: str) -> dict:
             cursor.execute("""
                 SELECT COALESCE(SUM(i.invoice_amount - COALESCE(i.payment_amount, 0)), 0) as overdue
                 FROM invoices i
-                JOIN projects p ON i.project_id = p.project_id
+                JOIN projects p ON i.project_code = p.project_code
                 WHERE p.is_active_project = 1
                 AND i.due_date < date('now', '-30 days')
                 AND (i.invoice_amount - COALESCE(i.payment_amount, 0)) > 0
@@ -154,7 +154,7 @@ async def get_role_based_stats(role: str) -> dict:
             cursor.execute("""
                 SELECT COALESCE(SUM(i.invoice_amount - COALESCE(i.payment_amount, 0)), 0) as overdue
                 FROM invoices i
-                JOIN projects p ON i.project_id = p.project_id
+                JOIN projects p ON i.project_code = p.project_code
                 WHERE p.is_active_project = 1
                 AND i.due_date < date('now', '-60 days')
                 AND (i.invoice_amount - COALESCE(i.payment_amount, 0)) > 0
@@ -165,7 +165,7 @@ async def get_role_based_stats(role: str) -> dict:
             cursor.execute("""
                 SELECT COALESCE(SUM(i.invoice_amount - COALESCE(i.payment_amount, 0)), 0) as overdue
                 FROM invoices i
-                JOIN projects p ON i.project_id = p.project_id
+                JOIN projects p ON i.project_code = p.project_code
                 WHERE p.is_active_project = 1
                 AND i.due_date < date('now', '-90 days')
                 AND (i.invoice_amount - COALESCE(i.payment_amount, 0)) > 0
@@ -176,7 +176,7 @@ async def get_role_based_stats(role: str) -> dict:
             cursor.execute("""
                 SELECT COALESCE(SUM(i.payment_amount), 0) as recent_payments
                 FROM invoices i
-                JOIN projects p ON i.project_id = p.project_id
+                JOIN projects p ON i.project_code = p.project_code
                 WHERE p.is_active_project = 1
                 AND i.payment_date >= date('now', '-7 days')
                 AND i.payment_date <= date('now')
@@ -361,7 +361,7 @@ async def get_dashboard_kpis(
         cursor.execute("""
             SELECT COALESCE(SUM(i.payment_amount), 0) as total_paid
             FROM invoices i
-            JOIN projects p ON i.project_id = p.project_id
+            JOIN projects p ON i.project_code = p.project_code
             WHERE p.is_active_project = 1
         """)
         paid_for_active = cursor.fetchone()['total_paid'] or 0
@@ -371,7 +371,7 @@ async def get_dashboard_kpis(
         cursor.execute("""
             SELECT COALESCE(SUM(i.invoice_amount - COALESCE(i.payment_amount, 0)), 0) as outstanding
             FROM invoices i
-            JOIN projects p ON i.project_id = p.project_id
+            JOIN projects p ON i.project_code = p.project_code
             WHERE p.is_active_project = 1
             AND (i.invoice_amount - COALESCE(i.payment_amount, 0)) > 0
         """)
@@ -410,7 +410,7 @@ async def get_dashboard_kpis(
         cursor.execute("""
             SELECT COALESCE(SUM(i.invoice_amount - COALESCE(i.payment_amount, 0)), 0) as outstanding
             FROM invoices i
-            JOIN projects p ON i.project_id = p.project_id
+            JOIN projects p ON i.project_code = p.project_code
             WHERE p.is_active_project = 1
             AND (i.invoice_amount - COALESCE(i.payment_amount, 0)) > 0
         """)
@@ -420,7 +420,7 @@ async def get_dashboard_kpis(
         cursor.execute("""
             SELECT COALESCE(SUM(i.invoice_amount - COALESCE(i.payment_amount, 0)), 0) as outstanding
             FROM invoices i
-            JOIN projects p ON i.project_id = p.project_id
+            JOIN projects p ON i.project_code = p.project_code
             WHERE p.is_active_project = 1
             AND i.invoice_date <= date('now', '-30 days')
             AND (i.invoice_amount - COALESCE(i.payment_amount, 0)) > 0
@@ -551,7 +551,7 @@ async def get_dashboard_kpis(
             SELECT COUNT(*) as count,
                    COALESCE(SUM(i.invoice_amount - COALESCE(i.payment_amount, 0)), 0) as amount
             FROM invoices i
-            JOIN projects p ON i.project_id = p.project_id
+            JOIN projects p ON i.project_code = p.project_code
             WHERE p.is_active_project = 1
             AND i.due_date < date('now')
             AND (i.invoice_amount - COALESCE(i.payment_amount, 0)) > 0
@@ -638,7 +638,7 @@ async def get_decision_tiles():
         cursor.execute("""
             SELECT COUNT(*) as count, COALESCE(SUM(i.invoice_amount - COALESCE(i.payment_amount, 0)), 0) as amount
             FROM invoices i
-            JOIN projects p ON i.project_id = p.project_id
+            JOIN projects p ON i.project_code = p.project_code
             WHERE p.is_active_project = 1
             AND i.due_date < date('now')
             AND (i.invoice_amount - COALESCE(i.payment_amount, 0)) > 0

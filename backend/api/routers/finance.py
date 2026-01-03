@@ -46,13 +46,13 @@ async def get_dashboard_metrics():
         """)
         project_row = cursor.fetchone()
 
-        # Get invoice totals
+        # Get invoice totals (join on project_code since project_id is NULL)
         cursor.execute("""
             SELECT
                 COALESCE(SUM(invoice_amount), 0) as total_invoiced,
                 COALESCE(SUM(payment_amount), 0) as total_paid
             FROM invoices i
-            JOIN projects p ON i.project_id = p.project_id
+            JOIN projects p ON i.project_code = p.project_code
             WHERE p.is_active_project = 1
         """)
 
@@ -102,13 +102,13 @@ async def get_recent_payments(limit: int = Query(5, ge=1, le=50)):
             SELECT
                 i.invoice_id,
                 i.invoice_number,
-                p.project_code,
-                p.project_title as project_name,
+                COALESCE(p.project_code, i.project_code) as project_code,
+                COALESCE(p.project_title, i.project_code) as project_name,
                 i.payment_date as paid_on,
                 i.payment_amount as amount_usd,
                 i.status
             FROM invoices i
-            LEFT JOIN projects p ON i.project_id = p.project_id
+            LEFT JOIN projects p ON i.project_code = p.project_code
             WHERE i.payment_date IS NOT NULL
               AND i.payment_amount IS NOT NULL
               AND i.payment_amount > 0
@@ -144,12 +144,12 @@ async def get_projected_invoices(limit: int = Query(5, ge=1, le=50)):
                 p.total_fee_usd,
                 COALESCE(inv.total_invoiced, 0) as total_invoiced_usd,
                 (p.total_fee_usd - COALESCE(inv.total_invoiced, 0)) as remaining_to_invoice,
-                p.current_phase
+                p.project_phase as current_phase
             FROM projects p
             LEFT JOIN (
-                SELECT project_id, SUM(invoice_amount) as total_invoiced
-                FROM invoices GROUP BY project_id
-            ) inv ON p.project_id = inv.project_id
+                SELECT project_code, SUM(invoice_amount) as total_invoiced
+                FROM invoices GROUP BY project_code
+            ) inv ON p.project_code = inv.project_code
             WHERE p.is_active_project = 1
               AND (p.total_fee_usd - COALESCE(inv.total_invoiced, 0)) > 0
             ORDER BY remaining_to_invoice DESC
@@ -185,11 +185,11 @@ async def get_projects_by_outstanding(limit: int = Query(5, ge=1, le=50)):
                 COALESCE(inv.total_paid, 0) as total_paid_usd
             FROM projects p
             LEFT JOIN (
-                SELECT project_id,
+                SELECT project_code,
                        SUM(invoice_amount) as total_invoiced,
                        SUM(COALESCE(payment_amount, 0)) as total_paid
-                FROM invoices GROUP BY project_id
-            ) inv ON p.project_id = inv.project_id
+                FROM invoices GROUP BY project_code
+            ) inv ON p.project_code = inv.project_code
             WHERE (COALESCE(inv.total_invoiced, 0) - COALESCE(inv.total_paid, 0)) > 0
             ORDER BY outstanding_balance_usd DESC
             LIMIT ?
@@ -219,8 +219,8 @@ async def get_oldest_unpaid_invoices(limit: int = Query(5, ge=1, le=50)):
             SELECT
                 i.invoice_id,
                 i.invoice_number,
-                p.project_code,
-                p.project_title as project_name,
+                COALESCE(p.project_code, i.project_code) as project_code,
+                COALESCE(p.project_title, i.project_code) as project_name,
                 i.invoice_date,
                 i.due_date,
                 i.invoice_amount,
@@ -239,7 +239,7 @@ async def get_oldest_unpaid_invoices(limit: int = Query(5, ge=1, le=50)):
                     ELSE '90+ days'
                 END as aging_bucket
             FROM invoices i
-            LEFT JOIN projects p ON i.project_id = p.project_id
+            LEFT JOIN projects p ON i.project_code = p.project_code
             WHERE i.status IN ('unpaid', 'partial', 'outstanding')
               AND i.invoice_date IS NOT NULL
               AND (i.invoice_amount - COALESCE(i.payment_amount, 0)) > 0
@@ -276,9 +276,9 @@ async def get_projects_by_remaining(limit: int = Query(5, ge=1, le=50)):
                 (p.total_fee_usd - COALESCE(inv.total_invoiced, 0)) as remaining_value
             FROM projects p
             LEFT JOIN (
-                SELECT project_id, SUM(invoice_amount) as total_invoiced
-                FROM invoices GROUP BY project_id
-            ) inv ON p.project_id = inv.project_id
+                SELECT project_code, SUM(invoice_amount) as total_invoiced
+                FROM invoices GROUP BY project_code
+            ) inv ON p.project_code = inv.project_code
             WHERE p.is_active_project = 1
               AND (p.total_fee_usd - COALESCE(inv.total_invoiced, 0)) > 0
             ORDER BY remaining_value DESC
