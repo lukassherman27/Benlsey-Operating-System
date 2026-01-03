@@ -1228,9 +1228,11 @@ async def get_proposals_summary():
 
 
 @router.post("/proposals/{project_code}/chat")
+@limiter.limit("10/minute")
 async def chat_about_proposal(
+    request: Request,
     project_code: str,
-    request: dict,
+    body: dict,
     current_user: dict = Depends(get_current_user)
 ):
     """
@@ -1260,9 +1262,9 @@ async def chat_about_proposal(
     import json
     from openai import OpenAI
 
-    question = request.get("question", "")
-    use_ai = request.get("use_ai", True)
-    history = request.get("history", [])  # Conversation history
+    question = body.get("question", "")
+    use_ai = body.get("use_ai", True)
+    history = body.get("history", [])  # Conversation history
 
     if not question:
         raise HTTPException(status_code=400, detail="Question is required")

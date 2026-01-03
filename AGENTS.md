@@ -4,29 +4,37 @@
 
 ---
 
-## RULE #1: VERIFY YOUR BRANCH (BEFORE ANYTHING ELSE)
+## RULE #1: USE THE LAUNCHER (ENFORCED)
 
+### For Humans - Launch an Agent
 ```bash
-# RUN THIS FIRST - EVERY SESSION - NO EXCEPTIONS
-git branch --show-current
-git status
+./launch_agent.sh claude 370           # Claude works on issue #370
+./launch_agent.sh codex 370 --review 371  # Codex reviews PR #371
+./launch_agent.sh gemini 372           # Gemini works on issue #372
 ```
 
-**If you're on the wrong branch, STOP and fix it:**
+The launcher automatically:
+- Creates/switches to correct branch
+- Sets git author to agent name
+- Adds label to issue
+- Sets EXPECTED_BRANCH for hook enforcement
+
+### For Agents - Already Launched
+If you're an agent that was launched with the script above, just verify:
 ```bash
-git checkout <correct-branch>
-# OR create it:
-git checkout main && git pull && git checkout -b <correct-branch>
+git branch --show-current  # Should match your assigned branch
+echo $EXPECTED_BRANCH      # Should be set
 ```
 
-**BEFORE EVERY COMMIT:**
-```bash
-git branch --show-current  # VERIFY THIS MATCHES YOUR ISSUE
-git add -A && git commit -m "type(scope): description #ISSUE"
-```
+### What's Enforced (Not Just Documented)
+| Protection | Mechanism |
+|------------|-----------|
+| No commits to main | `.githooks/pre-commit` blocks it |
+| No pushes to main | GitHub branch protection |
+| Wrong branch detection | EXPECTED_BRANCH env var |
+| PRs required | GitHub branch protection |
 
-> **WHY THIS RULE EXISTS:** Agents keep committing to wrong branches, wasting hours of work.
-> A pre-commit hook blocks commits to main, but YOU must verify you're on the RIGHT feature branch.
+> **DO NOT** run `git checkout main`. Stay on your feature branch.
 
 ---
 
@@ -128,9 +136,12 @@ chore/short-desc-ISSUE#   # Cleanup
 
 ### Before Starting:
 ```bash
-git checkout main
-git pull origin main
-git checkout -b feat/your-feature-123
+# Get on your branch (handles both new and existing branches)
+git fetch origin
+git checkout feat/your-feature-123 2>/dev/null || git checkout -b feat/your-feature-123 origin/main
+
+# Set expected branch for hook enforcement
+export EXPECTED_BRANCH=feat/your-feature-123
 ```
 
 ### Before Pushing:

@@ -1,37 +1,16 @@
-# CODEOWNERS - Defines ownership areas for the BDS Platform
-# When a PR touches these files, GitHub shows which area is affected
-# This helps Claude agents understand what they're impacting
+# CODEOWNERS - Who reviews what
 
-# Backend Services - Core Logic
-/backend/services/pattern*.py           @email-team
-/backend/services/email*.py             @email-team
-/backend/services/learning*.py          @email-team
-/backend/services/suggestion*.py        @email-team
-/backend/services/*invoice*.py          @finance-team
-/backend/services/*proposal*.py         @proposals-team
-/backend/services/*project*.py          @projects-team
+# Default: Lukas reviews everything
+* @lukassherman27
 
-# API Routers
-/backend/api/routers/emails*.py         @email-team
-/backend/api/routers/proposals*.py      @proposals-team
-/backend/api/routers/projects*.py       @projects-team
-/backend/api/routers/invoices*.py       @finance-team
-/backend/api/routers/dashboard*.py      @dashboard-team
+# Backend changes
+/backend/ @lukassherman27
 
-# Frontend Components
-/frontend/src/components/proposals/     @proposals-team
-/frontend/src/components/projects/      @projects-team
-/frontend/src/components/dashboard/     @dashboard-team
-/frontend/src/components/emails/        @email-team
+# Frontend changes  
+/frontend/ @lukassherman27
 
-# Database
-/database/migrations/                   @database-team
+# Database changes need extra attention
+/database/ @lukassherman27
 
 # Scripts
-/scripts/core/                          @automation-team
-
-# Documentation - Everyone should be aware
-/CLAUDE.md                              @all-agents
-/.claude/STATUS.md                      @all-agents
-/.claude/HANDOFF.md                     @all-agents
-/docs/                                  @all-agents
+/scripts/ @lukassherman27

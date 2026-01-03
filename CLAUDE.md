@@ -7,16 +7,27 @@
 ## EVERY SESSION - DO THIS FIRST
 
 ```bash
-# 1. Where am I?
+# 1. SETUP (first time only)
+./scripts/setup-repo.sh   # Configures git hooks
+
+# 2. WHERE AM I? (every session)
 git branch --show-current
 git status
 
-# 2. What Issues exist?
-gh issue list --state open --limit 10
+# 3. GET ON YOUR BRANCH (if not already)
+# Use this command - it works whether branch exists or not:
+git fetch origin
+git checkout feat/my-feature-123 2>/dev/null || git checkout -b feat/my-feature-123 origin/main
 
-# 3. Am I on main? If so, pick an issue and create a branch
-git checkout main && git pull origin main
+# 4. SET EXPECTED_BRANCH (enforced by pre-commit hook)
+export EXPECTED_BRANCH=feat/my-feature-123
+
+# 5. VERIFY
+git branch --show-current  # MUST match your issue's branch
 ```
+
+**WARNING:** Do NOT run `git checkout main`. Stay on your feature branch.
+If you need latest main: `git fetch origin && git rebase origin/main`
 
 ---
 
@@ -110,11 +121,23 @@ git commit -m "chore(scripts): archive one-time backfill scripts"
 When multiple Claude agents work on the same codebase:
 
 1. **Each agent = one Issue = one branch** - Never share branches
-2. **Pull before starting** - `git pull origin main`
-3. **Push before ending** - Don't leave uncommitted work
-4. **Don't touch files another agent owns** - Check `git log --oneline -5 FILE`
-5. **Create PRs, don't merge directly** - Let human review
-6. **Notify related issues after merge** - Comment on other open issues your changes affect
+2. **Use worktrees for parallel work** (see below)
+3. **Set EXPECTED_BRANCH** - The hook enforces it
+4. **Push before ending** - Don't leave uncommitted work
+5. **Create PRs, don't merge directly** - main is protected
+6. **Notify related issues after merge** - Comment on affected issues
+
+### Worktrees (RECOMMENDED for parallel agents)
+
+```bash
+# Create isolated worktrees - agents CAN'T commit to wrong branch
+git worktree add ../bds-agent-1 -b feat/feature-1-123
+git worktree add ../bds-agent-2 -b feat/feature-2-124
+
+# Each agent works in their own directory
+# Agent 1 prompt: "cd ../bds-agent-1 && ..."
+# Agent 2 prompt: "cd ../bds-agent-2 && ..."
+```
 
 ### Cross-Issue Notification (MANDATORY)
 
