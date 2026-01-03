@@ -1,8 +1,10 @@
 "use client";
 
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { MarkLostDialog } from "@/components/proposals/quick-action-dialogs";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -114,6 +116,10 @@ export function ProposalTable({
 }: ProposalTableProps) {
   const router = useRouter();
   const queryClient = useQueryClient();
+
+  // Lost reason modal state (intercept status dropdown changes to "Lost")
+  const [lostDialogOpen, setLostDialogOpen] = useState(false);
+  const [lostDialogProposal, setLostDialogProposal] = useState<ProposalTrackerItem | null>(null);
 
   // Quick status update mutation
   const updateStatusMutation = useMutation({
@@ -400,6 +406,12 @@ export function ProposalTable({
                       <Select
                         value={proposal.current_status}
                         onValueChange={(value) => {
+                          // Intercept "Lost" status to show lost reason modal
+                          if (value === "Lost") {
+                            setLostDialogProposal(proposal);
+                            setLostDialogOpen(true);
+                            return;
+                          }
                           updateStatusMutation.mutate({
                             projectCode: proposal.project_code,
                             newStatus: value,
@@ -754,6 +766,13 @@ export function ProposalTable({
           </div>
         )}
       </CardContent>
+
+      {/* Lost Reason Dialog - triggered when status dropdown changes to "Lost" */}
+      <MarkLostDialog
+        proposal={lostDialogProposal}
+        open={lostDialogOpen}
+        onOpenChange={setLostDialogOpen}
+      />
     </Card>
   );
 }
