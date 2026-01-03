@@ -33,7 +33,7 @@ from functools import lru_cache
 def get_db_path() -> str:
     """Get database path from environment or default to OneDrive location"""
     return os.getenv(
-        'BENSLEY_DB_PATH',
+        'DATABASE_PATH',
         'database/bensley_master.db'
     )
 

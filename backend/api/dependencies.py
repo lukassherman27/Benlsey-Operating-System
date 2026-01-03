@@ -27,7 +27,7 @@ security = HTTPBearer(auto_error=False)
 
 # Database path - use environment variable with fallback
 DB_PATH = os.getenv(
-    'BENSLEY_DB_PATH',
+    'DATABASE_PATH',
     os.path.join(
         Path(__file__).parent.parent.parent,
         "database",
