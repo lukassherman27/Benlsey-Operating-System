@@ -21,6 +21,7 @@ PROPOSAL_STATUSES = [
     'Proposal Prep',
     'Proposal Sent',
     'Negotiation',
+    'MOU Signed',
     'On Hold',
     'Contract Signed',
     'Lost',
@@ -37,6 +38,7 @@ ACTIVE_PIPELINE_STATUSES = [
     'Proposal Prep',
     'Proposal Sent',
     'Negotiation',
+    'MOU Signed',
 ]
 
 # Statuses where proposal is still "alive" but paused
@@ -76,12 +78,13 @@ STATUS_ORDER: Dict[str, int] = {
     'Proposal Prep': 4,
     'Proposal Sent': 5,
     'Negotiation': 6,
-    'On Hold': 7,
-    'Contract Signed': 8,
-    'Lost': 9,
-    'Declined': 10,
-    'Dormant': 11,
-    'Cancelled': 12,
+    'MOU Signed': 7,
+    'On Hold': 8,
+    'Contract Signed': 9,
+    'Lost': 10,
+    'Declined': 11,
+    'Dormant': 12,
+    'Cancelled': 13,
 }
 
 
@@ -93,9 +96,10 @@ STATUS_ORDER: Dict[str, int] = {
 FIELD_NAME_MAPPING: Dict[str, str] = {
     'current_status': 'status',
     'current_remark': 'remarks',
-    'project_summary': 'scope_summary',
+    'project_summary': 'notes',
     'waiting_on': 'waiting_for',
     'next_steps': 'next_action',
+    'internal_notes': 'status_notes',
 }
 
 # Fields allowed to be updated via API

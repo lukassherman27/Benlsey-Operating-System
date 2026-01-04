@@ -934,8 +934,10 @@ async def get_proposal_documents(project_code: str, current_user: dict = Depends
         if not row:
             raise HTTPException(status_code=404, detail=f"Proposal {project_code} not found")
 
-        proposal_id = row["proposal_id"]
+        proposal_id = row["proposal_id"] or -1
         project_name = row["project_name"]
+        code_part = project_code.split()[-1] if " " in project_code else project_code
+        filename_pattern = f"%{code_part}%"
 
         # Get attachments linked to this proposal
         cursor.execute("""
@@ -945,6 +947,7 @@ async def get_proposal_documents(project_code: str, current_user: dict = Depends
                 ea.filesize as file_size,
                 ea.mime_type as document_type,
                 ea.document_type as category,
+                ea.version_number,
                 ea.is_signed,
                 ea.ai_summary,
                 ea.created_at as modified_date,
@@ -952,10 +955,9 @@ async def get_proposal_documents(project_code: str, current_user: dict = Depends
                 e.date as email_date
             FROM email_attachments ea
             JOIN emails e ON ea.email_id = e.email_id
-            WHERE ea.proposal_id = ?
-            AND ea.is_junk = 0
+            WHERE (ea.proposal_id = ? OR ea.filename LIKE ?)
             ORDER BY ea.created_at DESC
-        """, (proposal_id,))
+        """, (proposal_id, filename_pattern))
 
         documents = [dict(row) for row in cursor.fetchall()]
         conn.close()

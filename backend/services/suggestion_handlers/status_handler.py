@@ -14,17 +14,19 @@ from .registry import register_handler
 
 # Valid status transitions for proposals - Full Lifecycle
 # IMPORTANT: These use TitleCase to match database values
-# Flow: First Contact → Meeting Held → Proposal Prep → Proposal Sent → Negotiation
-#       → Contract Signed (win) or Lost/Declined/Dormant
+# Flow: First Contact → Meeting Held → NDA Signed → Proposal Prep → Proposal Sent
+#       → Negotiation → MOU Signed → Contract Signed (win) or Lost/Declined/Dormant
 VALID_STATUSES = [
     # Early stages (TitleCase - matches DB)
     'First Contact',     # New lead comes in
     'Meeting Held',      # Call/meeting completed
+    'NDA Signed',        # NDA executed
     'Proposal Prep',     # Working on proposal
 
     # Proposal sent and beyond
     'Proposal Sent',     # Proposal sent to client
     'Negotiation',       # Discussing fees, scope, terms
+    'MOU Signed',        # MOU signed, contract pending
 
     # Final outcomes
     'Contract Signed',   # Won - contract signed!
@@ -37,13 +39,15 @@ VALID_STATUSES = [
     'proposal_sent',     # → maps to 'Proposal Sent'
     'first_contact',     # → maps to 'First Contact'
     'meeting_held',      # → maps to 'Meeting Held'
+    'nda_signed',        # → maps to 'NDA Signed'
     'proposal_prep',     # → maps to 'Proposal Prep'
     'negotiation',       # → maps to 'Negotiation'
+    'mou_signed',        # → maps to 'MOU Signed'
     'contract_signed',   # → maps to 'Contract Signed'
     'lost',              # → maps to 'Lost'
     'declined',          # → maps to 'Declined'
     'dormant',           # → maps to 'Dormant'
-    'on_hold',           # → maps to 'On Hold'
+    'on_hold',           # → maps to 'On Hold',
 ]
 
 # Mapping from lowercase to TitleCase (for normalization)
@@ -51,8 +55,10 @@ STATUS_NORMALIZE = {
     'proposal_sent': 'Proposal Sent',
     'first_contact': 'First Contact',
     'meeting_held': 'Meeting Held',
+    'nda_signed': 'NDA Signed',
     'proposal_prep': 'Proposal Prep',
     'negotiation': 'Negotiation',
+    'mou_signed': 'MOU Signed',
     'contract_signed': 'Contract Signed',
     'lost': 'Lost',
     'declined': 'Declined',
