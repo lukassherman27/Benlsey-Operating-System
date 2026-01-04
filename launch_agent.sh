@@ -31,7 +31,7 @@ if [ -z "$AGENT" ] || [ -z "$ISSUE" ]; then
     echo ""
     echo "Usage: ./launch_agent.sh <agent> <issue_number> [--review <pr_number>]"
     echo ""
-    echo "Agents: claude, codex, gemini"
+    echo "Agents: claude, codex"
     echo ""
     echo "Examples:"
     echo "  ./launch_agent.sh claude 370              # Work on issue #370"
@@ -55,14 +55,9 @@ case "$AGENT_LOWER" in
         GIT_EMAIL="noreply@openai.com"
         LABEL="agent:codex"
         ;;
-    gemini)
-        GIT_NAME="Gemini"
-        GIT_EMAIL="noreply@google.com"
-        LABEL="agent:gemini"
-        ;;
     *)
         echo "Unknown agent: $AGENT"
-        echo "Valid agents: claude, codex, gemini"
+        echo "Valid agents: claude, codex"
         exit 1
         ;;
 esac
