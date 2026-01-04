@@ -1,6 +1,6 @@
 # AGENTS.md - Multi-Agent Coordination Rules
 
-> **This file is LAW.** All AI agents (Claude, Codex, Gemini, etc.) must follow these rules.
+> **This file is LAW.** All AI agents (Claude, Codex) must follow these rules.
 
 ---
 
@@ -10,7 +10,6 @@
 ```bash
 ./launch_agent.sh claude 370           # Claude works on issue #370
 ./launch_agent.sh codex 370 --review 371  # Codex reviews PR #371
-./launch_agent.sh gemini 372           # Gemini works on issue #372
 ```
 
 The launcher automatically:

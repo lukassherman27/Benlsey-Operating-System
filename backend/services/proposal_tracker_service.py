@@ -19,6 +19,10 @@ from .proposal_constants import (
     UPDATABLE_PROPOSAL_FIELDS,
     FIELD_NAME_MAPPING,
 )
+from .proposal_to_project_service import on_contract_signed
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class ProposalTrackerService(BaseService):
@@ -499,7 +503,7 @@ class ProposalTrackerService(BaseService):
                     COALESCE(p.proposal_sent_date, '') as proposal_sent_date,
                     CASE WHEN p.proposal_sent_date IS NOT NULL THEN 1 ELSE 0 END as proposal_sent,
                     COALESCE(p.remarks, p.status_notes, p.correspondence_summary, '') as current_remark,
-                    COALESCE(p.scope_summary, '') as project_summary,
+                    COALESCE(p.notes, p.status_notes, p.correspondence_summary, '') as project_summary,
                     '' as latest_email_context,
                     COALESCE(p.waiting_for, '') as waiting_on,
                     COALESCE(p.next_action, '') as next_steps,
@@ -621,6 +625,23 @@ class ProposalTrackerService(BaseService):
                     status_date,
                     '; '.join(notes_parts) if notes_parts else None
                 ))
+
+                # Issue #423: Trigger proposal→project transition when Contract Signed
+                if new_status == WON_STATUS and old_status != WON_STATUS:
+                    try:
+                        transition_result = on_contract_signed(
+                            conn=conn,
+                            proposal_id=current.get('id'),
+                            contract_signed_date=status_date
+                        )
+                        logger.info(
+                            f"Proposal→Project transition completed for {project_code}: "
+                            f"project_id={transition_result.get('project_id')}, "
+                            f"emails_copied={transition_result.get('emails_in_project_links')}"
+                        )
+                    except Exception as e:
+                        logger.error(f"Proposal→Project transition failed for {project_code}: {e}")
+                        # Don't fail the status update, just log the error
 
             conn.commit()
 

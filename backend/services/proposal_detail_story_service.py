@@ -111,6 +111,14 @@ class ProposalDetailStoryService(BaseService):
                 "current_status": current_status
             }
 
+    def _table_exists(self, cursor, table_name: str) -> bool:
+        """Check if a table exists in the current database."""
+        cursor.execute(
+            "SELECT 1 FROM sqlite_master WHERE type='table' AND name = ? LIMIT 1",
+            (table_name,),
+        )
+        return cursor.fetchone() is not None
+
     def _get_proposal(self, cursor, project_code: str) -> Optional[Dict]:
         """Get full proposal details from proposals table."""
         cursor.execute("""
@@ -119,12 +127,17 @@ class ProposalDetailStoryService(BaseService):
                 status, current_status,
                 client_company, contact_person, contact_email,
                 project_value, currency,
-                remarks, correspondence_summary, internal_notes, scope_summary,
-                waiting_for, waiting_since, ball_in_court,
+                remarks, correspondence_summary,
+                status_notes as internal_notes,
+                notes as scope_summary,
+                waiting_for,
+                ball_in_court,
                 next_action, next_action_date,
-                last_action, last_contact_date,
+                last_contact_date,
                 first_contact_date, proposal_sent_date,
-                num_proposals_sent,
+                NULL as waiting_since,
+                NULL as last_action,
+                0 as num_proposals_sent,
                 created_at
             FROM proposals WHERE project_code = ?
         """, (project_code,))
@@ -141,7 +154,7 @@ class ProposalDetailStoryService(BaseService):
                 e.sender_name,
                 e.date,
                 e.snippet,
-                e.email_direction,
+                e.direction as email_direction,
                 ec.category,
                 ec.subcategory,
                 ec.ai_summary,
@@ -166,7 +179,7 @@ class ProposalDetailStoryService(BaseService):
             SELECT
                 ea.attachment_id, ea.email_id, ea.filename, ea.filepath,
                 ea.mime_type, ea.document_type, e.date as email_date, e.subject,
-                e.email_direction
+                e.direction as email_direction
             FROM email_attachments ea
             JOIN emails e ON ea.email_id = e.email_id
             WHERE ea.proposal_id = ?
@@ -178,6 +191,8 @@ class ProposalDetailStoryService(BaseService):
 
     def _get_formal_documents(self, cursor, proposal_id: int, project_code: str) -> List[Dict]:
         """Get formal proposal documents from proposal_documents table."""
+        if not self._table_exists(cursor, "proposal_documents"):
+            return []
         cursor.execute("""
             SELECT * FROM proposal_documents
             WHERE proposal_id = ? OR project_code = ?
@@ -188,12 +203,14 @@ class ProposalDetailStoryService(BaseService):
     def _get_events(self, cursor, proposal_id: int, project_code: str) -> List[Dict]:
         """Get events including meetings with transcript data."""
         # Get from proposal_events table
-        cursor.execute("""
-            SELECT * FROM proposal_events
-            WHERE proposal_id = ? OR project_code = ?
-            ORDER BY event_date ASC
-        """, (proposal_id, project_code))
-        events = [dict(row) for row in cursor.fetchall()]
+        events: List[Dict] = []
+        if self._table_exists(cursor, "proposal_events"):
+            cursor.execute("""
+                SELECT * FROM proposal_events
+                WHERE proposal_id = ? OR project_code = ?
+                ORDER BY event_date ASC
+            """, (proposal_id, project_code))
+            events = [dict(row) for row in cursor.fetchall()]
 
         # Also get from meetings table with transcript data
         cursor.execute("""
