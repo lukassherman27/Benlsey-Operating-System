@@ -7,12 +7,15 @@
 export { type ProposalStatus } from "./types";
 import type { ProposalStatus } from "./types";
 
-// Status colors for UI components
+// Status colors for UI components (workflow order)
 export const STATUS_COLORS: Record<ProposalStatus, string> = {
   "First Contact": "bg-blue-100 text-blue-800 border-blue-200",
+  "Meeting Held": "bg-sky-100 text-sky-800 border-sky-200",
+  "NDA Signed": "bg-indigo-100 text-indigo-800 border-indigo-200",
   "Proposal Prep": "bg-yellow-100 text-yellow-800 border-yellow-200",
   "Proposal Sent": "bg-amber-100 text-amber-800 border-amber-200",
   "Negotiation": "bg-purple-100 text-purple-800 border-purple-200",
+  "MOU Signed": "bg-teal-100 text-teal-800 border-teal-200",
   "On Hold": "bg-gray-100 text-gray-700 border-gray-200",
   "Contract Signed": "bg-emerald-100 text-emerald-800 border-emerald-200",
   "Lost": "bg-red-100 text-red-700 border-red-200",

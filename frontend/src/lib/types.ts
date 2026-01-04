@@ -818,9 +818,12 @@ export interface ProposalWeeklyChanges {
 // Proposal Tracker Types - matches database values exactly
 export type ProposalStatus =
   | "First Contact"
+  | "Meeting Held"
+  | "NDA Signed"
   | "Proposal Prep"
   | "Proposal Sent"
   | "Negotiation"
+  | "MOU Signed"
   | "On Hold"
   | "Contract Signed"
   | "Lost"

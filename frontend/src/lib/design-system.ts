@@ -360,9 +360,12 @@ export function getActivityColor(days: number): { bg: string; text: string; labe
 // =============================================================================
 export const proposalStatusColors: Record<string, { bg: string; fill: string; text: string }> = {
   "First Contact": { bg: "bg-blue-50", fill: "bg-blue-400", text: "text-blue-700" },
+  "Meeting Held": { bg: "bg-sky-50", fill: "bg-sky-400", text: "text-sky-700" },
+  "NDA Signed": { bg: "bg-indigo-50", fill: "bg-indigo-400", text: "text-indigo-700" },
   "Proposal Prep": { bg: "bg-yellow-50", fill: "bg-yellow-500", text: "text-yellow-700" },
   "Proposal Sent": { bg: "bg-amber-50", fill: "bg-amber-500", text: "text-amber-700" },
   "Negotiation": { bg: "bg-purple-50", fill: "bg-purple-500", text: "text-purple-700" },
+  "MOU Signed": { bg: "bg-teal-50", fill: "bg-teal-500", text: "text-teal-700" },
   "On Hold": { bg: "bg-gray-100", fill: "bg-gray-400", text: "text-gray-600" },
   "Contract Signed": { bg: "bg-emerald-50", fill: "bg-emerald-500", text: "text-emerald-700" },
   "Lost": { bg: "bg-red-50", fill: "bg-red-400", text: "text-red-600" },
@@ -370,12 +373,15 @@ export const proposalStatusColors: Record<string, { bg: string; fill: string; te
   "Dormant": { bg: "bg-slate-100", fill: "bg-slate-400", text: "text-slate-500" },
 };
 
-// All valid proposal statuses
+// All valid proposal statuses (workflow order)
 export const ALL_PROPOSAL_STATUSES = [
   "First Contact",
+  "Meeting Held",
+  "NDA Signed",
   "Proposal Prep",
   "Proposal Sent",
   "Negotiation",
+  "MOU Signed",
   "On Hold",
   "Contract Signed",
   "Lost",
